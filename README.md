@@ -1,4 +1,4 @@
-# Become An Author (NovelCrafter Clone)
+# Become An Author 
 
 **Become An Author** is a powerful, offline-first novel writing application designed to help authors plan, write, and organize their stories. Built with modern web technologies, it offers a seamless writing experience with advanced features like AI assistance, world-building tools (Codex), and comprehensive manuscript management.
 
