@@ -20,6 +20,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/lib/toast-service';
+import { NodeActionsMenu } from '@/components/node-actions-menu';
 
 import { ProjectSettingsDialog } from '@/components/project-settings-dialog';
 
@@ -115,30 +116,11 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                             </Button>
                         )}
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <MoreVertical className="h-3 w-3" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteNode(node.id, node.type as any);
-                                    }}
-                                >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <NodeActionsMenu
+                            nodeId={node.id}
+                            nodeType={node.type as 'act' | 'chapter' | 'scene'}
+                            onDelete={handleDeleteNode}
+                        />
                     </div>
                 </div>
 

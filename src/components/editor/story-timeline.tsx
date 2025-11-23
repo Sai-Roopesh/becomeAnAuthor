@@ -9,9 +9,10 @@ import { useProjectStore } from '@/store/use-project-store';
 
 interface StoryTimelineProps {
     projectId: string;
+    activeSceneWordCount?: number;
 }
 
-export function StoryTimeline({ projectId }: StoryTimelineProps) {
+export function StoryTimeline({ projectId, activeSceneWordCount }: StoryTimelineProps) {
     const { activeSceneId, setActiveSceneId } = useProjectStore();
     const [collapsed, setCollapsed] = useState(false);
 
@@ -43,7 +44,7 @@ export function StoryTimeline({ projectId }: StoryTimelineProps) {
     }
 
     return (
-        <div className="h-full w-48 bg-muted/10 border-l flex flex-col">
+        <div className="h-full w-72 bg-muted/10 border-l flex flex-col">
             {/* Header */}
             <div className="p-3 border-b flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Timeline</h3>
@@ -70,13 +71,18 @@ export function StoryTimeline({ projectId }: StoryTimelineProps) {
                                 const isActive = scene.id === activeSceneId;
                                 const sceneData = scene as any;
 
+                                // Use live word count for active scene, stored for others
+                                const displayWordCount = isActive && activeSceneWordCount !== undefined
+                                    ? activeSceneWordCount
+                                    : (sceneData.wordCount || 0);
+
                                 return (
                                     <div key={scene.id} className="relative pl-8">
                                         {/* Marker dot */}
                                         <div
                                             className={`absolute left-2.5 top-1 h-3 w-3 rounded-full border-2 ${isActive
-                                                    ? 'bg-primary border-primary'
-                                                    : 'bg-background border-border'
+                                                ? 'bg-primary border-primary'
+                                                : 'bg-background border-border'
                                                 }`}
                                         />
 
@@ -92,11 +98,33 @@ export function StoryTimeline({ projectId }: StoryTimelineProps) {
                                             <div className="text-muted-foreground truncate mt-0.5">
                                                 {scene.title}
                                             </div>
-                                            {sceneData.wordCount && (
+
+                                            {/* Word Count */}
+                                            <div className="text-muted-foreground mt-1">
+                                                {displayWordCount.toLocaleString()} words
+                                            </div>
+
+                                            {/* POV */}
+                                            {sceneData.pov && (
                                                 <div className="text-muted-foreground mt-1">
-                                                    {sceneData.wordCount.toLocaleString()} words
+                                                    POV: {sceneData.pov}
                                                 </div>
                                             )}
+
+                                            {/* Subtitle */}
+                                            {sceneData.subtitle && (
+                                                <div className="text-muted-foreground mt-1 italic truncate">
+                                                    "{sceneData.subtitle}"
+                                                </div>
+                                            )}
+
+                                            {/* AI Context Status */}
+                                            <div className="mt-1 flex items-center gap-1">
+                                                <span className="text-muted-foreground">AI:</span>
+                                                <span className={sceneData.excludeFromAI ? 'text-orange-500' : 'text-green-500'}>
+                                                    {sceneData.excludeFromAI ? 'Excluded' : 'Included'}
+                                                </span>
+                                            </div>
                                         </button>
                                     </div>
                                 );

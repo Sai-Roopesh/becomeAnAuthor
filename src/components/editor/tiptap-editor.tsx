@@ -29,8 +29,7 @@ export function TiptapEditor({
     initialContent: any,
     onWordCountChange?: (count: number) => void
 }) {
-    const [content, setContent] = useState(initialContent);
-    const debouncedContent = useDebounce(content, 1000);
+    // Remove local state for content to prevent re-renders and serialization overhead
     const formatSettings = useFormatStore();
     const [showContinueMenu, setShowContinueMenu] = useState(false);
 
@@ -53,10 +52,7 @@ export function TiptapEditor({
         ],
         content: initialContent,
         onUpdate: ({ editor }) => {
-            const json = editor.getJSON();
-            setContent(json);
-
-            // Update word count
+            // Only update word count, DO NOT serialize JSON here
             if (onWordCountChange) {
                 const words = editor.storage.characterCount.words();
                 onWordCountChange(words);
@@ -79,7 +75,8 @@ export function TiptapEditor({
     });
 
     // Use custom hooks for business logic
-    useAutoSave(sceneId, content, debouncedContent);
+    // Pass editor instance directly to handle saves efficiently
+    useAutoSave(sceneId, editor);
     const { generate, isGenerating } = useAIGeneration(editor, sceneId);
 
 

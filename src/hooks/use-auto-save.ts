@@ -3,49 +3,90 @@
  * Handles debounced saves with error recovery and emergency backup
  */
 
-import { useEffect } from 'react';
+
+import { useEffect, useRef, useCallback } from 'react';
 import { db } from '@/lib/db';
 import { toast } from '@/lib/toast-service';
 import { storage } from '@/lib/safe-storage';
+import { Editor } from '@tiptap/react';
+import { useDebounce } from '@/hooks/use-debounce';
 
-export function useAutoSave(sceneId: string, content: any, debouncedContent: any) {
+export function useAutoSave(sceneId: string, editor: Editor | null) {
+    // Keep track of the latest editor instance and sceneId for cleanup
+    const editorRef = useRef(editor);
+    const sceneIdRef = useRef(sceneId);
+
+    // Track if we have unsaved changes
+    const hasUnsavedChanges = useRef(false);
+
+    // Update refs
     useEffect(() => {
-        if (!debouncedContent || !sceneId) return;
+        editorRef.current = editor;
+        sceneIdRef.current = sceneId;
+    }, [editor, sceneId]);
 
-        const saveContent = async () => {
+    const saveContent = useCallback(async (content: any, id: string) => {
+        try {
+            await db.nodes.update(id, {
+                content: content,
+                updatedAt: Date.now(),
+            } as any);
+            hasUnsavedChanges.current = false;
+        } catch (error) {
+            console.error('Save failed:', error);
+
+            // Emergency backup
             try {
-                await db.nodes.update(sceneId, {
-                    content: debouncedContent,
-                    updatedAt: Date.now(),
-                } as any); // TODO: Fix after Scene type is properly discriminated in DB
-                // Optionally show subtle success indicator
-                // toast.success('Saved', { duration: 1000 });
-            } catch (error) {
-                console.error('Save failed:', error);
-
-                // Show error notification with retry action
-                toast.error('Failed to save your work', {
-                    description: 'Your work has been backed up locally.',
-                    action: {
-                        label: 'Retry',
-                        onClick: () => saveContent(),
-                    },
-                    duration: 10000, // Show for 10 seconds
+                storage.setItem(`backup_scene_${id}`, {
+                    content: content,
+                    timestamp: Date.now(),
                 });
+            } catch (e) {
+                console.error('Backup failed', e);
+            }
 
-                // Emergency backup to localStorage
-                try {
-                    storage.setItem(`backup_scene_${sceneId}`, {
-                        content: debouncedContent,
-                        timestamp: Date.now(),
-                    });
-                } catch (backupError) {
-                    console.error('Emergency backup failed:', backupError);
-                    toast.error('Critical: Unable to backup your work. Please copy your text manually.');
-                }
+            toast.error('Failed to save work. Local backup created.');
+        }
+    }, []);
+
+    // Debounced save
+    useEffect(() => {
+        if (!editor || !sceneId) return;
+
+        const handleUpdate = () => {
+            hasUnsavedChanges.current = true;
+        };
+
+        editor.on('update', handleUpdate);
+
+        const interval = setInterval(() => {
+            if (hasUnsavedChanges.current && editor && !editor.isDestroyed) {
+                saveContent(editor.getJSON(), sceneId);
+            }
+        }, 1000); // Check every second, but only save if changed
+
+        return () => {
+            editor.off('update', handleUpdate);
+            clearInterval(interval);
+        };
+    }, [editor, sceneId, saveContent]);
+
+    // Force save on unmount / visibility change
+    useEffect(() => {
+        const handleUnload = () => {
+            if (editorRef.current && sceneIdRef.current && hasUnsavedChanges.current) {
+                // Synchronous attempt or best effort
+                const content = editorRef.current.getJSON();
+                // We can't await here reliably, but we can try
+                saveContent(content, sceneIdRef.current);
             }
         };
 
-        saveContent();
-    }, [debouncedContent, sceneId]);
+        window.addEventListener('beforeunload', handleUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            handleUnload(); // Also call on component unmount
+        };
+    }, [saveContent]);
 }

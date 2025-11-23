@@ -1,6 +1,9 @@
 import { db } from './db';
 import { CodexEntry } from './types';
 
+// Helper to yield to main thread to prevent blocking UI
+const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
+
 export async function assembleContext(sceneId: string | null, query: string): Promise<string> {
     let context = '';
     let relevantEntities: CodexEntry[] = [];
@@ -9,8 +12,8 @@ export async function assembleContext(sceneId: string | null, query: string): Pr
     if (sceneId) {
         const scene = await db.nodes.get(sceneId);
         if (scene && scene.type === 'scene') {
-            // Extract text from Tiptap JSON (simplified)
-            const sceneText = extractTextFromTiptap(scene.content);
+            // Extract text from Tiptap JSON (Async & Non-blocking)
+            const sceneText = await extractTextFromTiptap(scene.content);
             context += `CURRENT SCENE:\n${sceneText}\n\n`;
 
             // 2. Detect Entities in Scene + Query
@@ -37,11 +40,20 @@ export async function assembleContext(sceneId: string | null, query: string): Pr
     return context;
 }
 
-function extractTextFromTiptap(content: any): string {
+// Async recursive function with yielding
+async function extractTextFromTiptap(content: any): Promise<string> {
     if (!content) return '';
     if (typeof content === 'string') return content;
-    if (Array.isArray(content)) return content.map(extractTextFromTiptap).join(' ');
+
+    // Yield every now and then if processing large arrays
+    if (Array.isArray(content)) {
+        if (content.length > 50) await yieldToMain();
+        const parts = await Promise.all(content.map(extractTextFromTiptap));
+        return parts.join(' ');
+    }
+
     if (content.text) return content.text;
     if (content.content) return extractTextFromTiptap(content.content);
+
     return '';
 }

@@ -4,15 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Zap, Users, Share2, Lock, CreditCard, LogOut, Sun, Moon, Settings } from 'lucide-react';
 import { useState } from 'react';
-import { BackupButton } from '@/components/backup-button';
 import { AIConnectionsTab } from '@/components/settings/ai-connections-tab';
 import { useTheme } from 'next-themes';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { useFormatStore } from '@/store/use-format-store';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 export function SettingsDialog() {
     const [open, setOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('ai-connections');
     const { theme, setTheme } = useTheme();
+    const formatSettings = useFormatStore();
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -136,18 +142,107 @@ export function SettingsDialog() {
                         )}
 
                         {activeTab === 'general' && (
-                            <div className="p-6 bg-background">
-                                <h3 className="text-lg font-semibold mb-4">General Settings</h3>
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between p-4 border rounded-lg bg-card hover:shadow-md transition-shadow cursor-pointer">
-                                        <div>
-                                            <h4 className="text-sm font-medium">Backup & Restore</h4>
-                                            <p className="text-sm text-muted-foreground">
-                                                Export or import your data
-                                            </p>
+                            <div className="p-6 bg-background h-full overflow-y-auto">
+                                <h3 className="text-lg font-semibold mb-6">General Settings</h3>
+
+                                <div className="space-y-8">
+                                    {/* Appearance Section */}
+                                    <section className="space-y-4">
+                                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Appearance</h4>
+                                        <div className="grid gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="font-family">Font Family</Label>
+                                                <Select
+                                                    value={formatSettings.fontFamily}
+                                                    onValueChange={(value) => formatSettings.updateSettings({ fontFamily: value })}
+                                                >
+                                                    <SelectTrigger className="w-[180px]">
+                                                        <SelectValue placeholder="Select font" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Georgia">Georgia (Serif)</SelectItem>
+                                                        <SelectItem value="Merriweather">Merriweather (Serif)</SelectItem>
+                                                        <SelectItem value="Inter">Inter (Sans)</SelectItem>
+                                                        <SelectItem value="Arial">Arial (Sans)</SelectItem>
+                                                        <SelectItem value="Courier Prime">Courier Prime (Mono)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="font-size">Font Size: {formatSettings.fontSize}px</Label>
+                                                </div>
+                                                <Slider
+                                                    id="font-size"
+                                                    min={12}
+                                                    max={24}
+                                                    step={1}
+                                                    value={[formatSettings.fontSize]}
+                                                    onValueChange={([value]) => formatSettings.updateSettings({ fontSize: value })}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="line-height">Line Height: {formatSettings.lineHeight}</Label>
+                                                </div>
+                                                <Slider
+                                                    id="line-height"
+                                                    min={1.0}
+                                                    max={2.5}
+                                                    step={0.1}
+                                                    value={[formatSettings.lineHeight]}
+                                                    onValueChange={([value]) => formatSettings.updateSettings({ lineHeight: value })}
+                                                />
+                                            </div>
                                         </div>
-                                        <BackupButton />
-                                    </div>
+                                    </section>
+
+                                    <Separator />
+
+                                    {/* Editor Experience Section */}
+                                    <section className="space-y-4">
+                                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Editor Experience</h4>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="space-y-0.5">
+                                                    <Label htmlFor="typewriter-mode">Typewriter Mode</Label>
+                                                    <p className="text-xs text-muted-foreground">Keeps the active line centered in the editor.</p>
+                                                </div>
+                                                <Switch
+                                                    id="typewriter-mode"
+                                                    checked={formatSettings.typewriterMode}
+                                                    onCheckedChange={(checked) => formatSettings.updateSettings({ typewriterMode: checked })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <Separator />
+
+                                    {/* Interface Section */}
+                                    <section className="space-y-4">
+                                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Interface</h4>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="show-line-numbers">Show Line Numbers</Label>
+                                                <Switch
+                                                    id="show-line-numbers"
+                                                    checked={formatSettings.showLineNumbers}
+                                                    onCheckedChange={(checked) => formatSettings.updateSettings({ showLineNumbers: checked })}
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="show-word-count">Show Word Count</Label>
+                                                <Switch
+                                                    id="show-word-count"
+                                                    checked={formatSettings.showWordCount}
+                                                    onCheckedChange={(checked) => formatSettings.updateSettings({ showWordCount: checked })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </section>
                                 </div>
                             </div>
                         )}

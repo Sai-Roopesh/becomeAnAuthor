@@ -4,15 +4,15 @@ import { useProjectStore } from '@/store/use-project-store';
 import { ProjectNavigation } from './project-navigation';
 import { TiptapEditor } from './editor/tiptap-editor';
 import { EditorToolbar } from './editor/editor-toolbar';
-import { SceneDetailsPanel } from './editor/scene-details-panel';
 import { StoryTimeline } from './editor/story-timeline';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SnippetEditor } from './snippets/snippet-editor';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from '@/components/ui/button';
 import { PinOff } from 'lucide-react';
+import { useDebounce } from '@/hooks/use-debounce';
 
 export function EditorContainer({ projectId }: { projectId: string }) {
     const { activeSceneId } = useProjectStore();
@@ -36,6 +36,18 @@ export function EditorContainer({ projectId }: { projectId: string }) {
         setEditorWordCount(count);
     };
 
+    // Persist word count to database (debounced)
+    const debouncedWordCount = useDebounce(editorWordCount, 2000);
+    const prevSceneIdRef = useRef(activeSceneId);
+
+    useEffect(() => {
+        // Only update if we have an active scene and it's the same scene
+        if (activeSceneId && activeSceneId === prevSceneIdRef.current && debouncedWordCount > 0) {
+            db.nodes.update(activeSceneId, { wordCount: debouncedWordCount } as any);
+        }
+        prevSceneIdRef.current = activeSceneId;
+    }, [debouncedWordCount, activeSceneId]);
+
     return (
         <div className="h-full flex overflow-hidden">
             <ResizablePanelGroup direction="horizontal">
@@ -48,7 +60,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
                 <ResizablePanel defaultSize={60}>
                     <ResizablePanelGroup direction="horizontal">
                         {/* Main Editor */}
-                        <ResizablePanel defaultSize={activeScene?.type === 'scene' ? 60 : 100}>
+                        <ResizablePanel defaultSize={78}>
                             <div className="h-full flex flex-col min-w-0 bg-background">
                                 {activeSnippetId ? (
                                     <SnippetEditor snippetId={activeSnippetId} onClose={() => setActiveSnippetId(null)} />
@@ -75,22 +87,12 @@ export function EditorContainer({ projectId }: { projectId: string }) {
                             </div>
                         </ResizablePanel>
 
-                        {/* Scene Details Panel */}
-                        {activeScene?.type === 'scene' && !activeSnippetId && (
-                            <>
-                                <ResizableHandle />
-                                <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
-                                    <SceneDetailsPanel sceneId={activeScene.id} wordCount={editorWordCount} />
-                                </ResizablePanel>
-                            </>
-                        )}
-
                         {/* Story Timeline */}
                         {!activeSnippetId && (
                             <>
                                 <ResizableHandle />
-                                <ResizablePanel defaultSize={15} minSize={12} maxSize={20}>
-                                    <StoryTimeline projectId={projectId} />
+                                <ResizablePanel defaultSize={22} minSize={18} maxSize={30}>
+                                    <StoryTimeline projectId={projectId} activeSceneWordCount={editorWordCount} />
                                 </ResizablePanel>
                             </>
                         )}
