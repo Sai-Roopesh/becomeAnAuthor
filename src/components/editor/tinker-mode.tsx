@@ -7,6 +7,9 @@ import { useState, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
 import { Sparkles } from 'lucide-react';
 import { generateText } from '@/lib/ai-service';
+import { toast } from '@/lib/toast-service';
+import { storage } from '@/lib/safe-storage';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 export function TinkerMode({ editor, open, onOpenChange }: { editor: Editor | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     const [originalText, setOriginalText] = useState('');
@@ -27,10 +30,10 @@ export function TinkerMode({ editor, open, onOpenChange }: { editor: Editor | nu
         if (!instruction) return;
         setIsGenerating(true);
 
-        const model = localStorage.getItem('last_used_model') || '';
+        const model = storage.getItem<string>(STORAGE_KEYS.LAST_USED_MODEL, '');
 
         if (!model) {
-            alert('Please select a model in settings or chat to use AI features.');
+            toast.error('Please select a model in settings or chat to use AI features.');
             setIsGenerating(false);
             return;
         }
@@ -49,7 +52,7 @@ export function TinkerMode({ editor, open, onOpenChange }: { editor: Editor | nu
             if (newText) setTinkeredText(newText);
         } catch (e) {
             console.error(e);
-            alert(`Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+            toast.error(`Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
         } finally {
             setIsGenerating(false);
         }

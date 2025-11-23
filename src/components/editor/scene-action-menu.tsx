@@ -7,6 +7,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History } from 'lucide-react';
 import { useState } from 'react';
 import { generateText } from '@/lib/ai-service';
+import { toast } from '@/lib/toast-service';
+import { isScene, Scene } from '@/lib/types';
+import { extractTextFromTiptapJSON } from '@/lib/editor-utils';
+import { storage } from '@/lib/safe-storage';
+import { STORAGE_KEYS, FEATURE_FLAGS } from '@/lib/constants';
 
 interface SceneActionMenuProps {
     sceneId: string;
@@ -16,49 +21,43 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
     const scene = useLiveQuery(() => db.nodes.get(sceneId), [sceneId]);
     const [isSummarizing, setIsSummarizing] = useState(false);
 
-    if (!scene || scene.type !== 'scene') return null;
+    if (!scene || !isScene(scene)) return null;
 
-    const handleSetPOV = () => {
+    const handleSetPOV = async () => {
         const pov = prompt('Enter POV character name:');
         if (pov) {
-            db.nodes.update(sceneId, { pov } as any);
+            await db.nodes.update(sceneId, { pov } as Partial<Scene>);
+            toast.success('POV updated');
         }
     };
 
-    const handleAddSubtitle = () => {
+    const handleAddSubtitle = async () => {
         const subtitle = prompt('Enter scene subtitle:');
         if (subtitle) {
-            db.nodes.update(sceneId, { subtitle } as any);
+            await db.nodes.update(sceneId, { subtitle } as Partial<Scene>);
+            toast.success('Subtitle updated');
         }
     };
 
     const handleToggleAIExclusion = async () => {
-        const current = (scene as any).excludeFromAI || false;
-        await db.nodes.update(sceneId, { excludeFromAI: !current } as any);
+        const current = scene.excludeFromAI || false;
+        await db.nodes.update(sceneId, { excludeFromAI: !current } as Partial<Scene>);
+        toast.success(current ? 'Included in AI context' : 'Excluded from AI context');
     };
 
     const handleSummarizeScene = async () => {
         setIsSummarizing(true);
-        const model = localStorage.getItem('last_used_model') || '';
+        const model = storage.getItem<string>(STORAGE_KEYS.LAST_USED_MODEL, '');
 
         if (!model) {
-            alert('Please select a model in settings or chat to use AI features.');
+            toast.error('Please select a model in settings or chat to use AI features.');
             setIsSummarizing(false);
             return;
         }
 
         try {
             // Extract text from Tiptap JSON
-            const content = (scene as any).content;
-            let text = '';
-            if (content?.content) {
-                text = content.content.map((node: any) => {
-                    if (node.type === 'paragraph' && node.content) {
-                        return node.content.map((c: any) => c.text || '').join('');
-                    }
-                    return '';
-                }).join('\n');
-            }
+            const text = extractTextFromTiptapJSON(scene.content);
 
             const response = await generateText({
                 model,
@@ -70,27 +69,27 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
             const summary = response.text;
 
             if (summary) {
-                await db.nodes.update(sceneId, { summary } as any);
-                alert('Scene summarized successfully!');
+                await db.nodes.update(sceneId, { summary } as Partial<Scene>);
+                toast.success('Scene summarized successfully!');
             }
         } catch (error) {
             console.error('Summarization failed', error);
-            alert(`Failed to summarize scene: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            toast.error(`Failed to summarize scene: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsSummarizing(false);
         }
     };
 
     const handleDetectCharacters = async () => {
-        alert('Character detection coming soon...');
+        // Feature hidden by FEATURE_FLAGS
     };
 
     const handleChatWithScene = () => {
-        alert('Chat with scene coming soon...');
+        // Feature hidden by FEATURE_FLAGS
     };
 
     const handleDuplicate = async () => {
-        const newScene = {
+        const newScene: Scene = {
             ...scene,
             id: crypto.randomUUID(),
             title: `${scene.title} (Copy)`,
@@ -98,35 +97,18 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
             createdAt: Date.now(),
             updatedAt: Date.now(),
         };
-        await db.nodes.add(newScene as any);
+        await db.nodes.add(newScene);
+        toast.success('Scene duplicated');
     };
 
     const handleCopyProse = async () => {
-        const content = (scene as any).content;
-        let text = '';
-        if (content?.content) {
-            text = content.content.map((node: any) => {
-                if (node.type === 'paragraph' && node.content) {
-                    return node.content.map((c: any) => c.text || '').join('');
-                }
-                return '';
-            }).join('\n\n');
-        }
+        const text = extractTextFromTiptapJSON(scene.content);
         await navigator.clipboard.writeText(text);
-        alert('Prose copied to clipboard!');
+        toast.success('Prose copied to clipboard!');
     };
 
     const handleExport = () => {
-        const content = (scene as any).content;
-        let text = '';
-        if (content?.content) {
-            text = content.content.map((node: any) => {
-                if (node.type === 'paragraph' && node.content) {
-                    return node.content.map((c: any) => c.text || '').join('');
-                }
-                return '';
-            }).join('\n\n');
-        }
+        const text = extractTextFromTiptapJSON(scene.content);
 
         const blob = new Blob([text], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
@@ -134,11 +116,13 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
         a.href = url;
         a.download = `${scene.title}.txt`;
         a.click();
+        toast.success('Scene exported');
     };
 
     const handleArchive = async () => {
         if (confirm('Archive this scene?')) {
-            await db.nodes.update(sceneId, { archived: true } as any);
+            await db.nodes.update(sceneId, { archived: true } as Partial<Scene>);
+            toast.success('Scene archived');
         }
     };
 
@@ -156,7 +140,7 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleToggleAIExclusion}>
                     <EyeOff className="h-4 w-4 mr-2" />
-                    {(scene as any).excludeFromAI ? 'Include in AI Context' : 'Exclude from AI Context'}
+                    {scene.excludeFromAI ? 'Include in AI Context' : 'Exclude from AI Context'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleAddSubtitle}>
                     <FileText className="h-4 w-4 mr-2" />
@@ -170,14 +154,18 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
                     <FileText className="h-4 w-4 mr-2" />
                     {isSummarizing ? 'Summarizing...' : 'Summarize Scene'}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDetectCharacters}>
-                    <Users className="h-4 w-4 mr-2" />
-                    Detect Characters
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleChatWithScene}>
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Chat with Scene
-                </DropdownMenuItem>
+                {FEATURE_FLAGS.CHARACTER_DETECTION && (
+                    <DropdownMenuItem onClick={handleDetectCharacters}>
+                        <Users className="h-4 w-4 mr-2" />
+                        Detect Characters
+                    </DropdownMenuItem>
+                )}
+                {FEATURE_FLAGS.CHAT_WITH_SCENE && (
+                    <DropdownMenuItem onClick={handleChatWithScene}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Chat with Scene
+                    </DropdownMenuItem>
+                )}
 
                 <DropdownMenuSeparator />
 

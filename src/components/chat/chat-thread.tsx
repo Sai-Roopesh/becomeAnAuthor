@@ -19,6 +19,9 @@ import { generateText } from '@/lib/ai-service';
 import { getPromptTemplate } from '@/lib/prompt-templates';
 import { extractTextFromContent } from '@/lib/editor-utils';
 import type { ChatContext, Scene, CodexEntry, Act, Chapter } from '@/lib/types';
+import { toast } from '@/lib/toast-service';
+import { storage } from '@/lib/safe-storage';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 interface ChatThreadProps {
     threadId: string;
@@ -83,7 +86,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
 
         const effectiveModel = selectedModel || settings.model;
         if (!effectiveModel) {
-            alert('Please select a model to start chatting.');
+            toast.error('Please select a model to start chatting.');
             return;
         }
 

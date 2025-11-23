@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { Download } from 'lucide-react';
+import { toast } from '@/lib/toast-service';
 
 export function BackupButton() {
     const handleBackup = async () => {
@@ -14,9 +15,10 @@ export function BackupButton() {
             a.href = url;
             a.download = `novel-backup-${new Date().toISOString()}.json`;
             a.click();
+            toast.success('Backup created successfully');
         } catch (error) {
             console.error('Backup failed:', error);
-            alert('Backup failed. See console for details.');
+            toast.error('Backup failed. See console for details.');
         }
     };
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Copy, Save, RefreshCw } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
+import { FEATURE_FLAGS } from '@/lib/constants';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -19,20 +20,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
     };
 
     const handleSaveAsSnippet = async () => {
-        // TODO: Implement save as snippet
-        alert('Save as snippet feature coming soon');
+        // Feature hidden by FEATURE_FLAGS
     };
 
     const handleRetry = () => {
-        // TODO: Implement retry
-        alert('Retry feature coming soon');
+        // Feature hidden by FEATURE_FLAGS
     };
 
     return (
         <div
             className={`group relative p-3 rounded-lg ${message.role === 'user'
-                    ? 'bg-primary/10 ml-12'
-                    : 'bg-muted mr-12'
+                ? 'bg-primary/10 ml-12'
+                : 'bg-muted mr-12'
                 }`}
             onMouseEnter={() => setShowActions(true)}
             onMouseLeave={() => setShowActions(false)}
@@ -59,11 +58,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
                                 <Copy className="h-4 w-4 mr-2" />
                                 Copy
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleSaveAsSnippet}>
-                                <Save className="h-4 w-4 mr-2" />
-                                Save as Snippet
-                            </DropdownMenuItem>
-                            {message.role === 'assistant' && (
+                            {FEATURE_FLAGS.SAVE_AS_SNIPPET && (
+                                <DropdownMenuItem onClick={handleSaveAsSnippet}>
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Save as Snippet
+                                </DropdownMenuItem>
+                            )}
+                            {message.role === 'assistant' && FEATURE_FLAGS.RETRY_MESSAGE && (
                                 <DropdownMenuItem onClick={handleRetry}>
                                     <RefreshCw className="h-4 w-4 mr-2" />
                                     Retry

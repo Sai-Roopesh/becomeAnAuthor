@@ -17,3 +17,24 @@ export function extractTextFromContent(content: any): string {
 
     return '';
 }
+
+/**
+ * Extract plain text from Tiptap JSON content
+ * Used in: scene summarization, export, copy prose
+ */
+export function extractTextFromTiptapJSON(content: any): string {
+    if (!content?.content) return '';
+
+    return content.content
+        .map((node: any) => {
+            if (node.type === 'paragraph' && node.content) {
+                return node.content.map((c: any) => c.text || '').join('');
+            }
+            if (node.type === 'heading' && node.content) {
+                return node.content.map((c: any) => c.text || '').join('');
+            }
+            return '';
+        })
+        .filter((text: string) => text.length > 0)
+        .join('\n\n');
+}

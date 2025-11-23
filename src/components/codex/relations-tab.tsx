@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Plus, X, Link2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from '@/lib/toast-service';
 
 interface RelationsTabProps {
     entityId: string;
@@ -41,8 +42,9 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
                 childId: entry.id,
                 createdAt: Date.now(),
             });
+            toast.success(`Linked to ${entry.name}`);
         } else {
-            alert('Entry not found');
+            toast.error('Entry not found');
         }
     };
 

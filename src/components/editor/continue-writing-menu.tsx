@@ -13,9 +13,10 @@ interface ContinueWritingMenuProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onGenerate: (options: GenerateOptions & { mode: GenerationMode }) => void;
+    projectId: string;
 }
 
-export function ContinueWritingMenu({ open, onOpenChange, onGenerate }: ContinueWritingMenuProps) {
+export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId }: ContinueWritingMenuProps) {
     const [wordCount, setWordCount] = useState('400');
     const [model, setModel] = useState('');
     const [showTweakDialog, setShowTweakDialog] = useState(false);
@@ -31,7 +32,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate }: Continue
         if (allModels.length > 0 && !model) {
             setModel(allModels[0]);
         } else if (!model) {
-            setModel(localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo');
+            setModel(localStorage.getItem('last_used_model') || 'openai/gpt-3.5-turbo');
         }
     }, []);
 
@@ -45,7 +46,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate }: Continue
             wordCount: parseInt(wordCount),
             instructions: getModeInstructions(selectedMode),
             context: {},
-            model: model || localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo',
+            model: model || localStorage.getItem('last_used_model') || 'openai/gpt-3.5-turbo',
             mode: selectedMode,
         });
         onOpenChange(false);
@@ -202,6 +203,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate }: Continue
                 onGenerate={(opts) => onGenerate({ ...opts, mode: selectedMode })}
                 defaultWordCount={parseInt(wordCount)}
                 mode={selectedMode}
+                projectId={projectId}
             />
         </>
     );

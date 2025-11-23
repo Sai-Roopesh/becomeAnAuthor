@@ -156,3 +156,16 @@ export interface ChatContext {
     snippets?: string[]; // Snippet IDs
     codexEntries?: string[]; // Codex entry IDs
 }
+
+// Type Guards
+export function isAct(node: DocumentNode): node is Act {
+    return node.type === 'act';
+}
+
+export function isChapter(node: DocumentNode): node is Chapter {
+    return node.type === 'chapter';
+}
+
+export function isScene(node: DocumentNode): node is Scene {
+    return node.type === 'scene';
+}

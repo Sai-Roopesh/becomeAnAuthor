@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Copy, History, Sparkles } from 'lucide-react';
 import { generateText } from '@/lib/ai-service';
+import { toast } from '@/lib/toast-service';
+import { storage } from '@/lib/safe-storage';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 interface DetailsTabProps {
     entity: Partial<CodexEntry>;
@@ -20,10 +23,10 @@ export function DetailsTab({ entity, onChange }: DetailsTabProps) {
         if (!entity.name || !entity.category) return;
         setIsGenerating(true);
 
-        const model = localStorage.getItem('last_used_model') || '';
+        const model = storage.getItem<string>(STORAGE_KEYS.LAST_USED_MODEL, '');
 
         if (!model) {
-            alert('Please select a model in settings or chat to use AI features.');
+            toast.error('Please select a model in settings or chat to use AI features.');
             setIsGenerating(false);
             return;
         }
@@ -47,7 +50,7 @@ export function DetailsTab({ entity, onChange }: DetailsTabProps) {
             }
         } catch (error) {
             console.error('Generation failed', error);
-            alert(`Failed to generate description: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            toast.error(`Failed to generate description: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsGenerating(false);
         }

@@ -13,6 +13,9 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TinkerMode } from './tinker-mode';
+import { toast } from '@/lib/toast-service';
+import { storage } from '@/lib/safe-storage';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 export function RewriteMenu({ editor }: { editor: Editor | null }) {
     const [isRewriting, setIsRewriting] = useState(false);
@@ -27,10 +30,10 @@ export function RewriteMenu({ editor }: { editor: Editor | null }) {
         if (!text) return;
 
         setIsRewriting(true);
-        const model = localStorage.getItem('last_used_model') || '';
+        const model = storage.getItem<string>(STORAGE_KEYS.LAST_USED_MODEL, '');
 
         if (!model) {
-            alert('Please select a model in settings or chat to use AI features.');
+            toast.error('Please select a model in settings or chat to use AI features.');
             setIsRewriting(false);
             return;
         }
@@ -58,7 +61,7 @@ export function RewriteMenu({ editor }: { editor: Editor | null }) {
             }
         } catch (error) {
             console.error('Rewrite failed', error);
-            alert(`Rewrite failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            toast.error(`Rewrite failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsRewriting(false);
         }

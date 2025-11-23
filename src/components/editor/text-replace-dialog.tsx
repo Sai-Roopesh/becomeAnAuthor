@@ -14,14 +14,17 @@ import { ModelSelector } from '@/components/ai/model-selector';
 import { generateText } from '@/lib/ai-service';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
+import { ContextSelector, ContextItem } from '@/components/chat/context-selector';
+
 interface TextReplaceDialogProps {
     action: 'expand' | 'rephrase' | 'shorten';
     selectedText: string;
     editor: Editor;
     onClose: () => void;
+    projectId: string;
 }
 
-export function TextReplaceDialog({ action, selectedText, editor, onClose }: TextReplaceDialogProps) {
+export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId }: TextReplaceDialogProps) {
     const [activeTab, setActiveTab] = useState<'tweak' | 'preview'>('tweak');
     const [instruction, setInstruction] = useState('');
     const [preset, setPreset] = useState('default');
@@ -30,6 +33,7 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose }: Tex
     const [result, setResult] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
+    const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
 
     const getActionTitle = () => {
         switch (action) {
@@ -62,6 +66,11 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose }: Tex
             systemPrompt += `\n\nAdditional instructions: ${instruction}`;
         }
 
+        if (selectedContexts.length > 0) {
+            const contextLabels = selectedContexts.map(c => c.label).join(', ');
+            systemPrompt += `\n\nConsider the following context: ${contextLabels}. (Note: Full context content would be injected here in a real implementation)`;
+        }
+
         return systemPrompt;
     };
 
@@ -85,6 +94,9 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose }: Tex
         setError('');
 
         try {
+            // In a real implementation, we would fetch the content of selected contexts here
+            // For now, we just pass the labels in the system prompt
+
             const response = await generateText({
                 model,
                 system: getSystemPrompt(),
@@ -200,6 +212,16 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose }: Tex
                                 onChange={(e) => setInstruction(e.target.value)}
                                 placeholder="e.g., describe the setting"
                                 className="min-h-[80px] mt-2"
+                            />
+                        </div>
+
+                        {/* Context Selector */}
+                        <div>
+                            <Label className="text-sm font-medium mb-2 block">Context</Label>
+                            <ContextSelector
+                                projectId={projectId}
+                                selectedContexts={selectedContexts}
+                                onContextsChange={setSelectedContexts}
                             />
                         </div>
 

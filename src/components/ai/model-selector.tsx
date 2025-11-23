@@ -67,7 +67,7 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
                                 <SelectLabel className="text-xs text-muted-foreground sticky top-0 bg-popover z-10 py-1">
                                     {conn.name}
                                 </SelectLabel>
-                                {conn.models.map((modelId) => (
+                                {Array.from(new Set(conn.models)).map((modelId) => (
                                     <SelectItem key={modelId} value={modelId}>
                                         <div className="flex items-center gap-2">
                                             <ModelIcon provider={conn.provider} />

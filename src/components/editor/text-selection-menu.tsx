@@ -8,11 +8,12 @@ import { TextReplaceDialog } from './text-replace-dialog';
 
 interface TextSelectionMenuProps {
     editor: Editor;
+    projectId: string;
 }
 
 type ReplaceAction = 'expand' | 'rephrase' | 'shorten' | null;
 
-export function TextSelectionMenu({ editor }: TextSelectionMenuProps) {
+export function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps) {
     const [action, setAction] = useState<ReplaceAction>(null);
     const [selectedText, setSelectedText] = useState('');
     const [showMenu, setShowMenu] = useState(false);
@@ -137,6 +138,7 @@ export function TextSelectionMenu({ editor }: TextSelectionMenuProps) {
                     selectedText={selectedText}
                     editor={editor}
                     onClose={handleClose}
+                    projectId={projectId}
                 />
             )}
         </>

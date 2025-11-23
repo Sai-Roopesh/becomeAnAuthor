@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChevronDown, ChevronRight, MoreVertical, Palette, EyeOff, Copy, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { FEATURE_FLAGS } from '@/lib/constants';
 
 export function SectionComponent({ node, updateAttributes, deleteNode }: any) {
     const [isEditing, setIsEditing] = useState(false);
@@ -28,8 +29,7 @@ export function SectionComponent({ node, updateAttributes, deleteNode }: any) {
     };
 
     const handleDissolve = () => {
-        // TODO: Implement dissolve (move content out of section)
-        alert('Dissolve feature coming soon');
+        // Feature hidden by FEATURE_FLAGS
     };
 
     return (
@@ -118,10 +118,12 @@ export function SectionComponent({ node, updateAttributes, deleteNode }: any) {
                                 Copy Content
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={handleDissolve}>
-                                <ChevronDown className="h-4 w-4 mr-2" />
-                                Dissolve Section
-                            </DropdownMenuItem>
+                            {FEATURE_FLAGS.DISSOLVE_SECTION && (
+                                <DropdownMenuItem onClick={handleDissolve}>
+                                    <ChevronDown className="h-4 w-4 mr-2" />
+                                    Dissolve Section
+                                </DropdownMenuItem>
+                            )}
 
                             <DropdownMenuItem onClick={deleteNode} className="text-destructive">
                                 <Trash2 className="h-4 w-4 mr-2" />

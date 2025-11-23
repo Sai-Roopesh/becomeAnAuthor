@@ -15,12 +15,15 @@ import type { ChatContext } from '@/lib/types';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
+import { ContextSelector, ContextItem } from '@/components/chat/context-selector';
+
 interface TweakGenerateDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onGenerate: (options: GenerateOptions) => void;
     defaultWordCount?: number;
     mode?: GenerationMode;
+    projectId: string;
 }
 
 export interface GenerateOptions {
@@ -28,14 +31,15 @@ export interface GenerateOptions {
     instructions: string;
     context: ChatContext;
     model: string;
+    selectedContexts?: ContextItem[];
 }
 
-export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, mode }: TweakGenerateDialogProps) {
+export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, mode, projectId }: TweakGenerateDialogProps) {
     const [wordCount, setWordCount] = useState(defaultWordCount.toString());
     const [instructions, setInstructions] = useState('');
     const [context, setContext] = useState<ChatContext>({});
     const [model, setModel] = useState('');
-    const [showContext, setShowContext] = useState(false);
+    const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
 
     useState(() => {
         // Load default model from AI connections
@@ -54,7 +58,8 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
             wordCount: parseInt(wordCount) || 400,
             instructions,
             context,
-            model: model || localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo',
+            model: model || localStorage.getItem('last_used_model') || 'openai/gpt-3.5-turbo',
+            selectedContexts
         });
         onOpenChange(false);
     };
@@ -63,10 +68,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
         setWordCount(defaultWordCount.toString());
         setInstructions('');
         setContext({});
-    };
-
-    const handleContextChange = (key: keyof ChatContext, value: any) => {
-        setContext(prev => ({ ...prev, [key]: value }));
+        setSelectedContexts([]);
     };
 
     return (
@@ -162,75 +164,18 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <Label>Additional Context</Label>
-                                <Button variant="ghost" size="sm" onClick={() => setContext({})}>
+                                <Button variant="ghost" size="sm" onClick={() => setSelectedContexts([])}>
                                     Reset
                                 </Button>
                             </div>
                             <p className="text-xs text-muted-foreground mb-2">
-                                Any additional information to provide to the AI
+                                Select context from your project to provide to the AI
                             </p>
-                            <Button
-                                variant="outline"
-                                className="w-full justify-start"
-                                onClick={() => setShowContext(!showContext)}
-                            >
-                                + Context
-                            </Button>
-
-                            {showContext && (
-                                <div className="mt-2 border rounded-md p-3 space-y-2">
-                                    <ScrollArea className="h-[200px]">
-                                        <div className="space-y-2">
-                                            {/* Novel Text */}
-                                            <div className="space-y-1">
-                                                <div className="font-medium text-sm">Full Novel Text</div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    This will include all novel text, which can be costly.
-                                                </p>
-                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                    <Checkbox
-                                                        checked={context.novelText === 'full'}
-                                                        onCheckedChange={(checked) =>
-                                                            handleContextChange('novelText', checked ? 'full' : undefined)
-                                                        }
-                                                    />
-                                                    <span className="text-sm">Include</span>
-                                                </label>
-                                            </div>
-
-                                            {/* Full Outline */}
-                                            <div className="space-y-1">
-                                                <div className="font-medium text-sm">Full Outline</div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Full outline of the novel, including all acts, chapters, and scenes.
-                                                </p>
-                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                    <Checkbox
-                                                        checked={context.novelText === 'outline'}
-                                                        onCheckedChange={(checked) =>
-                                                            handleContextChange('novelText', checked ? 'outline' : undefined)
-                                                        }
-                                                    />
-                                                    <span className="text-sm">Include</span>
-                                                </label>
-                                            </div>
-
-                                            {/* Other options */}
-                                            <div className="text-sm text-muted-foreground pt-2">
-                                                Acts, Chapters, Scenes, Codex Entries - Coming soon...
-                                            </div>
-                                        </div>
-                                    </ScrollArea>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full"
-                                        onClick={() => setShowContext(false)}
-                                    >
-                                        Close
-                                    </Button>
-                                </div>
-                            )}
+                            <ContextSelector
+                                projectId={projectId}
+                                selectedContexts={selectedContexts}
+                                onContextsChange={setSelectedContexts}
+                            />
                         </div>
 
                         {/* Model Selection */}

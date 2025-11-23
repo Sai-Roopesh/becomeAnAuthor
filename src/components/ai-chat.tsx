@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,6 +12,11 @@ import { ModelSelector } from './ai/model-selector';
 import { getPromptTemplate } from '@/lib/prompt-templates';
 import { generateText } from '@/lib/ai-service';
 import { useProjectStore } from '@/store/use-project-store';
+import { db } from '@/lib/db';
+import { ChatThread, ChatMessage } from '@/lib/types';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { v4 as uuid } from 'uuid';
+import { toast } from '@/lib/toast-service';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -19,7 +24,7 @@ interface Message {
 }
 
 export function AIChat({ projectId }: { projectId: string }) {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -42,6 +47,53 @@ export function AIChat({ projectId }: { projectId: string }) {
     // UI State
     const [showControls, setShowControls] = useState(true);
 
+    // Load messages from database
+    const messages = useLiveQuery(
+        async () => {
+            if (!currentThreadId) return [];
+            const dbMessages = await db.chatMessages
+                .where('threadId')
+                .equals(currentThreadId)
+                .sortBy('timestamp');
+            return dbMessages.map(m => ({ role: m.role, content: m.content }));
+        },
+        [currentThreadId],
+        []
+    ) as Message[];
+
+    // Initialize or load thread on mount
+    useEffect(() => {
+        const initThread = async () => {
+            // Find existing thread for this project
+            const existingThreads = await db.chatThreads
+                .where('projectId')
+                .equals(projectId)
+                .and(t => !t.archived)
+                .toArray();
+
+            if (existingThreads.length > 0) {
+                // Load the most recent thread
+                existingThreads.sort((a, b) => b.updatedAt - a.updatedAt);
+                setCurrentThreadId(existingThreads[0].id);
+            } else {
+                // Create a new thread
+                const newThread: ChatThread = {
+                    id: uuid(),
+                    projectId,
+                    name: 'New Conversation',
+                    pinned: false,
+                    archived: false,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                };
+                await db.chatThreads.add(newThread);
+                setCurrentThreadId(newThread.id);
+            }
+        };
+
+        initThread();
+    }, [projectId]);
+
     const assembleContextText = async (): Promise<string> => {
         if (selectedContexts.length === 0) {
             return '';
@@ -58,16 +110,30 @@ export function AIChat({ projectId }: { projectId: string }) {
     };
 
     const sendMessage = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() || !currentThreadId) return;
 
         const effectiveModel = selectedModel || settings.model;
         if (!effectiveModel) {
-            alert('Please select a model in settings');
+            toast.error('Please select a model in settings');
             return;
         }
 
-        const userMsg: Message = { role: 'user', content: input };
-        setMessages(prev => [...prev, userMsg]);
+        // Save user message to database
+        const userMessage: ChatMessage = {
+            id: uuid(),
+            threadId: currentThreadId,
+            role: 'user',
+            content: input,
+            timestamp: Date.now(),
+        };
+        await db.chatMessages.add(userMessage);
+
+        // Update thread timestamp
+        await db.chatThreads.update(currentThreadId, {
+            updatedAt: Date.now(),
+        });
+
+        const userInput = input;
         setInput('');
         setIsLoading(true);
 
@@ -87,8 +153,8 @@ export function AIChat({ projectId }: { projectId: string }) {
             // Build conversation history
             const conversationHistory = messages.map(m => m.content).join('\n\n');
             const fullPrompt = conversationHistory
-                ? `Previous conversation:\n${conversationHistory}\n\nUser: ${input}`
-                : input;
+                ? `Previous conversation:\n${conversationHistory}\n\nUser: ${userInput}`
+                : userInput;
 
             // Generate response
             const response = await generateText({
@@ -99,14 +165,33 @@ export function AIChat({ projectId }: { projectId: string }) {
                 temperature: settings.temperature,
             });
 
-            const aiMsg: Message = { role: 'assistant', content: response.text };
-            setMessages(prev => [...prev, aiMsg]);
+            // Save AI response to database
+            const aiMessage: ChatMessage = {
+                id: uuid(),
+                threadId: currentThreadId,
+                role: 'assistant',
+                content: response.text,
+                model: effectiveModel,
+                prompt: selectedPromptId,
+                timestamp: Date.now(),
+            };
+            await db.chatMessages.add(aiMessage);
+
+            // Update thread timestamp
+            await db.chatThreads.update(currentThreadId, {
+                updatedAt: Date.now(),
+            });
         } catch (error) {
             console.error('Chat error:', error);
-            setMessages(prev => [...prev, {
+            // Save error message to database
+            const errorMessage: ChatMessage = {
+                id: uuid(),
+                threadId: currentThreadId,
                 role: 'assistant',
-                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`
-            }]);
+                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
+                timestamp: Date.now(),
+            };
+            await db.chatMessages.add(errorMessage);
         } finally {
             setIsLoading(false);
         }

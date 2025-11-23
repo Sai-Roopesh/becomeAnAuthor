@@ -17,9 +17,11 @@ import { db } from '@/lib/db';
 import { Settings, Trash2, Archive, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useRouter } from 'next/navigation';
 
 export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
+    const router = useRouter();
     const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
 
     const [formData, setFormData] = useState({
@@ -67,8 +69,8 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
         if (confirm('Are you sure you want to archive this novel?')) {
             await db.projects.update(projectId, { archived: true });
             setOpen(false);
-            // Redirect or refresh might be needed if on project page
-            window.location.href = '/';
+            // Redirect to home
+            router.push('/');
         }
     };
 
@@ -78,7 +80,7 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
             await db.nodes.where('projectId').equals(projectId).delete();
             await db.codex.where('projectId').equals(projectId).delete();
             setOpen(false);
-            window.location.href = '/';
+            router.push('/');
         }
     };
 
