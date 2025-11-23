@@ -4,11 +4,18 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { CodexEntry, CodexCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, User, MapPin, Book, Box, FileText } from 'lucide-react';
+import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { v4 as uuidv4 } from 'uuid';
 import { EntityEditor } from '@/components/codex/entity-editor';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from '@/lib/toast-service';
 
 export function CodexList({ projectId }: { projectId: string }) {
     const [search, setSearch] = useState('');
@@ -42,6 +49,17 @@ export function CodexList({ projectId }: { projectId: string }) {
         setSelectedEntityId(id);
     };
 
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (confirm('Delete this entity?')) {
+            await db.codex.delete(id);
+            toast.success('Entity deleted');
+            if (selectedEntityId === id) {
+                setSelectedEntityId(null);
+            }
+        }
+    };
+
     if (selectedEntityId) {
         return <EntityEditor entityId={selectedEntityId} onBack={() => setSelectedEntityId(null)} />;
     }
@@ -59,16 +77,29 @@ export function CodexList({ projectId }: { projectId: string }) {
                 {filteredEntries?.map(entry => (
                     <div
                         key={entry.id}
-                        className="p-3 border rounded hover:bg-accent cursor-pointer flex items-center gap-3"
+                        className="p-3 border rounded hover:bg-accent cursor-pointer flex items-center gap-3 group"
                         onClick={() => setSelectedEntityId(entry.id)}
                     >
                         <div className="h-8 w-8 bg-muted rounded flex items-center justify-center">
                             {getIcon(entry.category)}
                         </div>
-                        <div>
-                            <div className="font-medium text-sm">{entry.name}</div>
+                        <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">{entry.name}</div>
                             <div className="text-xs text-muted-foreground capitalize">{entry.category}</div>
                         </div>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                                    <MoreVertical className="h-3 w-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => handleDelete(entry.id, e)} className="text-destructive">
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 ))}
                 {filteredEntries?.length === 0 && (

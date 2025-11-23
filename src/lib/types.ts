@@ -169,3 +169,16 @@ export function isChapter(node: DocumentNode): node is Chapter {
 export function isScene(node: DocumentNode): node is Scene {
     return node.type === 'scene';
 }
+
+export interface ExportedProject {
+    version: number;
+    project: Project;
+    nodes: DocumentNode[];
+    codex: CodexEntry[];
+    chats: ChatThread[];
+    messages: ChatMessage[];
+    codexRelations: CodexRelation[];
+    codexAdditions: CodexAddition[];
+    sections: Section[];
+    snippets: Snippet[];
+}

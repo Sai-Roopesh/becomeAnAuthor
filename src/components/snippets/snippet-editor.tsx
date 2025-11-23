@@ -50,6 +50,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
                 class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] p-4',
             },
         },
+        immediatelyRender: false,
     }, [initialContent]); // Re-create editor when initialContent changes (loaded)
 
     const debouncedTitle = useDebounce(title, 500);

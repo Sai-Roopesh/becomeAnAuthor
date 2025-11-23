@@ -14,6 +14,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { toast } from '@/lib/toast-service';
+
 export function SnippetList({ projectId, onSelect }: { projectId: string, onSelect: (id: string) => void }) {
     const [search, setSearch] = useState('');
     const snippets = useLiveQuery(
@@ -41,6 +43,7 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
     const handleDelete = async (id: string) => {
         if (confirm('Delete this snippet?')) {
             await db.snippets.delete(id);
+            toast.success('Snippet deleted');
         }
     };
 

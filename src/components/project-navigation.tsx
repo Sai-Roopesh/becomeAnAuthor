@@ -6,13 +6,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
 import { cn } from '@/lib/utils';
 import { DocumentNode } from '@/lib/types';
-import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreateNodeDialog } from '@/components/create-node-dialog';
 import { SnippetList } from '@/components/snippets/snippet-list';
 import { CodexList } from '@/components/codex/codex-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from '@/lib/toast-service';
 
 import { ProjectSettingsDialog } from '@/components/project-settings-dialog';
 
@@ -34,6 +41,41 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
         setDialogState({ open: true, parentId, type });
     };
 
+    const handleDeleteNode = async (nodeId: string, type: 'act' | 'chapter' | 'scene') => {
+        if (!confirm('Are you sure you want to delete this? This cannot be undone.')) return;
+
+        try {
+            if (type === 'scene') {
+                await db.nodes.delete(nodeId);
+            } else if (type === 'chapter') {
+                // Delete scenes in chapter
+                const scenes = await db.nodes.where('parentId').equals(nodeId).toArray();
+                await db.nodes.bulkDelete(scenes.map(s => s.id));
+                // Delete chapter
+                await db.nodes.delete(nodeId);
+            } else if (type === 'act') {
+                // Find chapters
+                const chapters = await db.nodes.where('parentId').equals(nodeId).toArray();
+                const chapterIds = chapters.map(c => c.id);
+                // Find scenes in chapters
+                const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
+                // Delete scenes
+                await db.nodes.bulkDelete(scenes.map(s => s.id));
+                // Delete chapters
+                await db.nodes.bulkDelete(chapterIds);
+                // Delete act
+                await db.nodes.delete(nodeId);
+            }
+            toast.success('Deleted successfully');
+            if (activeSceneId === nodeId) {
+                setActiveSceneId(null);
+            }
+        } catch (error) {
+            console.error('Delete failed:', error);
+            toast.error('Failed to delete node');
+        }
+    };
+
     if (!project) return null;
 
     // Build Tree
@@ -49,7 +91,7 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
             <div key={node.id} className="select-none">
                 <div
                     className={cn(
-                        "flex items-center gap-2 p-1 hover:bg-accent rounded cursor-pointer text-sm group",
+                        "flex items-center gap-2 p-1 hover:bg-accent rounded cursor-pointer text-sm group pr-2",
                         activeSceneId === node.id && "bg-accent font-medium"
                     )}
                     style={{ paddingLeft: `${level * 12 + 4}px` }}
@@ -58,19 +100,46 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     <span className="truncate flex-1">{node.title}</span>
 
-                    {!isScene && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                openCreateDialog(node.id, node.type === 'act' ? 'chapter' : 'scene');
-                            }}
-                        >
-                            <Plus className="h-3 w-3" />
-                        </Button>
-                    )}
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!isScene && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    openCreateDialog(node.id, node.type === 'act' ? 'chapter' : 'scene');
+                                }}
+                            >
+                                <Plus className="h-3 w-3" />
+                            </Button>
+                        )}
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <MoreVertical className="h-3 w-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteNode(node.id, node.type as any);
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
 
                 {!isScene && children.map(child => renderNode(child, level + 1))}

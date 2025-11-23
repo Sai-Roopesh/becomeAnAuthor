@@ -5,8 +5,17 @@ import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CreateProjectDialog } from '@/components/create-project-dialog';
-import { BookOpen, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, MoreVertical, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { DataManagementMenu } from '@/components/data-management/data-management-menu';
+import { ExportProjectButton } from '@/components/data-management/export-project-button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 export default function Dashboard() {
   const projects = useLiveQuery(() => db.projects.toArray());
@@ -21,7 +30,10 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <BookOpen className="h-8 w-8" /> NovelCrafter Clone
         </h1>
-        {hasProjects && <CreateProjectDialog />}
+        <div className="flex gap-2">
+          <DataManagementMenu />
+          {hasProjects && <CreateProjectDialog />}
+        </div>
       </div>
 
       {!hasProjects ? (
@@ -71,22 +83,41 @@ export default function Dashboard() {
                     <span>•</span>
                     <span>{new Date(project.updatedAt).toLocaleDateString()}</span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (confirm('Are you sure you want to DELETE this novel? This cannot be undone.')) {
-                        db.projects.delete(project.id);
-                        db.nodes.where('projectId').equals(project.id).delete();
-                        db.codex.where('projectId').equals(project.id).delete();
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 -mr-2"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <ExportProjectButton projectId={project.id} />
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (confirm('Are you sure you want to DELETE this novel? This cannot be undone.')) {
+                            db.projects.delete(project.id);
+                            db.nodes.where('projectId').equals(project.id).delete();
+                            db.codex.where('projectId').equals(project.id).delete();
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Project
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </CardFooter>
               </Card>
             </Link>
