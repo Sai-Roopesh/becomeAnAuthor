@@ -4,87 +4,222 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send } from 'lucide-react';
-
-import { assembleContext } from '@/lib/context-engine';
+import { Send, Settings as SettingsIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { ContextSelector, ContextItem } from './chat/context-selector';
+import { PromptSelector } from './chat/prompt-selector';
+import { ChatSettingsDialog, ChatSettings } from './chat/chat-settings-dialog';
+import { ModelSelector } from './ai/model-selector';
+import { getPromptTemplate } from '@/lib/prompt-templates';
+import { generateText } from '@/lib/ai-service';
 import { useProjectStore } from '@/store/use-project-store';
 
-export function AIChat() {
-    const [messages, setMessages] = useState<{ role: 'user' | 'assistant' | 'system', content: string }[]>([]);
+interface Message {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+export function AIChat({ projectId }: { projectId: string }) {
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { activeSceneId } = useProjectStore();
+
+    // Context & Prompt
+    const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
+    const [selectedPromptId, setSelectedPromptId] = useState('general');
+
+    // Model & Settings
+    const [selectedModel, setSelectedModel] = useState('');
+    const [showSettings, setShowSettings] = useState(false);
+    const [settings, setSettings] = useState<ChatSettings>({
+        model: '',
+        temperature: 0.7,
+        maxTokens: 2000,
+        topP: 1,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
+    });
+
+    // UI State
+    const [showControls, setShowControls] = useState(true);
+
+    const assembleContextText = async (): Promise<string> => {
+        if (selectedContexts.length === 0) {
+            return '';
+        }
+
+        const contexts: string[] = [];
+
+        for (const context of selectedContexts) {
+            // TODO: Implement actual context loading from database
+            contexts.push(`[${context.label}]: Context will be loaded here`);
+        }
+
+        return contexts.join('\n\n---\n\n');
+    };
 
     const sendMessage = async () => {
         if (!input.trim()) return;
-        const apiKey = localStorage.getItem('openrouter_api_key');
-        if (!apiKey) {
-            alert('Please set your API Key in settings.');
+
+        const effectiveModel = selectedModel || settings.model;
+        if (!effectiveModel) {
+            alert('Please select a model in settings');
             return;
         }
 
-        const userMsg = { role: 'user' as const, content: input };
+        const userMsg: Message = { role: 'user', content: input };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
 
         try {
-            const context = await assembleContext(activeSceneId, input);
-            const systemMsg = { role: 'system' as const, content: `You are an expert fiction writer. Use the following context to assist the user:\n\n${context}` };
+            // Assemble context
+            const contextText = await assembleContextText();
 
-            const model = localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo';
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'OpenSource Novel Writer',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [systemMsg, ...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
-                }),
+            // Get prompt template
+            const template = getPromptTemplate(selectedPromptId);
+
+            // Build system prompt
+            let systemPrompt = template.systemPrompt;
+            if (contextText) {
+                systemPrompt += `\n\n=== CONTEXT ===\n${contextText}`;
+            }
+
+            // Build conversation history
+            const conversationHistory = messages.map(m => m.content).join('\n\n');
+            const fullPrompt = conversationHistory
+                ? `Previous conversation:\n${conversationHistory}\n\nUser: ${input}`
+                : input;
+
+            // Generate response
+            const response = await generateText({
+                model: effectiveModel,
+                system: systemPrompt,
+                prompt: fullPrompt,
+                maxTokens: settings.maxTokens,
+                temperature: settings.temperature,
             });
 
-            if (!response.ok) throw new Error('API Error');
-
-            const data = await response.json();
-            const aiMsg = { role: 'assistant' as const, content: data.choices[0].message.content };
+            const aiMsg: Message = { role: 'assistant', content: response.text };
             setMessages(prev => [...prev, aiMsg]);
         } catch (error) {
-            console.error(error);
-            setMessages(prev => [...prev, { role: 'assistant', content: 'Error: Failed to generate response.' }]);
+            console.error('Chat error:', error);
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`
+            }]);
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col bg-background">
+            {/* Messages Area */}
             <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
+                <div className="space-y-4 max-w-4xl mx-auto">
+                    {messages.length === 0 && (
+                        <div className="text-center text-muted-foreground py-12">
+                            <p className="text-lg font-medium mb-2">Start a conversation</p>
+                            <p className="text-sm">Ask about your characters, plot, scenes, or anything else!</p>
+                        </div>
+                    )}
                     {messages.map((m, i) => (
                         <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-lg p-2 text-sm ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                                {m.content}
+                            <div className={`max-w-[80%] rounded-lg px-4 py-2 ${m.role === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                                }`}>
+                                <div className="whitespace-pre-wrap text-sm">{m.content}</div>
                             </div>
                         </div>
                     ))}
-                    {isLoading && <div className="text-xs text-muted-foreground">Thinking...</div>}
+                    {isLoading && (
+                        <div className="flex justify-start">
+                            <div className="bg-muted rounded-lg px-4 py-2">
+                                <div className="text-sm text-muted-foreground">Thinking...</div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </ScrollArea>
-            <div className="p-4 border-t flex gap-2">
-                <Input
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    placeholder="Ask AI..."
-                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                />
-                <Button size="icon" onClick={sendMessage} disabled={isLoading}>
-                    <Send className="h-4 w-4" />
-                </Button>
+
+            {/* Message Input Area */}
+            <div className="border-t bg-background">
+                <div className="max-w-4xl mx-auto">
+                    {/* Controls (collapsible) */}
+                    {showControls && (
+                        <div className="p-4 space-y-3 border-b">
+                            {/* Context Selector */}
+                            <ContextSelector
+                                projectId={projectId}
+                                selectedContexts={selectedContexts}
+                                onContextsChange={setSelectedContexts}
+                            />
+
+                            {/* Prompt and Model Row */}
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <PromptSelector
+                                        value={selectedPromptId}
+                                        onValueChange={setSelectedPromptId}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <ModelSelector
+                                        value={selectedModel}
+                                        onValueChange={(value) => {
+                                            setSelectedModel(value);
+                                            setSettings(prev => ({ ...prev, model: value }));
+                                        }}
+                                    />
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowSettings(true)}
+                                >
+                                    <SettingsIcon className="h-4 w-4 mr-2" />
+                                    Tweak
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Input Row */}
+                    <div className="p-4 flex gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowControls(!showControls)}
+                            className="flex-none"
+                        >
+                            {showControls ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                        <Input
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            placeholder="Ask any question..."
+                            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                            className="flex-1"
+                        />
+                        <Button
+                            size="icon"
+                            onClick={sendMessage}
+                            disabled={isLoading || !input.trim()}
+                        >
+                            <Send className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
             </div>
+
+            {/* Settings Dialog */}
+            <ChatSettingsDialog
+                open={showSettings}
+                onClose={() => setShowSettings(false)}
+                settings={settings}
+                onSettingsChange={setSettings}
+            />
         </div>
     );
 }

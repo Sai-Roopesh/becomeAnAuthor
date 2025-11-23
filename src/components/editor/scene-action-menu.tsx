@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History } from 'lucide-react';
 import { useState } from 'react';
+import { generateText } from '@/lib/ai-service';
 
 interface SceneActionMenuProps {
     sceneId: string;
@@ -38,11 +39,10 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
 
     const handleSummarizeScene = async () => {
         setIsSummarizing(true);
-        const apiKey = localStorage.getItem('openrouter_api_key');
-        const model = localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo';
+        const model = localStorage.getItem('last_used_model') || '';
 
-        if (!apiKey) {
-            alert('Please set your API Key in settings.');
+        if (!model) {
+            alert('Please select a model in settings or chat to use AI features.');
             setIsSummarizing(false);
             return;
         }
@@ -60,25 +60,14 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
                 }).join('\n');
             }
 
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'Become an Author',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{
-                        role: 'user',
-                        content: `Summarize this scene in 2-3 sentences:\n\n${text}`
-                    }],
-                }),
+            const response = await generateText({
+                model,
+                system: 'You are a helpful assistant that summarizes creative writing scenes.',
+                prompt: `Summarize this scene in 2-3 sentences:\n\n${text}`,
+                maxTokens: 500,
             });
 
-            const data = await response.json();
-            const summary = data.choices[0]?.message?.content || '';
+            const summary = response.text;
 
             if (summary) {
                 await db.nodes.update(sceneId, { summary } as any);
@@ -86,7 +75,7 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
             }
         } catch (error) {
             console.error('Summarization failed', error);
-            alert('Failed to summarize scene.');
+            alert(`Failed to summarize scene: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsSummarizing(false);
         }

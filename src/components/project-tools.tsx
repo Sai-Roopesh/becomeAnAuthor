@@ -22,7 +22,7 @@ export function ProjectTools({ projectId }: { projectId: string }) {
                     <CodexList projectId={projectId} />
                 </TabsContent>
                 <TabsContent value="chat" className="flex-1 p-0 overflow-hidden">
-                    <AIChat />
+                    <AIChat projectId={projectId} />
                 </TabsContent>
             </Tabs>
         </div>

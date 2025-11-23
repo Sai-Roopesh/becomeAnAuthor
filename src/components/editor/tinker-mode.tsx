@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
 import { Sparkles } from 'lucide-react';
+import { generateText } from '@/lib/ai-service';
 
 export function TinkerMode({ editor, open, onOpenChange }: { editor: Editor | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     const [originalText, setOriginalText] = useState('');
@@ -26,31 +27,29 @@ export function TinkerMode({ editor, open, onOpenChange }: { editor: Editor | nu
         if (!instruction) return;
         setIsGenerating(true);
 
-        const apiKey = localStorage.getItem('openrouter_api_key');
-        const model = localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo';
+        const model = localStorage.getItem('last_used_model') || '';
+
+        if (!model) {
+            alert('Please select a model in settings or chat to use AI features.');
+            setIsGenerating(false);
+            return;
+        }
 
         try {
             const prompt = `Original Text: "${tinkeredText}"\n\nInstruction: ${instruction}\n\nRewrite the text following the instruction. Output ONLY the rewritten text.`;
 
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'OpenSource Novel Writer',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'user', content: prompt }],
-                }),
+            const response = await generateText({
+                model,
+                system: 'You are a helpful creative writing assistant.',
+                prompt,
+                maxTokens: 1000,
             });
 
-            const data = await response.json();
-            const newText = data.choices[0]?.message?.content || '';
+            const newText = response.text;
             if (newText) setTinkeredText(newText);
         } catch (e) {
             console.error(e);
+            alert(`Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
         } finally {
             setIsGenerating(false);
         }

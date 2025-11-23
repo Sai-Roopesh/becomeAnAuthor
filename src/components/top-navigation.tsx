@@ -2,8 +2,9 @@
 
 import { Button } from '@/components/ui/button';
 import { useProjectStore, ViewMode } from '@/store/use-project-store';
-import { LayoutTemplate, PenTool, MessageSquare, Eye, Settings } from 'lucide-react';
+import { LayoutTemplate, PenTool, MessageSquare, Eye, Settings, Zap } from 'lucide-react';
 import { ProjectSettingsDialog } from './project-settings-dialog';
+import { SettingsDialog } from './settings-dialog';
 
 export function TopNavigation({ projectId }: { projectId: string }) {
     const { viewMode, setViewMode } = useProjectStore();
@@ -32,6 +33,7 @@ export function TopNavigation({ projectId }: { projectId: string }) {
                 ))}
             </div>
             <div className="flex items-center gap-2">
+                <SettingsDialog />
                 <ProjectSettingsDialog projectId={projectId} />
             </div>
         </div>

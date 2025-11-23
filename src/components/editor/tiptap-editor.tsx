@@ -10,6 +10,9 @@ import { db } from '@/lib/db';
 import { useDebounce } from '@/hooks/use-debounce';
 import { EditorToolbar } from './editor-toolbar';
 import { TextSelectionMenu } from './text-selection-menu';
+import { ContinueWritingMenu } from './continue-writing-menu';
+import { GenerateOptions } from './tweak-generate-dialog';
+import { generateText } from '@/lib/ai-service';
 import { useFormatStore } from '@/store/use-format-store';
 import { Section } from '@/lib/tiptap-extensions/section-node';
 
@@ -28,6 +31,7 @@ export function TiptapEditor({
     const [content, setContent] = useState(initialContent);
     const debouncedContent = useDebounce(content, 1000);
     const formatSettings = useFormatStore();
+    const [showContinueMenu, setShowContinueMenu] = useState(false);
 
     const editor = useEditor({
         immediatelyRender: false,
@@ -37,7 +41,7 @@ export function TiptapEditor({
             CharacterCount,
             Section,
             Placeholder.configure({
-                placeholder: 'Start writing your masterpiece... Type / for commands',
+                placeholder: 'Start writing your masterpiece... Type / for commands or press Cmd+J to continue',
             }),
             Mention.configure({
                 HTMLAttributes: {
@@ -52,6 +56,15 @@ export function TiptapEditor({
                 class: 'prose prose-slate dark:prose-invert max-w-none focus:outline-none min-h-[500px]',
                 style: `font-family: ${formatSettings.fontFamily}; font-size: ${formatSettings.fontSize}px; line-height: ${formatSettings.lineHeight}; text-align: ${formatSettings.alignment};`,
             },
+            handleKeyDown: (view, event) => {
+                // Cmd+J or Ctrl+J to open Continue Writing Menu
+                if ((event.metaKey || event.ctrlKey) && event.key === 'j') {
+                    event.preventDefault();
+                    setShowContinueMenu(true);
+                    return true;
+                }
+                return false;
+            },
         },
         onUpdate: ({ editor }) => {
             setContent(editor.getJSON());
@@ -64,82 +77,76 @@ export function TiptapEditor({
 
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const generateText = async (editor: any) => {
-        if (isGenerating) return;
+    const handleGenerate = async (options: GenerateOptions & { mode?: string }) => {
+        if (!editor || isGenerating) return;
         setIsGenerating(true);
 
-        const apiKey = localStorage.getItem('openrouter_api_key');
-        const model = localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo';
+        const model = options.model || localStorage.getItem('last_used_model') || '';
 
-        if (!apiKey) {
-            alert('Please set your API Key in settings.');
+        if (!model) {
+            alert('Please select a model to generate text.');
             setIsGenerating(false);
             return;
         }
 
-        // Get last 1000 characters as context
-        const context = editor.getText().slice(-1000);
-        const prompt = `Continue the story from here:\n\n${context}`;
+        // Get context from current scene
+        const currentText = editor.getText();
+        const lastContext = currentText.slice(-2000); // Last 2000 chars
+
+        // Build system prompt based on mode
+        let systemPrompt = '';
+        const mode = options.mode || 'continue-writing';
+
+        switch (mode) {
+            case 'scene-beat':
+                systemPrompt = `You are a creative writing assistant. Generate a pivotal scene beat - a key moment where something important changes, driving the narrative forward. Write approximately ${options.wordCount} words. Focus on creating dramatic moments, turning points, or revelations.`;
+                break;
+            case 'continue-writing':
+                systemPrompt = `You are a creative writing assistant. Continue the story naturally based on the context provided, maintaining the same style and tone. Write approximately ${options.wordCount} words.`;
+                break;
+            case 'codex-progression':
+                systemPrompt = `You are a creative writing assistant specializing in world-building. Analyze the recent events and suggest updates for Codex entries (characters, locations, items, events). Provide structured suggestions. Write approximately ${options.wordCount} words.`;
+                break;
+            default:
+                systemPrompt = `You are a creative writing assistant. Continue the story naturally based on the context provided. Write approximately ${options.wordCount} words.`;
+        }
+
+        if (options.instructions) {
+            systemPrompt += `\n\nAdditional instructions: ${options.instructions}`;
+        }
 
         try {
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'OpenSource Novel Writer',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'user', content: prompt }],
-                }),
+            const response = await generateText({
+                model,
+                system: systemPrompt,
+                prompt: `Continue this story:\n\n${lastContext}`,
+                maxTokens: Math.min(4000, Math.max(100, Math.round(options.wordCount * 1.5))), // Estimate tokens from words
+                temperature: 0.7,
             });
 
-            const data = await response.json();
-            const text = data.choices[0]?.message?.content || '';
+            const generatedText = response.text;
 
-            if (text) {
-                editor.chain().focus().insertContent(text).run();
-            }
+            // Insert at cursor
+            editor.chain().focus().insertContent(generatedText).run();
+
+            // Save last used model
+            localStorage.setItem('last_used_model', model);
         } catch (error) {
-            console.error('Generation failed', error);
+            console.error('Generation error:', error);
+            alert(`Failed to generate text: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsGenerating(false);
         }
     };
 
+    // Save content to DB
     useEffect(() => {
-        if (debouncedContent) {
-            db.nodes.update(sceneId, {
-                content: debouncedContent,
-                updatedAt: Date.now(),
-                wordCount: editor?.storage.characterCount?.words() || 0
-            } as any);
-        }
-    }, [debouncedContent, sceneId, editor]);
-
-    // Add keyboard shortcuts
-    useEffect(() => {
-        if (!editor) return;
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Cmd/Ctrl + J for AI generation
-            if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
-                e.preventDefault();
-                generateText(editor);
-            }
-
-            // Forward slash for commands hint
-            if (e.key === '/' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-                // Slash command handled by placeholder text
-            }
-        };
-
-        const dom = editor.view.dom;
-        dom.addEventListener('keydown', handleKeyDown);
-        return () => dom.removeEventListener('keydown', handleKeyDown);
-    }, [editor, isGenerating]);
+        if (!debouncedContent || !sceneId) return;
+        db.nodes.update(sceneId, {
+            content: debouncedContent,
+            updatedAt: Date.now(),
+        } as any).catch(console.error);
+    }, [debouncedContent, sceneId]);
 
     // Update word count on mount
     useEffect(() => {
@@ -181,6 +188,11 @@ export function TiptapEditor({
                 onInsertSection={handleInsertSection}
             />
             <TextSelectionMenu editor={editor} />
+            <ContinueWritingMenu
+                open={showContinueMenu}
+                onOpenChange={setShowContinueMenu}
+                onGenerate={handleGenerate}
+            />
             <div className="flex-1 overflow-y-auto p-4">
                 <div className="mx-auto" style={{ maxWidth: `${formatSettings.pageWidth}px` }}>
                     <EditorContent editor={editor} />

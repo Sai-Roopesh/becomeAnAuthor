@@ -4,6 +4,7 @@ import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Wand2, Minimize2, Maximize2, RefreshCw, Eye } from 'lucide-react';
 import { useState } from 'react';
+import { generateText } from '@/lib/ai-service';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,11 +27,10 @@ export function RewriteMenu({ editor }: { editor: Editor | null }) {
         if (!text) return;
 
         setIsRewriting(true);
-        const apiKey = localStorage.getItem('openrouter_api_key');
-        const model = localStorage.getItem('openrouter_model') || 'openai/gpt-3.5-turbo';
+        const model = localStorage.getItem('last_used_model') || '';
 
-        if (!apiKey) {
-            alert('Please set your API Key in settings.');
+        if (!model) {
+            alert('Please select a model in settings or chat to use AI features.');
             setIsRewriting(false);
             return;
         }
@@ -44,28 +44,21 @@ export function RewriteMenu({ editor }: { editor: Editor | null }) {
         }
 
         try {
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'OpenSource Novel Writer',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'user', content: prompt }],
-                }),
+            const response = await generateText({
+                model,
+                system: 'You are a helpful creative writing assistant.',
+                prompt,
+                maxTokens: 1000,
             });
 
-            const data = await response.json();
-            const newText = data.choices[0]?.message?.content || '';
+            const newText = response.text;
 
             if (newText) {
                 editor.chain().focus().insertContent(newText).run();
             }
         } catch (error) {
             console.error('Rewrite failed', error);
+            alert(`Rewrite failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsRewriting(false);
         }
