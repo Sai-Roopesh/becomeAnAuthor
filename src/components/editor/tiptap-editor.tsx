@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAutoSave } from '@/hooks/use-auto-save';
 import { useAIGeneration } from '@/hooks/use-ai-generation';
@@ -21,17 +21,18 @@ import { suggestion } from './suggestion';
 export function TiptapEditor({
     sceneId,
     projectId,
-    initialContent,
+    content,
     onWordCountChange
 }: {
     sceneId: string,
     projectId: string,
-    initialContent: any,
+    content: any,
     onWordCountChange?: (count: number) => void
 }) {
     // Remove local state for content to prevent re-renders and serialization overhead
     const formatSettings = useFormatStore();
     const [showContinueMenu, setShowContinueMenu] = useState(false);
+    const previousSceneIdRef = useRef<string | null>(null);
 
     const editor = useEditor({
         immediatelyRender: false,
@@ -50,7 +51,7 @@ export function TiptapEditor({
                 suggestion,
             }),
         ],
-        content: initialContent,
+        content: content, // Initial content only
         onUpdate: ({ editor }) => {
             // Only update word count, DO NOT serialize JSON here
             if (onWordCountChange) {
@@ -73,6 +74,21 @@ export function TiptapEditor({
             },
         },
     });
+
+    // Handle scene changes without remounting the editor
+    useEffect(() => {
+        if (!editor) return;
+
+        // Check if the scene has changed
+        if (previousSceneIdRef.current !== null && previousSceneIdRef.current !== sceneId) {
+            // Scene changed - update content and clear history
+            editor.commands.setContent(content);
+            editor.commands.clearContent(); // This clears undo/redo history
+            editor.commands.setContent(content); // Set content again after clearing
+        }
+
+        previousSceneIdRef.current = sceneId;
+    }, [sceneId, content, editor]);
 
     // Use custom hooks for business logic
     // Pass editor instance directly to handle saves efficiently

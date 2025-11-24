@@ -84,6 +84,50 @@ export function useImportExport() {
         }
     };
 
+    /**
+     * Recursively rewrite UUIDs in Tiptap JSON content
+     * Handles mention nodes and any other UUID references in the content
+     */
+    const rewriteUUIDsInTiptapJSON = (content: any, idMap: Map<string, string>): any => {
+        if (!content) return content;
+
+        // Handle arrays
+        if (Array.isArray(content)) {
+            return content.map(item => rewriteUUIDsInTiptapJSON(item, idMap));
+        }
+
+        // Handle objects
+        if (typeof content === 'object') {
+            const rewritten: any = { ...content };
+
+            // Special handling for mention nodes
+            if (rewritten.type === 'mention' && rewritten.attrs?.id) {
+                const oldId = rewritten.attrs.id;
+                const newId = idMap.get(oldId);
+                if (newId) {
+                    rewritten.attrs = { ...rewritten.attrs, id: newId };
+                }
+            }
+
+            // Recursively process nested content
+            if (rewritten.content) {
+                rewritten.content = rewriteUUIDsInTiptapJSON(rewritten.content, idMap);
+            }
+
+            // Process all other properties that might contain UUIDs
+            Object.keys(rewritten).forEach(key => {
+                if (key !== 'type' && key !== 'attrs' && key !== 'content') {
+                    rewritten[key] = rewriteUUIDsInTiptapJSON(rewritten[key], idMap);
+                }
+            });
+
+            return rewritten;
+        }
+
+        // Return primitive values as-is
+        return content;
+    };
+
     const importProject = async (file: File) => {
         try {
             const text = await file.text();
@@ -119,13 +163,22 @@ export function useImportExport() {
             };
             await db.projects.add(newProject);
 
-            // 2. Import Nodes
-            const newNodes = data.nodes.map(node => ({
-                ...node,
-                id: getNewId(node.id),
-                projectId: newProjectId,
-                parentId: node.parentId ? getNewId(node.parentId) : null,
-            }));
+            // 2. Import Nodes with UUID rewriting in content
+            const newNodes = data.nodes.map(node => {
+                const newNode: any = {
+                    ...node,
+                    id: getNewId(node.id),
+                    projectId: newProjectId,
+                    parentId: node.parentId ? getNewId(node.parentId) : null,
+                };
+
+                // Rewrite UUIDs in scene content (Tiptap JSON)
+                if (node.type === 'scene' && (node as any).content) {
+                    newNode.content = rewriteUUIDsInTiptapJSON((node as any).content, idMap);
+                }
+
+                return newNode;
+            });
             await db.nodes.bulkAdd(newNodes);
 
             // 3. Import Codex
@@ -136,12 +189,21 @@ export function useImportExport() {
             }));
             await db.codex.bulkAdd(newCodex);
 
-            // 4. Import Snippets
-            const newSnippets = (data.snippets || []).map(snippet => ({
-                ...snippet,
-                id: getNewId(snippet.id),
-                projectId: newProjectId,
-            }));
+            // 4. Import Snippets with UUID rewriting
+            const newSnippets = (data.snippets || []).map(snippet => {
+                const newSnippet: any = {
+                    ...snippet,
+                    id: getNewId(snippet.id),
+                    projectId: newProjectId,
+                };
+
+                // Rewrite UUIDs in snippet content (Tiptap JSON)
+                if (snippet.content) {
+                    newSnippet.content = rewriteUUIDsInTiptapJSON(snippet.content, idMap);
+                }
+
+                return newSnippet;
+            });
             await db.snippets.bulkAdd(newSnippets);
 
             // 5. Import Chats & Messages

@@ -9,6 +9,7 @@ import { Trash2, RefreshCw, Eye, EyeOff, Plus } from 'lucide-react';
 import { AIConnection, AI_VENDORS } from '@/lib/ai-vendors';
 import { fetchModelsForConnection } from '@/lib/ai-service';
 import { NewConnectionDialog } from './new-connection-dialog';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function AIConnectionsTab() {
     const [connections, setConnections] = useState<AIConnection[]>([]);
@@ -131,13 +132,22 @@ export function AIConnectionsTab() {
         }
     };
 
-    const handleDelete = () => {
+    const { confirm, ConfirmationDialog } = useConfirmation();
+
+    const handleDelete = async () => {
         if (connections.length === 1) {
             setError('Cannot delete the last connection');
             return;
         }
 
-        if (confirm('Delete this connection?')) {
+        const confirmed = await confirm({
+            title: 'Delete Connection',
+            description: 'Are you sure you want to delete this connection? This action cannot be undone.',
+            confirmText: 'Delete',
+            variant: 'destructive'
+        });
+
+        if (confirmed) {
             const updated = connections.filter(c => c.id !== selectedId);
             setConnections(updated);
             localStorage.setItem('ai_connections', JSON.stringify(updated));
@@ -362,6 +372,8 @@ export function AIConnectionsTab() {
                 onClose={() => setShowNewDialog(false)}
                 onSave={handleAddConnection}
             />
+
+            <ConfirmationDialog />
         </div>
     );
 }

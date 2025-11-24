@@ -16,6 +16,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClose?: () => void }) {
     const [title, setTitle] = useState('');
@@ -85,8 +86,17 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
         await db.snippets.update(snippetId, { pinned: newPinned });
     };
 
+    const { confirm, ConfirmationDialog } = useConfirmation();
+
     const handleDelete = async () => {
-        if (confirm('Delete this snippet?')) {
+        const confirmed = await confirm({
+            title: 'Delete Snippet',
+            description: 'Are you sure you want to delete this snippet? This action cannot be undone.',
+            confirmText: 'Delete',
+            variant: 'destructive'
+        });
+
+        if (confirmed) {
             await db.snippets.delete(snippetId);
             if (onClose) onClose();
         }
@@ -122,6 +132,8 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
             <div className="flex-1 overflow-y-auto">
                 <EditorContent editor={editor} />
             </div>
+
+            <ConfirmationDialog />
         </div>
     );
 }

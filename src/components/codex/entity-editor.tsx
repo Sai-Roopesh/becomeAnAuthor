@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Trash2, User } from 'lucide-react';
+import { ArrowLeft, Trash2, User, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { DetailsTab } from './details-tab';
@@ -15,10 +15,13 @@ import { ResearchTab } from './research-tab';
 import { RelationsTab } from './relations-tab';
 import { MentionsTab } from './mentions-tab';
 import { TrackingTab } from './tracking-tab';
+import { toast } from '@/lib/toast-service';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: () => void }) {
     const entity = useLiveQuery(() => db.codex.get(entityId), [entityId]);
     const [formData, setFormData] = useState<Partial<CodexEntry>>({});
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const debouncedData = useDebounce(formData, 1000);
 
     useEffect(() => {
@@ -39,11 +42,22 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleDelete = async () => {
-        if (confirm('Are you sure you want to delete this entity?')) {
-            await db.codex.delete(entityId);
-            onBack();
+    const handleSave = async () => {
+        if (formData.id) {
+            await db.codex.update(entityId, { ...formData, updatedAt: Date.now() } as any);
+            toast.success('Entity saved');
         }
+    };
+
+    const confirmDelete = () => {
+        setIsDeleteDialogOpen(true);
+    };
+
+    const executeDelete = async () => {
+        await db.codex.delete(entityId);
+        toast.success('Entity deleted');
+        setIsDeleteDialogOpen(false);
+        onBack();
     };
 
     if (!entity) return <div className="p-4">Loading...</div>;
@@ -58,9 +72,14 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                     <Button variant="ghost" size="sm" onClick={onBack}>
                         <ArrowLeft className="h-4 w-4 mr-2" /> Back
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={handleSave}>
+                            <Save className="h-4 w-4 mr-2" /> Save
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={confirmDelete} className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Entity Info Card */}
@@ -158,6 +177,25 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                     </TabsContent>
                 </div>
             </Tabs>
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Entity</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this entity? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={executeDelete}>
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

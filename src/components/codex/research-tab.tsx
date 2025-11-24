@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Plus, ExternalLink, X } from 'lucide-react';
+import { usePrompt } from '@/hooks/use-prompt';
 
 interface ResearchTabProps {
     entity: Partial<CodexEntry>;
@@ -12,8 +13,14 @@ interface ResearchTabProps {
 }
 
 export function ResearchTab({ entity, onChange }: ResearchTabProps) {
-    const addLink = () => {
-        const url = prompt('Enter URL:');
+    const { prompt, PromptDialog } = usePrompt();
+
+    const addLink = async () => {
+        const url = await prompt({
+            title: 'Add Research Link',
+            description: 'Enter a URL to add to your research:',
+            placeholder: 'https://example.com'
+        });
         if (url) {
             const links = entity.externalLinks || [];
             onChange('externalLinks', [...links, url]);
@@ -83,6 +90,8 @@ export function ResearchTab({ entity, onChange }: ResearchTabProps) {
                     </div>
                 )}
             </div>
+
+            <PromptDialog />
         </div>
     );
 }

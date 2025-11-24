@@ -71,10 +71,9 @@ export function EditorContainer({ projectId }: { projectId: string }) {
                                         </div>
                                         <div className="flex-1 overflow-hidden relative">
                                             <TiptapEditor
-                                                key={activeScene.id} // CRITICAL: Forces new editor instance per scene for ACID isolation
                                                 sceneId={activeScene.id}
                                                 projectId={projectId}
-                                                initialContent={'content' in activeScene ? activeScene.content : { type: 'doc', content: [] }}
+                                                content={'content' in activeScene ? activeScene.content : { type: 'doc', content: [] }}
                                                 onWordCountChange={handleWordCountUpdate}
                                             />
                                         </div>

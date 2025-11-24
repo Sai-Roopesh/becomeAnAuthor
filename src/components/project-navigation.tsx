@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/lib/toast-service';
 import { NodeActionsMenu } from '@/components/node-actions-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 import { ProjectSettingsDialog } from '@/components/project-settings-dialog';
 
@@ -38,42 +40,56 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
         type: 'act' | 'chapter' | 'scene';
     }>({ open: false, parentId: null, type: 'act' });
 
+    const { confirm, ConfirmationDialog } = useConfirmation();
+
     const openCreateDialog = (parentId: string | null, type: 'act' | 'chapter' | 'scene') => {
         setDialogState({ open: true, parentId, type });
     };
 
     const handleDeleteNode = async (nodeId: string, type: 'act' | 'chapter' | 'scene') => {
-        if (!confirm('Are you sure you want to delete this? This cannot be undone.')) return;
+        const nodeTypeTitle = type.charAt(0).toUpperCase() + type.slice(1);
+        const description = type === 'scene'
+            ? 'This action cannot be undone.'
+            : 'This will also delete all nested content. This action cannot be undone.';
 
-        try {
-            if (type === 'scene') {
-                await db.nodes.delete(nodeId);
-            } else if (type === 'chapter') {
-                // Delete scenes in chapter
-                const scenes = await db.nodes.where('parentId').equals(nodeId).toArray();
-                await db.nodes.bulkDelete(scenes.map(s => s.id));
-                // Delete chapter
-                await db.nodes.delete(nodeId);
-            } else if (type === 'act') {
-                // Find chapters
-                const chapters = await db.nodes.where('parentId').equals(nodeId).toArray();
-                const chapterIds = chapters.map(c => c.id);
-                // Find scenes in chapters
-                const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
-                // Delete scenes
-                await db.nodes.bulkDelete(scenes.map(s => s.id));
-                // Delete chapters
-                await db.nodes.bulkDelete(chapterIds);
-                // Delete act
-                await db.nodes.delete(nodeId);
+        const confirmed = await confirm({
+            title: `Delete ${nodeTypeTitle}`,
+            description: `Are you sure you want to delete this ${type}? ${description}`,
+            confirmText: 'Delete',
+            variant: 'destructive'
+        });
+
+        if (confirmed) {
+            try {
+                if (type === 'scene') {
+                    await db.nodes.delete(nodeId);
+                } else if (type === 'chapter') {
+                    // Delete scenes in chapter
+                    const scenes = await db.nodes.where('parentId').equals(nodeId).toArray();
+                    await db.nodes.bulkDelete(scenes.map(s => s.id));
+                    // Delete chapter
+                    await db.nodes.delete(nodeId);
+                } else if (type === 'act') {
+                    // Find chapters
+                    const chapters = await db.nodes.where('parentId').equals(nodeId).toArray();
+                    const chapterIds = chapters.map(c => c.id);
+                    // Find scenes in chapters
+                    const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
+                    // Delete scenes
+                    await db.nodes.bulkDelete(scenes.map(s => s.id));
+                    // Delete chapters
+                    await db.nodes.bulkDelete(chapterIds);
+                    // Delete act
+                    await db.nodes.delete(nodeId);
+                }
+                toast.success('Deleted successfully');
+                if (activeSceneId === nodeId) {
+                    setActiveSceneId(null);
+                }
+            } catch (error) {
+                console.error('Delete failed:', error);
+                toast.error('Failed to delete node');
             }
-            toast.success('Deleted successfully');
-            if (activeSceneId === nodeId) {
-                setActiveSceneId(null);
-            }
-        } catch (error) {
-            console.error('Delete failed:', error);
-            toast.error('Failed to delete node');
         }
     };
 
@@ -187,6 +203,8 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                 parentId={dialogState.parentId}
                 type={dialogState.type}
             />
+
+            <ConfirmationDialog />
         </div>
     );
 }

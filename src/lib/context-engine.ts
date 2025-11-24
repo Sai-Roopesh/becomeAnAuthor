@@ -4,6 +4,40 @@ import { CodexEntry } from './types';
 // Helper to yield to main thread to prevent blocking UI
 const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
 
+// Common English words that require case-sensitive matching to avoid false positives
+const COMMON_WORDS = new Set([
+    'will', 'may', 'mark', 'bill', 'grace', 'hope', 'faith', 'joy',
+    'charity', 'rose', 'iris', 'lily', 'jasmine', 'angel', 'summer',
+    'autumn', 'winter', 'spring', 'sage', 'hunter', 'archer', 'mason',
+    'taylor', 'baker', 'cooper', 'turner', 'page', 'penny'
+]);
+
+// Helper to escape regex special characters
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Check if a codex entry is relevant to the given text
+function isRelevantEntity(entry: CodexEntry, text: string): boolean {
+    if (entry.settings?.isGlobal) return true;
+
+    const names = [entry.name, ...(entry.aliases || [])];
+
+    return names.some(name => {
+        const lowerName = name.toLowerCase();
+
+        // For common words, require exact case match with word boundaries
+        if (COMMON_WORDS.has(lowerName)) {
+            const regex = new RegExp(`\\b${escapeRegex(name)}\\b`);
+            return regex.test(text); // Case-sensitive
+        }
+
+        // For uncommon names, use word boundary but case-insensitive
+        const regex = new RegExp(`\\b${escapeRegex(lowerName)}\\b`, 'i');
+        return regex.test(text);
+    });
+}
+
 export async function assembleContext(sceneId: string | null, query: string): Promise<string> {
     let context = '';
     let relevantEntities: CodexEntry[] = [];
@@ -16,15 +50,11 @@ export async function assembleContext(sceneId: string | null, query: string): Pr
             const sceneText = await extractTextFromTiptap(scene.content);
             context += `CURRENT SCENE:\n${sceneText}\n\n`;
 
-            // 2. Detect Entities in Scene + Query
+            // 2. Detect Entities in Scene + Query using smart matching
             const allCodex = await db.codex.where('projectId').equals(scene.projectId).toArray();
-            const combinedText = (sceneText + ' ' + query).toLowerCase();
+            const combinedText = sceneText + ' ' + query;
 
-            relevantEntities = allCodex.filter(entry => {
-                if (entry.settings.isGlobal) return true;
-                const names = [entry.name, ...entry.aliases].map(n => n.toLowerCase());
-                return names.some(n => combinedText.includes(n));
-            });
+            relevantEntities = allCodex.filter(entry => isRelevantEntity(entry, combinedText));
         }
     }
 

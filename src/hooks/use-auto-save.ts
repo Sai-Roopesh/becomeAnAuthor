@@ -5,11 +5,10 @@
 
 
 import { useEffect, useRef, useCallback } from 'react';
-import { db } from '@/lib/db';
 import { toast } from '@/lib/toast-service';
-import { storage } from '@/lib/safe-storage';
 import { Editor } from '@tiptap/react';
 import { useDebounce } from '@/hooks/use-debounce';
+import { saveCoordinator } from '@/lib/save-coordinator';
 
 export function useAutoSave(sceneId: string, editor: Editor | null) {
     // Keep track of the latest editor instance and sceneId for cleanup
@@ -25,27 +24,15 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
         sceneIdRef.current = sceneId;
     }, [editor, sceneId]);
 
-    const saveContent = useCallback(async (content: any, id: string) => {
+    const saveContent = useCallback(async (id: string, getContent: () => any) => {
         try {
-            await db.nodes.update(id, {
-                content: content,
-                updatedAt: Date.now(),
-            } as any);
+            // Use the save coordinator to prevent race conditions
+            await saveCoordinator.scheduleSave(id, getContent);
             hasUnsavedChanges.current = false;
         } catch (error) {
-            console.error('Save failed:', error);
-
-            // Emergency backup
-            try {
-                storage.setItem(`backup_scene_${id}`, {
-                    content: content,
-                    timestamp: Date.now(),
-                });
-            } catch (e) {
-                console.error('Backup failed', e);
-            }
-
-            toast.error('Failed to save work. Local backup created.');
+            // Error handling is done in the coordinator
+            // Just mark that we still have unsaved changes
+            hasUnsavedChanges.current = true;
         }
     }, []);
 
@@ -61,7 +48,7 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
 
         const interval = setInterval(() => {
             if (hasUnsavedChanges.current && editor && !editor.isDestroyed) {
-                saveContent(editor.getJSON(), sceneId);
+                saveContent(sceneId, () => editor.getJSON());
             }
         }, 1000); // Check every second, but only save if changed
 
@@ -76,9 +63,8 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
         const handleUnload = () => {
             if (editorRef.current && sceneIdRef.current && hasUnsavedChanges.current) {
                 // Synchronous attempt or best effort
-                const content = editorRef.current.getJSON();
                 // We can't await here reliably, but we can try
-                saveContent(content, sceneIdRef.current);
+                saveContent(sceneIdRef.current, () => editorRef.current!.getJSON());
             }
         };
 

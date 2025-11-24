@@ -5,7 +5,6 @@
 
 import { useState } from 'react';
 import { Editor } from '@tiptap/react';
-import { db } from '@/lib/db';
 import { generateText } from '@/lib/ai-service';
 import { toast } from '@/lib/toast-service';
 import { storage } from '@/lib/safe-storage';
@@ -66,11 +65,9 @@ export function useAIGeneration(editor: Editor | null, sceneId: string) {
                 // Insert generated text at cursor
                 editor.chain().focus().insertContent(generatedText).run();
 
-                // IMMEDIATE save after AI generation (no debounce)
-                await db.nodes.update(sceneId, {
-                    content: editor.getJSON(),
-                    updatedAt: Date.now(),
-                } as any);
+                // IMMEDIATE save after AI generation using coordinator to prevent race conditions
+                const { saveCoordinator } = await import('@/lib/save-coordinator');
+                await saveCoordinator.scheduleSave(sceneId, () => editor.getJSON());
 
                 // Save last used model
                 storage.setItem(STORAGE_KEYS.LAST_USED_MODEL, model);

@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { usePrompt } from '@/hooks/use-prompt';
 import { Button } from '@/components/ui/button';
 import { Plus, X, Link2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,17 +24,18 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
         return db.codex.where('id').anyOf(ids).toArray();
     }, [relations]);
 
-    const allCodexEntries = useLiveQuery(() => db.codex.toArray());
+    const { prompt, PromptDialog } = usePrompt();
 
-    const addRelation = () => {
-        if (!allCodexEntries) return;
+    const addRelation = async () => {
+        const name = await prompt({
+            title: 'Link Codex Entry',
+            description: 'Enter the name of the codex entry to link:',
+            placeholder: 'Entry name...'
+        });
 
-        const name = prompt('Enter codex entry name to link:');
         if (!name) return;
 
-        const entry = allCodexEntries.find(e =>
-            e.name.toLowerCase().includes(name.toLowerCase())
-        );
+        const entry = await db.codex.where('name').equalsIgnoreCase(name).first();
 
         if (entry) {
             db.codexRelations.add({
@@ -97,6 +99,8 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
                     No relations yet. Link related entries to group them together.
                 </div>
             )}
+
+            <PromptDialog />
         </div>
     );
 }

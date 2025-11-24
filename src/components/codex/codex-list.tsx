@@ -16,6 +16,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/lib/toast-service';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function CodexList({ projectId }: { projectId: string }) {
     const [search, setSearch] = useState('');
@@ -49,9 +50,18 @@ export function CodexList({ projectId }: { projectId: string }) {
         setSelectedEntityId(id);
     };
 
-    const handleDelete = async (id: string, e: React.MouseEvent) => {
+    const { confirm, ConfirmationDialog } = useConfirmation();
+
+    const handleDeleteClick = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm('Delete this entity?')) {
+        const confirmed = await confirm({
+            title: 'Delete Entity',
+            description: 'Are you sure you want to delete this entity? This action cannot be undone.',
+            confirmText: 'Delete',
+            variant: 'destructive'
+        });
+
+        if (confirmed) {
             await db.codex.delete(id);
             toast.success('Entity deleted');
             if (selectedEntityId === id) {
@@ -95,7 +105,7 @@ export function CodexList({ projectId }: { projectId: string }) {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={(e) => handleDelete(entry.id, e)} className="text-destructive">
+                                <DropdownMenuItem onClick={(e) => handleDeleteClick(entry.id, e)} className="text-destructive">
                                     <Trash2 className="h-4 w-4 mr-2" /> Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -108,6 +118,8 @@ export function CodexList({ projectId }: { projectId: string }) {
                     </div>
                 )}
             </div>
+
+            <ConfirmationDialog />
         </div>
     );
 }

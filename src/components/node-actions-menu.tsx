@@ -4,6 +4,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useConfirmation } from '@/hooks/use-confirmation';
+import { usePrompt } from '@/hooks/use-prompt';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { generateText } from '@/lib/ai-service';
@@ -22,13 +25,20 @@ interface NodeActionsMenuProps {
 export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuProps) {
     const node = useLiveQuery(() => db.nodes.get(nodeId), [nodeId]);
     const [isSummarizing, setIsSummarizing] = useState(false);
+    const { confirm, ConfirmationDialog } = useConfirmation();
+    const { prompt, PromptDialog } = usePrompt();
 
     if (!node) return null;
 
     // Scene-specific actions
     const handleSetPOV = async () => {
         if (!isScene(node)) return;
-        const pov = prompt('Enter POV character name:');
+        const pov = await prompt({
+            title: 'Set POV Character',
+            description: 'Enter the name of the point-of-view character for this scene:',
+            placeholder: 'Character name...',
+            defaultValue: node.pov || ''
+        });
         if (pov) {
             await db.nodes.update(nodeId, { pov } as Partial<Scene>);
             toast.success('POV updated');
@@ -37,7 +47,12 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
     const handleAddSubtitle = async () => {
         if (!isScene(node)) return;
-        const subtitle = prompt('Enter scene subtitle:');
+        const subtitle = await prompt({
+            title: 'Set Scene Subtitle',
+            description: 'Enter a subtitle or tagline for this scene:',
+            placeholder: 'Subtitle...',
+            defaultValue: node.subtitle || ''
+        });
         if (subtitle) {
             await db.nodes.update(nodeId, { subtitle } as Partial<Scene>);
             toast.success('Subtitle updated');
@@ -119,17 +134,30 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
     const handleArchive = async () => {
         if (!isScene(node)) return;
-        if (confirm('Archive this scene?')) {
+        const confirmed = await confirm({
+            title: 'Archive Scene',
+            description: 'Are you sure you want to archive this scene? It will be moved to the archive list.',
+            confirmText: 'Archive',
+            variant: 'default'
+        });
+
+        if (confirmed) {
             await db.nodes.update(nodeId, { archived: true } as Partial<Scene>);
             toast.success('Scene archived');
         }
     };
 
     const handleRename = async () => {
-        const newTitle = prompt(`Enter new ${nodeType} title:`, node.title);
+        const nodeTypeTitle = nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+        const newTitle = await prompt({
+            title: `Rename ${nodeTypeTitle}`,
+            description: `Enter a new title for this ${nodeType}:`,
+            placeholder: 'Title...',
+            defaultValue: node.title
+        });
         if (newTitle && newTitle !== node.title) {
             await db.nodes.update(nodeId, { title: newTitle });
-            toast.success(`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`);
+            toast.success(`${nodeTypeTitle} renamed`);
         }
     };
 
@@ -140,87 +168,92 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     };
 
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-6 w-6">
-                    <MoreVertical className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-                {/* Common actions for all node types */}
-                <DropdownMenuItem onClick={handleRename}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Rename
-                </DropdownMenuItem>
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <MoreVertical className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    {/* Common actions for all node types */}
+                    <DropdownMenuItem onClick={handleRename}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Rename
+                    </DropdownMenuItem>
 
-                {/* Scene-specific actions */}
-                {nodeType === 'scene' && isScene(node) && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleSetPOV}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Set Custom POV
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleToggleAIExclusion}>
-                            <EyeOff className="h-4 w-4 mr-2" />
-                            {node.excludeFromAI ? 'Include in AI Context' : 'Exclude from AI Context'}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleAddSubtitle}>
-                            <FileText className="h-4 w-4 mr-2" />
-                            Add Subtitle
-                        </DropdownMenuItem>
+                    {/* Scene-specific actions */}
+                    {nodeType === 'scene' && isScene(node) && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleSetPOV}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Set Custom POV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleToggleAIExclusion}>
+                                <EyeOff className="h-4 w-4 mr-2" />
+                                {node.excludeFromAI ? 'Include in AI Context' : 'Exclude from AI Context'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleAddSubtitle}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Add Subtitle
+                            </DropdownMenuItem>
 
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>AI Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>AI Actions</DropdownMenuLabel>
 
-                        <DropdownMenuItem onClick={handleSummarizeScene} disabled={isSummarizing}>
-                            <FileText className="h-4 w-4 mr-2" />
-                            {isSummarizing ? 'Summarizing...' : 'Summarize Scene'}
-                        </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleSummarizeScene} disabled={isSummarizing}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                {isSummarizing ? 'Summarizing...' : 'Summarize Scene'}
+                            </DropdownMenuItem>
 
-                        <DropdownMenuSeparator />
+                            <DropdownMenuSeparator />
 
-                        <DropdownMenuItem onClick={handleDuplicate}>
-                            <Copy className="h-4 w-4 mr-2" />
-                            Duplicate Scene
-                        </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDuplicate}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate Scene
+                            </DropdownMenuItem>
 
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>History</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>History</DropdownMenuLabel>
 
-                        <DropdownMenuItem>
-                            <History className="h-4 w-4 mr-2" />
-                            Scene Summary
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <History className="h-4 w-4 mr-2" />
-                            Scene Contents
-                        </DropdownMenuItem>
+                            <DropdownMenuItem>
+                                <History className="h-4 w-4 mr-2" />
+                                Scene Summary
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                                <History className="h-4 w-4 mr-2" />
+                                Scene Contents
+                            </DropdownMenuItem>
 
-                        <DropdownMenuSeparator />
+                            <DropdownMenuSeparator />
 
-                        <DropdownMenuItem onClick={handleCopyProse}>
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy Scene Prose
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleExport}>
-                            <FileDown className="h-4 w-4 mr-2" />
-                            Export Scene
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleArchive}>
-                            <Archive className="h-4 w-4 mr-2" />
-                            Archive Scene
-                        </DropdownMenuItem>
-                    </>
-                )}
+                            <DropdownMenuItem onClick={handleCopyProse}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy Scene Prose
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExport}>
+                                <FileDown className="h-4 w-4 mr-2" />
+                                Export Scene
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleArchive}>
+                                <Archive className="h-4 w-4 mr-2" />
+                                Archive Scene
+                            </DropdownMenuItem>
+                        </>
+                    )}
 
-                {/* Delete (for all types) */}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+                    {/* Delete (for all types) */}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <ConfirmationDialog />
+            <PromptDialog />
+        </>
     );
 }

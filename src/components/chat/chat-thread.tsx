@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Send, MoreVertical, Pin, Archive, Download, Trash2, Settings as SettingsIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { ChatMessage } from './chat-message';
@@ -22,6 +21,7 @@ import type { ChatContext, Scene, CodexEntry, Act, Chapter } from '@/lib/types';
 import { toast } from '@/lib/toast-service';
 import { storage } from '@/lib/safe-storage';
 import { STORAGE_KEYS } from '@/lib/constants';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 interface ChatThreadProps {
     threadId: string;
@@ -33,7 +33,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     const [isEditingName, setIsEditingName] = useState(false);
     const [threadName, setThreadName] = useState('');
     const [isSending, setIsSending] = useState(false);
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
     const { setActiveThreadId } = useChatStore();
 
     // AI Configuration State
@@ -75,12 +75,117 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     }, [thread]);
 
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
+        // Simple, direct scroll to bottom when messages change
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     // Handlers
+    // Handlers
+    const generateResponse = async (targetMessage: { content: string; context?: ChatContext; role: 'user' | 'assistant' }) => {
+        setIsSending(true);
+        try {
+            // Get up-to-date history from DB (excluding the target message and anything after it if it was just added/updated)
+            // Actually, for regeneration, the target message IS in the DB. We want history BEFORE it.
+            // But since we just deleted everything after it, we can just get all messages and filter.
+
+            const allMessages = await db.chatMessages
+                .where('threadId')
+                .equals(threadId)
+                .sortBy('timestamp');
+
+            // Filter messages that are strictly before the target message (by timestamp)
+            // We need to find the target message in the list to get its timestamp, or use the passed object if it has one.
+            // The passed targetMessage might be a partial object or the full DB object.
+            // Let's assume it's the full object or we fetch it.
+
+            // If we are sending a NEW message, it's already in DB (added in handleSend).
+            // If we are regenerating, it's in DB.
+
+            // Let's use the message content for the prompt.
+
+            // Build context text
+            // Use context from the message if available, otherwise use selected contexts
+            const contextToUse = targetMessage.context || {};
+            const contextText = await buildContextText(contextToUse, thread?.projectId || '');
+
+            // Get prompt template
+            const template = getPromptTemplate(selectedPromptId);
+
+            // Build system prompt
+            let systemPrompt = template.systemPrompt;
+            if (contextText) {
+                systemPrompt += `\n\n=== CONTEXT ===\n${contextText}`;
+            }
+
+            // Build conversation history
+            // We want messages BEFORE the current user message
+            // If targetMessage has a timestamp, use it. If not (new message), use Date.now() but that's risky.
+            // Best to rely on the DB state.
+
+            // Let's find the index of our target message in the fetched history
+            // We match by content and role, or ID if available.
+            // Since we don't have ID in the simple signature, let's pass the full message object.
+
+            // Refined approach:
+            // The history should be all messages where timestamp < targetMessage.timestamp
+            // But wait, handleSend adds the message first.
+
+            // Let's assume targetMessage is the full ChatMessage object
+            const msgObj = targetMessage as any; // Cast for now to access timestamp/id
+
+            const historyMessages = allMessages.filter(m => m.timestamp < msgObj.timestamp);
+
+            const conversationHistory = historyMessages.map(m =>
+                `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
+            ).join('\n\n');
+
+            const fullPrompt = conversationHistory
+                ? `Previous conversation:\n${conversationHistory}\n\nUser: ${targetMessage.content}`
+                : targetMessage.content;
+
+            const effectiveModel = selectedModel || settings.model;
+
+            // Generate response
+            const response = await generateText({
+                model: effectiveModel,
+                system: systemPrompt,
+                prompt: fullPrompt,
+                maxTokens: settings.maxTokens,
+                temperature: settings.temperature,
+            });
+
+            await db.chatMessages.add({
+                id: crypto.randomUUID(),
+                threadId,
+                role: 'assistant',
+                content: response.text,
+                model: effectiveModel,
+                timestamp: Date.now(),
+            });
+
+            // Update thread updated time and default model
+            await db.chatThreads.update(threadId, {
+                updatedAt: Date.now(),
+                defaultModel: effectiveModel
+            });
+
+            // Save last used model preference
+            localStorage.setItem('last_used_model', effectiveModel);
+
+        } catch (error) {
+            console.error('Chat error:', error);
+            await db.chatMessages.add({
+                id: crypto.randomUUID(),
+                threadId,
+                role: 'assistant',
+                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
+                timestamp: Date.now(),
+            });
+        } finally {
+            setIsSending(false);
+        }
+    };
+
     const handleSend = async () => {
         if (!message.trim() || isSending) return;
 
@@ -125,69 +230,14 @@ export function ChatThread({ threadId }: ChatThreadProps) {
 
         await db.chatMessages.add(userMessage);
         setMessage('');
-        setIsSending(true);
 
-        try {
-            // Build context text
-            const contextText = await buildContextText(context, thread?.projectId || '');
+        // Trigger generation
+        await generateResponse(userMessage);
+    };
 
-            // Get prompt template
-            const template = getPromptTemplate(selectedPromptId);
-
-            // Build system prompt
-            let systemPrompt = template.systemPrompt;
-            if (contextText) {
-                systemPrompt += `\n\n=== CONTEXT ===\n${contextText}`;
-            }
-
-            // Build conversation history for the prompt
-            const conversationHistory = messages?.map(m =>
-                `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
-            ).join('\n\n') || '';
-
-            const fullPrompt = conversationHistory
-                ? `Previous conversation:\n${conversationHistory}\n\nUser: ${userMessage.content}`
-                : userMessage.content;
-
-            // Generate response using unified service
-            const response = await generateText({
-                model: effectiveModel,
-                system: systemPrompt,
-                prompt: fullPrompt,
-                maxTokens: settings.maxTokens,
-                temperature: settings.temperature,
-            });
-
-            await db.chatMessages.add({
-                id: crypto.randomUUID(),
-                threadId,
-                role: 'assistant',
-                content: response.text,
-                model: effectiveModel,
-                timestamp: Date.now(),
-            });
-
-            // Update thread updated time and default model
-            await db.chatThreads.update(threadId, {
-                updatedAt: Date.now(),
-                defaultModel: effectiveModel
-            });
-
-            // Save last used model preference
-            localStorage.setItem('last_used_model', effectiveModel);
-
-        } catch (error) {
-            console.error('Chat error:', error);
-            await db.chatMessages.add({
-                id: crypto.randomUUID(),
-                threadId,
-                role: 'assistant',
-                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
-                timestamp: Date.now(),
-            });
-        } finally {
-            setIsSending(false);
-        }
+    const handleRegenerate = async (msg: any) => {
+        // msg is the updated message object from ChatMessage component
+        await generateResponse(msg);
     };
 
     const handleSaveName = async () => {
@@ -210,8 +260,17 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         }
     };
 
+    const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
+
     const handleDelete = async () => {
-        if (confirm('Delete this chat? This cannot be undone.')) {
+        const confirmed = await confirmDelete({
+            title: 'Delete Thread',
+            description: 'Are you sure you want to delete this chat thread? All messages will be permanently removed.',
+            confirmText: 'Delete',
+            variant: 'destructive'
+        });
+
+        if (confirmed) {
             await db.chatMessages.where('threadId').equals(threadId).delete();
             await db.chatThreads.delete(threadId);
             setActiveThreadId(null);
@@ -285,8 +344,8 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                 </DropdownMenu>
             </div>
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4" ref={scrollRef as any}>
+            {/* Messages - Simple scrollable div */}
+            <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-4 max-w-4xl mx-auto">
                     {messages?.length === 0 && (
                         <div className="text-center text-muted-foreground py-12">
@@ -295,7 +354,12 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                         </div>
                     )}
                     {messages?.map((msg) => (
-                        <ChatMessage key={msg.id} message={msg} threadId={threadId} />
+                        <ChatMessage
+                            key={msg.id}
+                            message={msg}
+                            threadId={threadId}
+                            onRegenerate={handleRegenerate}
+                        />
                     ))}
                     {isSending && (
                         <div className="flex justify-start">
@@ -304,8 +368,10 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                             </div>
                         </div>
                     )}
+                    {/* Scroll anchor */}
+                    <div ref={messagesEndRef} />
                 </div>
-            </ScrollArea>
+            </div>
 
             {/* Input Area */}
             <div className="border-t bg-background">
@@ -390,6 +456,8 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                 settings={settings}
                 onSettingsChange={setSettings}
             />
+
+            <ConfirmationDialog />
         </div>
     );
 }

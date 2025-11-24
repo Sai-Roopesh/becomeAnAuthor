@@ -13,8 +13,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 import { toast } from '@/lib/toast-service';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function SnippetList({ projectId, onSelect }: { projectId: string, onSelect: (id: string) => void }) {
     const [search, setSearch] = useState('');
@@ -40,8 +40,17 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
         onSelect(id);
     };
 
+    const { confirm, ConfirmationDialog } = useConfirmation();
+
     const handleDelete = async (id: string) => {
-        if (confirm('Delete this snippet?')) {
+        const confirmed = await confirm({
+            title: 'Delete Snippet',
+            description: 'Are you sure you want to delete this snippet? This action cannot be undone.',
+            confirmText: 'Delete',
+            variant: 'destructive'
+        });
+
+        if (confirmed) {
             await db.snippets.delete(id);
             toast.success('Snippet deleted');
         }
@@ -91,6 +100,8 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
                     </div>
                 ))}
             </div>
+
+            <ConfirmationDialog />
         </div>
     );
 }

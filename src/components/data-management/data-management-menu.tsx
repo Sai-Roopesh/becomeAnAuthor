@@ -11,17 +11,27 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Database, Download, FileJson, Upload } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function DataManagementMenu() {
     const { exportFullBackup, importFullBackup, importProject } = useImportExport();
     const backupInputRef = useRef<HTMLInputElement>(null);
     const projectInputRef = useRef<HTMLInputElement>(null);
 
-    const handleBackupRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { confirm, ConfirmationDialog } = useConfirmation();
+
+    const handleBackupRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (confirm('WARNING: Restoring a backup will OVERWRITE all current data. This cannot be undone. Are you sure?')) {
+            const confirmed = await confirm({
+                title: 'Restore Database',
+                description: 'WARNING: Restoring a backup will OVERWRITE all current data. This cannot be undone. Are you sure you want to proceed?',
+                confirmText: 'Restore & Overwrite',
+                variant: 'destructive'
+            });
+
+            if (confirmed) {
                 importFullBackup(file);
             }
         }
@@ -89,6 +99,8 @@ export function DataManagementMenu() {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <ConfirmationDialog />
         </>
     );
 }
