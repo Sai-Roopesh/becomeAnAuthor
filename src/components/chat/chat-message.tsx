@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { db } from '@/lib/db';
 import { toast } from '@/lib/toast-service';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -20,10 +21,9 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [deleteCount, setDeleteCount] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(message.content);
+    const { confirm, ConfirmationDialog } = useConfirmation();
 
     const handleCopy = () => {
         navigator.clipboard.writeText(message.content);
@@ -86,46 +86,44 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
         e.preventDefault();
         e.stopPropagation();
 
-        if (message.role === 'user') {
-            const allMessages = await db.chatMessages
-                .where('threadId')
-                .equals(message.threadId)
-                .sortBy('timestamp');
-
-            const messagesToDelete = allMessages.filter(
-                m => m.timestamp >= message.timestamp
-            );
-            setDeleteCount(messagesToDelete.length);
-        } else {
-            setDeleteCount(1);
-        }
-
-        setIsDeleteDialogOpen(true);
-    };
-
-    const executeDelete = async () => {
         try {
+            let messagesToDelete: ChatMessageType[] = [];
+            let description: string;
+
             if (message.role === 'user') {
                 const allMessages = await db.chatMessages
                     .where('threadId')
                     .equals(message.threadId)
                     .sortBy('timestamp');
 
-                const messagesToDelete = allMessages.filter(
-                    m => m.timestamp >= message.timestamp
-                );
+                const messageIndex = allMessages.findIndex(m => m.id === message.id);
+                if (messageIndex !== -1) {
+                    messagesToDelete = allMessages.slice(messageIndex);
+                }
+                const count = messagesToDelete.length;
 
+                description = count > 1
+                    ? `This will delete this message and ${count - 1} subsequent message(s). This action cannot be undone.`
+                    : 'Are you sure you want to delete this message? This action cannot be undone.';
+            } else {
+                messagesToDelete = [message];
+                description = 'Are you sure you want to delete this message? This action cannot be undone.';
+            }
+
+            const confirmed = await confirm({
+                title: 'Delete Message',
+                description,
+                confirmText: 'Delete',
+                variant: 'destructive'
+            });
+
+            if (confirmed) {
                 await db.chatMessages.bulkDelete(messagesToDelete.map(m => m.id));
                 toast.success(`Deleted ${messagesToDelete.length} message(s)`);
-            } else {
-                await db.chatMessages.delete(message.id);
-                toast.success('Message deleted');
             }
         } catch (error) {
             console.error('Failed to delete message:', error);
             toast.error('Failed to delete message');
-        } finally {
-            setIsDeleteDialogOpen(false);
         }
     };
 
@@ -248,27 +246,7 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
                 </div>
             </div>
 
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Delete Message</DialogTitle>
-                        <DialogDescription>
-                            {deleteCount > 1
-                                ? `This will delete this message and ${deleteCount - 1} subsequent message(s). This action cannot be undone.`
-                                : 'Are you sure you want to delete this message? This action cannot be undone.'
-                            }
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button variant="destructive" onClick={executeDelete}>
-                            Delete
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmationDialog />
         </>
     );
 }

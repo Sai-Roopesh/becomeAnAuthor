@@ -16,13 +16,33 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 export default function Dashboard() {
   const projects = useLiveQuery(() => db.projects.toArray());
+  const { confirm, ConfirmationDialog } = useConfirmation();
 
   if (!projects) return null;
 
   const hasProjects = projects.length > 0;
+
+  const handleDeleteProject = async (e: React.MouseEvent, projectId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmed = await confirm({
+      title: 'Delete Project',
+      description: 'Are you sure you want to DELETE this novel? This will permanently delete all scenes, chapters, acts, and associated data. This cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'destructive'
+    });
+
+    if (confirmed) {
+      await db.projects.delete(projectId);
+      await db.nodes.where('projectId').equals(projectId).delete();
+      await db.codex.where('projectId').equals(projectId).delete();
+    }
+  };
 
   return (
     <div className="container mx-auto p-8 max-w-6xl">
@@ -103,15 +123,7 @@ export default function Dashboard() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (confirm('Are you sure you want to DELETE this novel? This cannot be undone.')) {
-                            db.projects.delete(project.id);
-                            db.nodes.where('projectId').equals(project.id).delete();
-                            db.codex.where('projectId').equals(project.id).delete();
-                          }
-                        }}
+                        onClick={(e) => handleDeleteProject(e, project.id)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete Project
@@ -124,6 +136,8 @@ export default function Dashboard() {
           ))}
         </div>
       )}
+
+      <ConfirmationDialog />
     </div>
   );
 }

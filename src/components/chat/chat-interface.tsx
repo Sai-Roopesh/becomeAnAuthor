@@ -7,8 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, Trash2 } from 'lucide-react';
 import { useChatStore } from '@/store/use-chat-store';
 import { ChatThread } from './chat-thread';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/lib/toast-service';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 interface ChatInterfaceProps {
     projectId: string;
@@ -16,8 +16,8 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ projectId }: ChatInterfaceProps) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [threadToDelete, setThreadToDelete] = useState<string | null>(null);
     const { activeThreadId, setActiveThreadId } = useChatStore();
+    const { confirm, ConfirmationDialog } = useConfirmation();
 
     const threads = useLiveQuery(
         () => db.chatThreads
@@ -44,26 +44,30 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
         setActiveThreadId(newThread.id);
     };
 
-    const handleDeleteThread = async () => {
-        if (!threadToDelete) return;
+    const handleDeleteThread = async (threadId: string) => {
+        const confirmed = await confirm({
+            title: 'Delete Chat',
+            description: 'Are you sure you want to delete this chat? This action cannot be undone.',
+            confirmText: 'Delete',
+            variant: 'destructive'
+        });
 
-        try {
-            // Delete thread and all its messages
-            await db.transaction('rw', db.chatThreads, db.chatMessages, async () => {
-                await db.chatThreads.delete(threadToDelete);
-                await db.chatMessages.where('threadId').equals(threadToDelete).delete();
-            });
+        if (confirmed) {
+            try {
+                // Delete thread and all its messages
+                await db.transaction('rw', db.chatThreads, db.chatMessages, async () => {
+                    await db.chatThreads.delete(threadId);
+                    await db.chatMessages.where('threadId').equals(threadId).delete();
+                });
 
-            if (activeThreadId === threadToDelete) {
-                setActiveThreadId(null);
+                if (activeThreadId === threadId) {
+                    setActiveThreadId(null);
+                }
+                toast.success('Chat deleted');
+            } catch (error) {
+                console.error('Failed to delete chat:', error);
+                toast.error('Failed to delete chat');
             }
-
-            toast.success('Chat deleted');
-        } catch (error) {
-            console.error('Failed to delete chat:', error);
-            toast.error('Failed to delete chat');
-        } finally {
-            setThreadToDelete(null);
         }
     };
 
@@ -114,7 +118,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        setThreadToDelete(thread.id);
+                                        handleDeleteThread(thread.id);
                                     }}
                                 >
                                     <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
@@ -139,24 +143,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 )}
             </div>
 
-            <Dialog open={!!threadToDelete} onOpenChange={(open) => !open && setThreadToDelete(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Delete Chat</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete this chat? This action cannot be undone.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setThreadToDelete(null)}>
-                            Cancel
-                        </Button>
-                        <Button variant="destructive" onClick={handleDeleteThread}>
-                            Delete
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmationDialog />
         </div>
     );
 }
