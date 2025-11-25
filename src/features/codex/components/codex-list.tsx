@@ -9,7 +9,7 @@ import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2 } from 'l
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { v4 as uuidv4 } from 'uuid';
-import { EntityEditor } from '@/components/codex/entity-editor';
+import { EntityEditor } from '@/features/codex/components/entity-editor';
 import {
     DropdownMenu,
     DropdownMenuContent,

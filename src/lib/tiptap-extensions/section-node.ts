@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { SectionComponent } from '@/components/editor/section-component';
+import { SectionComponent } from '@/features/editor/components/section-component';
 
 export interface SectionAttributes {
     title: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import { TopNavigation } from '@/components/top-navigation';
+import { TopNavigation } from '@/features/navigation/components/TopNavigation';
 import { useParams } from 'next/navigation';
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {

@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { ContextSelector, ContextItem } from '../context-selector';
 import { PromptSelector } from '../prompt-selector';
-import { ModelSelector } from '@/components/ai/model-selector';
+import { ModelSelector } from '@/features/ai/components/model-selector';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ChatControlsProps {

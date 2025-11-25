@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { CreateProjectDialog } from '@/components/create-project-dialog';
+import { CreateProjectDialog } from '@/features/project/components/CreateProjectDialog';
 import { BookOpen, MoreVertical, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { DataManagementMenu } from '@/components/data-management/data-management-menu';

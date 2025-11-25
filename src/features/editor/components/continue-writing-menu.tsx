@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Sparkles, Wand2, BookOpen, Settings2 } from 'lucide-react';
 import { TweakGenerateDialog, GenerateOptions } from './tweak-generate-dialog';
-import { ModelSelector } from '@/components/ai/model-selector';
+import { ModelSelector } from '@/features/ai/components/model-selector';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 

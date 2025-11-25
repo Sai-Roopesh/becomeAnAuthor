@@ -12,7 +12,7 @@ import { STORAGE_KEYS, AI_DEFAULTS } from '@/lib/constants';
 import type { ChatContext } from '@/lib/types';
 
 // Import and re-export the interface from the actual source
-import type { GenerateOptions } from '@/components/editor/tweak-generate-dialog';
+import type { GenerateOptions } from '@/features/editor/components/tweak-generate-dialog';
 
 export type { GenerateOptions };
 

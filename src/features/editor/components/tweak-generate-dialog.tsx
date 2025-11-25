@@ -10,12 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Expand, Copy } from 'lucide-react';
-import { ModelSelector } from '@/components/ai/model-selector';
+import { ModelSelector } from '@/features/ai/components/model-selector';
 import type { ChatContext } from '@/lib/types';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
-import { ContextSelector, ContextItem } from '@/components/chat/context-selector';
+import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';
 
 interface TweakGenerateDialogProps {
     open: boolean;

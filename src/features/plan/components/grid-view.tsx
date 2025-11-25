@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { SceneCard } from './scene-card';
 import { useState } from 'react';
-import { CreateNodeDialog } from '@/components/create-node-dialog';
+import { CreateNodeDialog } from '@/features/project/components/CreateNodeDialog';
 
 interface GridViewProps {
     projectId: string;

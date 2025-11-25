@@ -1,8 +1,9 @@
 'use client';
 
-import { EditorContainer } from '@/components/editor-container';
-import { PlanView } from '@/components/plan/plan-view';
-import { ChatInterface } from '@/components/chat/chat-interface';
+import { EditorContainer } from '@/features/editor/components/EditorContainer';
+import { ProjectNavigation } from '@/features/navigation/components/ProjectNavigation';
+import { PlanView } from '@/features/plan/components/plan-view';
+import { ChatInterface } from '@/features/chat/components/chat-interface';
 import { use } from 'react';
 import { useProjectStore } from '@/store/use-project-store';
 

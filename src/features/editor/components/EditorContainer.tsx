@@ -1,14 +1,14 @@
 'use client';
 
 import { useProjectStore } from '@/store/use-project-store';
-import { ProjectNavigation } from './project-navigation';
-import { TiptapEditor } from './editor/tiptap-editor';
-import { EditorToolbar } from './editor/editor-toolbar';
-import { StoryTimeline } from './editor/story-timeline';
+import { ProjectNavigation } from '@/features/navigation/components/ProjectNavigation';
+import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
+import { EditorToolbar } from '@/features/editor/components/editor-toolbar';
+import { StoryTimeline } from '@/features/editor/components/story-timeline';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useState, useEffect, useRef } from 'react';
-import { SnippetEditor } from './snippets/snippet-editor';
+import { SnippetEditor } from '@/features/snippets/components/snippet-editor';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from '@/components/ui/button';
 import { PinOff } from 'lucide-react';

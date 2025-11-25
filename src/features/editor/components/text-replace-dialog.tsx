@@ -10,11 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { ModelSelector } from '@/components/ai/model-selector';
+import { ModelSelector } from '@/features/ai/components/model-selector';
 import { generateText } from '@/lib/ai-service';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
-import { ContextSelector, ContextItem } from '@/components/chat/context-selector';
+import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';
 
 interface TextReplaceDialogProps {
     action: 'expand' | 'rephrase' | 'shorten';
