@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChevronDown, ChevronRight, MoreVertical, Palette, EyeOff, Copy, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { FEATURE_FLAGS } from '@/lib/constants';
+import { FEATURE_FLAGS } from '@/lib/config/constants';
 
 export function SectionComponent({ node, updateAttributes, deleteNode }: any) {
     const [isEditing, setIsEditing] = useState(false);

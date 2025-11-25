@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState } from 'react';
-import { AIConnection, AIProvider, AI_VENDORS, getAllVendors, validateApiKey } from '@/lib/ai-vendors';
-import { fetchModelsForConnection } from '@/lib/ai-service';
+import { AIConnection, AIProvider, AI_VENDORS, getAllVendors, validateApiKey } from '@/lib/config/ai-vendors';
+import { fetchModelsForConnection } from '@/lib/core/ai-client';
 import { Loader2, Eye, EyeOff, Check } from 'lucide-react';
 
 interface NewConnectionDialogProps {

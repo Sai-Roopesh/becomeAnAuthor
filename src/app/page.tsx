@@ -1,7 +1,7 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CreateProjectDialog } from '@/features/project/components/CreateProjectDialog';

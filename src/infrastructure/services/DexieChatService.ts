@@ -10,13 +10,13 @@ import type {
     CodexEntry,
     Act,
     Chapter
-} from '@/lib/types';
+} from '@/lib/config/types';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/lib/core/ai-client';
 import { getPromptTemplate } from '@/lib/prompt-templates';
-import { extractTextFromContent } from '@/lib/editor-utils';
+import { extractTextFromContent } from '@/lib/utils/editor';
 
 /**
  * Dexie implementation of Chat Service

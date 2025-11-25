@@ -1,7 +1,7 @@
 import type { IExportService, ExportOptions } from '@/domain/services/IExportService';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
-import type { Scene } from '@/lib/types';
-import { extractTextFromContent } from '@/lib/editor-utils';
+import type { Scene } from '@/lib/config/types';
+import { extractTextFromContent } from '@/lib/utils/editor';
 
 /**
  * Document Export Service

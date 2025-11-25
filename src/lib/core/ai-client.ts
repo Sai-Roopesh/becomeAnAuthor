@@ -3,7 +3,7 @@
  * Centralized service for routing AI requests to appropriate vendors
  */
 
-import { AIConnection, AIProvider, getVendor } from './ai-vendors';
+import { AIConnection, AI_VENDORS, AIProvider, getVendor } from '@/lib/config/ai-vendors';
 
 export interface GenerateOptions {
     model: string;

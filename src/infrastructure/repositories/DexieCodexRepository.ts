@@ -1,5 +1,5 @@
-import { db } from '@/lib/db';
-import type { CodexEntry, CodexCategory } from '@/lib/types';
+import { db } from '@/lib/core/database';
+import type { CodexEntry, CodexCategory } from '@/lib/config/types';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 
 /**
@@ -30,7 +30,7 @@ export class DexieCodexRepository implements ICodexRepository {
             .equals(projectId)
             .filter(entry =>
                 entry.name.toLowerCase().includes(lowerQuery) ||
-                entry.aliases?.some(alias => alias.toLowerCase().includes(lowerQuery))
+                entry.aliases?.some((alias: string) => alias.toLowerCase().includes(lowerQuery))
             )
             .toArray();
     }

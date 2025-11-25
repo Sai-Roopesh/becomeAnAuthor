@@ -1,5 +1,5 @@
-import { db } from '@/lib/db';
-import type { ChatThread, ChatMessage } from '@/lib/types';
+import { db } from '@/lib/core/database';
+import type { ChatThread, ChatMessage } from '@/lib/config/types';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 
 /**

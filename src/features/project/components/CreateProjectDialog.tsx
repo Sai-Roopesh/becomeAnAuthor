@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { v4 as uuidv4 } from 'uuid';
 import { Sparkles, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

@@ -1,4 +1,4 @@
-import type { Snippet } from '@/lib/types';
+import type { Snippet } from '@/lib/config/types';
 
 /**
  * Repository interface for Snippets

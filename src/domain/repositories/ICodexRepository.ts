@@ -1,4 +1,4 @@
-import type { CodexEntry, CodexCategory } from '@/lib/types';
+import type { CodexEntry, CodexCategory } from '@/lib/config/types';
 
 /**
  * Repository interface for Codex entries (worldbuilding)

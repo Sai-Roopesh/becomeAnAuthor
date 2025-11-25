@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import type { Project, DocumentNode, Scene, CodexEntry, Series, Snippet, CodexRelation, CodexAddition, Section, ChatThread, ChatMessage } from './types';
+import type { Project, DocumentNode, Scene, CodexEntry, Series, Snippet, CodexRelation, CodexAddition, Section, ChatThread, ChatMessage } from '@/lib/config/types';
 
 export class NovelDB extends Dexie {
     projects!: Table<Project>;

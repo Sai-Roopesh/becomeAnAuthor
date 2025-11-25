@@ -1,8 +1,8 @@
 'use client';
 
-import { DocumentNode } from '@/lib/types';
+import { DocumentNode } from '@/lib/config/types';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {

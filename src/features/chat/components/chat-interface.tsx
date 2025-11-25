@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { useChatRepository } from '@/hooks/use-chat-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

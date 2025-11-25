@@ -1,5 +1,5 @@
-import { db } from '@/lib/db';
-import type { DocumentNode, Scene } from '@/lib/types';
+import { db } from '@/lib/core/database';
+import type { DocumentNode, Scene } from '@/lib/config/types';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 
 /**

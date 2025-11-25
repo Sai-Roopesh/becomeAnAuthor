@@ -1,7 +1,7 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { seedDatabase } from '@/lib/seed';
 import { Button } from '@/components/ui/button';
 

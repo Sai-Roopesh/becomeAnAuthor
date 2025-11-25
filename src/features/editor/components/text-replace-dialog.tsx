@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { ModelSelector } from '@/features/ai/components/model-selector';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/lib/core/ai-client';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';

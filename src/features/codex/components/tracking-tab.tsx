@@ -1,6 +1,6 @@
 'use client';
 
-import { CodexEntry, AIContext } from '@/lib/types';
+import { CodexEntry, AIContext } from '@/lib/config/types';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';

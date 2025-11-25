@@ -13,10 +13,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS } from '@/lib/constants';
+import { STORAGE_KEYS } from '@/lib/config/constants';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { Settings, Trash2, Archive, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLiveQuery } from 'dexie-react-hooks';

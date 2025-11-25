@@ -1,7 +1,7 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { usePrompt } from '@/hooks/use-prompt';
 import { Button } from '@/components/ui/button';
 import { Plus, X, Link2 } from 'lucide-react';

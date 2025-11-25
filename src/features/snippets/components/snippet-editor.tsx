@@ -6,7 +6,7 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect, useState } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Pin, PinOff, Trash2, MoreVertical } from 'lucide-react';

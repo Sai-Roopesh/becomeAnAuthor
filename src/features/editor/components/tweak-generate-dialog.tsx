@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Expand, Copy } from 'lucide-react';
 import { ModelSelector } from '@/features/ai/components/model-selector';
-import type { ChatContext } from '@/lib/types';
+import type { ChatContext } from '@/lib/config/types';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 

@@ -1,5 +1,5 @@
-import { db } from './db';
-import { CodexEntry } from './types';
+import { db } from '@/lib/core/database';
+import { CodexEntry } from '@/lib/config/types';
 
 // Helper to yield to main thread to prevent blocking UI
 const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));

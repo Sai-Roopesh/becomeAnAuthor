@@ -1,7 +1,7 @@
 'use client';
 
 import { ChatMessage as ChatMessageComponent } from '../chat-message';
-import type { ChatMessage } from '@/lib/types';
+import type { ChatMessage } from '@/lib/config/types';
 import { RefObject } from 'react';
 
 interface ChatMessageListProps {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,12 +9,12 @@ import { useConfirmation } from '@/hooks/use-confirmation';
 import { usePrompt } from '@/hooks/use-prompt';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History } from 'lucide-react';
 import { useState } from 'react';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/lib/core/ai-client';
 import { toast } from '@/lib/toast-service';
-import { isScene, Scene } from '@/lib/types';
-import { extractTextFromTiptapJSON } from '@/lib/editor-utils';
+import { isScene, Scene } from '@/lib/config/types';
+import { extractTextFromTiptapJSON } from '@/lib/utils/editor';
 import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS, FEATURE_FLAGS } from '@/lib/constants';
+import { STORAGE_KEYS, FEATURE_FLAGS } from '@/lib/config/constants';
 
 interface SceneActionMenuProps {
     sceneId: string;

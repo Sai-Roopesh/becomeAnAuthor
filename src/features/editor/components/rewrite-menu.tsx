@@ -4,7 +4,7 @@ import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Wand2, Minimize2, Maximize2, RefreshCw, Eye } from 'lucide-react';
 import { useState } from 'react';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/lib/core/ai-client';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
 import { TinkerMode } from './tinker-mode';
 import { toast } from '@/lib/toast-service';
 import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS } from '@/lib/constants';
+import { STORAGE_KEYS } from '@/lib/config/constants';
 
 export function RewriteMenu({ editor }: { editor: Editor | null }) {
     const [isRewriting, setIsRewriting] = useState(false);

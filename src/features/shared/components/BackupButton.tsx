@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { Download } from 'lucide-react';
 import { toast } from '@/lib/toast-service';
 

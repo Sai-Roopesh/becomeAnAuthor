@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { v4 as uuidv4 } from 'uuid';
-import { DocumentNode } from '@/lib/types';
+import { DocumentNode } from '@/lib/config/types';
 import { useNodeRepository } from '@/hooks/use-node-repository';
 
 interface CreateNodeDialogProps {

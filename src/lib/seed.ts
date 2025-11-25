@@ -1,4 +1,4 @@
-import { db } from './db';
+import { db } from '@/lib/core/database';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function seedDatabase() {

@@ -1,9 +1,9 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
-import { CodexEntry, CodexCategory } from '@/lib/types';
+import { CodexEntry, CodexCategory } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

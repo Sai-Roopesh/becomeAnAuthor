@@ -1,4 +1,4 @@
-import type { DocumentNode, Scene, Act, Chapter } from '@/lib/types';
+import type { DocumentNode, Scene, Act, Chapter } from '@/lib/config/types';
 
 /**
  * Repository interface for document nodes (Acts, Chapters, Scenes)

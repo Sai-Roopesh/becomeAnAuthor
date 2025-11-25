@@ -1,4 +1,4 @@
-import type { ChatContext, ChatMessage } from '@/lib/types';
+import type { ChatContext, ChatMessage } from '@/lib/config/types';
 
 /**
  * Chat Settings for AI generation

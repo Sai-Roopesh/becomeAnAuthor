@@ -7,7 +7,7 @@ import { useChatService } from '@/hooks/use-chat-service';
 import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
 import { useChatStore } from '@/store/use-chat-store';
 import { ContextItem } from './context-selector';
-import type { ChatContext } from '@/lib/types';
+import type { ChatContext } from '@/lib/config/types';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 

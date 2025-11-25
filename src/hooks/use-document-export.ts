@@ -1,8 +1,8 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { toast } from '@/lib/toast-service';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak } from 'docx';
 import { useFormatStore } from '@/store/use-format-store';
-import { extractTextFromTiptapJSON } from '@/lib/editor-utils';
+import { extractTextFromTiptapJSON } from '@/lib/utils/editor';
 
 export function useDocumentExport() {
     const formatSettings = useFormatStore();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, FileText, BookOpen, X, Layers, Hash, File, Book, User, MapPin, Box, Scroll, HelpCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Act, Chapter, Scene, CodexEntry, CodexCategory } from '@/lib/types';
+import { Act, Chapter, Scene, CodexEntry, CodexCategory } from '@/lib/config/types';
 
 export interface ContextItem {
     type: 'novel' | 'outline' | 'act' | 'chapter' | 'scene' | 'codex';
@@ -230,7 +230,7 @@ export function ContextSelector({ projectId, selectedContexts, onContextsChange 
                                             {getCategoryLabel(category)}
                                         </DropdownMenuSubTrigger>
                                         <DropdownMenuSubContent className="w-56 max-h-[300px] overflow-y-auto">
-                                            {entries.map(entry => (
+                                            {(entries as CodexEntry[]).map(entry => (
                                                 <DropdownMenuItem
                                                     key={entry.id}
                                                     onClick={() => addContext({ type: 'codex', id: entry.id, label: entry.name })}

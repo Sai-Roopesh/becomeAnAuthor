@@ -1,6 +1,6 @@
 'use client';
 
-import { DocumentNode } from '@/lib/types';
+import { DocumentNode } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { SceneCard } from './scene-card';

@@ -1,6 +1,6 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { toast } from '@/lib/toast-service';
-import { ExportedProject, Project, DocumentNode, CodexEntry, ChatThread, ChatMessage, CodexRelation, CodexAddition, Section, Snippet } from '@/lib/types';
+import { ExportedProject, Project, DocumentNode, CodexEntry, ChatThread, ChatMessage, CodexRelation, CodexAddition, Section, Snippet } from '@/lib/config/types';
 import { v4 as uuidv4 } from 'uuid';
 
 export function useImportExport() {

@@ -5,9 +5,10 @@
  * preventing conflicts between auto-save (debounced) and AI-generation (immediate) saves.
  */
 
-import { db } from './db';
-import { toast } from './toast-service';
-import { storage } from './safe-storage';
+import { db } from '@/lib/core/database';
+
+import { toast } from '@/lib/toast-service';
+import { storage } from '@/lib/safe-storage';
 
 class SaveCoordinator {
     private saveQueue: Map<string, Promise<void>> = new Map();

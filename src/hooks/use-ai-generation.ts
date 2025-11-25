@@ -5,11 +5,11 @@
 
 import { useState } from 'react';
 import { Editor } from '@tiptap/react';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/lib/core/ai-client';
 import { toast } from '@/lib/toast-service';
 import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS, AI_DEFAULTS } from '@/lib/constants';
-import type { ChatContext } from '@/lib/types';
+import { STORAGE_KEYS, AI_DEFAULTS } from '@/lib/config/constants';
+import type { ChatContext } from '@/lib/config/types';
 
 // Import and re-export the interface from the actual source
 import type { GenerateOptions } from '@/features/editor/components/tweak-generate-dialog';
@@ -66,7 +66,7 @@ export function useAIGeneration(editor: Editor | null, sceneId: string) {
                 editor.chain().focus().insertContent(generatedText).run();
 
                 // IMMEDIATE save after AI generation using coordinator to prevent race conditions
-                const { saveCoordinator } = await import('@/lib/save-coordinator');
+                const { saveCoordinator } = await import('@/lib/core/save-coordinator');
                 await saveCoordinator.scheduleSave(sceneId, () => editor.getJSON());
 
                 // Save last used model

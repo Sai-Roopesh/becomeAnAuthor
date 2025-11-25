@@ -1,7 +1,7 @@
 'use client';
 
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/common';
 
 export const MentionList = forwardRef((props: any, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);

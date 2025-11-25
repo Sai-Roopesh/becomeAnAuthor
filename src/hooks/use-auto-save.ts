@@ -8,7 +8,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { toast } from '@/lib/toast-service';
 import { Editor } from '@tiptap/react';
 import { useDebounce } from '@/hooks/use-debounce';
-import { saveCoordinator } from '@/lib/save-coordinator';
+import { saveCoordinator } from '@/lib/core/save-coordinator';
 
 export function useAutoSave(sceneId: string, editor: Editor | null) {
     // Keep track of the latest editor instance and sceneId for cleanup

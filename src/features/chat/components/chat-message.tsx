@@ -6,11 +6,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { MoreVertical, Copy, Save, RefreshCw, Trash2, Pencil } from 'lucide-react';
-import type { ChatMessage as ChatMessageType } from '@/lib/types';
-import { FEATURE_FLAGS } from '@/lib/constants';
+import type { ChatMessage as ChatMessageType } from '@/lib/config/types';
+import { FEATURE_FLAGS } from '@/lib/config/constants';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 

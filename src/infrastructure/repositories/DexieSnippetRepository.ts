@@ -1,5 +1,5 @@
-import { db } from '@/lib/db';
-import type { Snippet } from '@/lib/types';
+import { db } from '@/lib/core/database';
+import type { Snippet } from '@/lib/config/types';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 
 /**

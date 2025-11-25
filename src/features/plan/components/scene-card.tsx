@@ -1,6 +1,6 @@
 'use client';
 
-import { DocumentNode } from '@/lib/types';
+import { DocumentNode } from '@/lib/config/types';
 import { useProjectStore } from '@/store/use-project-store';
 import { FileText, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';

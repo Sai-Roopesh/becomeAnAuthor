@@ -1,7 +1,7 @@
 import { ReactRenderer } from '@tiptap/react';
 import tippy from 'tippy.js';
 import { MentionList } from './mention-list';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 
 export const suggestion = {
     items: async ({ query }: { query: string }) => {

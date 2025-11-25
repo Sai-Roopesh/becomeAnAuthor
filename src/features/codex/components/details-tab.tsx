@@ -1,15 +1,15 @@
 'use client';
 
-import { CodexEntry } from '@/lib/types';
+import { CodexEntry } from '@/lib/config/types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Copy, History, Sparkles, Upload, Plus, Trash2 } from 'lucide-react';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/lib/core/ai-client';
 import { toast } from '@/lib/toast-service';
 import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS } from '@/lib/constants';
+import { STORAGE_KEYS } from '@/lib/config/constants';
 
 interface DetailsTabProps {
     entity: Partial<CodexEntry>;

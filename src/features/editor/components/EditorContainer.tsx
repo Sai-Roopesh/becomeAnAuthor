@@ -6,7 +6,7 @@ import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { EditorToolbar } from '@/features/editor/components/editor-toolbar';
 import { StoryTimeline } from '@/features/editor/components/story-timeline';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { useState, useEffect, useRef } from 'react';
 import { SnippetEditor } from '@/features/snippets/components/snippet-editor';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";

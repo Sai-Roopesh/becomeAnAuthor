@@ -6,10 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
 import { Sparkles } from 'lucide-react';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/lib/core/ai-client';
 import { toast } from '@/lib/toast-service';
 import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS } from '@/lib/constants';
+import { STORAGE_KEYS } from '@/lib/config/constants';
 
 export function TinkerMode({ editor, open, onOpenChange }: { editor: Editor | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     const [originalText, setOriginalText] = useState('');

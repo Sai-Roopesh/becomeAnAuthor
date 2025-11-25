@@ -1,12 +1,12 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/core/database';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
 import { useNodeRepository } from '@/hooks/use-node-repository';
-import { cn } from '@/lib/utils';
-import { DocumentNode } from '@/lib/types';
+import { cn } from '@/lib/utils/common';
+import { DocumentNode } from '@/lib/config/types';
 import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
