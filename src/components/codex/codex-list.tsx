@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { CodexEntry, CodexCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2 } from 'lucide-react';
@@ -19,11 +20,13 @@ import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function CodexList({ projectId }: { projectId: string }) {
+    const codexRepo = useCodexRepository();
     const [search, setSearch] = useState('');
     const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
     const entries = useLiveQuery(
-        () => db.codex.where('projectId').equals(projectId).toArray()
+        () => codexRepo.getByProject(projectId),
+        [projectId]
     );
 
     const filteredEntries = entries?.filter(e =>
@@ -32,22 +35,12 @@ export function CodexList({ projectId }: { projectId: string }) {
     );
 
     const createEntry = async () => {
-        const id = uuidv4();
-        await db.codex.add({
-            id,
+        const newEntry = await codexRepo.create({
             projectId,
             name: 'New Entity',
             category: 'character',
-            aliases: [],
-            description: '',
-            attributes: {},
-            tags: [],
-            references: [],
-            settings: { isGlobal: false, doNotTrack: false },
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
         });
-        setSelectedEntityId(id);
+        setSelectedEntityId(newEntry.id);
     };
 
     const { confirm, ConfirmationDialog } = useConfirmation();
@@ -62,10 +55,14 @@ export function CodexList({ projectId }: { projectId: string }) {
         });
 
         if (confirmed) {
-            await db.codex.delete(id);
-            toast.success('Entity deleted');
-            if (selectedEntityId === id) {
-                setSelectedEntityId(null);
+            try {
+                await codexRepo.delete(id);
+                toast.success('Entity deleted');
+                if (selectedEntityId === id) {
+                    setSelectedEntityId(null);
+                }
+            } catch (error) {
+                toast.error('Failed to delete entity');
             }
         }
     };

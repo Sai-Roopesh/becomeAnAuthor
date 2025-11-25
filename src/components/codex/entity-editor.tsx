@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { CodexEntry, CodexCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,8 @@ import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: () => void }) {
-    const entity = useLiveQuery(() => db.codex.get(entityId), [entityId]);
+    const codexRepo = useCodexRepository();
+    const entity = useLiveQuery(() => codexRepo.get(entityId), [entityId]);
     const [formData, setFormData] = useState<Partial<CodexEntry>>({});
     const debouncedData = useDebounce(formData, 1000);
     const { confirm, ConfirmationDialog } = useConfirmation();
@@ -34,9 +36,9 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
 
     useEffect(() => {
         if (debouncedData && debouncedData.id === entityId && Object.keys(debouncedData).length > 0) {
-            db.codex.update(entityId, { ...debouncedData, updatedAt: Date.now() } as any);
+            codexRepo.update(entityId, debouncedData);
         }
-    }, [debouncedData, entityId]);
+    }, [debouncedData, entityId, codexRepo]);
 
     const handleChange = (field: keyof CodexEntry, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -44,7 +46,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
 
     const handleSave = async () => {
         if (formData.id) {
-            await db.codex.update(entityId, { ...formData, updatedAt: Date.now() } as any);
+            await codexRepo.update(entityId, formData);
             toast.success('Entity saved');
         }
     };
@@ -58,7 +60,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         });
 
         if (confirmed) {
-            await db.codex.delete(entityId);
+            await codexRepo.delete(entityId);
             toast.success('Entity deleted');
             onBack();
         }

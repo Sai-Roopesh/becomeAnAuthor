@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, FileText, Pin, Trash2, MoreVertical } from 'lucide-react';
@@ -17,32 +18,29 @@ import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function SnippetList({ projectId, onSelect }: { projectId: string, onSelect: (id: string) => void }) {
+    const snippetRepo = useSnippetRepository();
     const [search, setSearch] = useState('');
+    const { confirm, ConfirmationDialog } = useConfirmation();
+
     const snippets = useLiveQuery(
-        () => db.snippets.where('projectId').equals(projectId).reverse().toArray()
+        () => snippetRepo.getByProject(projectId),
+        [projectId]
     );
 
     const filteredSnippets = snippets?.filter(s =>
         s.title.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleCreate = async () => {
-        const id = uuidv4();
-        await db.snippets.add({
-            id,
+    const createSnippet = async () => {
+        const newSnippet = await snippetRepo.create({
             projectId,
             title: 'New Snippet',
-            content: { type: 'doc', content: [] },
-            pinned: false,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
         });
-        onSelect(id);
+        onSelect(newSnippet.id);
     };
 
-    const { confirm, ConfirmationDialog } = useConfirmation();
-
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
         const confirmed = await confirm({
             title: 'Delete Snippet',
             description: 'Are you sure you want to delete this snippet? This action cannot be undone.',
@@ -51,7 +49,7 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
         });
 
         if (confirmed) {
-            await db.snippets.delete(id);
+            await snippetRepo.delete(id);
             toast.success('Snippet deleted');
         }
     };
@@ -68,7 +66,7 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <Button className="w-full justify-start" size="sm" onClick={handleCreate}>
+                <Button className="w-full justify-start" size="sm" onClick={createSnippet}>
                     <Plus className="mr-2 h-4 w-4" /> New Snippet
                 </Button>
             </div>
@@ -92,7 +90,7 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(snippet.id); }} className="text-destructive">
+                                <DropdownMenuItem onClick={(e) => handleDelete(snippet.id, e)} className="text-destructive">
                                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>

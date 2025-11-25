@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,12 +14,14 @@ import { MatrixView } from './matrix-view';
 type PlanViewType = 'grid' | 'outline' | 'matrix';
 
 export function PlanView({ projectId }: { projectId: string }) {
+    const nodeRepo = useNodeRepository();
     const [viewType, setViewType] = useState<PlanViewType>('grid');
     const [search, setSearch] = useState('');
 
     const project = useLiveQuery(() => db.projects.get(projectId));
     const nodes = useLiveQuery(
-        () => db.nodes.where('projectId').equals(projectId).sortBy('order')
+        () => nodeRepo.getByProject(projectId),
+        [projectId]
     );
 
     if (!project || !nodes) {

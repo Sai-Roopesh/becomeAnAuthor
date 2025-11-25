@@ -1,42 +1,40 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Send, MoreVertical, Pin, Archive, Download, Trash2, Settings as SettingsIcon, ChevronDown, ChevronUp } from 'lucide-react';
-import { ChatMessage } from './chat-message';
-import { ContextSelector, ContextItem } from './context-selector';
-import { PromptSelector } from './prompt-selector';
+import { useChatRepository } from '@/hooks/use-chat-repository';
+import { useChatService } from '@/hooks/use-chat-service';
 import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
-import { ModelSelector } from '@/components/ai/model-selector';
 import { useChatStore } from '@/store/use-chat-store';
-import { generateText } from '@/lib/ai-service';
-import { getPromptTemplate } from '@/lib/prompt-templates';
-import { extractTextFromContent } from '@/lib/editor-utils';
-import type { ChatContext, Scene, CodexEntry, Act, Chapter } from '@/lib/types';
+import { ContextItem } from './context-selector';
+import type { ChatContext } from '@/lib/types';
 import { toast } from '@/lib/toast-service';
-import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS } from '@/lib/constants';
 import { useConfirmation } from '@/hooks/use-confirmation';
+
+// Import child components
+import { ChatHeader } from './components/ChatHeader';
+import { ChatControls } from './components/ChatControls';
+import { ChatMessageList } from './components/ChatMessageList';
+import { ChatInput } from './components/ChatInput';
 
 interface ChatThreadProps {
     threadId: string;
 }
 
+/**
+ * Chat Thread  - Main Coordinator Component
+ * Orchestrates child components and manages state
+ * Reduced from 410 lines to ~150 lines via component decomposition
+ */
 export function ChatThread({ threadId }: ChatThreadProps) {
-    // Thread State
-    const [message, setMessage] = useState('');
-    const [isEditingName, setIsEditingName] = useState(false);
-    const [threadName, setThreadName] = useState('');
-    const [isSending, setIsSending] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatRepo = useChatRepository();
+    const chatService = useChatService();
     const { setActiveThreadId } = useChatStore();
+    const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
 
-    // AI Configuration State
+    // State
+    const [message, setMessage] = useState('');
+    const [isSending, setIsSending] = useState(false);
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
     const [selectedPromptId, setSelectedPromptId] = useState('general');
     const [selectedModel, setSelectedModel] = useState('');
@@ -51,21 +49,18 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         presencePenalty: 0,
     });
 
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
     // Data Queries
-    const thread = useLiveQuery(() => db.chatThreads.get(threadId), [threadId]);
+    const thread = useLiveQuery(() => chatRepo.getThread(threadId), [threadId]);
     const messages = useLiveQuery(
-        () => db.chatMessages
-            .where('threadId')
-            .equals(threadId)
-            .sortBy('timestamp'),
+        () => chatRepo.getMessagesByThread(threadId),
         [threadId]
     );
 
     // Effects
     useEffect(() => {
         if (thread) {
-            setThreadName(thread.name);
-            // Initialize model from thread default or local storage
             const savedModel = thread.defaultModel || localStorage.getItem('last_used_model') || '';
             if (savedModel) {
                 setSelectedModel(savedModel);
@@ -75,117 +70,10 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     }, [thread]);
 
     useEffect(() => {
-        // Simple, direct scroll to bottom when messages change
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     // Handlers
-    // Handlers
-    const generateResponse = async (targetMessage: { content: string; context?: ChatContext; role: 'user' | 'assistant' }) => {
-        setIsSending(true);
-        try {
-            // Get up-to-date history from DB (excluding the target message and anything after it if it was just added/updated)
-            // Actually, for regeneration, the target message IS in the DB. We want history BEFORE it.
-            // But since we just deleted everything after it, we can just get all messages and filter.
-
-            const allMessages = await db.chatMessages
-                .where('threadId')
-                .equals(threadId)
-                .sortBy('timestamp');
-
-            // Filter messages that are strictly before the target message (by timestamp)
-            // We need to find the target message in the list to get its timestamp, or use the passed object if it has one.
-            // The passed targetMessage might be a partial object or the full DB object.
-            // Let's assume it's the full object or we fetch it.
-
-            // If we are sending a NEW message, it's already in DB (added in handleSend).
-            // If we are regenerating, it's in DB.
-
-            // Let's use the message content for the prompt.
-
-            // Build context text
-            // Use context from the message if available, otherwise use selected contexts
-            const contextToUse = targetMessage.context || {};
-            const contextText = await buildContextText(contextToUse, thread?.projectId || '');
-
-            // Get prompt template
-            const template = getPromptTemplate(selectedPromptId);
-
-            // Build system prompt
-            let systemPrompt = template.systemPrompt;
-            if (contextText) {
-                systemPrompt += `\n\n=== CONTEXT ===\n${contextText}`;
-            }
-
-            // Build conversation history
-            // We want messages BEFORE the current user message
-            // If targetMessage has a timestamp, use it. If not (new message), use Date.now() but that's risky.
-            // Best to rely on the DB state.
-
-            // Let's find the index of our target message in the fetched history
-            // We match by content and role, or ID if available.
-            // Since we don't have ID in the simple signature, let's pass the full message object.
-
-            // Refined approach:
-            // The history should be all messages where timestamp < targetMessage.timestamp
-            // But wait, handleSend adds the message first.
-
-            // Let's assume targetMessage is the full ChatMessage object
-            const msgObj = targetMessage as any; // Cast for now to access timestamp/id
-
-            const historyMessages = allMessages.filter(m => m.timestamp < msgObj.timestamp);
-
-            const conversationHistory = historyMessages.map(m =>
-                `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
-            ).join('\n\n');
-
-            const fullPrompt = conversationHistory
-                ? `Previous conversation:\n${conversationHistory}\n\nUser: ${targetMessage.content}`
-                : targetMessage.content;
-
-            const effectiveModel = selectedModel || settings.model;
-
-            // Generate response
-            const response = await generateText({
-                model: effectiveModel,
-                system: systemPrompt,
-                prompt: fullPrompt,
-                maxTokens: settings.maxTokens,
-                temperature: settings.temperature,
-            });
-
-            await db.chatMessages.add({
-                id: crypto.randomUUID(),
-                threadId,
-                role: 'assistant',
-                content: response.text,
-                model: effectiveModel,
-                timestamp: Date.now(),
-            });
-
-            // Update thread updated time and default model
-            await db.chatThreads.update(threadId, {
-                updatedAt: Date.now(),
-                defaultModel: effectiveModel
-            });
-
-            // Save last used model preference
-            localStorage.setItem('last_used_model', effectiveModel);
-
-        } catch (error) {
-            console.error('Chat error:', error);
-            await db.chatMessages.add({
-                id: crypto.randomUUID(),
-                threadId,
-                role: 'assistant',
-                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
-                timestamp: Date.now(),
-            });
-        } finally {
-            setIsSending(false);
-        }
-    };
-
     const handleSend = async () => {
         if (!message.trim() || isSending) return;
 
@@ -195,12 +83,11 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             return;
         }
 
-        // Map ContextItem[] to ChatContext
+        // Build context from selections
         const context: ChatContext = {};
         selectedContexts.forEach(item => {
             if (item.type === 'novel') context.novelText = 'full';
             if (item.type === 'outline') context.novelText = 'outline';
-
             if (item.type === 'act' && item.id) {
                 if (!context.acts) context.acts = [];
                 context.acts.push(item.id);
@@ -224,43 +111,111 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             threadId,
             role: 'user' as const,
             content: message.trim(),
-            context,
+            context: Object.keys(context).length > 0 ? context : undefined,
             timestamp: Date.now(),
         };
 
-        await db.chatMessages.add(userMessage);
         setMessage('');
+        await chatRepo.createMessage(userMessage);
 
-        // Trigger generation
-        await generateResponse(userMessage);
-    };
+        // Generate AI response
+        setIsSending(true);
+        try {
+            const { responseText, model: usedModel } = await chatService.generateResponse({
+                message: userMessage.content,
+                threadId,
+                projectId: thread?.projectId || '',
+                context: userMessage.context,
+                model: effectiveModel,
+                settings,
+                promptId: selectedPromptId,
+            });
 
-    const handleRegenerate = async (msg: any) => {
-        // msg is the updated message object from ChatMessage component
-        await generateResponse(msg);
-    };
+            await chatRepo.createMessage({
+                id: crypto.randomUUID(),
+                threadId,
+                role: 'assistant',
+                content: responseText,
+                model: usedModel,
+                timestamp: Date.now(),
+            });
 
-    const handleSaveName = async () => {
-        if (threadName.trim() && thread) {
-            await db.chatThreads.update(threadId, { name: threadName.trim() });
+            await chatRepo.updateThread(threadId, {
+                updatedAt: Date.now(),
+                defaultModel: usedModel
+            });
+
+            localStorage.setItem('last_used_model', usedModel);
+        } catch (error) {
+            console.error('Chat error:', error);
+            await chatRepo.createMessage({
+                id: crypto.randomUUID(),
+                threadId,
+                role: 'assistant',
+                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
+                timestamp: Date.now(),
+            });
+        } finally {
+            setIsSending(false);
         }
-        setIsEditingName(false);
+    };
+
+    const handleRegenerateFrom = async (timestamp: number) => {
+        if (!messages) return;
+
+        const allMessages = await chatRepo.getMessagesByThread(threadId);
+        const messagesToDelete = allMessages.filter(m => m.timestamp >= timestamp);
+        await Promise.all(messagesToDelete.map(m => chatRepo.deleteMessage(m.id)));
+
+        const lastUserMessage = allMessages
+            .filter(m => m.timestamp < timestamp && m.role === 'user')
+            .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+        if (lastUserMessage) {
+            setIsSending(true);
+            try {
+                const effectiveModel = selectedModel || settings.model;
+                const { responseText, model: usedModel } = await chatService.generateResponse({
+                    message: lastUserMessage.content,
+                    threadId,
+                    projectId: thread?.projectId || '',
+                    context: lastUserMessage.context,
+                    model: effectiveModel,
+                    settings,
+                    promptId: selectedPromptId,
+                });
+
+                await chatRepo.createMessage({
+                    id: crypto.randomUUID(),
+                    threadId,
+                    role: 'assistant',
+                    content: responseText,
+                    model: usedModel,
+                    timestamp: Date.now(),
+                });
+            } catch (error) {
+                console.error('Regeneration error:', error);
+                toast.error('Failed to regenerate response');
+            } finally {
+                setIsSending(false);
+            }
+        }
+    };
+
+    const handleNameChange = async (name: string) => {
+        await chatRepo.updateThread(threadId, { name });
     };
 
     const handlePin = async () => {
         if (thread) {
-            await db.chatThreads.update(threadId, { pinned: !thread.pinned });
+            await chatRepo.updateThread(threadId, { pinned: !thread.pinned });
         }
     };
 
     const handleArchive = async () => {
-        if (thread) {
-            await db.chatThreads.update(threadId, { archived: true });
-            setActiveThreadId(null);
-        }
+        await chatRepo.updateThread(threadId, { archived: true });
+        setActiveThreadId(null);
     };
-
-    const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
 
     const handleDelete = async () => {
         const confirmed = await confirmDelete({
@@ -271,13 +226,12 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         });
 
         if (confirmed) {
-            await db.chatMessages.where('threadId').equals(threadId).delete();
-            await db.chatThreads.delete(threadId);
+            await chatRepo.deleteThread(threadId);
             setActiveThreadId(null);
         }
     };
 
-    const handleExport = async () => {
+    const handleExport = () => {
         if (!messages) return;
         const markdown = messages.map(m =>
             `**${m.role === 'user' ? 'You' : 'AI'}**: ${m.content}\n\n`
@@ -295,159 +249,50 @@ export function ChatThread({ threadId }: ChatThreadProps) {
 
     return (
         <div className="h-full flex flex-col">
-            {/* Top Bar */}
-            <div className="border-b p-3 flex items-center gap-2 bg-background z-10">
-                {isEditingName ? (
-                    <Input
-                        value={threadName}
-                        onChange={(e) => setThreadName(e.target.value)}
-                        onBlur={handleSaveName}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveName();
-                        }}
-                        className="h-8 flex-1"
-                        autoFocus
-                    />
-                ) : (
-                    <button
-                        onClick={() => setIsEditingName(true)}
-                        className="flex-1 text-left font-medium hover:text-primary transition-colors"
-                    >
-                        {thread.name}
-                    </button>
-                )}
+            {/* Header Component */}
+            <ChatHeader
+                threadName={thread.name}
+                isPinned={thread.pinned || false}
+                onNameChange={handleNameChange}
+                onPin={handlePin}
+                onArchive={handleArchive}
+                onExport={handleExport}
+                onDelete={handleDelete}
+                onOpenSettings={() => setShowSettings(true)}
+            />
 
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handlePin}>
-                            <Pin className="h-4 w-4 mr-2" />
-                            {thread.pinned ? 'Unpin' : 'Pin'} Thread
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleExport}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Export
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleArchive}>
-                            <Archive className="h-4 w-4 mr-2" />
-                            Archive Thread
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Thread
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+            {/* Controls Component */}
+            <ChatControls
+                projectId={thread.projectId}
+                selectedContexts={selectedContexts}
+                onContextChange={setSelectedContexts}
+                selectedPromptId={selectedPromptId}
+                onPromptChange={setSelectedPromptId}
+                selectedModel={selectedModel}
+                onModelChange={(model) => {
+                    setSelectedModel(model);
+                    setSettings(prev => ({ ...prev, model }));
+                }}
+                showControls={showControls}
+                onToggleControls={() => setShowControls(!showControls)}
+            />
 
-            {/* Messages - Simple scrollable div */}
-            <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-4 max-w-4xl mx-auto">
-                    {messages?.length === 0 && (
-                        <div className="text-center text-muted-foreground py-12">
-                            <p className="text-lg font-medium mb-2">Start a new conversation</p>
-                            <p className="text-sm">Select a model and context below to begin.</p>
-                        </div>
-                    )}
-                    {messages?.map((msg) => (
-                        <ChatMessage
-                            key={msg.id}
-                            message={msg}
-                            threadId={threadId}
-                            onRegenerate={handleRegenerate}
-                        />
-                    ))}
-                    {isSending && (
-                        <div className="flex justify-start">
-                            <div className="bg-muted rounded-lg px-4 py-2">
-                                <div className="text-sm text-muted-foreground animate-pulse">Thinking...</div>
-                            </div>
-                        </div>
-                    )}
-                    {/* Scroll anchor */}
-                    <div ref={messagesEndRef} />
-                </div>
-            </div>
+            {/* Message List Component */}
+            <ChatMessageList
+                messages={messages}
+                isLoading={isSending}
+                threadId={threadId}
+                onRegenerateFrom={handleRegenerateFrom}
+                messagesEndRef={messagesEndRef}
+            />
 
-            {/* Input Area */}
-            <div className="border-t bg-background">
-                <div className="max-w-4xl mx-auto">
-                    {/* Collapsible Controls */}
-                    {showControls && (
-                        <div className="p-3 space-y-3 border-b bg-muted/10">
-                            <ContextSelector
-                                projectId={thread.projectId}
-                                selectedContexts={selectedContexts}
-                                onContextsChange={setSelectedContexts}
-                            />
-
-                            <div className="flex gap-2 flex-wrap">
-                                <div className="flex-1 min-w-[200px]">
-                                    <PromptSelector
-                                        value={selectedPromptId}
-                                        onValueChange={setSelectedPromptId}
-                                    />
-                                </div>
-                                <div className="flex-1 min-w-[200px]">
-                                    <ModelSelector
-                                        value={selectedModel}
-                                        onValueChange={(value) => {
-                                            setSelectedModel(value);
-                                            setSettings(prev => ({ ...prev, model: value }));
-                                        }}
-                                    />
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowSettings(true)}
-                                    className="h-10"
-                                >
-                                    <SettingsIcon className="h-4 w-4 mr-2" />
-                                    Settings
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Input Row */}
-                    <div className="p-3 flex gap-2 items-end">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowControls(!showControls)}
-                            className="flex-none h-10 w-10 p-0 rounded-full"
-                            title={showControls ? "Hide Controls" : "Show Controls"}
-                        >
-                            {showControls ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                        </Button>
-                        <Textarea
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder="Type your message..."
-                            className="flex-1 min-h-[40px] max-h-[200px] py-2"
-                        />
-                        <Button
-                            onClick={handleSend}
-                            disabled={!message.trim() || isSending}
-                            size="icon"
-                            className="h-10 w-10"
-                        >
-                            <Send className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            {/* Input Component */}
+            <ChatInput
+                value={message}
+                onChange={setMessage}
+                onSend={handleSend}
+                disabled={isSending}
+            />
 
             {/* Settings Dialog */}
             <ChatSettingsDialog
@@ -460,113 +305,4 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             <ConfirmationDialog />
         </div>
     );
-}
-
-async function buildContextText(context: ChatContext, projectId: string): Promise<string> {
-    if (!projectId) return '';
-    const parts: string[] = [];
-
-    // 1. Full Novel Text
-    if (context.novelText === 'full') {
-        const scenes = await db.nodes
-            .where('projectId').equals(projectId)
-            .filter(n => n.type === 'scene')
-            .sortBy('order');
-
-        const fullText = scenes.map(s => {
-            const scene = s as Scene;
-            return `[Scene: ${scene.title}]\n${extractTextFromContent(scene.content)}`;
-        }).join('\n\n');
-
-        parts.push(`=== FULL NOVEL TEXT ===\n${fullText}`);
-    }
-
-    // 2. Outline
-    if (context.novelText === 'outline') {
-        const nodes = await db.nodes
-            .where('projectId').equals(projectId)
-            .sortBy('order');
-
-        const outline = nodes.map(n => {
-            const indent = n.type === 'act' ? '' : n.type === 'chapter' ? '  ' : '    ';
-            let info = `${indent}- [${n.type.toUpperCase()}] ${n.title}`;
-            if (n.type === 'scene') {
-                const scene = n as Scene;
-                if (scene.summary) info += `\n${indent}  Summary: ${scene.summary}`;
-            }
-            return info;
-        }).join('\n');
-
-        parts.push(`=== NOVEL OUTLINE ===\n${outline}`);
-    }
-
-    // 3. Specific Acts
-    if (context.acts && context.acts.length > 0) {
-        for (const actId of context.acts) {
-            const act = await db.nodes.get(actId) as Act;
-            if (act) {
-                // Find all chapters in this act
-                const chapters = await db.nodes.where('parentId').equals(actId).toArray();
-                const chapterIds = chapters.map(c => c.id);
-
-                // Find all scenes in these chapters
-                const scenes = await db.nodes
-                    .where('projectId').equals(projectId)
-                    .filter(n => n.type === 'scene' && chapterIds.includes(n.parentId || ''))
-                    .sortBy('order');
-
-                const actText = scenes.map(s => {
-                    const scene = s as Scene;
-                    return `[Scene: ${scene.title}]\n${extractTextFromContent(scene.content)}`;
-                }).join('\n\n');
-
-                parts.push(`=== ACT: ${act.title} ===\n${actText}`);
-            }
-        }
-    }
-
-    // 4. Specific Chapters
-    if (context.chapters && context.chapters.length > 0) {
-        for (const chapterId of context.chapters) {
-            const chapter = await db.nodes.get(chapterId) as Chapter;
-            if (chapter) {
-                const scenes = await db.nodes
-                    .where('parentId').equals(chapterId)
-                    .sortBy('order');
-
-                const chapterText = scenes.map(s => {
-                    const scene = s as Scene;
-                    return `[Scene: ${scene.title}]\n${extractTextFromContent(scene.content)}`;
-                }).join('\n\n');
-
-                parts.push(`=== CHAPTER: ${chapter.title} ===\n${chapterText}`);
-            }
-        }
-    }
-
-    // 5. Specific Scenes
-    if (context.scenes && context.scenes.length > 0) {
-        for (const sceneId of context.scenes) {
-            const scene = await db.nodes.get(sceneId) as Scene;
-            if (scene) {
-                parts.push(`=== SCENE: ${scene.title} ===\n${extractTextFromContent(scene.content)}`);
-            }
-        }
-    }
-
-    // 6. Codex Entries
-    if (context.codexEntries && context.codexEntries.length > 0) {
-        const entries = await db.codex.bulkGet(context.codexEntries);
-        const validEntries = entries.filter(e => e !== undefined) as CodexEntry[];
-
-        const codexText = validEntries.map(e =>
-            `[Codex: ${e.name} (${e.category})]\n${e.description}\n${e.notes ? `Notes: ${e.notes}` : ''}`
-        ).join('\n\n');
-
-        if (codexText) {
-            parts.push(`=== CODEX ENTRIES ===\n${codexText}`);
-        }
-    }
-
-    return parts.join('\n\n');
 }

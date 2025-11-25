@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { AppProvider } from '@/infrastructure/di/AppContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,10 +27,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
-          <Toaster richColors position="bottom-right" />
+          <AppProvider>
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+            <Toaster richColors position="bottom-right" />
+          </AppProvider>
         </ThemeProvider>
       </body>
     </html>

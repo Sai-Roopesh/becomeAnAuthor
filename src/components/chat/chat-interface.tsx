@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { useChatRepository } from '@/hooks/use-chat-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,32 +16,21 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ projectId }: ChatInterfaceProps) {
+    const chatRepo = useChatRepository();
     const [searchQuery, setSearchQuery] = useState('');
     const { activeThreadId, setActiveThreadId } = useChatStore();
     const { confirm, ConfirmationDialog } = useConfirmation();
 
     const threads = useLiveQuery(
-        () => db.chatThreads
-            .where('projectId')
-            .equals(projectId)
-            .filter(t => !t.archived)
-            .reverse()
-            .sortBy('updatedAt'),
+        () => chatRepo.getActiveThreads(projectId),
         [projectId]
     );
 
     const createNewThread = async () => {
-        const newThread = {
-            id: crypto.randomUUID(),
+        const newThread = await chatRepo.createThread({
             projectId,
             name: 'New Chat',
-            pinned: false,
-            archived: false,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-        };
-
-        await db.chatThreads.add(newThread);
+        });
         setActiveThreadId(newThread.id);
     };
 
@@ -54,11 +44,8 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
 
         if (confirmed) {
             try {
-                // Delete thread and all its messages
-                await db.transaction('rw', db.chatThreads, db.chatMessages, async () => {
-                    await db.chatThreads.delete(threadId);
-                    await db.chatMessages.where('threadId').equals(threadId).delete();
-                });
+                // Repository handles cascade delete automatically
+                await chatRepo.deleteThread(threadId);
 
                 if (activeThreadId === threadId) {
                     setActiveThreadId(null);

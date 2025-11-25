@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,7 +24,8 @@ interface NodeActionsMenuProps {
 }
 
 export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuProps) {
-    const node = useLiveQuery(() => db.nodes.get(nodeId), [nodeId]);
+    const nodeRepo = useNodeRepository();
+    const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId]);
     const [isSummarizing, setIsSummarizing] = useState(false);
     const { confirm, ConfirmationDialog } = useConfirmation();
     const { prompt, PromptDialog } = usePrompt();
@@ -40,7 +42,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
             defaultValue: node.pov || ''
         });
         if (pov) {
-            await db.nodes.update(nodeId, { pov } as Partial<Scene>);
+            await nodeRepo.update(nodeId, { pov } as Partial<Scene>);
             toast.success('POV updated');
         }
     };
@@ -54,7 +56,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
             defaultValue: node.subtitle || ''
         });
         if (subtitle) {
-            await db.nodes.update(nodeId, { subtitle } as Partial<Scene>);
+            await nodeRepo.update(nodeId, { subtitle } as Partial<Scene>);
             toast.success('Subtitle updated');
         }
     };
@@ -62,7 +64,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     const handleToggleAIExclusion = async () => {
         if (!isScene(node)) return;
         const current = node.excludeFromAI || false;
-        await db.nodes.update(nodeId, { excludeFromAI: !current } as Partial<Scene>);
+        await nodeRepo.update(nodeId, { excludeFromAI: !current } as Partial<Scene>);
         toast.success(current ? 'Included in AI context' : 'Excluded from AI context');
     };
 
@@ -88,7 +90,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
             const summary = response.text;
             if (summary) {
-                await db.nodes.update(nodeId, { summary } as Partial<Scene>);
+                await nodeRepo.update(nodeId, { summary } as Partial<Scene>);
                 toast.success('Scene summarized successfully!');
             }
         } catch (error) {
@@ -101,15 +103,11 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
     const handleDuplicate = async () => {
         if (!isScene(node)) return;
-        const newScene: Scene = {
+        await nodeRepo.create({
             ...node,
-            id: crypto.randomUUID(),
             title: `${node.title} (Copy)`,
             order: (node.order || 0) + 0.5,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-        };
-        await db.nodes.add(newScene);
+        });
         toast.success('Scene duplicated');
     };
 
@@ -142,7 +140,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
         });
 
         if (confirmed) {
-            await db.nodes.update(nodeId, { archived: true } as Partial<Scene>);
+            await nodeRepo.update(nodeId, { archived: true } as Partial<Scene>);
             toast.success('Scene archived');
         }
     };
@@ -156,7 +154,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
             defaultValue: node.title
         });
         if (newTitle && newTitle !== node.title) {
-            await db.nodes.update(nodeId, { title: newTitle });
+            await nodeRepo.update(nodeId, { title: newTitle });
             toast.success(`${nodeTypeTitle} renamed`);
         }
     };

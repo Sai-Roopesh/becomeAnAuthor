@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 import { cn } from '@/lib/utils';
 import { DocumentNode } from '@/lib/types';
 import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
@@ -23,6 +24,7 @@ import { toast } from '@/lib/toast-service';
 import { NodeActionsMenu } from '@/components/node-actions-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useConfirmation } from '@/hooks/use-confirmation';
+import { useNodeDeletion } from '@/domain/services/NodeDeletionService';
 
 import { ProjectSettingsDialog } from '@/components/project-settings-dialog';
 
@@ -41,55 +43,20 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
     }>({ open: false, parentId: null, type: 'act' });
 
     const { confirm, ConfirmationDialog } = useConfirmation();
+    const nodeRepo = useNodeRepository();
+    const { deleteNode: deleteNodeWithService } = useNodeDeletion(nodeRepo);
 
     const openCreateDialog = (parentId: string | null, type: 'act' | 'chapter' | 'scene') => {
         setDialogState({ open: true, parentId, type });
     };
 
     const handleDeleteNode = async (nodeId: string, type: 'act' | 'chapter' | 'scene') => {
-        const nodeTypeTitle = type.charAt(0).toUpperCase() + type.slice(1);
-        const description = type === 'scene'
-            ? 'This action cannot be undone.'
-            : 'This will also delete all nested content. This action cannot be undone.';
+        // Use centralized deletion service
+        const deleted = await deleteNodeWithService(nodeId, type);
 
-        const confirmed = await confirm({
-            title: `Delete ${nodeTypeTitle}`,
-            description: `Are you sure you want to delete this ${type}? ${description}`,
-            confirmText: 'Delete',
-            variant: 'destructive'
-        });
-
-        if (confirmed) {
-            try {
-                if (type === 'scene') {
-                    await db.nodes.delete(nodeId);
-                } else if (type === 'chapter') {
-                    // Delete scenes in chapter
-                    const scenes = await db.nodes.where('parentId').equals(nodeId).toArray();
-                    await db.nodes.bulkDelete(scenes.map(s => s.id));
-                    // Delete chapter
-                    await db.nodes.delete(nodeId);
-                } else if (type === 'act') {
-                    // Find chapters
-                    const chapters = await db.nodes.where('parentId').equals(nodeId).toArray();
-                    const chapterIds = chapters.map(c => c.id);
-                    // Find scenes in chapters
-                    const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
-                    // Delete scenes
-                    await db.nodes.bulkDelete(scenes.map(s => s.id));
-                    // Delete chapters
-                    await db.nodes.bulkDelete(chapterIds);
-                    // Delete act
-                    await db.nodes.delete(nodeId);
-                }
-                toast.success('Deleted successfully');
-                if (activeSceneId === nodeId) {
-                    setActiveSceneId(null);
-                }
-            } catch (error) {
-                console.error('Delete failed:', error);
-                toast.error('Failed to delete node');
-            }
+        // Clear active scene if it was the one deleted
+        if (deleted && activeSceneId === nodeId) {
+            setActiveSceneId(null);
         }
     };
 
