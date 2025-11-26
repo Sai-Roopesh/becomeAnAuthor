@@ -1,0 +1,93 @@
+'use client';
+
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Plus, Search, FileText, Pin, Trash2, MoreVertical } from 'lucide-react';
+import { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+export function SnippetList({ projectId, onSelect }: { projectId: string, onSelect: (id: string) => void }) {
+    const [search, setSearch] = useState('');
+    const snippets = useLiveQuery(
+        () => db.snippets.where('projectId').equals(projectId).reverse().toArray()
+    );
+
+    const filteredSnippets = snippets?.filter(s =>
+        s.title.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const handleCreate = async () => {
+        const id = uuidv4();
+        await db.snippets.add({
+            id,
+            projectId,
+            title: 'New Snippet',
+            content: { type: 'doc', content: [] },
+            pinned: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        });
+        onSelect(id);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (confirm('Delete this snippet?')) {
+            await db.snippets.delete(id);
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="p-2 space-y-2">
+                <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search snippets..."
+                        className="pl-8"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+                <Button className="w-full justify-start" size="sm" onClick={handleCreate}>
+                    <Plus className="mr-2 h-4 w-4" /> New Snippet
+                </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {filteredSnippets?.length === 0 && (
+                    <div className="text-center text-muted-foreground text-sm py-8">
+                        No snippets found.
+                    </div>
+                )}
+                {filteredSnippets?.map(snippet => (
+                    <div key={snippet.id} className="group flex items-center justify-between p-2 hover:bg-accent rounded-md cursor-pointer" onClick={() => onSelect(snippet.id)}>
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate text-sm font-medium">{snippet.title}</span>
+                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
+                                    <MoreVertical className="h-3 w-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(snippet.id); }} className="text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
