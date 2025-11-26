@@ -55,31 +55,46 @@ export class DexieNodeRepository implements INodeRepository {
     }
 
     async deleteCascade(id: string, type: 'act' | 'chapter' | 'scene'): Promise<void> {
-        if (type === 'scene') {
-            // Just delete the scene
-            await db.nodes.delete(id);
-        } else if (type === 'chapter') {
-            // Delete all scenes in the chapter
-            const scenes = await db.nodes.where('parentId').equals(id).toArray();
-            await db.nodes.bulkDelete(scenes.map(s => s.id));
-            // Delete the chapter
-            await db.nodes.delete(id);
-        } else if (type === 'act') {
-            // Find all chapters in the act
-            const chapters = await db.nodes.where('parentId').equals(id).toArray();
-            const chapterIds = chapters.map(c => c.id);
+        // ✅ TRANSACTION: All deletes are atomic - either all succeed or all fail
+        await db.transaction('rw', db.nodes, async () => {
+            if (type === 'scene') {
+                // Just delete the scene
+                await db.nodes.delete(id);
+            } else if (type === 'chapter') {
+                // Delete all scenes in the chapter
+                const scenes = await db.nodes.where('parentId').equals(id).toArray();
 
-            // Find all scenes in those chapters
-            const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
+                if (scenes.length > 0) {
+                    await db.nodes.bulkDelete(scenes.map(s => s.id));
+                }
 
-            // Delete scenes, then chapters, then act
-            await db.nodes.bulkDelete(scenes.map(s => s.id));
-            await db.nodes.bulkDelete(chapterIds);
-            await db.nodes.delete(id);
-        }
+                // Delete the chapter
+                await db.nodes.delete(id);
+            } else if (type === 'act') {
+                // Find all chapters in the act
+                const chapters = await db.nodes.where('parentId').equals(id).toArray();
+                const chapterIds = chapters.map(c => c.id);
+
+                // Find all scenes in those chapters
+                const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
+
+                // Delete scenes, then chapters, then act (all atomic)
+                if (scenes.length > 0) {
+                    await db.nodes.bulkDelete(scenes.map(s => s.id));
+                }
+                if (chapterIds.length > 0) {
+                    await db.nodes.bulkDelete(chapterIds);
+                }
+                await db.nodes.delete(id);
+            }
+        });
+        // If any operation fails, entire transaction rolls back automatically
     }
 
     async bulkDelete(ids: string[]): Promise<void> {
-        await db.nodes.bulkDelete(ids);
+        // ✅ TRANSACTION: Bulk delete is atomic
+        await db.transaction('rw', db.nodes, async () => {
+            await db.nodes.bulkDelete(ids);
+        });
     }
 }

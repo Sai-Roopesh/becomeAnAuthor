@@ -27,6 +27,38 @@ export class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
+
+        // ✅ CRASH REPORTING: Store crash details for debugging
+        try {
+            const crashReport = {
+                error: {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name,
+                },
+                errorInfo: {
+                    componentStack: errorInfo.componentStack,
+                },
+                timestamp: Date.now(),
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+            };
+
+            const existingReports = JSON.parse(
+                localStorage.getItem('crash_reports') || '[]'
+            );
+            existingReports.push(crashReport);
+
+            // Keep only last 10 crash reports
+            if (existingReports.length > 10) {
+                existingReports.shift();
+            }
+
+            localStorage.setItem('crash_reports', JSON.stringify(existingReports));
+        } catch (storageError) {
+            console.error('Failed to store crash report:', storageError);
+        }
+
         toast.error('Something went wrong', {
             description: error.message,
         });

@@ -33,6 +33,14 @@ export function TopNavigation({ projectId }: { projectId: string }) {
                 ))}
             </div>
             <div className="flex items-center gap-2">
+                <button
+                    onClick={() => { }}
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
+                    aria-label="Open search"
+                >
+                    <span>Search</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">⌘K</kbd>
+                </button>
                 <SettingsDialog />
                 <ProjectSettingsDialog projectId={projectId} />
             </div>

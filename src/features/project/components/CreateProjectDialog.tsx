@@ -17,6 +17,7 @@ import { db } from '@/lib/core/database';
 import { v4 as uuidv4 } from 'uuid';
 import { Sparkles, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DexieProjectRepository } from '@/infrastructure/repositories/DexieProjectRepository';
 
 const TITLES = [
     "The Last Starship", "Whispers in the Dark", "The Clockwork Heart", "Echoes of Eternity",
@@ -59,16 +60,14 @@ export function CreateProjectDialog() {
                 }
             }
 
-            const projectId = uuidv4();
-            await db.projects.add({
-                id: projectId,
+            // ✅ Use repository - validation happens inside repository
+            const projectRepo = new DexieProjectRepository();
+            const project = await projectRepo.create({
                 title: formData.title,
                 author: formData.author,
                 language: formData.language,
                 seriesId: seriesId,
                 seriesIndex: formData.seriesIndex,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
             });
 
             // Create initial manuscript structure
@@ -77,17 +76,60 @@ export function CreateProjectDialog() {
             const sceneId = uuidv4();
 
             const now = Date.now();
-            await db.nodes.bulkAdd([
-                { id: actId, projectId, type: 'act', title: 'Act 1', order: 0, parentId: null, expanded: true, createdAt: now, updatedAt: now },
-                { id: chapterId, projectId, type: 'chapter', title: 'Chapter 1', order: 0, parentId: actId, expanded: true, createdAt: now, updatedAt: now },
-                { id: sceneId, projectId, type: 'scene', title: 'Scene 1', order: 0, parentId: chapterId, content: { type: 'doc', content: [] }, expanded: false, createdAt: now, updatedAt: now, status: 'draft', wordCount: 0, summary: '' }
-            ]);
+
+            // Use existing node validation from schemas
+            const { ActSchema, ChapterSchema, SceneSchema } = await import('@/lib/schemas');
+
+            const validatedAct = ActSchema.parse({
+                id: actId,
+                projectId: project.id,
+                type: 'act' as const,
+                title: 'Act 1',
+                order: 0,
+                parentId: null,
+                expanded: true,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            const validatedChapter = ChapterSchema.parse({
+                id: chapterId,
+                projectId: project.id,
+                type: 'chapter' as const,
+                title: 'Chapter 1',
+                order: 0,
+                parentId: actId,
+                expanded: true,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            const validatedScene = SceneSchema.parse({
+                id: sceneId,
+                projectId: project.id,
+                type: 'scene' as const,
+                title: 'Scene 1',
+                order: 0,
+                parentId: chapterId,
+                content: { type: 'doc', content: [] },
+                expanded: false,
+                createdAt: now,
+                updatedAt: now,
+                status: 'draft' as const,
+                wordCount: 0,
+                summary: ''
+            });
+
+            await db.nodes.bulkAdd([validatedAct, validatedChapter, validatedScene]);
 
             setOpen(false);
             setStep(1);
             setFormData({ title: '', author: '', language: 'English (US)', seriesName: '', seriesIndex: '' });
         } catch (error) {
             console.error('Failed to create project:', error);
+            // ✅ Show user-friendly error
+            const message = error instanceof Error ? error.message : 'Unknown error occurred';
+            alert(`Failed to create project: ${message}`);
         }
     };
 

@@ -18,6 +18,7 @@ import { Settings, Trash2, Archive, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
+import { DexieProjectRepository } from '@/infrastructure/repositories/DexieProjectRepository';
 
 export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
@@ -77,13 +78,17 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
 
     const executeAction = async () => {
         if (confirmationAction === 'archive') {
-            await db.projects.update(projectId, { archived: true });
+            // ✅ Use repository method
+            const projectRepo = new DexieProjectRepository();
+            await projectRepo.archive(projectId);
+
             setOpen(false);
             router.push('/');
         } else if (confirmationAction === 'delete') {
-            await db.projects.delete(projectId);
-            await db.nodes.where('projectId').equals(projectId).delete();
-            await db.codex.where('projectId').equals(projectId).delete();
+            // ✅ Use repository method with atomic transaction
+            const projectRepo = new DexieProjectRepository();
+            await projectRepo.deleteWithRelatedData(projectId);
+
             setOpen(false);
             router.push('/');
         }
