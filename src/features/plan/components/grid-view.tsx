@@ -14,7 +14,7 @@ interface GridViewProps {
 }
 
 export function GridView({ projectId, nodes, searchQuery }: GridViewProps) {
-    const [expandedActs, setExpandedActs] = useState<Set<string>>(new Set());
+    const [collapsedActs, setCollapsedActs] = useState<Set<string>>(new Set());
     const [dialogState, setDialogState] = useState<{
         open: boolean;
         parentId: string | null;
@@ -25,13 +25,13 @@ export function GridView({ projectId, nodes, searchQuery }: GridViewProps) {
     const getChildren = (parentId: string) => nodes.filter(n => n.parentId === parentId);
 
     const toggleAct = (actId: string) => {
-        const newExpanded = new Set(expandedActs);
-        if (newExpanded.has(actId)) {
-            newExpanded.delete(actId);
+        const newCollapsed = new Set(collapsedActs);
+        if (newCollapsed.has(actId)) {
+            newCollapsed.delete(actId);
         } else {
-            newExpanded.add(actId);
+            newCollapsed.add(actId);
         }
-        setExpandedActs(newExpanded);
+        setCollapsedActs(newCollapsed);
     };
 
     const openCreateDialog = (parentId: string | null, type: 'act' | 'chapter' | 'scene') => {
@@ -65,7 +65,7 @@ export function GridView({ projectId, nodes, searchQuery }: GridViewProps) {
         <div className="space-y-6">
             {acts.filter(filterNodes).map(act => {
                 const chapters = getChildren(act.id);
-                const isExpanded = expandedActs.has(act.id) || expandedActs.size === 0;
+                const isExpanded = !collapsedActs.has(act.id);
 
                 return (
                     <div key={act.id} className="border rounded-lg overflow-hidden">
