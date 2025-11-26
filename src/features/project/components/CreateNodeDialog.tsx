@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { db } from '@/lib/core/database';
 import { v4 as uuidv4 } from 'uuid';
 import { DocumentNode } from '@/lib/config/types';
-import { useNodeRepository } from '@/hooks/use-node-repository';
 
 interface CreateNodeDialogProps {
     open: boolean;
@@ -19,7 +18,6 @@ interface CreateNodeDialogProps {
 }
 
 export function CreateNodeDialog({ open, onOpenChange, projectId, parentId, type }: CreateNodeDialogProps) {
-    const nodeRepo = useNodeRepository();
     const [title, setTitle] = useState('');
 
     const handleCreate = async () => {
@@ -34,14 +32,35 @@ export function CreateNodeDialog({ open, onOpenChange, projectId, parentId, type
         const maxOrder = siblings.reduce((max, n) => Math.max(max, n.order), 0);
         const newOrder = maxOrder + 100;
 
-        // Use repository to create node
-        await nodeRepo.create({
+        const id = uuidv4();
+        const now = Date.now();
+
+        const baseNode = {
+            id,
             projectId,
             parentId,
-            type,
             title,
             order: newOrder,
-        });
+            expanded: true,
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        if (type === 'scene') {
+            await db.nodes.add({
+                ...baseNode,
+                type: 'scene',
+                content: { type: 'doc', content: [] },
+                summary: '',
+                status: 'draft',
+                wordCount: 0,
+            } as any);
+        } else {
+            await db.nodes.add({
+                ...baseNode,
+                type: type,
+            } as any);
+        }
 
         setTitle('');
         onOpenChange(false);

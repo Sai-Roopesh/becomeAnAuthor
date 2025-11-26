@@ -1,24 +1,20 @@
 'use client';
 
 import { useProjectStore } from '@/store/use-project-store';
-import { ProjectNavigation } from '@/features/navigation/components/ProjectNavigation';
-import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
-import { EditorToolbar } from '@/features/editor/components/editor-toolbar';
-import { StoryTimeline } from '@/features/editor/components/story-timeline';
+import { ProjectNavigation } from '../../navigation/components/ProjectNavigation';
+import { TiptapEditor } from './tiptap-editor';
+import { EditorToolbar } from './editor-toolbar';
+import { StoryTimeline } from './story-timeline';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/core/database';
 import { useState, useEffect, useRef } from 'react';
-import { SnippetEditor } from '@/features/snippets/components/snippet-editor';
+import { SnippetEditor } from '../../snippets/components/snippet-editor';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from '@/components/ui/button';
 import { PinOff } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
-import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 
 export function EditorContainer({ projectId }: { projectId: string }) {
-    const nodeRepo = useNodeRepository();
-    const snippetRepo = useSnippetRepository();
     const { activeSceneId } = useProjectStore();
     const [activeSnippetId, setActiveSnippetId] = useState<string | null>(null);
     const [editorWordCount, setEditorWordCount] = useState(0);
@@ -29,8 +25,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
     );
 
     const pinnedSnippets = useLiveQuery(
-        () => snippetRepo.getPinned(projectId),
-        [projectId]
+        () => db.snippets.where('projectId').equals(projectId).filter(s => s.pinned).toArray()
     );
 
     const handleSnippetSelect = (id: string) => {
@@ -48,10 +43,10 @@ export function EditorContainer({ projectId }: { projectId: string }) {
     useEffect(() => {
         // Only update if we have an active scene and it's the same scene
         if (activeSceneId && activeSceneId === prevSceneIdRef.current && debouncedWordCount > 0) {
-            nodeRepo.update(activeSceneId, { wordCount: debouncedWordCount });
+            db.nodes.update(activeSceneId, { wordCount: debouncedWordCount } as any);
         }
         prevSceneIdRef.current = activeSceneId;
-    }, [debouncedWordCount, activeSceneId, nodeRepo]);
+    }, [debouncedWordCount, activeSceneId]);
 
     return (
         <div className="h-full flex overflow-hidden">
@@ -121,7 +116,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
                                                     size="icon"
                                                     className="h-5 w-5"
                                                     onClick={async () => {
-                                                        await snippetRepo.update(snippet.id, { pinned: false });
+                                                        await db.snippets.update(snippet.id, { pinned: false });
                                                     }}
                                                     title="Unpin"
                                                 >

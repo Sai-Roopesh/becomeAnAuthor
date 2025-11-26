@@ -3,8 +3,8 @@
 import { Button } from '@/components/ui/button';
 import { useProjectStore, ViewMode } from '@/store/use-project-store';
 import { LayoutTemplate, PenTool, MessageSquare, Eye, Settings, Zap } from 'lucide-react';
-import { ProjectSettingsDialog } from '@/features/project/components/ProjectSettingsDialog';
-import { SettingsDialog } from '@/features/settings/components/SettingsDialog';
+import { ProjectSettingsDialog } from '../../project/components/ProjectSettingsDialog';
+import { SettingsDialog } from '../../settings/components/SettingsDialog';
 
 export function TopNavigation({ projectId }: { projectId: string }) {
     const { viewMode, setViewMode } = useProjectStore();

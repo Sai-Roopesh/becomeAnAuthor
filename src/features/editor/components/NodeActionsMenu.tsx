@@ -2,12 +2,9 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/core/database';
-import { useNodeRepository } from '@/hooks/use-node-repository';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useConfirmation } from '@/hooks/use-confirmation';
-import { usePrompt } from '@/hooks/use-prompt';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { generateText } from '@/lib/core/ai-client';
@@ -24,39 +21,27 @@ interface NodeActionsMenuProps {
 }
 
 export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuProps) {
-    const nodeRepo = useNodeRepository();
-    const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId]);
+    const node = useLiveQuery(() => db.nodes.get(nodeId), [nodeId]);
     const [isSummarizing, setIsSummarizing] = useState(false);
-    const { confirm, ConfirmationDialog } = useConfirmation();
-    const { prompt, PromptDialog } = usePrompt();
+    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
 
     if (!node) return null;
 
     // Scene-specific actions
     const handleSetPOV = async () => {
         if (!isScene(node)) return;
-        const pov = await prompt({
-            title: 'Set POV Character',
-            description: 'Enter the name of the point-of-view character for this scene:',
-            placeholder: 'Character name...',
-            defaultValue: node.pov || ''
-        });
+        const pov = prompt('Enter POV character name:');
         if (pov) {
-            await nodeRepo.update(nodeId, { pov } as Partial<Scene>);
+            await db.nodes.update(nodeId, { pov } as Partial<Scene>);
             toast.success('POV updated');
         }
     };
 
     const handleAddSubtitle = async () => {
         if (!isScene(node)) return;
-        const subtitle = await prompt({
-            title: 'Set Scene Subtitle',
-            description: 'Enter a subtitle or tagline for this scene:',
-            placeholder: 'Subtitle...',
-            defaultValue: node.subtitle || ''
-        });
+        const subtitle = prompt('Enter scene subtitle:');
         if (subtitle) {
-            await nodeRepo.update(nodeId, { subtitle } as Partial<Scene>);
+            await db.nodes.update(nodeId, { subtitle } as Partial<Scene>);
             toast.success('Subtitle updated');
         }
     };
@@ -64,7 +49,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     const handleToggleAIExclusion = async () => {
         if (!isScene(node)) return;
         const current = node.excludeFromAI || false;
-        await nodeRepo.update(nodeId, { excludeFromAI: !current } as Partial<Scene>);
+        await db.nodes.update(nodeId, { excludeFromAI: !current } as Partial<Scene>);
         toast.success(current ? 'Included in AI context' : 'Excluded from AI context');
     };
 
@@ -90,7 +75,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
             const summary = response.text;
             if (summary) {
-                await nodeRepo.update(nodeId, { summary } as Partial<Scene>);
+                await db.nodes.update(nodeId, { summary } as Partial<Scene>);
                 toast.success('Scene summarized successfully!');
             }
         } catch (error) {
@@ -103,11 +88,15 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
     const handleDuplicate = async () => {
         if (!isScene(node)) return;
-        await nodeRepo.create({
+        const newScene: Scene = {
             ...node,
+            id: crypto.randomUUID(),
             title: `${node.title} (Copy)`,
             order: (node.order || 0) + 0.5,
-        });
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+        await db.nodes.add(newScene);
         toast.success('Scene duplicated');
     };
 
@@ -130,32 +119,24 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
         toast.success('Scene exported');
     };
 
+
+
     const handleArchive = async () => {
         if (!isScene(node)) return;
-        const confirmed = await confirm({
-            title: 'Archive Scene',
-            description: 'Are you sure you want to archive this scene? It will be moved to the archive list.',
-            confirmText: 'Archive',
-            variant: 'default'
-        });
+        setIsArchiveDialogOpen(true);
+    };
 
-        if (confirmed) {
-            await nodeRepo.update(nodeId, { archived: true } as Partial<Scene>);
-            toast.success('Scene archived');
-        }
+    const executeArchive = async () => {
+        await db.nodes.update(nodeId, { archived: true } as Partial<Scene>);
+        toast.success('Scene archived');
+        setIsArchiveDialogOpen(false);
     };
 
     const handleRename = async () => {
-        const nodeTypeTitle = nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
-        const newTitle = await prompt({
-            title: `Rename ${nodeTypeTitle}`,
-            description: `Enter a new title for this ${nodeType}:`,
-            placeholder: 'Title...',
-            defaultValue: node.title
-        });
+        const newTitle = prompt(`Enter new ${nodeType} title:`, node.title);
         if (newTitle && newTitle !== node.title) {
-            await nodeRepo.update(nodeId, { title: newTitle });
-            toast.success(`${nodeTypeTitle} renamed`);
+            await db.nodes.update(nodeId, { title: newTitle });
+            toast.success(`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`);
         }
     };
 
@@ -250,8 +231,24 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <ConfirmationDialog />
-            <PromptDialog />
+            <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Archive Scene</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to archive this scene? It will be moved to the archive list.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsArchiveDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={executeArchive}>
+                            Archive
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

@@ -4,28 +4,26 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/core/database';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
-import { useNodeRepository } from '@/hooks/use-node-repository';
 import { cn } from '@/lib/utils/common';
 import { DocumentNode } from '@/lib/config/types';
 import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CreateNodeDialog } from '@/features/project/components/CreateNodeDialog';
-import { SnippetList } from '@/features/snippets/components/snippet-list';
-import { CodexList } from '@/features/codex/components/codex-list';
+import { CreateNodeDialog } from '../../project/components/CreateNodeDialog';
+import { SnippetList } from '../../snippets/components/snippet-list';
+import { CodexList } from '../../codex/components/codex-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/lib/toast-service';
-import { NodeActionsMenu } from '@/features/editor/components/NodeActionsMenu';
+import { NodeActionsMenu } from '../../editor/components/NodeActionsMenu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useConfirmation } from '@/hooks/use-confirmation';
-import { useNodeDeletion } from '@/domain/services/NodeDeletionService';
 
-import { ProjectSettingsDialog } from '@/features/project/components/ProjectSettingsDialog';
+import { ProjectSettingsDialog } from '../../project/components/ProjectSettingsDialog';
 
 export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: string, onSelectSnippet?: (id: string) => void }) {
     const project = useLiveQuery(() => db.projects.get(projectId));
@@ -41,21 +39,52 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
         type: 'act' | 'chapter' | 'scene';
     }>({ open: false, parentId: null, type: 'act' });
 
-    const { confirm, ConfirmationDialog } = useConfirmation();
-    const nodeRepo = useNodeRepository();
-    const { deleteNode: deleteNodeWithService } = useNodeDeletion(nodeRepo);
+    const [nodeToDelete, setNodeToDelete] = useState<{ id: string, type: 'act' | 'chapter' | 'scene' } | null>(null);
 
     const openCreateDialog = (parentId: string | null, type: 'act' | 'chapter' | 'scene') => {
         setDialogState({ open: true, parentId, type });
     };
 
-    const handleDeleteNode = async (nodeId: string, type: 'act' | 'chapter' | 'scene') => {
-        // Use centralized deletion service
-        const deleted = await deleteNodeWithService(nodeId, type);
+    const confirmDeleteNode = (nodeId: string, type: 'act' | 'chapter' | 'scene') => {
+        setNodeToDelete({ id: nodeId, type });
+    };
 
-        // Clear active scene if it was the one deleted
-        if (deleted && activeSceneId === nodeId) {
-            setActiveSceneId(null);
+    const executeDeleteNode = async () => {
+        if (!nodeToDelete) return;
+
+        const { id: nodeId, type } = nodeToDelete;
+
+        try {
+            if (type === 'scene') {
+                await db.nodes.delete(nodeId);
+            } else if (type === 'chapter') {
+                // Delete scenes in chapter
+                const scenes = await db.nodes.where('parentId').equals(nodeId).toArray();
+                await db.nodes.bulkDelete(scenes.map(s => s.id));
+                // Delete chapter
+                await db.nodes.delete(nodeId);
+            } else if (type === 'act') {
+                // Find chapters
+                const chapters = await db.nodes.where('parentId').equals(nodeId).toArray();
+                const chapterIds = chapters.map(c => c.id);
+                // Find scenes in chapters
+                const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
+                // Delete scenes
+                await db.nodes.bulkDelete(scenes.map(s => s.id));
+                // Delete chapters
+                await db.nodes.bulkDelete(chapterIds);
+                // Delete act
+                await db.nodes.delete(nodeId);
+            }
+            toast.success('Deleted successfully');
+            if (activeSceneId === nodeId) {
+                setActiveSceneId(null);
+            }
+        } catch (error) {
+            console.error('Delete failed:', error);
+            toast.error('Failed to delete node');
+        } finally {
+            setNodeToDelete(null);
         }
     };
 
@@ -101,7 +130,7 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                         <NodeActionsMenu
                             nodeId={node.id}
                             nodeType={node.type as 'act' | 'chapter' | 'scene'}
-                            onDelete={handleDeleteNode}
+                            onDelete={confirmDeleteNode}
                         />
                     </div>
                 </div>
@@ -170,7 +199,24 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                 type={dialogState.type}
             />
 
-            <ConfirmationDialog />
+            <Dialog open={!!nodeToDelete} onOpenChange={(open) => !open && setNodeToDelete(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete {nodeToDelete?.type}</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this {nodeToDelete?.type}? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setNodeToDelete(null)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={executeDeleteNode}>
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

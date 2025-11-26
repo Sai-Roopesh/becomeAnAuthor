@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Zap, Users, Share2, Lock, CreditCard, LogOut, Sun, Moon, Settings } from 'lucide-react';
 import { useState } from 'react';
-import { AIConnectionsTab } from '@/features/settings/components/ai-connections-tab';
+import { AIConnectionsTab } from './ai-connections-tab';
 import { useTheme } from 'next-themes';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useFormatStore } from '@/store/use-format-store';

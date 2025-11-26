@@ -12,9 +12,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS } from '@/lib/config/constants';
-import { useConfirmation } from '@/hooks/use-confirmation';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/core/database';
 import { Settings, Trash2, Archive, Upload } from 'lucide-react';
@@ -68,38 +65,29 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
         }
     };
 
-    const { confirm, ConfirmationDialog } = useConfirmation();
+    const [confirmationAction, setConfirmationAction] = useState<'archive' | 'delete' | null>(null);
 
-    const handleArchive = async () => {
-        const confirmed = await confirm({
-            title: 'Archive Project',
-            description: 'Are you sure you want to archive this project? You can unarchive it from the dashboard later.',
-            confirmText: 'Archive',
-            variant: 'default'
-        });
+    const handleArchive = () => {
+        setConfirmationAction('archive');
+    };
 
-        if (confirmed) {
+    const handleDelete = () => {
+        setConfirmationAction('delete');
+    };
+
+    const executeAction = async () => {
+        if (confirmationAction === 'archive') {
             await db.projects.update(projectId, { archived: true });
             setOpen(false);
             router.push('/');
-        }
-    };
-
-    const handleDelete = async () => {
-        const confirmed = await confirm({
-            title: 'Delete Project',
-            description: 'Are you sure you want to delete this project? This will permanently delete all scenes, chapters, acts, and associated data. This action cannot be undone.',
-            confirmText: 'Delete',
-            variant: 'destructive'
-        });
-
-        if (confirmed) {
+        } else if (confirmationAction === 'delete') {
             await db.projects.delete(projectId);
             await db.nodes.where('projectId').equals(projectId).delete();
             await db.codex.where('projectId').equals(projectId).delete();
             setOpen(false);
             router.push('/');
         }
+        setConfirmationAction(null);
     };
 
     if (!project) return null;
@@ -197,7 +185,31 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
                 </DialogContent>
             </Dialog>
 
-            <ConfirmationDialog />
+            <Dialog open={!!confirmationAction} onOpenChange={(open) => !open && setConfirmationAction(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {confirmationAction === 'archive' ? 'Archive Novel' : 'Delete Novel'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {confirmationAction === 'archive'
+                                ? 'Are you sure you want to archive this novel? It will be moved to the archive list.'
+                                : 'Are you sure you want to DELETE this novel? This action cannot be undone and all data will be lost.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setConfirmationAction(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant={confirmationAction === 'delete' ? "destructive" : "default"}
+                            onClick={executeAction}
+                        >
+                            {confirmationAction === 'archive' ? 'Archive' : 'Delete Forever'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
