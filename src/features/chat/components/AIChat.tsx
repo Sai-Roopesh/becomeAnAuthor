@@ -183,15 +183,20 @@ export function AIChat({ projectId }: { projectId: string }) {
             });
         } catch (error) {
             console.error('Chat error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to generate response';
+
+            // ✅ Show toast notification to user
+            toast.error(errorMessage);
+
             // Save error message to database
-            const errorMessage: ChatMessage = {
+            const errorDbMessage: ChatMessage = {
                 id: uuid(),
                 threadId: currentThreadId,
                 role: 'assistant',
-                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
+                content: `Error: ${errorMessage}`,
                 timestamp: Date.now(),
             };
-            await db.chatMessages.add(errorMessage);
+            await db.chatMessages.add(errorDbMessage);
         } finally {
             setIsLoading(false);
         }

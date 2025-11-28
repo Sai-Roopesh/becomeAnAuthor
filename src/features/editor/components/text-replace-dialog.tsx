@@ -13,6 +13,7 @@ import { Loader2 } from 'lucide-react';
 import { ModelSelector } from '@/features/ai/components/model-selector';
 import { generateText } from '@/lib/core/ai-client';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { toast } from '@/lib/toast-service';
 
 import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';
 
@@ -107,7 +108,9 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose, proje
             setResult(response.text);
             setActiveTab('preview');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to generate text');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to generate text';
+            setError(errorMessage);
+            toast.error(errorMessage); // ✅ Show toast notification
         } finally {
             setIsGenerating(false);
         }

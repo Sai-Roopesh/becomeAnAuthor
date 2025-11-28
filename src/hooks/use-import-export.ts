@@ -1,7 +1,9 @@
 import { db } from '@/lib/core/database';
 import { toast } from '@/lib/toast-service';
-import { ExportedProject, Project, DocumentNode, CodexEntry, ChatThread, ChatMessage, CodexRelation, CodexAddition, Section, Snippet } from '@/lib/config/types';
+import { ExportedProject, Project, DocumentNode, CodexEntry, ChatThread, ChatMessage, CodexRelation, CodexAddition, Section, Snippet, DriveBackupMetadata } from '@/lib/config/types';
 import { v4 as uuidv4 } from 'uuid';
+import { ExportedProjectSchema } from '@/lib/schemas/import-schema';
+import { googleDriveService } from '@/lib/services/google-drive-service';
 
 export function useImportExport() {
 
@@ -25,8 +27,16 @@ export function useImportExport() {
         try {
             const { importDB } = await import('dexie-export-import');
 
-            // Manually clear tables before import since options are not typed correctly
-            await Promise.all(db.tables.map(table => table.clear()));
+            // ✅ FIXED: Clear tables sequentially to prevent partial failures
+            for (const table of db.tables) {
+                try {
+                    await table.clear();
+                    console.log(`Cleared table: ${table.name}`);
+                } catch (error) {
+                    console.error(`Failed to clear table ${table.name}:`, error);
+                    throw new Error(`Failed to clear table ${table.name}. Database restore aborted.`);
+                }
+            }
 
             await importDB(file);
             toast.success('Database restored successfully');
@@ -131,10 +141,26 @@ export function useImportExport() {
     const importProject = async (file: File) => {
         try {
             const text = await file.text();
-            const data: ExportedProject = JSON.parse(text);
+            const rawData = JSON.parse(text);
 
+            // ✅ SCHEMA VALIDATION: Prevent XSS, injection, and malformed data
+            const validationResult = ExportedProjectSchema.safeParse(rawData);
+
+            if (!validationResult.success) {
+                console.error('Import validation errors:', validationResult.error);
+                const errorMessage = validationResult.error.issues[0]?.message || 'Invalid file format';
+                throw new Error(`Invalid project file: ${errorMessage}`);
+            }
+
+            const data = validationResult.data;
+
+            // ✅ VALIDATION: Check required fields and version (already in schema, but double-check)
             if (!data.project || !data.nodes) {
-                throw new Error('Invalid project file format');
+                throw new Error('Invalid project file format: missing required fields');
+            }
+
+            if (!data.version || data.version !== 1) {
+                throw new Error('Unsupported project file version');
             }
 
             // Generate new Project ID to avoid conflicts
@@ -153,17 +179,16 @@ export function useImportExport() {
                 return idMap.get(oldId)!;
             };
 
-            // 1. Import Project
+            // Prepare all data transformations BEFORE transaction
             const newProject: Project = {
                 ...data.project,
                 id: newProjectId,
                 title: `${data.project.title} (Imported)`,
+                seriesId: data.project.seriesId || undefined, // Handle null from legacy exports
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
             };
-            await db.projects.add(newProject);
 
-            // 2. Import Nodes with UUID rewriting in content
             const newNodes = data.nodes.map(node => {
                 const newNode: any = {
                     ...node,
@@ -179,17 +204,18 @@ export function useImportExport() {
 
                 return newNode;
             });
-            await db.nodes.bulkAdd(newNodes);
 
-            // 3. Import Codex
-            const newCodex = data.codex.map(entry => ({
+            const newCodex = (data.codex || []).map((entry: any) => ({
                 ...entry,
                 id: getNewId(entry.id),
                 projectId: newProjectId,
+                // Add defaults for potentially missing required fields from legacy exports
+                aliases: entry.aliases || [],
+                attributes: entry.attributes || {},
+                references: entry.references || [],
+                tags: entry.tags || [],
             }));
-            await db.codex.bulkAdd(newCodex);
 
-            // 4. Import Snippets with UUID rewriting
             const newSnippets = (data.snippets || []).map(snippet => {
                 const newSnippet: any = {
                     ...snippet,
@@ -204,46 +230,93 @@ export function useImportExport() {
 
                 return newSnippet;
             });
-            await db.snippets.bulkAdd(newSnippets);
 
-            // 5. Import Chats & Messages
-            const newChats = (data.chats || []).map(chat => ({
+            const newChats = (data.chats || []).map((chat: any) => ({
                 ...chat,
                 id: getNewId(chat.id),
                 projectId: newProjectId,
+                // Add defaults for potentially missing required fields from legacy exports
+                name: chat.name || chat.title || 'Imported Conversation',
+                pinned: chat.pinned || false,
+                archived: chat.archived || false,
             }));
-            await db.chatThreads.bulkAdd(newChats);
 
             const newMessages = (data.messages || []).map(msg => ({
                 ...msg,
                 id: getNewId(msg.id),
                 threadId: getNewId(msg.threadId),
             }));
-            await db.chatMessages.bulkAdd(newMessages);
 
-            // 6. Import Relations, Additions, Sections
-            const newRelations = (data.codexRelations || []).map(rel => ({
+            const newRelations = (data.codexRelations || []).map((rel: any) => ({
                 ...rel,
                 id: getNewId(rel.id),
                 parentId: getNewId(rel.parentId),
                 childId: getNewId(rel.childId),
+                // Add default for potentially missing required field from legacy exports
+                createdAt: rel.createdAt || Date.now(),
             }));
-            await db.codexRelations.bulkAdd(newRelations);
 
-            const newAdditions = (data.codexAdditions || []).map(add => ({
+            const newAdditions = (data.codexAdditions || []).map((add: any) => ({
                 ...add,
                 id: getNewId(add.id),
                 sceneId: getNewId(add.sceneId),
                 codexEntryId: getNewId(add.codexEntryId),
+                // Add defaults for potentially missing required fields from legacy exports
+                description: add.description || '',
+                position: add.position || 0,
+                createdAt: add.createdAt || Date.now(),
             }));
-            await db.codexAdditions.bulkAdd(newAdditions);
 
-            const newSections = (data.sections || []).map(sec => ({
+            const newSections = (data.sections || []).map((sec: any) => ({
                 ...sec,
                 id: getNewId(sec.id),
                 sceneId: getNewId(sec.sceneId),
+                // Add defaults for potentially missing required fields from legacy exports
+                title: sec.title || 'Untitled Section',
+                color: sec.color || '# 000000',
+                content: sec.content || { type: 'doc', content: [] },
+                excludeFromAI: sec.excludeFromAI ?? false,
+                position: sec.position || 0,
+                createdAt: sec.createdAt || Date.now(),
             }));
-            await db.sections.bulkAdd(newSections);
+
+            // ✅ ATOMIC TRANSACTION: All database operations succeed or all fail
+            await db.transaction(
+                'rw',
+                [db.projects, db.nodes, db.codex, db.snippets, db.chatThreads,
+                db.chatMessages, db.codexRelations, db.codexAdditions, db.sections],
+                async () => {
+                    // All writes happen atomically - if ANY fails, ALL roll back
+                    await db.projects.add(newProject);
+                    await db.nodes.bulkAdd(newNodes);
+                    await db.codex.bulkAdd(newCodex);
+
+                    if (newSnippets.length > 0) {
+                        await db.snippets.bulkAdd(newSnippets);
+                    }
+
+                    if (newChats.length > 0) {
+                        await db.chatThreads.bulkAdd(newChats);
+                    }
+
+                    if (newMessages.length > 0) {
+                        await db.chatMessages.bulkAdd(newMessages);
+                    }
+
+                    if (newRelations.length > 0) {
+                        await db.codexRelations.bulkAdd(newRelations);
+                    }
+
+                    if (newAdditions.length > 0) {
+                        await db.codexAdditions.bulkAdd(newAdditions);
+                    }
+
+                    if (newSections.length > 0) {
+                        await db.sections.bulkAdd(newSections);
+                    }
+                }
+            );
+            // Transaction complete - all operations succeeded
 
             toast.success('Project imported successfully');
             return newProjectId;
@@ -255,10 +328,116 @@ export function useImportExport() {
         }
     };
 
+    /**
+     * Backup project to Google Drive
+     */
+    const backupToGoogleDrive = async (projectId: string): Promise<void> => {
+        try {
+            // Get project data
+            const project = await db.projects.get(projectId);
+            if (!project) throw new Error('Project not found');
+
+            const nodes = await db.nodes.where('projectId').equals(projectId).toArray();
+            const codex = await db.codex.where('projectId').equals(projectId).toArray();
+            const chats = await db.chatThreads.where('projectId').equals(projectId).toArray();
+            const snippets = await db.snippets.where('projectId').equals(projectId).toArray();
+
+            // Fetch related data
+            const threadIds = chats.map(c => c.id);
+            const messages = await db.chatMessages.where('threadId').anyOf(threadIds).toArray();
+
+            const codexIds = codex.map(c => c.id);
+            const codexRelations = await db.codexRelations.where('parentId').anyOf(codexIds).or('childId').anyOf(codexIds).toArray();
+
+            const sceneIds = nodes.filter(n => n.type === 'scene').map(n => n.id);
+            const codexAdditions = await db.codexAdditions.where('sceneId').anyOf(sceneIds).toArray();
+            const sections = await db.sections.where('sceneId').anyOf(sceneIds).toArray();
+
+            const exportData: ExportedProject = {
+                version: 1,
+                project,
+                nodes,
+                codex,
+                chats,
+                messages,
+                codexRelations,
+                codexAdditions,
+                sections,
+                snippets,
+            };
+
+            // Prepare Drive backup metadata
+            const backupMetadata: DriveBackupMetadata = {
+                version: '1.0',
+                exportedAt: Date.now(),
+                appVersion: '0.1.0',
+                backupType: 'manual',
+                projectData: exportData,
+            };
+
+            // Generate filename
+            const projectTitle = project.title.replace(/[^a-zA-Z0-9]/g, '_');
+            const timestamp = new Date().toISOString().split('T')[0];
+            const fileName = `${projectTitle}_backup_${timestamp}.json`;
+
+            // Upload to Drive
+            await googleDriveService.uploadBackup(backupMetadata, fileName);
+
+            toast.success('Project backed up to Google Drive');
+        } catch (error) {
+            console.error('Drive backup failed:', error);
+            toast.error(`Backup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw error;
+        }
+    };
+
+    /**
+     * Restore project from Google Drive
+     */
+    const restoreFromGoogleDrive = async (fileId: string): Promise<string> => {
+        try {
+            // Download from Drive
+            const backupMetadata = await googleDriveService.downloadBackup(fileId);
+
+            // Extract project data
+            const exportData = backupMetadata.projectData;
+
+            // Create blob for import
+            const blob = new Blob([JSON.stringify(exportData)], { type: 'application/json' });
+            const file = new File([blob], 'drive-restore.json', { type: 'application/json' });
+
+            // Use existing import logic
+            const projectId = await importProject(file);
+
+            toast.success('Project restored from Google Drive');
+            return projectId;
+        } catch (error) {
+            console.error('Drive restore failed:', error);
+            toast.error(`Restore failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw error;
+        }
+    };
+
+    /**
+     * List Google Drive backups
+     */
+    const listDriveBackups = async () => {
+        try {
+            return await googleDriveService.listBackups();
+        } catch (error) {
+            console.error('Failed to list Drive backups:', error);
+            toast.error('Failed to load backup list');
+            throw error;
+        }
+    };
+
     return {
         exportFullBackup,
         importFullBackup,
         exportProject,
-        importProject
+        importProject,
+        backupToGoogleDrive,
+        restoreFromGoogleDrive,
+        listDriveBackups,
     };
 }

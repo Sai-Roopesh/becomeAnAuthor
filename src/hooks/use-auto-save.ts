@@ -58,13 +58,26 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
         };
     }, [editor, sceneId, saveContent]);
 
-    // Force save on unmount / visibility change
+    // \u2705 FIXED: Synchronous emergency backup + recovery on unload
     useEffect(() => {
-        const handleUnload = () => {
+        const handleUnload = (event: BeforeUnloadEvent) => {
             if (editorRef.current && sceneIdRef.current && hasUnsavedChanges.current) {
-                // Synchronous attempt or best effort
-                // We can't await here reliably, but we can try
-                saveContent(sceneIdRef.current, () => editorRef.current!.getJSON());
+                // Show warning dialog to prevent accidental closure
+                event.preventDefault();
+                event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+
+                // \u2705 Create synchronous localStorage backup (browser will wait)
+                try {
+                    const content = editorRef.current.getJSON();
+                    const backupKey = `emergency_backup_${sceneIdRef.current}`;
+                    localStorage.setItem(backupKey, JSON.stringify({
+                        content,
+                        timestamp: Date.now(),
+                        sceneId: sceneIdRef.current,
+                    }));
+                } catch (error) {
+                    console.error('Emergency backup failed:', error);
+                }
             }
         };
 
@@ -72,7 +85,44 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
 
         return () => {
             window.removeEventListener('beforeunload', handleUnload);
-            handleUnload(); // Also call on component unmount
+            // Also save on component unmount
+            if (editorRef.current && sceneIdRef.current && hasUnsavedChanges.current) {
+                saveContent(sceneIdRef.current, () => editorRef.current!.getJSON());
+            }
         };
     }, [saveContent]);
+
+    // \u2705 NEW: Automatic recovery on mount
+    useEffect(() => {
+        if (!editor || !sceneId) return;
+
+        const backupKey = `emergency_backup_${sceneId}`;
+        const backupData = localStorage.getItem(backupKey);
+
+        if (backupData) {
+            try {
+                const backup = JSON.parse(backupData);
+                const backupAge = Date.now() - backup.timestamp;
+
+                // Only offer recovery if backup is less than 1 hour old
+                if (backupAge < 3600000 && backup.content) {
+                    const shouldRestore = confirm(
+                        `Unsaved changes detected from ${new Date(backup.timestamp).toLocaleTimeString()}. Restore?`
+                    );
+
+                    if (shouldRestore) {
+                        editor.commands.setContent(backup.content);
+                        toast.success('Unsaved changes restored');
+                        hasUnsavedChanges.current = true;
+                    }
+                }
+
+                // Clean up backup
+                localStorage.removeItem(backupKey);
+            } catch (error) {
+                console.error('Failed to restore backup:', error);
+                localStorage.removeItem(backupKey);
+            }
+        }
+    }, [sceneId, editor]);
 }

@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js';
+import type { FuseResultMatch } from 'fuse.js';
 
 /**
  * Search Service using Fuse.js for fuzzy searching
@@ -26,7 +27,7 @@ export type SearchableItem = SearchableScene | SearchableCodex;
 export interface SearchResult<T> {
   item: T;
   score: number;
-  matches?: Fuse.FuseResultMatch[];
+  matches?: readonly FuseResultMatch[];
 }
 
 class SearchService {
@@ -76,7 +77,7 @@ class SearchService {
     }
 
     const results = this.sceneFuse.search(query);
-    
+
     return results.map((result) => ({
       item: result.item,
       score: result.score || 0,
@@ -93,7 +94,7 @@ class SearchService {
     }
 
     const results = this.codexFuse.search(query);
-    
+
     return results.map((result) => ({
       item: result.item,
       score: result.score || 0,

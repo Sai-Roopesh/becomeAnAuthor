@@ -2,9 +2,10 @@
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Zap, Users, Share2, Lock, CreditCard, LogOut, Sun, Moon, Settings } from 'lucide-react';
+import { Zap, Users, Share2, Lock, CreditCard, LogOut, Sun, Moon, Settings, Cloud } from 'lucide-react';
 import { useState } from 'react';
 import { AIConnectionsTab } from './ai-connections-tab';
+import { GoogleDriveConnection } from './GoogleDriveConnection';
 import { useTheme } from 'next-themes';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useFormatStore } from '@/store/use-format-store';
@@ -57,6 +58,15 @@ export function SettingsDialog() {
                             >
                                 <Settings className="h-4 w-4" />
                                 <span className="text-sm">General Settings</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('backup')}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${activeTab === 'backup' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                                    }`}
+                            >
+                                <Cloud className="h-4 w-4" />
+                                <span className="text-sm">Backup</span>
                             </button>
 
                             <button
@@ -244,6 +254,16 @@ export function SettingsDialog() {
                                         </div>
                                     </section>
                                 </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'backup' && (
+                            <div className="p-6 bg-background h-full overflow-y-auto">
+                                <h3 className="text-lg font-semibold mb-2">Backup & Restore</h3>
+                                <p className="text-sm text-muted-foreground mb-6">
+                                    Securely back up your novels to Google Drive. Your data stays in your control.
+                                </p>
+                                <GoogleDriveConnection />
                             </div>
                         )}
 

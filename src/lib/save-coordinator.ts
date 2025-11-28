@@ -19,8 +19,9 @@ class SaveCoordinator {
     async scheduleSave(sceneId: string, getContent: () => any): Promise<void> {
         // If there's already a save in progress for this scene, wait for it
         const existingSave = this.saveQueue.get(sceneId);
-        
-        const saveOperation = (async () => {
+
+        let saveOperation: Promise<void>;
+        saveOperation = (async () => {
             // Wait for any existing save to complete first
             if (existingSave) {
                 try {
@@ -54,10 +55,8 @@ class SaveCoordinator {
                 toast.error('Failed to save work. Local backup created.');
                 throw error;
             } finally {
-                // Clean up the queue entry if it's still our promise
-                if (this.saveQueue.get(sceneId) === saveOperation) {
-                    this.saveQueue.delete(sceneId);
-                }
+                // Clean up the queue entry
+                this.saveQueue.delete(sceneId);
             }
         })();
 

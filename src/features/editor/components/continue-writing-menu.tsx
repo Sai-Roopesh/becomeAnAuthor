@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Wand2, BookOpen, Settings2 } from 'lucide-react';
 import { TweakGenerateDialog, GenerateOptions } from './tweak-generate-dialog';
 import { ModelSelector } from '@/features/ai/components/model-selector';
+import { safeLocalStorageGet } from '@/lib/json-utils';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
@@ -23,8 +24,8 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId 
     const [selectedMode, setSelectedMode] = useState<GenerationMode>('continue-writing');
 
     useEffect(() => {
-        // Load default model from AI connections
-        const connections = JSON.parse(localStorage.getItem('ai_connections') || '[]');
+        // ✅ SAFE: Load default model from AI connections with safe parsing
+        const connections = safeLocalStorageGet<any[]>('ai_connections', []);
         const allModels = connections
             .filter((c: any) => c.enabled)
             .flatMap((c: any) => c.models || []);

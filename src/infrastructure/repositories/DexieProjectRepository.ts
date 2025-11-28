@@ -21,10 +21,10 @@ export class DexieProjectRepository {
     }
 
     /**
-     * Get all non-archived projects
+     * Get all active (non-archived) projects
      */
     async getAllActive(): Promise<Project[]> {
-        return await db.projects.where('archived').notEqual(true).toArray();
+        return await db.projects.filter(p => !p.archived).toArray();
     }
 
     /**

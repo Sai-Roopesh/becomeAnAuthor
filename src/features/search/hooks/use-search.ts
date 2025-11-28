@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/core/database';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
+import { isScene } from '@/lib/config/types';
 
 export function useSearch() {
     const [query, setQuery] = useState('');
@@ -18,13 +19,15 @@ export function useSearch() {
     // Initialize scene search index
     useEffect(() => {
         if (scenes && scenes.length > 0) {
-            const searchableScenes: SearchableScene[] = scenes.map((scene) => ({
-                id: scene.id,
-                title: scene.title,
-                content: scene.content,
-                summary: scene.summary || '',
-                type: 'scene',
-            }));
+            const searchableScenes: SearchableScene[] = scenes
+                .filter(node => isScene(node)) // Filter to ensure we only process actual scene nodes
+                .map((scene) => ({
+                    id: scene.id,
+                    title: scene.title,
+                    content: isScene(scene) ? scene.content : null, // Apply type guard before accessing content
+                    summary: isScene(scene) ? (scene.summary || '') : '', // Apply type guard before accessing summary
+                    type: 'scene',
+                }));
             searchService.initializeSceneSearch(searchableScenes);
         }
     }, [scenes]);

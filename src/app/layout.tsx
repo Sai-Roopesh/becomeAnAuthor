@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/features/shared/components/ThemeProvider";
-import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import { AppProvider } from '@/infrastructure/di/AppContext';
+import { ClientToaster } from '@/components/client-toaster';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,9 +31,9 @@ export default function RootLayout({
             <ErrorBoundary>
               {children}
             </ErrorBoundary>
-            <Toaster richColors position="bottom-right" />
           </AppProvider>
         </ThemeProvider>
+        <ClientToaster />
       </body>
     </html>
   );

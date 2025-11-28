@@ -182,3 +182,48 @@ export interface ExportedProject {
     sections: Section[];
     snippets: Snippet[];
 }
+
+// Google OAuth and Drive Types
+export interface GoogleTokens {
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt: number; // Timestamp when access token expires
+    scope: string;
+}
+
+export interface GoogleUser {
+    id: string;
+    email: string;
+    name: string;
+    picture: string;
+}
+
+export interface DriveFile {
+    id: string;
+    name: string;
+    mimeType: string;
+    createdTime: string;
+    modifiedTime: string;
+    size: number;
+}
+
+export interface DriveQuota {
+    limit: number;
+    usage: number;
+    usageInDrive: number;
+}
+
+export interface BackupScheduleOptions {
+    enabled: boolean;
+    interval: '15min' | '1hour' | 'daily';
+    projectIds: string[]; // Which projects to auto-backup
+    lastBackup?: number; // Timestamp of last backup
+}
+
+export interface DriveBackupMetadata {
+    version: string;
+    exportedAt: number;
+    appVersion: string;
+    backupType: 'manual' | 'auto';
+    projectData: ExportedProject;
+}

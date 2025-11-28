@@ -1,9 +1,9 @@
 /**
  * Toast notification service
- * Wrapper around sonner for consistent notifications across the app
+ * Wrapper around react-hot-toast for consistent notifications across the app
  */
 
-import { toast as sonnerToast } from 'sonner';
+import toast from 'react-hot-toast';
 
 interface ToastOptions {
     description?: string;
@@ -14,28 +14,40 @@ interface ToastOptions {
     };
 }
 
-export const toast = {
+const toastService = {
     success: (message: string, options?: ToastOptions) => {
-        return sonnerToast.success(message, options);
+        return toast.success(message, {
+            duration: options?.duration || 4000,
+        });
     },
 
     error: (message: string, options?: ToastOptions) => {
-        return sonnerToast.error(message, options);
+        return toast.error(message, {
+            duration: options?.duration || 5000,
+        });
     },
 
     warning: (message: string, options?: ToastOptions) => {
-        return sonnerToast.warning(message, options);
+        return toast(message, {
+            icon: '⚠️',
+            duration: options?.duration || 4000,
+        });
     },
 
     info: (message: string, options?: ToastOptions) => {
-        return sonnerToast.info(message, options);
+        return toast(message, {
+            icon: 'ℹ️',
+            duration: options?.duration || 4000,
+        });
     },
 
     loading: (message: string) => {
-        return sonnerToast.loading(message);
+        return toast.loading(message);
     },
 
-    dismiss: (toastId?: string | number) => {
-        sonnerToast.dismiss(toastId);
+    dismiss: (toastId?: string) => {
+        toast.dismiss(toastId);
     },
 };
+
+export { toastService as toast };

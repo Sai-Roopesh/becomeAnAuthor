@@ -4,6 +4,8 @@
  */
 
 import { AIConnection, AI_VENDORS, AIProvider, getVendor } from '@/lib/config/ai-vendors';
+import { storage } from '@/lib/safe-storage';
+import { fetchWithTimeout } from '@/lib/fetch-utils';
 
 export interface GenerateOptions {
     model: string;
@@ -21,17 +23,11 @@ export interface GenerateResponse {
 
 /**
  * Get all enabled AI connections from localStorage
+ * ✅ SAFE: Uses safe-storage wrapper to prevent crashes
  */
 export function getEnabledConnections(): AIConnection[] {
-    const stored = localStorage.getItem('ai_connections');
-    if (!stored) return [];
-
-    try {
-        const connections: AIConnection[] = JSON.parse(stored);
-        return connections.filter(c => c.enabled);
-    } catch {
-        return [];
-    }
+    const connections = storage.getItem<AIConnection[]>('ai_connections', []);
+    return connections.filter(c => c.enabled);
 }
 
 /**
@@ -92,48 +88,108 @@ export function getConnectionForModel(model: string): AIConnection | null {
  * Generate text using the appropriate AI vendor
  */
 export async function generateText(options: GenerateOptions): Promise<GenerateResponse> {
-    const connection = getConnectionForModel(options.model);
+    try {
+        const connection = getConnectionForModel(options.model);
 
-    if (!connection) {
-        throw new Error(`No enabled connection found for model: ${options.model}`);
-    }
-
-    const vendor = getVendor(connection.provider);
-    if (!vendor) {
-        throw new Error(`Unknown provider: ${connection.provider}`);
-    }
-
-    // Prepare the correct model name format for the vendor
-    let modelToUse = options.model;
-
-    // For native providers (not OpenRouter), strip the provider prefix if present
-    if (connection.provider !== 'openrouter') {
-        const parts = options.model.split('/');
-        if (parts.length > 1) {
-            // Use the base model name without prefix
-            modelToUse = parts.slice(1).join('/');
+        if (!connection) {
+            throw new Error(`No enabled connection found for model: ${options.model}`);
         }
-    }
 
-    const vendorOptions = {
-        ...options,
-        model: modelToUse,
-    };
+        const vendor = getVendor(connection.provider);
+        if (!vendor) {
+            throw new Error(`Unknown provider: ${connection.provider}`);
+        }
 
-    switch (connection.provider) {
-        case 'openrouter':
-            return await generateWithOpenRouter(connection, vendorOptions);
-        case 'google':
-            return await generateWithGoogle(connection, vendorOptions);
-        case 'mistral':
-            return await generateWithMistral(connection, vendorOptions);
-        case 'openai':
-            return await generateWithOpenAI(connection, vendorOptions);
-        case 'kimi':
-            return await generateWithKimi(connection, vendorOptions);
-        default:
-            throw new Error(`Provider ${connection.provider} not implemented`);
+        // Prepare the correct model name format for the vendor
+        let modelToUse = options.model;
+
+        // For native providers (not OpenRouter), strip the provider prefix if present
+        if (connection.provider !== 'openrouter') {
+            const parts = options.model.split('/');
+            if (parts.length > 1) {
+                // Use the base model name without prefix
+                modelToUse = parts.slice(1).join('/');
+            }
+        }
+
+        const vendorOptions = {
+            ...options,
+            model: modelToUse,
+        };
+
+        let result: GenerateResponse;
+
+        switch (connection.provider) {
+            case 'openrouter':
+                result = await generateWithOpenRouter(connection, vendorOptions);
+                break;
+            case 'google':
+                result = await generateWithGoogle(connection, vendorOptions);
+                break;
+            case 'mistral':
+                result = await generateWithMistral(connection, vendorOptions);
+                break;
+            case 'openai':
+                result = await generateWithOpenAI(connection, vendorOptions);
+                break;
+            case 'kimi':
+                result = await generateWithKimi(connection, vendorOptions);
+                break;
+            default:
+                throw new Error(`Provider ${connection.provider} not implemented`);
+        }
+
+        return result;
+    } catch (error) {
+        // ✅ Ensure errors are properly logged and re-thrown
+        console.error('[AI Client] Generation error:', error);
+        throw error; // Re-throw to propagate to UI layer
     }
+}
+
+// ✅ VALIDATION HELPERS: Ensure API responses have expected structure
+function validateOpenRouterResponse(data: any): string {
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error('OpenRouter returned invalid response: missing choices array');
+    }
+    const content = data.choices[0]?.message?.content;
+    if (typeof content !== 'string') {
+        throw new Error('OpenRouter returned invalid response: missing content');
+    }
+    return content;
+}
+
+function validateMistralResponse(data: any): string {
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error('Mistral returned invalid response: missing choices array');
+    }
+    const content = data.choices[0]?.message?.content;
+    if (typeof content !== 'string') {
+        throw new Error('Mistral returned invalid response: missing content');
+    }
+    return content;
+}
+
+function validateOpenAIResponse(data: any): string {
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error('OpenAI returned invalid response: missing choices array');
+    }
+    const content = data.choices[0]?.message?.content;
+    if (typeof content !== 'string') {
+        throw new Error('OpenAI returned invalid response: missing content');
+    }
+    return content;
+}
+
+function validateKimiResponse(data: any): string {
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error('Kimi returned invalid response: missing choices array');
+    }
+    const content = data.choices[0]?.message?.content;
+    if (typeof content !== 'string') {
+        throw new Error('Kimi returned invalid response: missing content');
+    }
+    return content;
 }
 
 /**
@@ -143,38 +199,83 @@ async function generateWithOpenRouter(
     connection: AIConnection,
     options: GenerateOptions
 ): Promise<GenerateResponse> {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${connection.apiKey}`,
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'Become an Author',
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+    try {
+        const response = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${connection.apiKey}`,
+                'HTTP-Referer': window.location.origin,
+                'X-Title': 'Become an Author',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: options.model,
+                messages: [
+                    ...(options.system ? [{ role: 'system', content: options.system }] : []),
+                    { role: 'user', content: options.prompt },
+                ],
+                max_tokens: options.maxTokens,
+                temperature: options.temperature ?? 0.7,
+            }),
+        }, 60000); // 60 second timeout for AI generation
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('OpenRouter API error details:', errorText);
+
+            // Parse error response for better user messages
+            try {
+                const errorData = JSON.parse(errorText);
+                const errorMessage = errorData.error?.message || errorData.message || '';
+
+                // Provide specific error messages for common issues
+                if (response.status === 401) {
+                    throw new Error('Invalid API key. Please check your OpenRouter API key in settings.');
+                }
+                if (response.status === 429 || errorMessage.toLowerCase().includes('rate limit')) {
+                    throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+                }
+                if (errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('insufficient')) {
+                    throw new Error('API quota exceeded. Please check your account credits or try a different model.');
+                }
+                if (errorMessage.toLowerCase().includes('model') && errorMessage.toLowerCase().includes('not found')) {
+                    throw new Error('Model not found or not available. Please try a different model.');
+                }
+
+                // If we have a specific error message, use it
+                if (errorMessage) {
+                    throw new Error(`OpenRouter error: ${errorMessage}`);
+                }
+            } catch (parseError) {
+                // If JSON parsing fails, use status-based message
+                if (parseError instanceof Error && parseError.message.startsWith('OpenRouter')) {
+                    throw parseError; // Re-throw our custom errors
+                }
+            }
+
+            throw new Error(`OpenRouter API error (${response.status})`);
+        }
+
+        const data = await response.json();
+        const text = validateOpenRouterResponse(data); // ✅ Validated
+
+        return {
+            text,
             model: options.model,
-            messages: [
-                ...(options.system ? [{ role: 'system', content: options.system }] : []),
-                { role: 'user', content: options.prompt },
-            ],
-            max_tokens: options.maxTokens,
-            temperature: options.temperature ?? 0.7,
-        }),
-    });
-
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`OpenRouter API error: ${error}`);
+            provider: 'openrouter',
+        };
+    } catch (error) {
+        // ✅ Enhanced error handling for network failures
+        if (error instanceof Error) {
+            if (error.message.includes('timeout')) {
+                throw new Error('Request timed out. Please check your internet connection and try again.');
+            }
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                throw new Error('Network error. Please check your internet connection.');
+            }
+        }
+        throw error;
     }
-
-    const data = await response.json();
-    const text = data.choices[0]?.message?.content || '';
-
-    return {
-        text,
-        model: options.model,
-        provider: 'openrouter',
-    };
 }
 
 /**
@@ -184,44 +285,69 @@ async function generateWithGoogle(
     connection: AIConnection,
     options: GenerateOptions
 ): Promise<GenerateResponse> {
-    const modelPath = options.model.includes('/') ? options.model : `models/${options.model}`;
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${connection.apiKey}`;
+    try {
+        const modelPath = options.model.includes('/') ? options.model : `models/${options.model}`;
+        // ✅ SECURITY FIX: API key in header instead of URL to prevent exposure in logs/history
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent`;
 
-    const parts: any[] = [];
-    if (options.system) {
-        parts.push({ text: options.system + '\n\n' });
-    }
-    parts.push({ text: options.prompt });
+        const parts: any[] = [];
+        if (options.system) {
+            parts.push({ text: options.system + '\n\n' });
+        }
+        parts.push({ text: options.prompt });
 
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            contents: [{
-                parts,
-            }],
-            generationConfig: {
-                maxOutputTokens: options.maxTokens,
-                temperature: options.temperature ?? 0.7,
+        const response = await fetchWithTimeout(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': connection.apiKey, // ✅ API key in header
             },
-        }),
-    });
+            body: JSON.stringify({
+                contents: [{
+                    parts,
+                }],
+                generationConfig: {
+                    maxOutputTokens: options.maxTokens,
+                    temperature: options.temperature ?? 0.7,
+                },
+            }),
+        }, 60000);
 
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Google AI error: ${error}`);
+        if (!response.ok) {
+            const error = await response.text();
+            console.error('Google AI error details:', error); // ✅ Log full error
+            throw new Error(`Google AI error (${response.status})`); // ✅ Generic user message
+        }
+
+        const data = await response.json();
+
+        // ✅ VALIDATION: Ensure response has expected structure
+        if (!data.candidates || !Array.isArray(data.candidates) || data.candidates.length === 0) {
+            throw new Error('Google AI returned invalid response format');
+        }
+
+        const text = data.candidates[0]?.content?.parts?.[0]?.text;
+        if (typeof text !== 'string') {
+            throw new Error('Google AI response missing text content');
+        }
+
+        return {
+            text,
+            model: options.model,
+            provider: 'google',
+        };
+    } catch (error) {
+        // ✅ Enhanced error handling for network failures
+        if (error instanceof Error) {
+            if (error.message.includes('timeout')) {
+                throw new Error('Request timed out. Please check your internet connection and try again.');
+            }
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                throw new Error('Network error. Please check your internet connection.');
+            }
+        }
+        throw error;
     }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    return {
-        text,
-        model: options.model,
-        provider: 'google',
-    };
 }
 
 /**
@@ -231,7 +357,7 @@ async function generateWithMistral(
     connection: AIConnection,
     options: GenerateOptions
 ): Promise<GenerateResponse> {
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    const response = await fetchWithTimeout('https://api.mistral.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${connection.apiKey}`,
@@ -254,7 +380,7 @@ async function generateWithMistral(
     }
 
     const data = await response.json();
-    const text = data.choices[0]?.message?.content || '';
+    const text = validateMistralResponse(data); // ✅ Validated
 
     return {
         text,
@@ -272,7 +398,7 @@ async function generateWithOpenAI(
 ): Promise<GenerateResponse> {
     const endpoint = connection.customEndpoint || 'https://api.openai.com/v1';
 
-    const response = await fetch(`${endpoint}/chat/completions`, {
+    const response = await fetchWithTimeout(`${endpoint}/chat/completions`, {
         method: 'POST',
         headers: {
             ...(connection.apiKey ? { 'Authorization': `Bearer ${connection.apiKey}` } : {}),
@@ -295,7 +421,7 @@ async function generateWithOpenAI(
     }
 
     const data = await response.json();
-    const text = data.choices[0]?.message?.content || '';
+    const text = validateOpenAIResponse(data); // ✅ Validated
 
     return {
         text,
@@ -311,7 +437,7 @@ async function generateWithKimi(
     connection: AIConnection,
     options: GenerateOptions
 ): Promise<GenerateResponse> {
-    const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+    const response = await fetchWithTimeout('https://api.moonshot.cn/v1/chat/completions', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${connection.apiKey}`,
@@ -334,7 +460,7 @@ async function generateWithKimi(
     }
 
     const data = await response.json();
-    const text = data.choices[0]?.message?.content || '';
+    const text = validateKimiResponse(data); // ✅ Validated
 
     return {
         text,
@@ -393,10 +519,18 @@ async function fetchOpenRouterModels(connection: AIConnection): Promise<string[]
 
 async function fetchGoogleModels(connection: AIConnection): Promise<string[]> {
     const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${connection.apiKey}`
+        'https://generativelanguage.googleapis.com/v1beta/models',
+        {
+            headers: {
+                'x-goog-api-key': connection.apiKey, // ✅ API key in header
+            },
+        }
     );
 
-    if (!response.ok) throw new Error('Failed to fetch Google models');
+    if (!response.ok) {
+        console.error('Failed to fetch Google models:', response.status);
+        throw new Error(`Failed to fetch Google models (${response.status})`);
+    }
 
     const data = await response.json();
     return data.models

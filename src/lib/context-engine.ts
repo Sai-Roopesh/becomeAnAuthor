@@ -70,20 +70,28 @@ export async function assembleContext(sceneId: string | null, query: string): Pr
     return context;
 }
 
-// Async recursive function with yielding
-async function extractTextFromTiptap(content: any): Promise<string> {
+// ✅ SAFE: Async recursive function with yielding AND depth limit
+async function extractTextFromTiptap(content: any, depth: number = 0): Promise<string> {
+    const MAX_DEPTH = 100;
+
+    // Prevent stack overflow from malicious deeply nested structures
+    if (depth > MAX_DEPTH) {
+        console.warn('Max recursion depth reached in extractTextFromTiptap');
+        return '';
+    }
+
     if (!content) return '';
     if (typeof content === 'string') return content;
 
     // Yield every now and then if processing large arrays
     if (Array.isArray(content)) {
         if (content.length > 50) await yieldToMain();
-        const parts = await Promise.all(content.map(extractTextFromTiptap));
+        const parts = await Promise.all(content.map(item => extractTextFromTiptap(item, depth + 1)));
         return parts.join(' ');
     }
 
     if (content.text) return content.text;
-    if (content.content) return extractTextFromTiptap(content.content);
+    if (content.content) return extractTextFromTiptap(content.content, depth + 1);
 
     return '';
 }

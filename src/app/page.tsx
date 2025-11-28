@@ -5,6 +5,7 @@ import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CreateProjectDialog } from '@/features/project/components/CreateProjectDialog';
+import { RestoreProjectDialog } from '@/features/data-management/components/RestoreProjectDialog';
 import { BookOpen, MoreVertical, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { DataManagementMenu } from '@/components/data-management/data-management-menu';
@@ -52,7 +53,12 @@ export default function Dashboard() {
         </h1>
         <div className="flex gap-2">
           <DataManagementMenu />
-          {hasProjects && <CreateProjectDialog />}
+          {hasProjects && (
+            <>
+              <RestoreProjectDialog />
+              <CreateProjectDialog />
+            </>
+          )}
         </div>
       </div>
 
@@ -64,10 +70,13 @@ export default function Dashboard() {
           <div className="space-y-2 max-w-md">
             <h2 className="text-2xl font-bold">Welcome to your Writing Studio!</h2>
             <p className="text-muted-foreground">
-              Let's get you started with your first project. Bring your ideas, notes, and more into a brand new novel.
+              Let's get you started. Create a new novel or restore an existing backup.
             </p>
           </div>
-          <CreateProjectDialog />
+          <div className="flex gap-3">
+            <CreateProjectDialog />
+            <RestoreProjectDialog />
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

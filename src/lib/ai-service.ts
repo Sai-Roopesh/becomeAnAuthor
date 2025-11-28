@@ -4,6 +4,7 @@
  */
 
 import { AIConnection, AIProvider, getVendor } from './ai-vendors';
+import { storage } from './safe-storage';
 
 export interface GenerateOptions {
     model: string;
@@ -21,17 +22,11 @@ export interface GenerateResponse {
 
 /**
  * Get all enabled AI connections from localStorage
+ * ✅ SAFE: Uses safe-storage wrapper to prevent crashes
  */
 export function getEnabledConnections(): AIConnection[] {
-    const stored = localStorage.getItem('ai_connections');
-    if (!stored) return [];
-
-    try {
-        const connections: AIConnection[] = JSON.parse(stored);
-        return connections.filter(c => c.enabled);
-    } catch {
-        return [];
-    }
+    const connections = storage.getItem<AIConnection[]>('ai_connections', []);
+    return connections.filter(c => c.enabled);
 }
 
 /**

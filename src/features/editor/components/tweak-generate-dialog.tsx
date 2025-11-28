@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Expand, Copy } from 'lucide-react';
 import { ModelSelector } from '@/features/ai/components/model-selector';
 import type { ChatContext } from '@/lib/config/types';
+import { safeLocalStorageGet } from '@/lib/json-utils';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
@@ -42,8 +43,8 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
 
     useState(() => {
-        // Load default model from AI connections
-        const connections = JSON.parse(localStorage.getItem('ai_connections') || '[]');
+        // ✅ SAFE: Load default model from AI connections with safe parsing
+        const connections = safeLocalStorageGet<any[]>('ai_connections', []);
         const allModels = connections
             .filter((c: any) => c.enabled)
             .flatMap((c: any) => c.models || []);
