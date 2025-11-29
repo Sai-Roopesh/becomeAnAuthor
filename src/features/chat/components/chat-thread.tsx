@@ -10,6 +10,7 @@ import { ContextItem } from './context-selector';
 import type { ChatContext } from '@/lib/config/types';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
+import { storage } from '@/lib/safe-storage';
 
 // Import child components
 import { ChatHeader } from './components/ChatHeader';
@@ -145,7 +146,8 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                 defaultModel: usedModel
             });
 
-            localStorage.setItem('last_used_model', usedModel);
+            // Save last used model for other features
+            storage.setItem('last_used_model', usedModel);
         } catch (error) {
             console.error('Chat error:', error);
             await chatRepo.createMessage({

@@ -10,8 +10,8 @@ import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVer
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreateNodeDialog } from '@/features/project/components/CreateNodeDialog';
-import { SnippetList } from '@/components/snippets/snippet-list';
-import { CodexList } from '@/components/codex/codex-list';
+import { SnippetList } from '@/features/snippets/components/snippet-list';
+import { CodexList } from '@/features/codex/components/codex-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     DropdownMenu,

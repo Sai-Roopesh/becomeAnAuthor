@@ -9,11 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import { ModelSelector } from '@/features/ai/components/model-selector';
-import { generateText } from '@/lib/core/ai-client';
+import { Loader2, X } from 'lucide-react';
+import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { useAI } from '@/hooks/use-ai';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { toast } from '@/lib/toast-service';
 
 import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';
 
@@ -30,11 +29,16 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose, proje
     const [instruction, setInstruction] = useState('');
     const [preset, setPreset] = useState('default');
     const [customLength, setCustomLength] = useState('');
-    const [model, setModel] = useState('');
     const [result, setResult] = useState('');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [error, setError] = useState('');
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
+    const [streamingWordCount, setStreamingWordCount] = useState(0);
+
+    const { generateStream, isGenerating, model, setModel, error: aiError, cancel } = useAI({
+        system: 'You are a creative writing assistant',
+        streaming: true,
+        persistModel: true,
+        operationName: action === 'expand' ? 'Expand Text' : action === 'rephrase' ? 'Rephrase Text' : 'Shorten Text',
+    });
 
     const getActionTitle = () => {
         switch (action) {
@@ -77,43 +81,43 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose, proje
 
     const handleGenerate = async () => {
         if (!model) {
-            setError('Please select a model');
             return;
         }
 
-        if (action === 'expand' && preset === 'custom' && !customLength) {
-            setError('Please enter target word count');
-            return;
-        }
+        // Clear previous result and switch to preview tab
+        setResult('');
+        setStreamingWordCount(0);
+        setActiveTab('preview');
 
-        if (action === 'shorten' && preset === 'custom' && !customLength) {
-            setError('Please enter target word count');
-            return;
-        }
-
-        setIsGenerating(true);
-        setError('');
-
-        try {
-            // In a real implementation, we would fetch the content of selected contexts here
-            // For now, we just pass the labels in the system prompt
-
-            const response = await generateText({
-                model,
-                system: getSystemPrompt(),
+        await generateStream(
+            {
                 prompt: `Original text:\n\n${selectedText}\n\nProvide only the ${action === 'expand' ? 'expanded' : action === 'rephrase' ? 'rephrased' : 'shortened'} version without any explanation.`,
+                context: getSystemPrompt(),
                 maxTokens: 4000,
-            });
+            },
+            {
+                onChunk: (chunk) => {
+                    setResult(prev => {
+                        const updated = prev + chunk;
+                        // Update word count in real-time
+                        const words = updated.trim().split(/\s+/).filter(Boolean).length;
+                        setStreamingWordCount(words);
+                        return updated;
+                    });
+                },
+                onComplete: (fullText) => {
+                    // Final word count
+                    const words = fullText.trim().split(/\s+/).filter(Boolean).length;
+                    setStreamingWordCount(words);
+                },
+            }
+        );
+    };
 
-            setResult(response.text);
-            setActiveTab('preview');
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to generate text';
-            setError(errorMessage);
-            toast.error(errorMessage); // ✅ Show toast notification
-        } finally {
-            setIsGenerating(false);
-        }
+    const handleCancelGeneration = () => {
+        cancel();
+        setResult('');
+        setActiveTab('tweak');
     };
 
     const handleApply = () => {
@@ -242,16 +246,16 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose, proje
                         {/* Model Selector */}
                         <div>
                             <Label className="text-sm font-medium">Model</Label>
-                            <ModelSelector
+                            <ModelCombobox
                                 value={model}
                                 onValueChange={setModel}
                                 className="mt-2"
                             />
                         </div>
 
-                        {error && (
+                        {aiError && (
                             <div className="p-3 bg-destructive/10 border border-destructive rounded-md">
-                                <p className="text-sm text-destructive">{error}</p>
+                                <p className="text-sm text-destructive">{aiError}</p>
                             </div>
                         )}
                     </TabsContent>
@@ -274,9 +278,17 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose, proje
                                 value={result}
                                 onChange={(e) => setResult(e.target.value)}
                                 className="min-h-[200px] mt-2"
+                                readOnly={isGenerating}
                             />
                             <p className="text-xs text-muted-foreground mt-1">
-                                {result.trim().split(/\s+/).filter(Boolean).length} words
+                                {isGenerating ? (
+                                    <>
+                                        <span className="inline-block w-2 h-2 mr-1 bg-blue-500 rounded-full animate-pulse" />
+                                        {streamingWordCount} words (streaming...)
+                                    </>
+                                ) : (
+                                    `${result.trim().split(/\s+/).filter(Boolean).length} words`
+                                )}
                             </p>
                         </div>
                     </TabsContent>
@@ -293,6 +305,15 @@ export function TextReplaceDialog({ action, selectedText, editor, onClose, proje
                                 {isGenerating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                                 {isGenerating ? 'Generating...' : 'Generate'}
                             </Button>
+                            {isGenerating && (
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCancelGeneration}
+                                >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cancel
+                                </Button>
+                            )}
                         </>
                     ) : (
                         <>

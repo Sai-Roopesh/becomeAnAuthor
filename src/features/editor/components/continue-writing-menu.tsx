@@ -5,8 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Sparkles, Wand2, BookOpen, Settings2 } from 'lucide-react';
 import { TweakGenerateDialog, GenerateOptions } from './tweak-generate-dialog';
-import { ModelSelector } from '@/features/ai/components/model-selector';
-import { safeLocalStorageGet } from '@/lib/json-utils';
+import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { storage } from '@/lib/safe-storage';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
@@ -15,25 +15,31 @@ interface ContinueWritingMenuProps {
     onOpenChange: (open: boolean) => void;
     onGenerate: (options: GenerateOptions & { mode: GenerationMode }) => void;
     projectId: string;
+    isGenerating?: boolean; // NEW: track generation state
+    onCancel?: () => void; // NEW: cancel handler
 }
 
-export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId }: ContinueWritingMenuProps) {
+export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId, isGenerating, onCancel }: ContinueWritingMenuProps) {
     const [wordCount, setWordCount] = useState('400');
     const [model, setModel] = useState('');
     const [showTweakDialog, setShowTweakDialog] = useState(false);
     const [selectedMode, setSelectedMode] = useState<GenerationMode>('continue-writing');
 
     useEffect(() => {
-        // ✅ SAFE: Load default model from AI connections with safe parsing
-        const connections = safeLocalStorageGet<any[]>('ai_connections', []);
+        // Load default model from AI connections with safe parsing
+        const connections = storage.getItem<any[]>('ai_connections', []);
         const allModels = connections
             .filter((c: any) => c.enabled)
             .flatMap((c: any) => c.models || []);
 
         if (allModels.length > 0 && !model) {
             setModel(allModels[0]);
-        } else if (!model) {
-            setModel(localStorage.getItem('last_used_model') || 'openai/gpt-3.5-turbo');
+        } else if (!model && allModels.length === 0) {
+            // No AI connections configured - try last used
+            const lastUsed = storage.getItem<string>('last_used_model', '');
+            if (lastUsed) {
+                setModel(lastUsed);
+            }
         }
     }, []);
 
@@ -177,7 +183,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId 
                             </div>
 
                             <div className="mb-3">
-                                <ModelSelector
+                                <ModelCombobox
                                     value={model}
                                     onValueChange={setModel}
                                     className="h-8 text-xs"
@@ -185,13 +191,26 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId 
                             </div>
 
                             <div className="flex gap-2">
-                                <Button size="sm" onClick={handleQuickGenerate} className="flex-1">
-                                    <Sparkles className="h-3 w-3 mr-1" />
-                                    Generate
-                                </Button>
-                                <Button variant="ghost" size="sm">
-                                    Clear Beat
-                                </Button>
+                                {!isGenerating ? (
+                                    <>
+                                        <Button size="sm" onClick={handleQuickGenerate} className="flex-1">
+                                            <Sparkles className="h-3 w-3 mr-1" />
+                                            Generate
+                                        </Button>
+                                        <Button variant="ghost" size="sm">
+                                            Clear Beat
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={onCancel}
+                                        className="flex-1"
+                                    >
+                                        Cancel Generation
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>

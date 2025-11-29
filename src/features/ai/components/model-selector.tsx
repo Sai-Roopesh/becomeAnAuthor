@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { storage } from '@/lib/safe-storage';
 
 interface ModelInfo {
     id: string;
@@ -26,25 +27,19 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
     }, []);
 
     const loadModels = () => {
-        // Load models from AI connections
-        const stored = localStorage.getItem('ai_connections');
-        if (!stored) return;
+        // Load models from AI connections using safe-storage
+        const allConnections = storage.getItem<any[]>('ai_connections', []);
 
-        try {
-            const allConnections = JSON.parse(stored);
-            const enabledConnections = allConnections
-                .filter((c: any) => c.enabled)
-                .map((c: any) => ({
-                    name: c.name,
-                    models: c.models || [],
-                    provider: c.provider
-                }))
-                .filter((c: any) => c.models.length > 0);
+        const enabledConnections = allConnections
+            .filter((c: any) => c.enabled)
+            .map((c: any) => ({
+                name: c.name,
+                models: c.models || [],
+                provider: c.provider
+            }))
+            .filter((c: any) => c.models.length > 0);
 
-            setConnections(enabledConnections);
-        } catch (e) {
-            console.error('Failed to load AI connections', e);
-        }
+        setConnections(enabledConnections);
     };
 
     return (

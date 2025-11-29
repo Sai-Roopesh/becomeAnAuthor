@@ -6,10 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Copy, History, Sparkles, Upload, Plus, Trash2 } from 'lucide-react';
-import { generateText } from '@/lib/core/ai-client';
+import { useAI } from '@/hooks/use-ai';
 import { toast } from '@/lib/toast-service';
-import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS } from '@/lib/config/constants';
 
 interface DetailsTabProps {
     entity: Partial<CodexEntry>;
@@ -17,44 +15,28 @@ interface DetailsTabProps {
 }
 
 export function DetailsTab({ entity, onChange }: DetailsTabProps) {
-    const [isGenerating, setIsGenerating] = useState(false);
     const [newAttrKey, setNewAttrKey] = useState('');
     const [newAttrValue, setNewAttrValue] = useState('');
+    const { generate, isGenerating } = useAI({
+        system: 'You are a helpful creative writing assistant specializing in world-building.',
+        streaming: false,
+        operationName: 'Codex Description Generation',
+    });
 
     const generateDescription = async () => {
         if (!entity.name || !entity.category) return;
-        setIsGenerating(true);
 
-        const model = storage.getItem<string>(STORAGE_KEYS.LAST_USED_MODEL, '');
-
-        if (!model) {
-            toast.error('Please select a model in settings or chat to use AI features.');
-            setIsGenerating(false);
-            return;
-        }
-
-        try {
-            const prompt = `Generate a creative and detailed description for a ${entity.category} named "${entity.name}". 
+        const prompt = `Generate a creative and detailed description for a ${entity.category} named "${entity.name}". 
         ${entity.aliases?.length ? `Aliases: ${entity.aliases.join(', ')}.` : ''}
         Write about 2-3 paragraphs.`;
 
-            const response = await generateText({
-                model,
-                system: 'You are a helpful creative writing assistant specializing in world-building.',
-                prompt,
-                maxTokens: 1000,
-            });
+        const description = await generate({
+            prompt,
+            maxTokens: 1000,
+        });
 
-            const description = response.text;
-
-            if (description) {
-                onChange('description', (entity.description ? entity.description + '\n\n' : '') + description);
-            }
-        } catch (error) {
-            console.error('Generation failed', error);
-            toast.error(`Failed to generate description: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        } finally {
-            setIsGenerating(false);
+        if (description) {
+            onChange('description', (entity.description ? entity.description + '\n\n' : '') + description);
         }
     };
 

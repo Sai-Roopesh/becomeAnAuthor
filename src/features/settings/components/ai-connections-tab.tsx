@@ -10,6 +10,7 @@ import { AIConnection, AI_VENDORS } from '@/lib/config/ai-vendors';
 import { fetchModelsForConnection } from '@/lib/core/ai-client';
 import { NewConnectionDialog } from './new-connection-dialog';
 import { useConfirmation } from '@/hooks/use-confirmation';
+import { storage } from '@/lib/safe-storage';
 
 export function AIConnectionsTab() {
     const [connections, setConnections] = useState<AIConnection[]>([]);
@@ -38,16 +39,12 @@ export function AIConnectionsTab() {
     }, [selectedId, connections]);
 
     const loadConnections = () => {
-        const stored = localStorage.getItem('ai_connections');
-        if (stored) {
-            try {
-                const parsed: AIConnection[] = JSON.parse(stored);
-                setConnections(parsed);
-                if (parsed.length > 0 && !selectedId) {
-                    setSelectedId(parsed[0].id);
-                }
-            } catch {
-                initializeDefaultConnection();
+        const parsed = storage.getItem<AIConnection[]>('ai_connections', []);
+
+        if (parsed.length > 0) {
+            setConnections(parsed);
+            if (!selectedId) {
+                setSelectedId(parsed[0].id);
             }
         } else {
             initializeDefaultConnection();
@@ -56,7 +53,7 @@ export function AIConnectionsTab() {
 
     const initializeDefaultConnection = () => {
         // Migrate old OpenRouter key if exists
-        const oldKey = localStorage.getItem('openrouter_api_key');
+        const oldKey = storage.getItem<string>('openrouter_api_key', '');
         const defaultConnection: AIConnection = {
             id: 'openrouter-default',
             name: 'OpenRouter',
@@ -70,7 +67,7 @@ export function AIConnectionsTab() {
         const newConnections = [defaultConnection];
         setConnections(newConnections);
         setSelectedId(defaultConnection.id);
-        localStorage.setItem('ai_connections', JSON.stringify(newConnections));
+        storage.setItem('ai_connections', newConnections);
     };
 
     const saveConnection = () => {
@@ -87,12 +84,12 @@ export function AIConnectionsTab() {
                 : c
         );
         setConnections(updated);
-        localStorage.setItem('ai_connections', JSON.stringify(updated));
+        storage.setItem('ai_connections', updated);
 
         // Legacy support for old OpenRouter key
         const selected = connections.find(c => c.id === selectedId);
         if (selected?.provider === 'openrouter') {
-            localStorage.setItem('openrouter_api_key', apiKey);
+            storage.setItem('openrouter_api_key', apiKey);
         }
     };
 
@@ -124,7 +121,7 @@ export function AIConnectionsTab() {
                     : c
             );
             setConnections(updated);
-            localStorage.setItem('ai_connections', JSON.stringify(updated));
+            storage.setItem('ai_connections', updated);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch models');
         } finally {
@@ -150,7 +147,7 @@ export function AIConnectionsTab() {
         if (confirmed) {
             const updated = connections.filter(c => c.id !== selectedId);
             setConnections(updated);
-            localStorage.setItem('ai_connections', JSON.stringify(updated));
+            storage.setItem('ai_connections', updated);
             setSelectedId(updated[0]?.id || '');
         }
     };
@@ -162,13 +159,13 @@ export function AIConnectionsTab() {
                 : c
         );
         setConnections(updated);
-        localStorage.setItem('ai_connections', JSON.stringify(updated));
+        storage.setItem('ai_connections', updated);
     };
 
     const handleAddConnection = (newConnection: AIConnection) => {
         const updated = [...connections, newConnection];
         setConnections(updated);
-        localStorage.setItem('ai_connections', JSON.stringify(updated));
+        storage.setItem('ai_connections', updated);
         setSelectedId(newConnection.id);
     };
 

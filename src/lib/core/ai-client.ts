@@ -6,6 +6,8 @@
 import { AIConnection, AI_VENDORS, AIProvider, getVendor } from '@/lib/config/ai-vendors';
 import { storage } from '@/lib/safe-storage';
 import { fetchWithTimeout } from '@/lib/fetch-utils';
+import { withRetry } from '@/lib/retry-utils';
+import { parseSSEStream, parseGeminiStream } from '@/lib/streaming-utils';
 
 export interface GenerateOptions {
     model: string;
@@ -13,12 +15,26 @@ export interface GenerateOptions {
     prompt: string;
     maxTokens?: number;
     temperature?: number;
+    signal?: AbortSignal; // Support for request cancellation
 }
 
 export interface GenerateResponse {
     text: string;
     model: string;
     provider: AIProvider;
+}
+
+// Streaming interfaces
+export interface StreamCallbacks {
+    onChunk: (text: string) => void;
+    onComplete?: (fullText: string) => void;
+    onError?: (error: Error) => void;
+}
+
+export interface GenerateStreamOptions extends GenerateOptions {
+    onChunk: (text: string) => void;
+    onComplete?: (fullText: string) => void;
+    onError?: (error: Error) => void;
 }
 
 /**
@@ -86,64 +102,151 @@ export function getConnectionForModel(model: string): AIConnection | null {
 
 /**
  * Generate text using the appropriate AI vendor
+ * Includes retry logic for transient failures
  */
 export async function generateText(options: GenerateOptions): Promise<GenerateResponse> {
-    try {
-        const connection = getConnectionForModel(options.model);
+    // Check if request was aborted before starting
+    if (options.signal?.aborted) {
+        throw new Error('Request was cancelled');
+    }
 
-        if (!connection) {
-            throw new Error(`No enabled connection found for model: ${options.model}`);
-        }
+    return withRetry(async () => {
+        try {
+            const connection = getConnectionForModel(options.model);
 
-        const vendor = getVendor(connection.provider);
-        if (!vendor) {
-            throw new Error(`Unknown provider: ${connection.provider}`);
-        }
-
-        // Prepare the correct model name format for the vendor
-        let modelToUse = options.model;
-
-        // For native providers (not OpenRouter), strip the provider prefix if present
-        if (connection.provider !== 'openrouter') {
-            const parts = options.model.split('/');
-            if (parts.length > 1) {
-                // Use the base model name without prefix
-                modelToUse = parts.slice(1).join('/');
+            if (!connection) {
+                throw new Error(`No enabled connection found for model: ${options.model}`);
             }
+
+            const vendor = getVendor(connection.provider);
+            if (!vendor) {
+                throw new Error(`Unknown provider: ${connection.provider}`);
+            }
+
+            // Prepare the correct model name format for the vendor
+            let modelToUse = options.model;
+
+            // For native providers (not OpenRouter), strip the provider prefix if present
+            if (connection.provider !== 'openrouter') {
+                const parts = options.model.split('/');
+                if (parts.length > 1) {
+                    // Use the base model name without prefix
+                    modelToUse = parts.slice(1).join('/');
+                }
+            }
+
+            const vendorOptions = {
+                ...options,
+                model: modelToUse,
+            };
+
+            let result: GenerateResponse;
+
+            switch (connection.provider) {
+                case 'openrouter':
+                    result = await generateWithOpenRouter(connection, vendorOptions);
+                    break;
+                case 'google':
+                    result = await generateWithGoogle(connection, vendorOptions);
+                    break;
+                case 'mistral':
+                    result = await generateWithMistral(connection, vendorOptions);
+                    break;
+                case 'openai':
+                    result = await generateWithOpenAI(connection, vendorOptions);
+                    break;
+                case 'kimi':
+                    result = await generateWithKimi(connection, vendorOptions);
+                    break;
+                default:
+                    throw new Error(`Provider ${connection.provider} not implemented`);
+            }
+
+            return result;
+        } catch (error) {
+            // ✅ Ensure errors are properly logged and re-thrown
+            console.error('[AI Client] Generation error:', error);
+            throw error; // Re-throw to propagate to UI layer
         }
+    }, {
+        maxRetries: 3,
+        initialDelay: 1000,
+        shouldRetry: (error) => {
+            // Don't retry if request was cancelled
+            if (options.signal?.aborted || error.message.includes('cancelled')) {
+                return false;
+            }
+            // Use default retry logic for other errors
+            return true;
+        }
+    });
+}
 
-        const vendorOptions = {
-            ...options,
-            model: modelToUse,
-        };
+/**
+ * Generate text with streaming support
+ * Calls onChunk for each piece of text as it arrives
+ */
+export async function generateTextStream(options: GenerateStreamOptions): Promise<void> {
+    // Check if request was aborted before starting
+    if (options.signal?.aborted) {
+        throw new Error('Request was cancelled');
+    }
 
-        let result: GenerateResponse;
+    const connection = getConnectionForModel(options.model);
 
+    if (!connection) {
+        const error = new Error(`No enabled connection found for model: ${options.model}`);
+        options.onError?.(error);
+        throw error;
+    }
+
+    const vendor = getVendor(connection.provider);
+    if (!vendor) {
+        const error = new Error(`Unknown provider: ${connection.provider}`);
+        options.onError?.(error);
+        throw error;
+    }
+
+    // Prepare the correct model name format for the vendor
+    let modelToUse = options.model;
+
+    // For native providers (not OpenRouter), strip the provider prefix if present
+    if (connection.provider !== 'openrouter') {
+        const parts = options.model.split('/');
+        if (parts.length > 1) {
+            modelToUse = parts.slice(1).join('/');
+        }
+    }
+
+    const streamOptions = {
+        ...options,
+        model: modelToUse,
+    };
+
+    try {
         switch (connection.provider) {
             case 'openrouter':
-                result = await generateWithOpenRouter(connection, vendorOptions);
+                await streamWithOpenRouter(connection, streamOptions);
                 break;
             case 'google':
-                result = await generateWithGoogle(connection, vendorOptions);
+                await streamWithGoogle(connection, streamOptions);
                 break;
             case 'mistral':
-                result = await generateWithMistral(connection, vendorOptions);
+                await streamWithMistral(connection, streamOptions);
                 break;
             case 'openai':
-                result = await generateWithOpenAI(connection, vendorOptions);
+                await streamWithOpenAI(connection, streamOptions);
                 break;
             case 'kimi':
-                result = await generateWithKimi(connection, vendorOptions);
+                await streamWithKimi(connection, streamOptions);
                 break;
             default:
-                throw new Error(`Provider ${connection.provider} not implemented`);
+                throw new Error(`Streaming not implemented for provider ${connection.provider}`);
         }
-
-        return result;
     } catch (error) {
-        // ✅ Ensure errors are properly logged and re-thrown
-        console.error('[AI Client] Generation error:', error);
-        throw error; // Re-throw to propagate to UI layer
+        console.error('[AI Client] Streaming error:', error);
+        options.onError?.(error as Error);
+        throw error;
     }
 }
 
@@ -217,6 +320,7 @@ async function generateWithOpenRouter(
                 max_tokens: options.maxTokens,
                 temperature: options.temperature ?? 0.7,
             }),
+            signal: options.signal, // Pass abort signal
         }, 60000); // 60 second timeout for AI generation
 
         if (!response.ok) {
@@ -311,6 +415,7 @@ async function generateWithGoogle(
                     temperature: options.temperature ?? 0.7,
                 },
             }),
+            signal: options.signal, // Pass abort signal
         }, 60000);
 
         if (!response.ok) {
@@ -372,6 +477,7 @@ async function generateWithMistral(
             max_tokens: options.maxTokens,
             temperature: options.temperature ?? 0.7,
         }),
+        signal: options.signal, // Pass abort signal
     });
 
     if (!response.ok) {
@@ -413,6 +519,7 @@ async function generateWithOpenAI(
             max_tokens: options.maxTokens,
             temperature: options.temperature ?? 0.7,
         }),
+        signal: options.signal, // Pass abort signal
     });
 
     if (!response.ok) {
@@ -452,6 +559,7 @@ async function generateWithKimi(
             max_tokens: options.maxTokens,
             temperature: options.temperature ?? 0.7,
         }),
+        signal: options.signal, // Pass abort signal
     });
 
     if (!response.ok) {
@@ -562,4 +670,239 @@ async function fetchKimiModels(connection: AIConnection): Promise<string[]> {
 
     const data = await response.json();
     return data.data?.map((m: any) => m.id) || [];
+}
+
+// ===== STREAMING PROVIDER IMPLEMENTATIONS =====
+
+/**
+ * Stream with OpenRouter
+ */
+async function streamWithOpenRouter(connection: AIConnection, options: GenerateStreamOptions): Promise<void> {
+    let fullText = '';
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${connection.apiKey}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Become an Author',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: options.model,
+            messages: [
+                ...(options.system ? [{ role: 'system', content: options.system }] : []),
+                { role: 'user', content: options.prompt },
+            ],
+            max_tokens: options.maxTokens,
+            temperature: options.temperature ?? 0.7,
+            stream: true, // Enable streaming
+        }),
+        signal: options.signal,
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`OpenRouter error: ${error}`);
+    }
+
+    await parseSSEStream(
+        response,
+        (chunk) => {
+            fullText += chunk;
+            options.onChunk(chunk);
+        },
+        () => {
+            options.onComplete?.(fullText);
+        },
+        options.signal
+    );
+}
+
+/**
+ * Stream with OpenAI (or compatible)
+ */
+async function streamWithOpenAI(connection: AIConnection, options: GenerateStreamOptions): Promise<void> {
+    let fullText = '';
+    const endpoint = (connection as any).baseUrl || 'https://api.openai.com/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            ...(connection.apiKey ? { 'Authorization': `Bearer ${connection.apiKey}` } : {}),
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: options.model,
+            messages: [
+                ...(options.system ? [{ role: 'system', content: options.system }] : []),
+                { role: 'user', content: options.prompt },
+            ],
+            max_tokens: options.maxTokens,
+            temperature: options.temperature ?? 0.7,
+            stream: true,
+        }),
+        signal: options.signal,
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`OpenAI error: ${error}`);
+    }
+
+    await parseSSEStream(
+        response,
+        (chunk) => {
+            fullText += chunk;
+            options.onChunk(chunk);
+        },
+        () => {
+            options.onComplete?.(fullText);
+        },
+        options.signal
+    );
+}
+
+/**
+ * Stream with Mistral
+ */
+async function streamWithMistral(connection: AIConnection, options: GenerateStreamOptions): Promise<void> {
+    let fullText = '';
+
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${connection.apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: options.model,
+            messages: [
+                ...(options.system ? [{ role: 'system', content: options.system }] : []),
+                { role: 'user', content: options.prompt },
+            ],
+            max_tokens: options.maxTokens,
+            temperature: options.temperature ?? 0.7,
+            stream: true,
+        }),
+        signal: options.signal,
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Mistral error: ${error}`);
+    }
+
+    await parseSSEStream(
+        response,
+        (chunk) => {
+            fullText += chunk;
+            options.onChunk(chunk);
+        },
+        () => {
+            options.onComplete?.(fullText);
+        },
+        options.signal
+    );
+}
+
+/**
+ * Stream with Google Gemini
+ */
+async function streamWithGoogle(connection: AIConnection, options: GenerateStreamOptions): Promise<void> {
+    let fullText = '';
+    const baseModel = options.model.includes('/') ? options.model.split('/').pop() : options.model;
+    // CRITICAL: Gemini streaming requires ?alt=sse query parameter!
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${baseModel}:streamGenerateContent?alt=sse`;
+
+    const parts: any[] = [];
+    if (options.system) {
+        parts.push({ text: `${options.system}\n\n` });
+    }
+    parts.push({ text: options.prompt });
+
+    console.log('[streamWithGoogle] Calling endpoint:', endpoint);
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': connection.apiKey,
+        },
+        body: JSON.stringify({
+            contents: [{
+                parts,
+            }],
+            generationConfig: {
+                maxOutputTokens: options.maxTokens,
+                temperature: options.temperature ?? 0.7,
+            },
+        }),
+        signal: options.signal,
+    });
+
+    console.log('[streamWithGoogle] Response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Google error: ${error}`);
+    }
+
+    // Gemini with alt=sse returns SSE format, not custom JSON
+    await parseSSEStream(
+        response,
+        (chunk) => {
+            console.log('[streamWithGoogle] Received chunk');
+            fullText += chunk;
+            options.onChunk(chunk);
+        },
+        () => {
+            console.log('[streamWithGoogle] Stream complete, total length:', fullText.length);
+            options.onComplete?.(fullText);
+        },
+        options.signal
+    );
+}
+
+/**
+ * Stream with Kimi
+ */
+async function streamWithKimi(connection: AIConnection, options: GenerateStreamOptions): Promise<void> {
+    let fullText = '';
+
+    const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${connection.apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: options.model,
+            messages: [
+                ...(options.system ? [{ role: 'system', content: options.system }] : []),
+                { role: 'user', content: options.prompt },
+            ],
+            max_tokens: options.maxTokens,
+            temperature: options.temperature ?? 0.7,
+            stream: true,
+        }),
+        signal: options.signal,
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Kimi error: ${error}`);
+    }
+
+    await parseSSEStream(
+        response,
+        (chunk) => {
+            fullText += chunk;
+            options.onChunk(chunk);
+        },
+        () => {
+            options.onComplete?.(fullText);
+        },
+        options.signal
+    );
 }

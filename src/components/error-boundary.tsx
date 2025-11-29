@@ -4,6 +4,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from '@/lib/toast-service';
+import { storage } from '@/lib/safe-storage';
 
 interface Props {
     children: ReactNode;
@@ -30,31 +31,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
         // ✅ CRASH REPORTING: Store crash details for debugging
         try {
-            const crashReport = {
-                error: {
-                    message: error.message,
-                    stack: error.stack,
-                    name: error.name,
-                },
-                errorInfo: {
-                    componentStack: errorInfo.componentStack,
-                },
-                timestamp: Date.now(),
-                url: window.location.href,
-                userAgent: navigator.userAgent,
+            const existingReports = storage.getItem<any[]>('crash_reports', []);
+            const report = {
+                error: error.toString(),
+                stack: errorInfo.componentStack,
+                timestamp: new Date().toISOString(),
             };
-
-            const existingReports = JSON.parse(
-                localStorage.getItem('crash_reports') || '[]'
-            );
-            existingReports.push(crashReport);
-
-            // Keep only last 10 crash reports
-            if (existingReports.length > 10) {
-                existingReports.shift();
-            }
-
-            localStorage.setItem('crash_reports', JSON.stringify(existingReports));
+            existingReports.push(report);
+            storage.setItem('crash_reports', existingReports);
         } catch (storageError) {
             console.error('Failed to store crash report:', storageError);
         }

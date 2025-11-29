@@ -1,7 +1,7 @@
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CodexList } from '@/components/codex/codex-list';
+import { CodexList } from '@/features/codex/components/codex-list';
 import { AIChat } from '@/features/chat/components/AIChat';
 import { SettingsDialog } from '@/features/settings/components/SettingsDialog';
 

@@ -8,12 +8,13 @@ import CharacterCount from '@tiptap/extension-character-count';
 import { useEffect, useState, useRef } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAutoSave } from '@/hooks/use-auto-save';
-import { useAIGeneration } from '@/hooks/use-ai-generation';
+import { useAI } from '@/hooks/use-ai';
 import { EditorToolbar } from './editor-toolbar';
 import { TextSelectionMenu } from './text-selection-menu';
 import { ContinueWritingMenu } from './continue-writing-menu';
 import { useFormatStore } from '@/store/use-format-store';
 import { Section } from '@/lib/tiptap-extensions/section-node';
+import { AI_DEFAULTS } from '@/lib/config/constants';
 
 import Mention from '@tiptap/extension-mention';
 import { suggestion } from './suggestion';
@@ -29,7 +30,6 @@ export function TiptapEditor({
     content: any,
     onWordCountChange?: (count: number) => void
 }) {
-    // Remove local state for content to prevent re-renders and serialization overhead
     const formatSettings = useFormatStore();
     const [showContinueMenu, setShowContinueMenu] = useState(false);
     const previousSceneIdRef = useRef<string | null>(null);
@@ -51,9 +51,8 @@ export function TiptapEditor({
                 suggestion,
             }),
         ],
-        content: content, // Initial content only
+        content: content,
         onUpdate: ({ editor }) => {
-            // Only update word count, DO NOT serialize JSON here
             if (onWordCountChange) {
                 const words = editor.storage.characterCount.words();
                 onWordCountChange(words);
@@ -64,7 +63,6 @@ export function TiptapEditor({
                 class: 'prose dark:prose-invert max-w-full focus:outline-none min-h-[500px] px-8 py-6',
             },
             handleKeyDown: (view, event) => {
-                // Cmd+J or Ctrl+J to open Continue Writing Menu
                 if ((event.metaKey || event.ctrlKey) && event.key === 'j') {
                     event.preventDefault();
                     setShowContinueMenu(true);
@@ -75,36 +73,65 @@ export function TiptapEditor({
         },
     });
 
-    // Handle scene changes without remounting the editor
     useEffect(() => {
         if (!editor) return;
 
-        // Check if the scene has changed
         if (previousSceneIdRef.current !== null && previousSceneIdRef.current !== sceneId) {
-            // Scene changed - update content and clear history
             editor.commands.setContent(content);
-            editor.commands.clearContent(); // This clears undo/redo history
-            editor.commands.setContent(content); // Set content again after clearing
+            editor.commands.clearContent();
+            editor.commands.setContent(content);
         }
 
         previousSceneIdRef.current = sceneId;
     }, [sceneId, content, editor]);
 
-    // Use custom hooks for business logic
-    // Pass editor instance directly to handle saves efficiently
     useAutoSave(sceneId, editor);
-    const { generate, isGenerating } = useAIGeneration(editor, sceneId);
 
+    const { generateStream, isGenerating, model, setModel, cancel } = useAI({
+        system: 'You are a creative writing assistant helping to continue a story.',
+        streaming: true,
+        persistModel: true,
+        operationName: 'Continue Writing',
+    });
 
+    const generate = async (options: any) => {
+        if (!editor) return;
 
-    // Update word count on mount
+        const currentText = editor.getText();
+        const lastContext = currentText.slice(-AI_DEFAULTS.CONTEXT_WINDOW_CHARS);
+
+        const prompt = `Context: ${lastContext}\n\n${options.instructions || `Write approximately ${options.wordCount || 200} words continuing from this context.`}`;
+
+        let generatedText = '';
+
+        await generateStream(
+            {
+                prompt,
+                maxTokens: options.wordCount ? options.wordCount * 2 : AI_DEFAULTS.MAX_TOKENS,
+                temperature: AI_DEFAULTS.TEMPERATURE,
+            },
+            {
+                onChunk: (chunk) => {
+                    generatedText += chunk;
+                },
+                onComplete: async (fullText) => {
+                    if (fullText && editor) {
+                        editor.chain().focus().insertContent(fullText).run();
+                    }
+
+                    const { saveCoordinator } = await import('@/lib/core/save-coordinator');
+                    await saveCoordinator.scheduleSave(sceneId, () => editor!.getJSON());
+                },
+            }
+        );
+    };
+
     useEffect(() => {
         if (editor && onWordCountChange) {
             onWordCountChange(editor.storage.characterCount.words());
         }
     }, [editor, onWordCountChange]);
 
-    // Update editor attributes when format settings change
     useEffect(() => {
         if (editor) {
             editor.view.dom.setAttribute(
@@ -142,6 +169,8 @@ export function TiptapEditor({
                 onOpenChange={setShowContinueMenu}
                 onGenerate={generate}
                 projectId={projectId}
+                isGenerating={isGenerating}
+                onCancel={cancel}
             />
             <div className="flex-1 overflow-y-auto p-4">
                 <div className="mx-auto" style={{ maxWidth: `${formatSettings.pageWidth}px` }}>

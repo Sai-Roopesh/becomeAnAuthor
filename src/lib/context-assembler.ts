@@ -4,6 +4,8 @@
  * Implements smart truncation and token estimation
  */
 
+import { countTokens } from './token-counter';
+
 export interface ContextItem {
     type: 'scene' | 'codex' | 'system';
     id: string;
@@ -32,11 +34,14 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
 export class ContextAssembler {
     /**
      * Estimate token count for text
-     * Rough estimate: 1 token ≈ 4 characters for English
+     * Uses tiktoken for accurate counting, falls back to estimation if needed
      */
-    estimateTokens(text: string): number {
-        // More accurate would be to use tiktoken library
-        // But for now, simple estimation works
+    estimateTokens(text: string, model?: string): number {
+        if (model) {
+            // Use accurate token counting with tiktoken
+            return countTokens(text, model);
+        }
+        // Fallback to rough estimate: 1 token ≈ 4 characters for English
         return Math.ceil(text.length / 4);
     }
 

@@ -10,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Expand, Copy } from 'lucide-react';
-import { ModelSelector } from '@/features/ai/components/model-selector';
+import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import type { ChatContext } from '@/lib/config/types';
-import { safeLocalStorageGet } from '@/lib/json-utils';
+import { storage } from '@/lib/safe-storage';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
@@ -43,8 +43,8 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
 
     useState(() => {
-        // ✅ SAFE: Load default model from AI connections with safe parsing
-        const connections = safeLocalStorageGet<any[]>('ai_connections', []);
+        // Load default model from AI connections with safe parsing
+        const connections = storage.getItem<any[]>('ai_connections', []);
         const allModels = connections
             .filter((c: any) => c.enabled)
             .flatMap((c: any) => c.models || []);
@@ -181,7 +181,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
 
                         {/* Model Selection */}
                         <div className="flex items-center justify-between pt-4 border-t">
-                            <ModelSelector
+                            <ModelCombobox
                                 value={model}
                                 onValueChange={setModel}
                                 className="w-[300px]"

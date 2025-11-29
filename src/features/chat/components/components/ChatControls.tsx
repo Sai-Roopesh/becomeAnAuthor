@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { ContextSelector, ContextItem } from '../context-selector';
 import { PromptSelector } from '../prompt-selector';
-import { ModelSelector } from '@/features/ai/components/model-selector';
+import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ChatControlsProps {
@@ -81,7 +81,7 @@ export function ChatControls({
                         <label className="text-sm font-medium mb-2 block">
                             AI Model
                         </label>
-                        <ModelSelector
+                        <ModelCombobox
                             value={selectedModel}
                             onValueChange={onModelChange}
                         />

@@ -7,12 +7,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
-import { generateText } from '@/lib/core/ai-client';
+import { useAI } from '@/hooks/use-ai';
 import { toast } from '@/lib/toast-service';
 import { isScene, Scene } from '@/lib/config/types';
 import { extractTextFromTiptapJSON } from '@/lib/utils/editor';
-import { storage } from '@/lib/safe-storage';
-import { STORAGE_KEYS, FEATURE_FLAGS } from '@/lib/config/constants';
+import { FEATURE_FLAGS } from '@/lib/config/constants';
 
 interface NodeActionsMenuProps {
     nodeId: string;
@@ -22,8 +21,12 @@ interface NodeActionsMenuProps {
 
 export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuProps) {
     const node = useLiveQuery(() => db.nodes.get(nodeId), [nodeId]);
-    const [isSummarizing, setIsSummarizing] = useState(false);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+    const { generate, isGenerating } = useAI({
+        system: 'You are a helpful assistant that summarizes creative writing scenes.',
+        streaming: false,
+        operationName: 'Scene Summarization',
+    });
 
     if (!node) return null;
 
@@ -55,34 +58,15 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
     const handleSummarizeScene = async () => {
         if (!isScene(node)) return;
-        setIsSummarizing(true);
-        const model = storage.getItem<string>(STORAGE_KEYS.LAST_USED_MODEL, '');
 
-        if (!model) {
-            toast.error('Please select a model in settings or chat to use AI features.');
-            setIsSummarizing(false);
-            return;
-        }
+        const text = extractTextFromTiptapJSON(node.content);
+        const result = await generate({
+            prompt: `Summarize this scene in 2-3 sentences:\n\n${text}`,
+            maxTokens: 500,
+        });
 
-        try {
-            const text = extractTextFromTiptapJSON(node.content);
-            const response = await generateText({
-                model,
-                system: 'You are a helpful assistant that summarizes creative writing scenes.',
-                prompt: `Summarize this scene in 2-3 sentences:\n\n${text}`,
-                maxTokens: 500,
-            });
-
-            const summary = response.text;
-            if (summary) {
-                await db.nodes.update(nodeId, { summary } as Partial<Scene>);
-                toast.success('Scene summarized successfully!');
-            }
-        } catch (error) {
-            console.error('Summarization failed', error);
-            toast.error(`Failed to summarize scene: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        } finally {
-            setIsSummarizing(false);
+        if (result) {
+            await db.nodes.update(nodeId, { summary: result } as Partial<Scene>);
         }
     };
 
@@ -181,9 +165,9 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
                             <DropdownMenuSeparator />
                             <DropdownMenuLabel>AI Actions</DropdownMenuLabel>
 
-                            <DropdownMenuItem onClick={handleSummarizeScene} disabled={isSummarizing}>
+                            <DropdownMenuItem onClick={handleSummarizeScene} disabled={isGenerating}>
                                 <FileText className="h-4 w-4 mr-2" />
-                                {isSummarizing ? 'Summarizing...' : 'Summarize Scene'}
+                                {isGenerating ? 'Summarizing...' : 'Summarize Scene'}
                             </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
