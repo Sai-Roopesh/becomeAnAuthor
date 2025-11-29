@@ -9,7 +9,7 @@ import { DocumentNode } from '@/lib/types';
 import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CreateNodeDialog } from '@/components/create-node-dialog';
+import { CreateNodeDialog } from '@/features/project/components/CreateNodeDialog';
 import { SnippetList } from '@/components/snippets/snippet-list';
 import { CodexList } from '@/components/codex/codex-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,10 +20,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/lib/toast-service';
-import { NodeActionsMenu } from '@/components/node-actions-menu';
+import { NodeActionsMenu } from '@/features/editor/components/NodeActionsMenu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-import { ProjectSettingsDialog } from '@/components/project-settings-dialog';
+import { ProjectSettingsDialog } from '@/features/project/components/ProjectSettingsDialog';
 
 export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: string, onSelectSnippet?: (id: string) => void }) {
     const project = useLiveQuery(() => db.projects.get(projectId));
