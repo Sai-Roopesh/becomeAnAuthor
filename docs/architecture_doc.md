@@ -18,9 +18,9 @@
 
 ### Key Constraints
 
-1. **Frontend-only architecture** – No backend server, no cloud storage
+1. **Frontend-only architecture** – No backend server (except optional Google Drive integration)
 2. **Browser-based persistence** – All data stored in IndexedDB (via Dexie)
-3. **Single-device scope** – No cross-device sync (by design)
+3. **Single-device scope** – No cross-device sync (except via manual Google Drive backup)
 4. **User-controlled AI** – Users bring their own API keys (OpenAI, Anthropic, etc.)
 
 ### Non-Functional Requirements
@@ -64,41 +64,35 @@ flowchart TB
         LiveQueries["Dexie Live Queries"]
     end
     
-    subgraph Logic["Business Logic"]
-        Repos["Repositories"]
-        Services["Services"]
-        Hooks["Custom Hooks"]
+    subgraph Domain["Domain Layer"]
+        Interfaces["Repository Interfaces"]
+        Entities["Domain Entities"]
     end
-    
-    subgraph Storage["Persistence"]
-        Dexie["Dexie/IndexedDB"]
-        LocalStorage["localStorage"]
-        FileSystem["File Downloads"]
+
+    subgraph Infrastructure["Infrastructure Layer"]
+        Impl["Repository Implementations"]
+        Services["Services"]
+        DB["Dexie DB"]
     end
     
     subgraph External["External APIs"]
-        AI["AI APIs<br/>OpenAI/Anthropic"]
+        AI["AI APIs"]
+        Drive["Google Drive API"]
     end
     
-    UI --> Zustand
-    UI --> LiveQueries
-    UI --> Hooks
+    UI --> State
+    UI --> Domain
     
-    Zustand --> Repos
-    LiveQueries --> Dexie
-    Hooks --> Repos
-    Hooks --> Services
+    State --> Domain
     
-    Repos --> Dexie
-    Services --> AI
-    Services --> Repos
+    Infrastructure --> Domain
+    Infrastructure --> External
     
-    Repos --> LocalStorage
-    UI --> FileSystem
-    
-    style Dexie fill:#4CAF50
+    style DB fill:#4CAF50
     style AI fill:#FF9800
-    style Zustand fill:#2196F3
+    style Drive fill:#34A853
+    style Domain fill:#9C27B0
+    style Infrastructure fill:#607D8B
 ```
 
 ---
@@ -149,73 +143,51 @@ flowchart TB
 - Direct DOM manipulation
 - External API calls
 
-### Layer 3: Business Logic Layer
+### Layer 3: Domain Layer (New)
 
-**Location:** `src/hooks/`, `src/lib/core/`, `src/features/*/services/`
-
-**Responsibilities:**
-- Implement repository pattern for data access
-- Orchestrate complex operations (e.g., cascading deletes)
-- Provide service layer for AI interactions
-- Manage save coordination and conflict resolution
-
-**Contains:**
-- **Repositories (Hooks):**
-  - `use-project-repository.ts`
-  - `use-codex-repository.ts`
-  - `use-chat-repository.ts`
-  - `use-snippet-repository.ts`
-- **Services:**
-  - `use-chat-service.ts` – AI chat orchestration
-  - `use-import-export.ts` – Data export/import
-- **Coordinators:**
-  - `save-coordinator.ts` – Serialized saves per scene
-- **AI Client:**
-  - `ai-client.ts` – Multi-provider AI integration
-
-**Should NEVER contain:**
-- React components
-- Direct UI state manipulation
-- Hardcoded UI text
-
-### Layer 4: Infrastructure Layer
-
-**Location:** `src/lib/core/`, `src/lib/config/`
+**Location:** `src/domain/`
 
 **Responsibilities:**
-- Abstract browser APIs
-- Define data schemas
-- Provide utility functions
-- Manage persistent configuration
+- Define core business entities and interfaces
+- Enforce dependency inversion (Infrastructure depends on Domain)
+- Pure TypeScript, no framework dependencies
 
 **Contains:**
-- **Database:**
-  - `database.ts` – Dexie schema and tables
-  - `types.ts` – TypeScript types for entities
-- **Browser Storage:**
-  - `safe-storage.ts` – Safe localStorage wrapper with error handling
-  - `localStorage` – AI connections, last used model, preferences
-- **File System:**
-  - Export/download handling
-- **Toast System:**
-  - `toast-service.ts` – User notifications (react-hot-toast)
-  - `client-toaster.tsx` – Toast provider component
-- **Confirmation Dialogs:**
-  - `use-confirmation.ts` – Reusable confirmation hook
-- **Logging:**
-  - `logger.ts` – Structured logging with persistence
-- **Coordination:**
-  - `tab-coordinator.ts` – Cross-tab synchronization
-  - `save-coordinator.ts` – Serialized saves per scene
-- **Security Utilities:**
-  - `json-utils.ts` – Safe JSON parsing
-  - `fetch-utils.ts` – Timeout wrappers for fetch
-  - `schemas/import-schema.ts` – Zod validation schemas
+- **Repositories (Interfaces):**
+  - `INodeRepository.ts`
+  - `ICodexRepository.ts`
+  - `IChatRepository.ts`
+- **Services (Interfaces):**
+  - `IAIService.ts`
 
 **Should NEVER contain:**
-- Business logic
-- Feature-specific code
+- Database implementation details (Dexie)
 - UI components
+- External API calls
+
+### Layer 4: Infrastructure Layer (Refactored)
+
+**Location:** `src/infrastructure/`, `src/lib/`
+
+**Responsibilities:**
+- Implement domain interfaces
+- Handle external communication (DB, API)
+- Manage technical concerns (Logging, Storage)
+
+**Contains:**
+- **Repository Implementations:**
+  - `DexieNodeRepository.ts` (implements `INodeRepository`)
+  - `DexieProjectRepository.ts`
+- **External Services:**
+  - `GoogleDriveService` (`src/lib/services/`)
+  - `GoogleAuthService`
+  - `AIService`
+- **Database:**
+  - `database.ts` (Dexie schema)
+
+**Should NEVER contain:**
+- Business rules that belong in Domain
+- UI rendering logic
 
 > **📝 Note:** See [security.md](./security.md) for comprehensive documentation on security fixes, error handling patterns, and toast notification system.
 
@@ -232,9 +204,9 @@ flowchart TB
 - `prompt-templates.ts` – AI prompt library
 - `ai-vendors.ts` – AI provider configurations
 - `search-service.ts` – Fuzzy search utility (Fuse.js)
-- `logger.ts` – Structured logging service (Phase 2)
-- `context-assembler.ts` – AI context token management (Phase 3)
-- `tab-coordinator.ts` – Multi-tab synchronization (Phase 1)
+- `logger.ts` – Structured logging service
+- `context-assembler.ts` – AI context token management
+- `tab-coordinator.ts` – Multi-tab synchronization
 
 ---
 
@@ -363,6 +335,44 @@ flowchart TB
     Results --> UI[SearchPalette]
 ```
 
+#### Google Drive Module (`src/features/google-drive/`)
+
+**Components:**
+- `DriveBackupBrowser.tsx` – List and restore backups
+- `InlineGoogleAuth.tsx` – Sign-in/out button
+
+**Services:**
+- `google-drive-service.ts` – Drive API wrapper (Upload, List, Download)
+- `google-auth-service.ts` – OAuth 2.0 PKCE flow
+
+**Data Flow:**
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as DriveBrowser
+    participant Service as DriveService
+    participant Auth as AuthService
+    participant Drive as Google Drive API
+
+    User->>UI: Click "Backups"
+    UI->>Auth: isAuthenticated?
+    
+    alt Not Authenticated
+        UI->>User: Show Sign In
+        User->>Auth: Sign In (OAuth)
+    end
+    
+    UI->>Service: listBackups()
+    Service->>Drive: GET /files
+    Drive-->>UI: File List
+    
+    User->>UI: Click "Restore"
+    UI->>Service: downloadBackup(id)
+    Service->>Drive: GET /files/id?alt=media
+    Drive-->>UI: JSON Data
+    UI->>DB: Import Data
+```
+
 ### 4.2 Cross-Cutting Concerns
 
 #### Save Coordination
@@ -472,6 +482,7 @@ flowchart LR
 | AI Connections | `localStorage` | Small config, simple key-value |
 | User Preferences (theme, formatting) | Zustand + `localStorage` | Small, frequently accessed |
 | Emergency Backups | `localStorage` | Fallback only, temporary |
+| Cloud Backups | **Google Drive** | Optional off-site backup, user-controlled |
 | Exports | File downloads | User-controlled portability |
 
 ### 5.4 Complete Data Flow Diagram
@@ -797,6 +808,42 @@ src/
 
 **Context:**
 Components should not directly call Dexie; need abstraction layer.
+
+**Decision:**
+Refine Repository Pattern to separate Interface from Implementation (Clean Architecture).
+- `src/domain/repositories/` -> Interfaces (e.g., `INodeRepository`)
+- `src/infrastructure/repositories/` -> Implementations (e.g., `DexieNodeRepository`)
+
+**Rationale:**
+- **Testability:** Can easily mock repositories for unit tests
+- **Flexibility:** Can swap Dexie for another DB if needed (unlikely but good practice)
+- **Clarity:** Defines clear contract for data access
+
+**Consequences:**
+- ✅ Better separation of concerns
+- ✅ Easier testing
+- ❌ More boilerplate (Interface + Class + DI)
+
+---
+
+### ADR-005: Google Drive Integration
+
+**Context:**
+Users need off-site backup without a dedicated backend server.
+
+**Decision:**
+Implement client-side Google Drive integration using OAuth 2.0 PKCE flow.
+
+**Rationale:**
+- **Privacy:** User owns the storage and credentials
+- **Cost:** Free for us (uses user's Drive quota)
+- **Reliability:** Google's infrastructure is reliable
+
+**Consequences:**
+- ✅ Cloud backup without server costs
+- ✅ User retains control
+- ❌ Requires Google Cloud Console setup (Client ID)
+- ❌ User must have Google account
 
 **Decision:**
 Implement repository pattern as custom hooks:

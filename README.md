@@ -31,6 +31,8 @@
 ### 💾 Offline-First & Data
 *   **IndexedDB**: All data is stored locally in your browser using Dexie.js.
 *   **Privacy**: Your story never leaves your device unless you use an external AI provider.
+*   **Cloud Backup**:
+    *   **Google Drive**: Optional integration to backup and restore your projects from the cloud.
 *   **Import/Export**:
     *   **Backup**: Export your entire project as a JSON file.
     *   **Publish**: Export your manuscript as a formatted **.docx** file.
@@ -87,10 +89,17 @@ src/
 │   ├── editor/          # Tiptap editor and manuscript tools
 │   ├── ui/              # Reusable UI components (Buttons, Dialogs, etc.)
 │   └── ...
-├── hooks/               # Custom React hooks (useAutoSave, useImportExport)
+├── domain/              # Domain Layer (Interfaces, Entities)
+│   ├── repositories/    # Repository interfaces
+│   └── services/        # Service interfaces
+├── features/            # Feature-based modules (Editor, Chat, Codex, Google Drive)
+├── infrastructure/      # Infrastructure Layer (Implementations)
+│   ├── repositories/    # Dexie repository implementations
+│   └── ...
+├── hooks/               # Custom React hooks
 ├── lib/                 # Utilities, database config, types
 │   ├── db.ts            # Dexie database schema
-│   ├── ai-service.ts    # AI integration logic
+│   ├── services/        # External services (Google Drive, AI)
 │   └── ...
 ├── store/               # Zustand stores (Project state, Formatting)
 └── ...

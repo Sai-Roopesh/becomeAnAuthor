@@ -73,11 +73,15 @@
 ### **Infrastructure & UX**
 - F-46: Toast Notifications
 - F-47: Confirmation Dialogs
-- F-47: Confirmation Dialogs
 - F-48: Emergency Backup to localStorage
 - F-49: Command Palette Search (Cmd+K)
 - F-50: Multi-Tab Protection
 - F-51: Crash Recovery (Error Boundaries)
+
+### **Cloud Integration (Google Drive)**
+- F-52: Connect Google Drive (OAuth 2.0)
+- F-53: Backup to Google Drive
+- F-54: Restore from Google Drive
 
 ---
 
@@ -254,6 +258,64 @@
   - User cancels: No action
 - **Data Read/Written:** OVERWRITES all tables
 - **Dependencies:** Dexie Export/Import
+
+#### F-52: Connect Google Drive
+- **ID:** F-52
+- **Name:** Connect Google Drive
+- **Area/Module:** Cloud Integration
+- **User Type:** Author
+- **Description:** Authenticate with Google Drive to enable cloud backups.
+- **Entry Points:** Settings > Cloud Backup, or "Connect Drive" button in Dashboard
+- **Preconditions:** Internet connection
+- **Main Flow:**
+  1. User clicks "Connect Google Drive"
+  2. Redirected to Google OAuth consent screen
+  3. User approves access
+  4. Redirected back to app
+  5. Tokens stored securely in localStorage
+- **Edge Cases & Error States:**
+  - Auth failure: Error toast
+  - User denies access: No token stored
+- **Data Read/Written:** Writes tokens to `localStorage`
+- **Dependencies:** `google-auth-service.ts`
+
+#### F-53: Backup to Google Drive
+- **ID:** F-53
+- **Name:** Backup to Google Drive
+- **Area/Module:** Cloud Integration
+- **User Type:** Author
+- **Description:** Upload a full database backup to a dedicated folder in Google Drive.
+- **Entry Points:** Settings > Cloud Backup > "Backup Now"
+- **Preconditions:** Authenticated with Google Drive
+- **Main Flow:**
+  1. User clicks "Backup Now"
+  2. System exports DB to JSON
+  3. System uploads JSON to "BecomeAnAuthor" folder in Drive
+  4. Success toast appears
+- **Edge Cases & Error States:**
+  - Quota exceeded: Error toast
+  - Network failure: Error toast
+- **Data Read/Written:** Reads DB, writes to Google Drive API
+- **Dependencies:** `google-drive-service.ts`
+
+#### F-54: Restore from Google Drive
+- **ID:** F-54
+- **Name:** Restore from Google Drive
+- **Area/Module:** Cloud Integration
+- **User Type:** Author
+- **Description:** Browse and restore backups from Google Drive.
+- **Entry Points:** Settings > Cloud Backup > "Restore Backup"
+- **Preconditions:** Authenticated with Google Drive
+- **Main Flow:**
+  1. User clicks "Restore Backup"
+  2. List of backups fetched from Drive
+  3. User selects a backup file
+  4. System downloads and imports JSON (Overwrites local DB)
+  5. Page reloads
+- **Edge Cases & Error States:**
+  - Corrupt file: Error toast
+- **Data Read/Written:** Reads from Drive API, Overwrites DB
+- **Dependencies:** `google-drive-service.ts`
 
 ---
 
