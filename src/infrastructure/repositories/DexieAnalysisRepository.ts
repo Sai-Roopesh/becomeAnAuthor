@@ -33,15 +33,18 @@ export class DexieAnalysisRepository implements IAnalysisRepository {
     }
 
     async create(analysis: Omit<StoryAnalysis, 'id' | 'createdAt'>): Promise<StoryAnalysis> {
+        // Deep clone to remove any Promises or non-serializable data
+        const cleanAnalysis = JSON.parse(JSON.stringify(analysis));
+
         const newAnalysis: StoryAnalysis = {
-            ...analysis,
+            ...cleanAnalysis,
             id: crypto.randomUUID(),
             createdAt: Date.now(),
             results: {
-                ...analysis.results,
-                insights: analysis.results.insights.map(insight => ({
+                ...cleanAnalysis.results,
+                insights: cleanAnalysis.results.insights.map((insight: any) => ({
                     ...insight,
-                    id: crypto.randomUUID(),
+                    id: insight.id || crypto.randomUUID(),
                     dismissed: false,
                     resolved: false,
                 })),

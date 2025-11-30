@@ -161,18 +161,37 @@ export class AnalysisService implements IAnalysisService {
                 throw new Error('No JSON found in response');
             }
 
-            const parsed = JSON.parse(jsonMatch[0]);
+            // Sanitize JSON string to remove control characters
+            const jsonStr = jsonMatch[0]
+                .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+                .replace(/\r\n/g, '\\n')  // Normalize line endings
+                .replace(/\n/g, '\\n')    // Escape remaining newlines
+                .replace(/\t/g, '\\t');   // Escape tabs
+
+            let parsed;
+            try {
+                parsed = JSON.parse(jsonStr);
+            } catch (parseError) {
+                // If sanitization didn't work, try a more aggressive approach
+                console.warn('First parse attempt failed, trying aggressive sanitization:', parseError);
+                const aggressiveClean = jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+                parsed = JSON.parse(aggressiveClean);
+            }
 
             // Convert parsed data to insights format
             const insights = this.convertToInsights(type, parsed);
 
+            // Serialize metrics to ensure no Promises or functions
+            const metrics = JSON.parse(JSON.stringify(parsed));
+
             return {
                 summary: this.extractSummary(type, parsed),
                 insights,
-                metrics: parsed,
+                metrics,
             };
         } catch (error) {
             console.error('Failed to parse AI response:', error);
+            console.error('Response text:', responseText.substring(0, 500)); // Log first 500 chars
             // Fallback: treat entire response as summary
             return {
                 summary: responseText,

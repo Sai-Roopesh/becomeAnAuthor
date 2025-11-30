@@ -34,8 +34,11 @@ class SaveCoordinator {
             // Now perform our save
             try {
                 const content = getContent();
+                // Serialize content to remove any Promises or non-serializable data
+                const cleanContent = JSON.parse(JSON.stringify(content));
+
                 await db.nodes.update(sceneId, {
-                    content: content,
+                    content: cleanContent,
                     updatedAt: Date.now(),
                 } as any);
             } catch (error) {
@@ -44,8 +47,9 @@ class SaveCoordinator {
                 // Emergency backup to localStorage
                 try {
                     const content = getContent();
+                    const cleanContent = JSON.parse(JSON.stringify(content));
                     storage.setItem(`backup_scene_${sceneId}`, {
-                        content: content,
+                        content: cleanContent,
                         timestamp: Date.now(),
                     });
                 } catch (e) {
