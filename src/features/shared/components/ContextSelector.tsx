@@ -1,7 +1,6 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -17,6 +16,8 @@ import {
 import { Plus, FileText, BookOpen, X, Layers, Hash, File, Book, User, MapPin, Box, Scroll, HelpCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Act, Chapter, Scene, CodexEntry, CodexCategory } from '@/lib/config/types';
+import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
 
 export interface ContextItem {
     type: 'novel' | 'outline' | 'act' | 'chapter' | 'scene' | 'codex';
@@ -31,15 +32,18 @@ interface ContextSelectorProps {
 }
 
 export function ContextSelector({ projectId, selectedContexts, onContextsChange }: ContextSelectorProps) {
+    const nodeRepo = useNodeRepository();
+    const codexRepo = useCodexRepository();
+
     // Fetch all nodes and codex entries for the project
     const nodes = useLiveQuery(
-        () => db.nodes.where('projectId').equals(projectId).sortBy('order'),
-        [projectId]
+        () => nodeRepo.getByProject(projectId),
+        [projectId, nodeRepo]
     );
 
     const codexEntries = useLiveQuery(
-        () => db.codex.where('projectId').equals(projectId).sortBy('name'),
-        [projectId]
+        () => codexRepo.getByProject(projectId),
+        [projectId, codexRepo]
     );
 
     // Process nodes into hierarchy

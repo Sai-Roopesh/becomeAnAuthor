@@ -5,14 +5,22 @@ import { DexieNodeRepository } from '@/infrastructure/repositories/DexieNodeRepo
 import { DexieCodexRepository } from '@/infrastructure/repositories/DexieCodexRepository';
 import { DexieChatRepository } from '@/infrastructure/repositories/DexieChatRepository';
 import { DexieSnippetRepository } from '@/infrastructure/repositories/DexieSnippetRepository';
+import { DexieProjectRepository } from '@/infrastructure/repositories/DexieProjectRepository';
+import { DexieCodexRelationRepository } from '@/infrastructure/repositories/DexieCodexRelationRepository'; // New import
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
+import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository'; // New import
 import type { IChatService } from '@/domain/services/IChatService';
 import { DexieChatService } from '@/infrastructure/services/DexieChatService';
 import type { IExportService } from '@/domain/services/IExportService';
 import { DocumentExportService } from '@/infrastructure/services/DocumentExportService';
+import type { IAnalysisRepository } from '@/domain/repositories/IAnalysisRepository';
+import { DexieAnalysisRepository } from '@/infrastructure/repositories/DexieAnalysisRepository';
+import type { IAnalysisService } from '@/domain/services/IAnalysisService';
+import { AnalysisService } from '@/infrastructure/services/AnalysisService';
 
 /**
  * Application-wide service container
@@ -25,10 +33,14 @@ interface AppServices {
     codexRepository: ICodexRepository;
     chatRepository: IChatRepository;
     snippetRepository: ISnippetRepository;
+    projectRepository: IProjectRepository;
+    analysisRepository: IAnalysisRepository;
+    codexRelationRepository: ICodexRelationRepository; // Added
 
     // Services
     chatService: IChatService;
     exportService: IExportService;
+    analysisService: IAnalysisService;
 }
 
 const AppContext = createContext<AppServices | null>(null);
@@ -63,6 +75,8 @@ export function AppProvider({ children, services: customServices }: AppProviderP
         const codexRepo = customServices?.codexRepository ?? new DexieCodexRepository();
         const chatRepo = customServices?.chatRepository ?? new DexieChatRepository();
         const snippetRepo = customServices?.snippetRepository ?? new DexieSnippetRepository();
+        const projectRepo = customServices?.projectRepository ?? new DexieProjectRepository();
+        const codexRelationRepo = customServices?.codexRelationRepository ?? new DexieCodexRelationRepository(); // Added
 
         // Create services (with repository dependencies)
         const chatSvc = customServices?.chatService ?? new DexieChatService(
@@ -75,13 +89,25 @@ export function AppProvider({ children, services: customServices }: AppProviderP
             nodeRepo
         );
 
+        const analysisRepo = customServices?.analysisRepository ?? new DexieAnalysisRepository();
+
+        const analysisSvc = customServices?.analysisService ?? new AnalysisService(
+            nodeRepo,
+            codexRepo,
+            analysisRepo
+        );
+
         return {
             nodeRepository: nodeRepo,
             codexRepository: codexRepo,
             chatRepository: chatRepo,
             snippetRepository: snippetRepo,
+            projectRepository: projectRepo,
+            analysisRepository: analysisRepo,
+            codexRelationRepository: codexRelationRepo, // Added
             chatService: chatSvc,
             exportService: exportSvc,
+            analysisService: analysisSvc,
         };
     }, [customServices]);
 

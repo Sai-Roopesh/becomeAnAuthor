@@ -6,26 +6,32 @@ import { TiptapEditor } from './tiptap-editor';
 import { EditorToolbar } from './editor-toolbar';
 import { StoryTimeline } from './story-timeline';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { useState, useEffect, useRef } from 'react';
 import { SnippetEditor } from '../../snippets/components/snippet-editor';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from '@/components/ui/button';
 import { PinOff } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useSnippetRepository } from '@/hooks/use-snippet-repository';
+import { saveCoordinator } from '@/lib/core/save-coordinator';
 
 export function EditorContainer({ projectId }: { projectId: string }) {
     const { activeSceneId } = useProjectStore();
     const [activeSnippetId, setActiveSnippetId] = useState<string | null>(null);
     const [editorWordCount, setEditorWordCount] = useState(0);
 
+    const nodeRepo = useNodeRepository();
+    const snippetRepo = useSnippetRepository();
+
     const activeScene = useLiveQuery(
-        async () => activeSceneId ? await db.nodes.get(activeSceneId) : undefined,
-        [activeSceneId]
+        async () => activeSceneId ? await nodeRepo.get(activeSceneId) : undefined,
+        [activeSceneId, nodeRepo]
     );
 
     const pinnedSnippets = useLiveQuery(
-        () => db.snippets.where('projectId').equals(projectId).filter(s => s.pinned).toArray()
+        () => snippetRepo.getPinned(projectId),
+        [projectId, snippetRepo]
     );
 
     const handleSnippetSelect = (id: string) => {
@@ -42,11 +48,14 @@ export function EditorContainer({ projectId }: { projectId: string }) {
 
     useEffect(() => {
         // Only update if we have an active scene and it's the same scene
+        // ✅ FIXED: Now uses SaveCoordinator to prevent race conditions
         if (activeSceneId && activeSceneId === prevSceneIdRef.current && debouncedWordCount > 0) {
-            db.nodes.update(activeSceneId, { wordCount: debouncedWordCount } as any);
+            saveCoordinator.scheduleSave(activeSceneId, async () => {
+                await nodeRepo.updateMetadata(activeSceneId, { wordCount: debouncedWordCount });
+            });
         }
         prevSceneIdRef.current = activeSceneId;
-    }, [debouncedWordCount, activeSceneId]);
+    }, [debouncedWordCount, activeSceneId, nodeRepo]);
 
     return (
         <div className="h-full flex overflow-hidden">
@@ -116,7 +125,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
                                                     size="icon"
                                                     className="h-5 w-5"
                                                     onClick={async () => {
-                                                        await db.snippets.update(snippet.id, { pinned: false });
+                                                        await snippetRepo.togglePin(snippet.id);
                                                     }}
                                                     title="Unpin"
                                                 >

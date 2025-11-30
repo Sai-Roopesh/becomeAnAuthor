@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Sparkles, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DexieProjectRepository } from '@/infrastructure/repositories/DexieProjectRepository';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 
 const TITLES = [
     "The Last Starship", "Whispers in the Dark", "The Clockwork Heart", "Echoes of Eternity",
@@ -28,6 +29,7 @@ const TITLES = [
 export function CreateProjectDialog() {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState(1);
+    const nodeRepo = useNodeRepository();
     const [formData, setFormData] = useState({
         title: '',
         author: '',
@@ -46,6 +48,7 @@ export function CreateProjectDialog() {
             let seriesId = undefined;
             if (formData.seriesName) {
                 // Check if series exists or create new
+                // Note: db.series still used directly - needs ISeriesRepository in future
                 const existingSeries = await db.series.where('title').equals(formData.seriesName).first();
                 if (existingSeries) {
                     seriesId = existingSeries.id;
@@ -70,57 +73,37 @@ export function CreateProjectDialog() {
                 seriesIndex: formData.seriesIndex,
             });
 
-            // Create initial manuscript structure
-            const actId = uuidv4();
-            const chapterId = uuidv4();
-            const sceneId = uuidv4();
-
-            const now = Date.now();
-
-            // Use existing node validation from schemas
-            const { ActSchema, ChapterSchema, SceneSchema } = await import('@/lib/schemas');
-
-            const validatedAct = ActSchema.parse({
-                id: actId,
+            // Create initial manuscript structure using repository
+            const act = await nodeRepo.create({
                 projectId: project.id,
-                type: 'act' as const,
+                type: 'act',
                 title: 'Act 1',
                 order: 0,
                 parentId: null,
                 expanded: true,
-                createdAt: now,
-                updatedAt: now
             });
 
-            const validatedChapter = ChapterSchema.parse({
-                id: chapterId,
+            const chapter = await nodeRepo.create({
                 projectId: project.id,
-                type: 'chapter' as const,
+                type: 'chapter',
                 title: 'Chapter 1',
                 order: 0,
-                parentId: actId,
+                parentId: act.id,
                 expanded: true,
-                createdAt: now,
-                updatedAt: now
             });
 
-            const validatedScene = SceneSchema.parse({
-                id: sceneId,
+            await nodeRepo.create({
                 projectId: project.id,
-                type: 'scene' as const,
+                type: 'scene',
                 title: 'Scene 1',
                 order: 0,
-                parentId: chapterId,
+                parentId: chapter.id,
                 content: { type: 'doc', content: [] },
                 expanded: false,
-                createdAt: now,
-                updatedAt: now,
-                status: 'draft' as const,
+                status: 'draft',
                 wordCount: 0,
                 summary: ''
             });
-
-            await db.nodes.bulkAdd([validatedAct, validatedChapter, validatedScene]);
 
             setOpen(false);
             setStep(1);

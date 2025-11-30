@@ -62,7 +62,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     // Effects
     useEffect(() => {
         if (thread) {
-            const savedModel = thread.defaultModel || localStorage.getItem('last_used_model') || '';
+            const savedModel = thread.defaultModel || storage.getItem<string>('last_used_model', '');
             if (savedModel) {
                 setSelectedModel(savedModel);
                 setSettings(prev => ({ ...prev, model: savedModel }));

@@ -16,7 +16,7 @@ import { storage } from '@/lib/safe-storage';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
-import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';
+import { ContextSelector, type ContextItem } from '@/features/shared/components';
 
 interface TweakGenerateDialogProps {
     open: boolean;
@@ -59,7 +59,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
             wordCount: parseInt(wordCount) || 400,
             instructions,
             context,
-            model: model || localStorage.getItem('last_used_model') || 'openai/gpt-3.5-turbo',
+            model: model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
             selectedContexts
         });
         onOpenChange(false);

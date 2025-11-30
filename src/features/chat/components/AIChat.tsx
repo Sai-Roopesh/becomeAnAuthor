@@ -5,21 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Settings as SettingsIcon, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';
+import { ContextSelector, type ContextItem } from '@/features/shared/components';
 import { PromptSelector } from '@/features/chat/components/prompt-selector';
 import { ChatSettingsDialog, ChatSettings } from '@/features/chat/components/chat-settings-dialog';
 import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import { getPromptTemplate } from '@/lib/prompt-templates';
 import { useAI } from '@/hooks/use-ai';
-import { db } from '@/lib/core/database';
+import { useChatRepository } from '@/hooks/use-chat-repository';
 import { ChatThread, ChatMessage } from '@/lib/config/types';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { v4 as uuid } from 'uuid';
 
 
 export function AIChat({ projectId }: { projectId: string }) {
     const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
     const [input, setInput] = useState('');
+    const chatRepo = useChatRepository();
 
     // Context & Prompt
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
@@ -50,52 +50,42 @@ export function AIChat({ projectId }: { projectId: string }) {
         operationName: 'Chat',
     });
 
-    // Load messages from database
+    // Load messages from database using repository
     const messages = useLiveQuery(
         async () => {
             if (!currentThreadId) return [];
-            const dbMessages = await db.chatMessages
-                .where('threadId')
-                .equals(currentThreadId)
-                .sortBy('timestamp');
+            const dbMessages = await chatRepo.getMessagesByThread(currentThreadId);
             return dbMessages.map(m => ({ role: m.role, content: m.content, id: m.id, model: m.model }));
         },
-        [currentThreadId],
+        [currentThreadId, chatRepo],
         []
     ) as Array<Pick<ChatMessage, 'role' | 'content' | 'id' | 'model'>> | undefined;
 
-    // Initialize or load thread on mount
+    // Initialize or load thread on mount using repository
     useEffect(() => {
         const initThread = async () => {
-            // Find existing thread for this project
-            const existingThreads = await db.chatThreads
-                .where('projectId')
-                .equals(projectId)
-                .and(t => !t.archived)
-                .toArray();
+            // Find existing threads for this project
+            const existingThreads = await chatRepo.getThreadsByProject(projectId);
+            const activeThreads = existingThreads.filter(t => !t.archived);
 
-            if (existingThreads.length > 0) {
+            if (activeThreads.length > 0) {
                 // Load the most recent thread
-                existingThreads.sort((a, b) => b.updatedAt - a.updatedAt);
-                setCurrentThreadId(existingThreads[0].id);
+                activeThreads.sort((a, b) => b.updatedAt - a.updatedAt);
+                setCurrentThreadId(activeThreads[0].id);
             } else {
-                // Create a new thread
-                const newThread: ChatThread = {
-                    id: uuid(),
+                // Create a new thread using repository
+                const newThread = await chatRepo.createThread({
                     projectId,
                     name: 'New Conversation',
                     pinned: false,
                     archived: false,
-                    createdAt: Date.now(),
-                    updatedAt: Date.now(),
-                };
-                await db.chatThreads.add(newThread);
+                });
                 setCurrentThreadId(newThread.id);
             }
         };
 
         initThread();
-    }, [projectId]);
+    }, [projectId, chatRepo]);
 
     const assembleContextText = async (): Promise<string> => {
         if (selectedContexts.length === 0) {
@@ -124,18 +114,16 @@ export function AIChat({ projectId }: { projectId: string }) {
             setModel(selectedModel);
         }
 
-        // Save user message to database
-        const userMessage: ChatMessage = {
-            id: uuid(),
+        // Save user message to database using repository
+        await chatRepo.createMessage({
             threadId: currentThreadId,
             role: 'user',
             content: input,
             timestamp: Date.now(),
-        };
-        await db.chatMessages.add(userMessage);
+        });
 
         // Update thread timestamp
-        await db.chatThreads.update(currentThreadId, {
+        await chatRepo.updateThread(currentThreadId, {
             updatedAt: Date.now(),
         });
 
@@ -160,21 +148,16 @@ export function AIChat({ projectId }: { projectId: string }) {
             ? `Previous conversation:\n${conversationHistory}\n\nUser: ${userInput}`
             : userInput;
 
-        // Create placeholder message for streaming
-        const aiMessageId = uuid();
-        setStreamingMessageId(aiMessageId);
-        setStreamingContent('');
-
-        const aiMessage: ChatMessage = {
-            id: aiMessageId,
+        // Create placeholder message for streaming using repository
+        const aiMessage = await chatRepo.createMessage({
             threadId: currentThreadId,
             role: 'assistant',
             content: '',
             model: effectiveModel,
             prompt: selectedPromptId,
             timestamp: Date.now(),
-        };
-        await db.chatMessages.add(aiMessage);
+        });
+        setStreamingMessageId(aiMessage.id);
 
         let fullText = '';
 
@@ -191,15 +174,15 @@ export function AIChat({ projectId }: { projectId: string }) {
                     setStreamingContent(fullText);
                 },
                 onComplete: async (completedText) => {
-                    // Update database with final content
-                    await db.chatMessages.update(aiMessageId, {
+                    // Update database with final content using repository
+                    await chatRepo.updateMessage(aiMessage.id, {
                         content: completedText,
                     });
                     setStreamingMessageId(null);
                     setStreamingContent('');
 
                     // Update thread timestamp
-                    await db.chatThreads.update(currentThreadId, {
+                    await chatRepo.updateThread(currentThreadId, {
                         updatedAt: Date.now(),
                     });
                 },

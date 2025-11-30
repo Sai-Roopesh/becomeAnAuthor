@@ -6,7 +6,6 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect, useState } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
-import { db } from '@/lib/core/database';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Pin, PinOff, Trash2, MoreVertical } from 'lucide-react';
@@ -17,8 +16,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useConfirmation } from '@/hooks/use-confirmation';
+import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 
 export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClose?: () => void }) {
+    const snippetRepo = useSnippetRepository();
     const [title, setTitle] = useState('');
     const [pinned, setPinned] = useState(false);
     const [initialContent, setInitialContent] = useState<any>(null);
@@ -26,7 +27,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
 
     useEffect(() => {
         const loadSnippet = async () => {
-            const snippet = await db.snippets.get(snippetId);
+            const snippet = await snippetRepo.get(snippetId);
             if (snippet) {
                 setTitle(snippet.title);
                 setPinned(snippet.pinned);
@@ -35,7 +36,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
             setIsLoading(false);
         };
         loadSnippet();
-    }, [snippetId]);
+    }, [snippetId, snippetRepo]);
 
     const editor = useEditor({
         extensions: [
@@ -61,9 +62,9 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
     // Sync Title
     useEffect(() => {
         if (debouncedTitle) {
-            db.snippets.update(snippetId, { title: debouncedTitle, updatedAt: Date.now() });
+            snippetRepo.update(snippetId, { title: debouncedTitle });
         }
-    }, [debouncedTitle, snippetId]);
+    }, [debouncedTitle, snippetId, snippetRepo]);
 
     // Sync Content
     useEffect(() => {
@@ -76,14 +77,14 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
 
     useEffect(() => {
         if (debouncedContent) {
-            db.snippets.update(snippetId, { content: debouncedContent, updatedAt: Date.now() });
+            snippetRepo.update(snippetId, { content: debouncedContent });
         }
-    }, [debouncedContent, snippetId]);
+    }, [debouncedContent, snippetId, snippetRepo]);
 
     const togglePin = async () => {
         const newPinned = !pinned;
         setPinned(newPinned);
-        await db.snippets.update(snippetId, { pinned: newPinned });
+        await snippetRepo.togglePin(snippetId);
     };
 
     const { confirm, ConfirmationDialog } = useConfirmation();
@@ -97,7 +98,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
         });
 
         if (confirmed) {
-            await db.snippets.delete(snippetId);
+            await snippetRepo.delete(snippetId);
             if (onClose) onClose();
         }
     };

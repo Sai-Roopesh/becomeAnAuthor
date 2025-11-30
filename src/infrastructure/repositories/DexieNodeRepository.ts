@@ -15,6 +15,13 @@ export class DexieNodeRepository implements INodeRepository {
         return await db.nodes.where('projectId').equals(projectId).sortBy('order');
     }
 
+    async getByParent(projectId: string, parentId: string | null): Promise<(DocumentNode | Scene)[]> {
+        return await db.nodes
+            .where('projectId').equals(projectId)
+            .filter(n => n.parentId === parentId)
+            .toArray();
+    }
+
     async getChildren(parentId: string): Promise<(DocumentNode | Scene)[]> {
         return await db.nodes.where('parentId').equals(parentId).toArray();
     }
@@ -48,6 +55,11 @@ export class DexieNodeRepository implements INodeRepository {
             ...data,
             updatedAt: Date.now(),
         });
+    }
+
+    async updateMetadata(id: string, metadata: Partial<Scene>): Promise<void> {
+        // Delegate to update method
+        await this.update(id, metadata);
     }
 
     async delete(id: string): Promise<void> {

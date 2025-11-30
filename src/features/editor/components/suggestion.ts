@@ -1,69 +1,96 @@
+import { Extension } from '@tiptap/core';
+import { PluginKey } from '@tiptap/pm/state';
+import Suggestion from '@tiptap/suggestion';
 import { ReactRenderer } from '@tiptap/react';
-import tippy from 'tippy.js';
-import { MentionList } from './mention-list';
+import { SuggestionList } from './suggestion-list';
 import { db } from '@/lib/core/database';
+import { DexieCodexRepository } from '@/infrastructure/repositories/DexieCodexRepository';
 
-export const suggestion = {
-    items: async ({ query }: { query: string }) => {
-        // Fetch items from Dexie
-        const entries = await db.codex.toArray();
-        return entries
-            .filter(item => item.name.toLowerCase().startsWith(query.toLowerCase()))
-            .slice(0, 5)
-            .map(item => ({ id: item.id, name: item.name, category: item.category }));
-    },
+const codexRepo = new DexieCodexRepository(db);
 
-    render: () => {
-        let component: ReactRenderer;
-        let popup: any;
+export const SuggestionExtension = Extension.create({
+    name: 'mention',
 
+    addOptions() {
         return {
-            onStart: (props: any) => {
-                component = new ReactRenderer(MentionList, {
-                    props,
-                    editor: props.editor,
-                });
+            suggestion: {
+                char: '@',
+                pluginKey: new PluginKey('mention'),
+                command: ({ editor, range, props }: any) => {
+                    editor
+                        .chain()
+                        .focus()
+                        .insertContentAt(range, [
+                            {
+                                type: 'mention',
+                                attrs: props,
+                            },
+                            {
+                                type: 'text',
+                                text: ' ',
+                            },
+                        ])
+                        .run();
+                },
+                allow: ({ editor, range }: any) => {
+                    return editor.can().insertContentAt(range, { type: 'mention' });
+                },
+                items: async ({ query }: { query: string }) => {
+                    // TODO: This needs access to projectId
+                    // Currently using empty string as workaround
+                    // Should pass projectId from EditorContainer context
+                    const allCodexEntries = await codexRepo.getByProject('');
 
-                if (!props.clientRect) {
-                    return;
-                }
+                    if (!query) {
+                        return allCodexEntries.slice(0, 5).map(entry => ({
+                            name: entry.name,
+                            category: entry.category || 'uncategorized'
+                        }));
+                    }
 
-                popup = tippy('body', {
-                    getReferenceClientRect: props.clientRect,
-                    appendTo: () => document.body,
-                    content: component.element,
-                    showOnCreate: true,
-                    interactive: true,
-                    trigger: 'manual',
-                    placement: 'bottom-start',
-                });
-            },
+                    const matchingEntries = allCodexEntries.filter(entry =>
+                        entry.name.toLowerCase().includes(query.toLowerCase())
+                    );
 
-            onUpdate(props: any) {
-                component.updateProps(props);
+                    return matchingEntries.map(entry => ({
+                        name: entry.name,
+                        category: entry.category || 'uncategorized'
+                    }));
+                },
+                render: () => {
+                    let component: any;
+                    let popup: any;
 
-                if (!props.clientRect) {
-                    return;
-                }
-
-                popup[0].setProps({
-                    getReferenceClientRect: props.clientRect,
-                });
-            },
-
-            onKeyDown(props: any) {
-                if (props.event.key === 'Escape') {
-                    popup[0].hide();
-                    return true;
-                }
-
-                return (component.ref as any)?.onKeyDown(props);
-            },
-
-            onExit() {
-                popup[0].destroy();
-                component.destroy();
+                    return {
+                        onStart: (props: any) => {
+                            component = new ReactRenderer(SuggestionList, {
+                                props,
+                                editor: props.editor,
+                            });
+                        },
+                        onUpdate: (props: any) => {
+                            component.updateProps(props);
+                        },
+                        onKeyDown: (props: any) => {
+                            return component.ref?.onKeyDown(props);
+                        },
+                        onExit: () => {
+                            if (component) {
+                                component.destroy();
+                            }
+                        },
+                    };
+                },
             },
         };
     },
-};
+
+    addProseMirrorPlugins() {
+        return [
+            Suggestion({
+                editor: this.editor,
+                ...this.options.suggestion,
+            }),
+        ];
+    },
+});

@@ -1,11 +1,11 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useProjectStore } from '@/store/use-project-store';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 
 interface StoryTimelineProps {
     projectId: string;
@@ -15,13 +15,14 @@ interface StoryTimelineProps {
 export function StoryTimeline({ projectId, activeSceneWordCount }: StoryTimelineProps) {
     const { activeSceneId, setActiveSceneId } = useProjectStore();
     const [collapsed, setCollapsed] = useState(false);
+    const nodeRepo = useNodeRepository();
 
     const scenes = useLiveQuery(
-        () => db.nodes
-            .where('projectId').equals(projectId)
-            .filter(n => n.type === 'scene')
-            .sortBy('order'),
-        [projectId]
+        async () => {
+            const nodes = await nodeRepo.getByProject(projectId);
+            return nodes.filter(n => n.type === 'scene');
+        },
+        [projectId, nodeRepo]
     );
 
     const handleSceneClick = (sceneId: string) => {

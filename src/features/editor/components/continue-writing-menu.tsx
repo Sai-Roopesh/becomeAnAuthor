@@ -53,7 +53,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
             wordCount: parseInt(wordCount),
             instructions: getModeInstructions(selectedMode),
             context: {},
-            model: model || localStorage.getItem('last_used_model') || 'openai/gpt-3.5-turbo',
+            model: model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
             mode: selectedMode,
         });
         onOpenChange(false);

@@ -3,6 +3,8 @@
  * Provides consistent logging with persistence and export capabilities
  */
 
+import { storage } from '@/lib/safe-storage';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface LogEntry {
@@ -59,7 +61,7 @@ class Logger {
         console.error(`[ERROR] ${message}`, metadata);
 
         // Persist errors immediately
-        this.persistLogs();
+        this.saveLogs();
     }
 
     /**
@@ -85,7 +87,7 @@ class Logger {
 
         // Persist periodically (errors immediately, others batched)
         if (level === 'error' || this.logs.length % 10 === 0) {
-            this.persistLogs();
+            this.saveLogs();
         }
     }
 
@@ -93,25 +95,14 @@ class Logger {
      * Load logs from localStorage
      */
     private loadLogs() {
-        try {
-            const stored = localStorage.getItem(this.STORAGE_KEY);
-            if (stored) {
-                this.logs = JSON.parse(stored);
-            }
-        } catch (error) {
-            console.error('Failed to load logs:', error);
-        }
+        this.logs = storage.getItem<LogEntry[]>(this.STORAGE_KEY, []);
     }
 
     /**
      * Persist logs to localStorage
      */
-    private persistLogs() {
-        try {
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.logs));
-        } catch (error) {
-            console.error('Failed to persist logs:', error);
-        }
+    private saveLogs() {
+        storage.setItem(this.STORAGE_KEY, this.logs);
     }
 
     /**
@@ -129,11 +120,7 @@ class Logger {
      */
     clear() {
         this.logs = [];
-        try {
-            localStorage.removeItem(this.STORAGE_KEY);
-        } catch (error) {
-            console.error('Failed to clear logs:', error);
-        }
+        storage.removeItem(this.STORAGE_KEY);
     }
 
     /**

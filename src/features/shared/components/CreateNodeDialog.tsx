@@ -5,8 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { db } from '@/lib/core/database';
-import { v4 as uuidv4 } from 'uuid';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 import { DocumentNode } from '@/lib/config/types';
 
 interface CreateNodeDialogProps {
@@ -19,48 +18,30 @@ interface CreateNodeDialogProps {
 
 export function CreateNodeDialog({ open, onOpenChange, projectId, parentId, type }: CreateNodeDialogProps) {
     const [title, setTitle] = useState('');
+    const nodeRepo = useNodeRepository();
 
     const handleCreate = async () => {
         if (!title.trim()) return;
 
-        // Find last order in siblings
-        const siblings = await db.nodes
-            .where('projectId').equals(projectId)
-            .filter(n => n.parentId === parentId)
-            .toArray();
-
+        // Use repository to get siblings
+        const siblings = await nodeRepo.getByParent(projectId, parentId);
         const maxOrder = siblings.reduce((max, n) => Math.max(max, n.order), 0);
         const newOrder = maxOrder + 100;
 
-        const id = uuidv4();
-        const now = Date.now();
-
-        const baseNode = {
-            id,
+        // Use repository create method
+        await nodeRepo.create({
             projectId,
             parentId,
             title,
             order: newOrder,
-            expanded: true,
-            createdAt: now,
-            updatedAt: now,
-        };
-
-        if (type === 'scene') {
-            await db.nodes.add({
-                ...baseNode,
-                type: 'scene',
+            type,
+            ...(type === 'scene' ? {
                 content: { type: 'doc', content: [] },
                 summary: '',
                 status: 'draft',
                 wordCount: 0,
-            } as any);
-        } else {
-            await db.nodes.add({
-                ...baseNode,
-                type: type,
-            } as any);
-        }
+            } : {})
+        });
 
         setTitle('');
         onOpenChange(false);

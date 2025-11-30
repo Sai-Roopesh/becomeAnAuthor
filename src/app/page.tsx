@@ -1,7 +1,6 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CreateProjectDialog } from '@/features/project/components/CreateProjectDialog';
@@ -18,9 +17,12 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useConfirmation } from '@/hooks/use-confirmation';
+import { useRepository } from '@/hooks/use-repository';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
 
 export default function Dashboard() {
-  const projects = useLiveQuery(() => db.projects.toArray());
+  const projectRepo = useRepository<IProjectRepository>('projectRepository');
+  const projects = useLiveQuery(() => projectRepo.getAll(), [projectRepo]);
   const { confirm, ConfirmationDialog } = useConfirmation();
 
   if (!projects) return null;
@@ -39,9 +41,8 @@ export default function Dashboard() {
     });
 
     if (confirmed) {
-      await db.projects.delete(projectId);
-      await db.nodes.where('projectId').equals(projectId).delete();
-      await db.codex.where('projectId').equals(projectId).delete();
+      // Use repository's cascading delete
+      await projectRepo.delete(projectId);
     }
   };
 

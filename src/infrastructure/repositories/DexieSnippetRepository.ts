@@ -43,6 +43,13 @@ export class DexieSnippetRepository implements ISnippetRepository {
         });
     }
 
+    async togglePin(id: string): Promise<void> {
+        const snippet = await this.get(id);
+        if (snippet) {
+            await this.update(id, { pinned: !snippet.pinned });
+        }
+    }
+
     async delete(id: string): Promise<void> {
         await db.snippets.delete(id);
     }

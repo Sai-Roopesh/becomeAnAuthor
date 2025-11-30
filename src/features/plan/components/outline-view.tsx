@@ -5,7 +5,7 @@ import { useProjectStore } from '@/store/use-project-store';
 import { ChevronRight, ChevronDown, FileText, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { CreateNodeDialog } from '@/features/project/components/CreateNodeDialog';
+import { CreateNodeDialog } from '@/features/shared/components';
 
 interface OutlineViewProps {
     projectId: string;

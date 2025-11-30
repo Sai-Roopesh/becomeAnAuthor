@@ -1,10 +1,10 @@
-import { useAppServices } from '@/infrastructure/di/AppContext';
+import { useRepository } from './use-repository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 
 /**
  * Hook to access the Codex Repository
- * Now uses centralized DI container for singleton instance
+ * Uses generic repository factory to eliminate code duplication
  */
 export function useCodexRepository(): ICodexRepository {
-    return useAppServices().codexRepository;
+    return useRepository<ICodexRepository>('codexRepository');
 }

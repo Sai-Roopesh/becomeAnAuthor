@@ -1,8 +1,9 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useRepository } from '@/hooks/use-repository';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,13 +16,14 @@ type PlanViewType = 'grid' | 'outline' | 'matrix';
 
 export function PlanView({ projectId }: { projectId: string }) {
     const nodeRepo = useNodeRepository();
+    const projectRepo = useRepository<IProjectRepository>('projectRepository');
     const [viewType, setViewType] = useState<PlanViewType>('grid');
     const [search, setSearch] = useState('');
 
-    const project = useLiveQuery(() => db.projects.get(projectId));
+    const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
     const nodes = useLiveQuery(
         () => nodeRepo.getByProject(projectId),
-        [projectId]
+        [projectId, nodeRepo]
     );
 
     if (!project || !nodes) {

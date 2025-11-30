@@ -1,14 +1,12 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { CodexEntry, CodexCategory } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
 import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { v4 as uuidv4 } from 'uuid';
 import { EntityEditor } from '@/features/codex/components/entity-editor';
 import {
     DropdownMenu,

@@ -31,6 +31,12 @@ export interface ISnippetRepository {
     update(id: string, data: Partial<Snippet>): Promise<void>;
 
     /**
+     * Toggle pinned state of a snippet
+     * For EditorContainer unpin functionality
+     */
+    togglePin(id: string): Promise<void>;
+
+    /**
      * Delete a snippet
      */
     delete(id: string): Promise<void>;

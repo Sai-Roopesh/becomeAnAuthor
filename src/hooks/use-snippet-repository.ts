@@ -1,10 +1,10 @@
-import { useAppServices } from '@/infrastructure/di/AppContext';
+import { useRepository } from './use-repository';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 
 /**
  * Hook to access the Snippet Repository
- * Now uses centralized DI container for singleton instance
+ * Uses generic repository factory to eliminate code duplication
  */
 export function useSnippetRepository(): ISnippetRepository {
-    return useAppServices().snippetRepository;
+    return useRepository<ISnippetRepository>('snippetRepository');
 }

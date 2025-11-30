@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ContextSelector, ContextItem } from '../context-selector';
+import { ContextSelector, type ContextItem } from '@/features/shared/components';
 import { PromptSelector } from '../prompt-selector';
 import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import { ChevronDown, ChevronUp } from 'lucide-react';

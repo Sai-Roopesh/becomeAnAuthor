@@ -1,11 +1,12 @@
 import { db } from '@/lib/core/database';
 import type { Project } from '@/lib/config/types';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
 
 /**
  * Repository for Project entity
  * Handles all database operations for projects
  */
-export class DexieProjectRepository {
+export class DexieProjectRepository implements IProjectRepository {
     /**
      * Get a single project by ID
      */
@@ -31,7 +32,7 @@ export class DexieProjectRepository {
    * Create a new project
    * ✅ VALIDATION: Validates data before database write
    */
-    async create(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
+    async create(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
         // Import and validate using Zod schema
         const { ProjectSchema } = await import('@/lib/schemas');
 
@@ -46,7 +47,7 @@ export class DexieProjectRepository {
         const validatedProject = ProjectSchema.parse(projectData);
 
         await db.projects.add(validatedProject);
-        return validatedProject;
+        return validatedProject.id;
     }
 
     /**
@@ -71,6 +72,15 @@ export class DexieProjectRepository {
 
     /**
      * Delete a project and all its related data atomically
+     * ✅ TRANSACTION: Ensures all-or-nothing deletion
+     */
+    async delete(projectId: string): Promise<void> {
+        // Delegate to existing implementation
+        await this.deleteWithRelatedData(projectId);
+    }
+
+    /**
+     * Delete a project and all its related data atomically (legacy method name)
      * ✅ TRANSACTION: Ensures all-or-nothing deletion
      */
     async deleteWithRelatedData(projectId: string): Promise<void> {

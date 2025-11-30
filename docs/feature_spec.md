@@ -1000,7 +1000,7 @@
 - **Name:** AI Connections Management
 - **Area/Module:** Settings
 - **User Type:** Author
-- **Description:** Configure API connections to AI providers (OpenAI, Anthropic, etc.).
+- **Description:** Configure API connections to AI providers.
 - **Entry Points:** Settings > AI Connections tab
 - **Preconditions:** None
 - **Main Flow:**
@@ -1009,16 +1009,23 @@
   3. Shows list of configured connections
   4. User can add/edit/delete connections
   5. **New Connection Dialog:**
-     - Provider (OpenAI, Anthropic, etc.)
+     - Provider: **OpenRouter**, **Google AI Studio**, **Mistral AI**, **OpenAI Compatible** (Ollama, LM Studio), **Moonshot AI (Kimi)**
      - API Key
-     - Base URL (optional)
-     - Available models
+     - Base URL (optional for some providers)
+     - Available models (fetched automatically where supported)
      - Enable/disable toggle
   6. Connections saved to localStorage
 - **Edge Cases & Error States:**
   - Invalid API key: Validation error (not tested until use)
 - **Data Read/Written:** Reads/Writes `ai_connections` in localStorage
 - **Dependencies:** localStorage
+
+**Supported AI Providers:**
+1. **OpenRouter** - API aggregator with multiple models
+2. **Google AI Studio** - Gemini models (2.0, 2.5, 3.0, Flash, Pro, Thinking variants)
+3. **Mistral AI** - Mistral Large, Medium, Small, Nemo
+4. **OpenAI Compatible** - Custom endpoints for local LLMs (Ollama, LM Studio, etc.)
+5. **Moonshot AI (Kimi)** - kimi-v1-405b, kimi-v1-fast
 
 #### F-43: Theme Toggle
 - **ID:** F-43

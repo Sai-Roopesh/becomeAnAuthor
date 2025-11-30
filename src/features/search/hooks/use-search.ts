@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/core/database';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
-import { isScene } from '@/lib/config/types';
+import { isScene, DocumentNode, CodexEntry } from '@/lib/config/types';
 
 export function useSearch() {
     const [query, setQuery] = useState('');
 
     // Fetch scenes and codex entries
+    // NOTE: Keeping direct DB access here as INodeRepository/ICodexRepository lack getAll() methods
+    // TODO: Add getAll() to repository interfaces for complete abstraction
     const scenes = useLiveQuery(() =>
         db.nodes.where('type').equals('scene').toArray()
     );

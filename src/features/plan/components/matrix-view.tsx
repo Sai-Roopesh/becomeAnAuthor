@@ -2,7 +2,7 @@
 
 import { DocumentNode } from '@/lib/config/types';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +23,8 @@ type MatrixMode = 'codex' | 'pov' | 'labels';
 
 export function MatrixView({ projectId, nodes, searchQuery }: MatrixViewProps) {
     const [mode, setMode] = useState<MatrixMode>('codex');
-    const codexEntries = useLiveQuery(() => db.codex.where('projectId').equals(projectId).toArray());
+    const codexRepo = useCodexRepository();
+    const codexEntries = useLiveQuery(() => codexRepo.getByProject(projectId), [projectId, codexRepo]);
 
     const acts = nodes.filter(n => n.type === 'act');
     const getChildren = (parentId: string) => nodes.filter(n => n.parentId === parentId);

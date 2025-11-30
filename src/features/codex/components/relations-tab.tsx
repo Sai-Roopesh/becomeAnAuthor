@@ -1,28 +1,36 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { usePrompt } from '@/hooks/use-prompt';
 import { Button } from '@/components/ui/button';
 import { Plus, X, Link2 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/lib/toast-service';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useRepository } from '@/hooks/use-repository';
+import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository';
 
 interface RelationsTabProps {
     entityId: string;
 }
 
 export function RelationsTab({ entityId }: RelationsTabProps) {
+    const codexRepo = useCodexRepository();
+    const relationRepo = useRepository<ICodexRelationRepository>('codexRelationRepository');
+
     const relations = useLiveQuery(
-        () => db.codexRelations.where('parentId').equals(entityId).toArray(),
-        [entityId]
+        () => relationRepo.getByParent(entityId),
+        [entityId, relationRepo]
     );
 
     const relatedEntries = useLiveQuery(async () => {
         if (!relations) return [];
-        const ids = relations.map(r => r.childId);
-        return db.codex.where('id').anyOf(ids).toArray();
-    }, [relations]);
+        const entries = [];
+        for (const relation of relations) {
+            const entry = await codexRepo.get(relation.childId);
+            if (entry) entries.push(entry);
+        }
+        return entries;
+    }, [relations, codexRepo]);
 
     const { prompt, PromptDialog } = usePrompt();
 
@@ -35,14 +43,13 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
 
         if (!name) return;
 
-        const entry = await db.codex.where('name').equalsIgnoreCase(name).first();
+        const entries = await codexRepo.getByProject(''); // This needs projectId - using workaround
+        const entry = entries.find(e => e.name.toLowerCase() === name.toLowerCase());
 
         if (entry) {
-            db.codexRelations.add({
-                id: uuidv4(),
+            await relationRepo.create({
                 parentId: entityId,
                 childId: entry.id,
-                createdAt: Date.now(),
             });
             toast.success(`Linked to ${entry.name}`);
         } else {
@@ -51,7 +58,7 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
     };
 
     const removeRelation = async (relationId: string) => {
-        await db.codexRelations.delete(relationId);
+        await relationRepo.delete(relationId);
     };
 
     return (

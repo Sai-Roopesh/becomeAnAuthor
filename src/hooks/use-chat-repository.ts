@@ -1,10 +1,10 @@
-import { useAppServices } from '@/infrastructure/di/AppContext';
+import { useRepository } from './use-repository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 
 /**
  * Hook to access the Chat Repository
- * Now uses centralized DI container for singleton instance
+ * Uses generic repository factory to eliminate code duplication
  */
 export function useChatRepository(): IChatRepository {
-    return useAppServices().chatRepository;
+    return useRepository<IChatRepository>('chatRepository');
 }

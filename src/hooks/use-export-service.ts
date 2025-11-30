@@ -1,10 +1,10 @@
-import { useAppServices } from '@/infrastructure/di/AppContext';
+import { useRepository } from './use-repository';
 import type { IExportService } from '@/domain/services/IExportService';
 
 /**
  * Hook to access the Export Service
- * Uses centralized DI container for singleton instance
+ * Uses generic repository factory to eliminate code duplication
  */
 export function useExportService(): IExportService {
-    return useAppServices().exportService;
+    return useRepository<IExportService>('exportService');
 }

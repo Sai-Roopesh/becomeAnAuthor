@@ -14,7 +14,7 @@ import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import { useAI } from '@/hooks/use-ai';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
-import { ContextSelector, ContextItem } from '@/features/chat/components/context-selector';
+import { ContextSelector, type ContextItem } from '@/features/shared/components';
 
 interface TextReplaceDialogProps {
     action: 'expand' | 'rephrase' | 'shorten';

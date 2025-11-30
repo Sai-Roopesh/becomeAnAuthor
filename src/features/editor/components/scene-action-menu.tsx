@@ -1,7 +1,6 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,13 +12,15 @@ import { toast } from '@/lib/toast-service';
 import { isScene, Scene } from '@/lib/config/types';
 import { extractTextFromTiptapJSON } from '@/lib/utils/editor';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 
 interface SceneActionMenuProps {
     sceneId: string;
 }
 
 export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
-    const scene = useLiveQuery(() => db.nodes.get(sceneId), [sceneId]);
+    const nodeRepo = useNodeRepository();
+    const scene = useLiveQuery(() => nodeRepo.get(sceneId), [sceneId, nodeRepo]);
     const { confirm, ConfirmationDialog } = useConfirmation();
     const { prompt, PromptDialog } = usePrompt();
     const { generate, isGenerating } = useAI({
@@ -38,7 +39,7 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
             defaultValue: scene?.pov || ''
         });
         if (pov) {
-            await db.nodes.update(sceneId, { pov } as Partial<Scene>);
+            await nodeRepo.updateMetadata(sceneId, { pov });
             toast.success('POV updated');
         }
     };
@@ -51,14 +52,14 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
             defaultValue: scene?.subtitle || ''
         });
         if (subtitle) {
-            await db.nodes.update(sceneId, { subtitle } as Partial<Scene>);
+            await nodeRepo.updateMetadata(sceneId, { subtitle });
             toast.success('Subtitle updated');
         }
     };
 
     const handleToggleAIExclusion = async () => {
         const current = scene.excludeFromAI || false;
-        await db.nodes.update(sceneId, { excludeFromAI: !current } as Partial<Scene>);
+        await nodeRepo.updateMetadata(sceneId, { excludeFromAI: !current });
         toast.success(current ? 'Included in AI context' : 'Excluded from AI context');
     };
 
@@ -71,7 +72,7 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
         });
 
         if (result) {
-            await db.nodes.update(sceneId, { summary: result } as Partial<Scene>);
+            await nodeRepo.updateMetadata(sceneId, { summary: result });
         }
     };
 
@@ -84,15 +85,13 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
     };
 
     const handleDuplicate = async () => {
-        const newScene: Scene = {
+        await nodeRepo.create({
             ...scene,
-            id: crypto.randomUUID(),
             title: `${scene.title} (Copy)`,
             order: (scene.order || 0) + 0.5,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-        };
-        await db.nodes.add(newScene);
+            type: 'scene',
+            projectId: scene.projectId,
+        });
         toast.success('Scene duplicated');
     };
 
@@ -123,7 +122,7 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
         });
 
         if (confirmed) {
-            await db.nodes.update(sceneId, { archived: true } as Partial<Scene>);
+            await nodeRepo.update(sceneId, { archived: true } as any);
             toast.success('Scene archived');
         }
     };

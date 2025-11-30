@@ -16,6 +16,12 @@ export interface INodeRepository {
     getByProject(projectId: string): Promise<(DocumentNode | Scene)[]>;
 
     /**
+     * Get nodes by parent ID (for CreateNodeDialog)
+     * Returns nodes with matching parentId
+     */
+    getByParent(projectId: string, parentId: string | null): Promise<(DocumentNode | Scene)[]>;
+
+    /**
      * Get children of a specific node
      */
     getChildren(parentId: string): Promise<(DocumentNode | Scene)[]>;
@@ -29,6 +35,12 @@ export interface INodeRepository {
      * Update an existing node
      */
     update(id: string, data: Partial<DocumentNode | Scene>): Promise<void>;
+
+    /**
+     * Update node metadata (POV, subtitle, excludeFromAI, etc.)
+     * Convenience method for NodeActionsMenu
+     */
+    updateMetadata(id: string, metadata: Partial<Scene>): Promise<void>;
 
     /**
      * Delete a single node (no cascade)

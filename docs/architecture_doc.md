@@ -183,7 +183,7 @@ flowchart TB
   - `GoogleAuthService`
   - `AIService`
 - **Database:**
-  - `database.ts` (Dexie schema)
+  - `lib/core/database.ts` (NovelDB - Dexie schema with 10 tables)
 
 **Should NEVER contain:**
 - Business rules that belong in Domain
@@ -477,8 +477,16 @@ flowchart LR
 
 | Data Type | Storage | Rationale |
 |-----------|---------|-----------|
-| Projects, Nodes, Codex, Snippets | IndexedDB (Dexie) | Large datasets, queryable, persistent |
-| Chat Threads, Messages | IndexedDB (Dexie) | Large conversation history |
+| Projects | IndexedDB (`projects` table) | Project metadata, queryable, persistent |
+| Manuscript Structure (Acts, Chapters, Scenes) | IndexedDB (`nodes` table) | Hierarchical tree data, large datasets |
+| Codex Entries | IndexedDB (`codex` table) | World-building data, searchable by tags |
+| Codex Relations | IndexedDB (`codexRelations` table) | Entity relationships |
+| Codex Additions | IndexedDB (`codexAdditions` table) | Scene-specific codex references |
+| Sections | IndexedDB (`sections` table) | Colored content blocks within scenes |
+| Series | IndexedDB (`series` table) | Project groupings |
+| Snippets | IndexedDB (`snippets` table) | Reusable text templates |
+| Chat Threads | IndexedDB (`chatThreads` table) | Conversation threads with AI |
+| Chat Messages | IndexedDB (`chatMessages` table) | Individual messages in threads |
 | AI Connections | `localStorage` | Small config, simple key-value |
 | User Preferences (theme, formatting) | Zustand + `localStorage` | Small, frequently accessed |
 | Emergency Backups | `localStorage` | Fallback only, temporary |
@@ -779,22 +787,45 @@ As features grow, need clear module boundaries.
 Organize by domain/feature, not by technical layer:
 ```
 src/
-  features/
-    editor/
+  app/                    # Next.js App Router pages
+  features/               # Feature-based modules
+    ai/
     chat/
     codex/
+    data-management/
+    editor/
+    google-drive/
     navigation/
     plan/
+    project/
+    search/
+    settings/
+    shared/
     snippets/
-  lib/core/
-  lib/config/
-  components/ui/
+  domain/                 # Domain Layer (Interfaces)
+    repositories/
+    services/
+  infrastructure/         # Infrastructure Layer (Implementations)
+    repositories/
+    services/
+    di/                   # Dependency Injection
+  lib/                    # Utilities and services
+    core/                 # Core utilities (database, logger)
+    config/               # Configuration and types
+    services/             # External services
+    tiptap-extensions/
+  components/             # Shared React components
+    ui/                   # Reusable UI components
+  hooks/                  # Custom React hooks
+  store/                  # Zustand stores
+  test/                   # Test utilities
 ```
 
 **Rationale:**
 - **Cohesion:** All related code (components, hooks, types) in one place
 - **Discoverability:** Easy to find feature-specific code
 - **Scalability:** Can add features without sprawling file trees
+- **Clean Architecture:** Clear separation between domain and infrastructure
 
 **Consequences:**
 - ✅ High feature cohesion
@@ -1120,11 +1151,18 @@ Repositories directly use Dexie, making it hard to swap storage.
 4. **Add Dexie Table (if needed):**
    ```typescript
    // src/lib/core/database.ts
-   export const db = new Dexie('BecomeAnAuthor') as BecomeAnAuthorDB;
-   db.version(X).stores({
-     // ... existing tables
-     myFeature: '++id, projectId, createdAt',
-   });
+   export class NovelDB extends Dexie {
+     // Add table property
+     myFeature!: Table<MyFeature>;
+     
+     constructor() {
+       super('NovelDB');
+       this.version(6).stores({
+         // ... existing tables
+         myFeature: 'id, projectId, createdAt',
+       });
+     }
+   }
    ```
 
 5. **Build UI Components:**

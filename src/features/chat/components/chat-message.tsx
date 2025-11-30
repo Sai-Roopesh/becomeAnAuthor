@@ -10,9 +10,9 @@ import type { ChatMessage as ChatMessageType } from '@/lib/config/types';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { db } from '@/lib/core/database';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
+import { useChatRepository } from '@/hooks/use-chat-repository';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -21,6 +21,7 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
+    const chatRepo = useChatRepository();
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(message.content);
     const { confirm, ConfirmationDialog } = useConfirmation();
@@ -46,22 +47,22 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
     const handleSaveEdit = async () => {
         try {
             // Update current message
-            await db.chatMessages.update(message.id, {
+            await chatRepo.updateMessage(message.id, {
                 content: editContent
             });
 
             // Cascade delete subsequent messages
-            const allMessages = await db.chatMessages
-                .where('threadId')
-                .equals(message.threadId)
-                .sortBy('timestamp');
+            const allMessages = await chatRepo.getMessagesByThread(message.threadId);
 
             const messagesToDelete = allMessages.filter(
                 m => m.timestamp > message.timestamp
             );
 
             if (messagesToDelete.length > 0) {
-                await db.chatMessages.bulkDelete(messagesToDelete.map(m => m.id));
+                // Delete them one by one using repository
+                for (const msg of messagesToDelete) {
+                    await chatRepo.deleteMessage(msg.id);
+                }
                 toast.success(`Message updated and ${messagesToDelete.length} subsequent message(s) cleared`);
             } else {
                 toast.success('Message updated');
@@ -91,10 +92,7 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
             let description: string;
 
             if (message.role === 'user') {
-                const allMessages = await db.chatMessages
-                    .where('threadId')
-                    .equals(message.threadId)
-                    .sortBy('timestamp');
+                const allMessages = await chatRepo.getMessagesByThread(message.threadId);
 
                 const messageIndex = allMessages.findIndex(m => m.id === message.id);
                 if (messageIndex !== -1) {
@@ -118,7 +116,9 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
             });
 
             if (confirmed) {
-                await db.chatMessages.bulkDelete(messagesToDelete.map(m => m.id));
+                for (const msg of messagesToDelete) {
+                    await chatRepo.deleteMessage(msg.id);
+                }
                 toast.success(`Deleted ${messagesToDelete.length} message(s)`);
             }
         } catch (error) {

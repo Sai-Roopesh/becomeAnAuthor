@@ -1,7 +1,6 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
 import { cn } from '@/lib/utils';
@@ -9,7 +8,7 @@ import { DocumentNode } from '@/lib/config/types';
 import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CreateNodeDialog } from '../../project/components/CreateNodeDialog';
+import { CreateNodeDialog } from '@/features/shared/components';
 import { SnippetList } from '../../snippets/components/snippet-list';
 import { CodexList } from '../../codex/components/codex-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,13 +21,19 @@ import {
 import { toast } from '@/lib/toast-service';
 import { NodeActionsMenu } from '../../editor/components/NodeActionsMenu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
 import { ProjectSettingsDialog } from '../../project/components/ProjectSettingsDialog';
+import { useRepository } from '@/hooks/use-repository';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 
 export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: string, onSelectSnippet?: (id: string) => void }) {
-    const project = useLiveQuery(() => db.projects.get(projectId));
+    const projectRepo = useRepository<IProjectRepository>('projectRepository');
+    const nodeRepo = useNodeRepository();
+
+    const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
     const nodes = useLiveQuery(
-        () => db.nodes.where('projectId').equals(projectId).sortBy('order')
+        () => nodeRepo.getByProject(projectId),
+        [projectId, nodeRepo]
     );
     const { activeSceneId, setActiveSceneId } = useProjectStore();
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -55,27 +60,9 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
         const { id: nodeId, type } = nodeToDelete;
 
         try {
-            if (type === 'scene') {
-                await db.nodes.delete(nodeId);
-            } else if (type === 'chapter') {
-                // Delete scenes in chapter
-                const scenes = await db.nodes.where('parentId').equals(nodeId).toArray();
-                await db.nodes.bulkDelete(scenes.map(s => s.id));
-                // Delete chapter
-                await db.nodes.delete(nodeId);
-            } else if (type === 'act') {
-                // Find chapters
-                const chapters = await db.nodes.where('parentId').equals(nodeId).toArray();
-                const chapterIds = chapters.map(c => c.id);
-                // Find scenes in chapters
-                const scenes = await db.nodes.where('parentId').anyOf(chapterIds).toArray();
-                // Delete scenes
-                await db.nodes.bulkDelete(scenes.map(s => s.id));
-                // Delete chapters
-                await db.nodes.bulkDelete(chapterIds);
-                // Delete act
-                await db.nodes.delete(nodeId);
-            }
+            // Use repository's cascading delete method
+            await nodeRepo.deleteCascade(nodeId, type);
+
             toast.success('Deleted successfully');
             if (activeSceneId === nodeId) {
                 setActiveSceneId(null);

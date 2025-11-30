@@ -13,17 +13,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/core/database';
 import { Settings, Trash2, Archive, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
-import { DexieProjectRepository } from '@/infrastructure/repositories/DexieProjectRepository';
+import { useRepository } from '@/hooks/use-repository';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
 
 export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
     const router = useRouter();
-    const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
+    const projectRepo = useRepository<IProjectRepository>('projectRepository');
+    const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -45,12 +46,11 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
 
     const handleSave = async () => {
         if (!project) return;
-        await db.projects.update(projectId, {
+        await projectRepo.update(projectId, {
             title: formData.title,
             author: formData.author,
             language: formData.language,
             coverImage: formData.coverImage,
-            updatedAt: Date.now()
         });
         setOpen(false);
     };
@@ -79,15 +79,13 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     const executeAction = async () => {
         if (confirmationAction === 'archive') {
             // ✅ Use repository method
-            const projectRepo = new DexieProjectRepository();
             await projectRepo.archive(projectId);
 
             setOpen(false);
             router.push('/');
         } else if (confirmationAction === 'delete') {
             // ✅ Use repository method with atomic transaction
-            const projectRepo = new DexieProjectRepository();
-            await projectRepo.deleteWithRelatedData(projectId);
+            await projectRepo.delete(projectId);
 
             setOpen(false);
             router.push('/');

@@ -1,7 +1,6 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,6 +11,7 @@ import { toast } from '@/lib/toast-service';
 import { isScene, Scene } from '@/lib/config/types';
 import { extractTextFromTiptapJSON } from '@/lib/utils/editor';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 
 interface NodeActionsMenuProps {
     nodeId: string;
@@ -20,7 +20,8 @@ interface NodeActionsMenuProps {
 }
 
 export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuProps) {
-    const node = useLiveQuery(() => db.nodes.get(nodeId), [nodeId]);
+    const nodeRepo = useNodeRepository();
+    const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const { generate, isGenerating } = useAI({
         system: 'You are a helpful assistant that summarizes creative writing scenes.',
@@ -35,7 +36,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
         if (!isScene(node)) return;
         const pov = prompt('Enter POV character name:');
         if (pov) {
-            await db.nodes.update(nodeId, { pov } as Partial<Scene>);
+            await nodeRepo.updateMetadata(nodeId, { pov });
             toast.success('POV updated');
         }
     };
@@ -44,7 +45,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
         if (!isScene(node)) return;
         const subtitle = prompt('Enter scene subtitle:');
         if (subtitle) {
-            await db.nodes.update(nodeId, { subtitle } as Partial<Scene>);
+            await nodeRepo.updateMetadata(nodeId, { subtitle });
             toast.success('Subtitle updated');
         }
     };
@@ -52,7 +53,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     const handleToggleAIExclusion = async () => {
         if (!isScene(node)) return;
         const current = node.excludeFromAI || false;
-        await db.nodes.update(nodeId, { excludeFromAI: !current } as Partial<Scene>);
+        await nodeRepo.updateMetadata(nodeId, { excludeFromAI: !current });
         toast.success(current ? 'Included in AI context' : 'Excluded from AI context');
     };
 
@@ -66,21 +67,19 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
         });
 
         if (result) {
-            await db.nodes.update(nodeId, { summary: result } as Partial<Scene>);
+            await nodeRepo.updateMetadata(nodeId, { summary: result });
         }
     };
 
     const handleDuplicate = async () => {
         if (!isScene(node)) return;
-        const newScene: Scene = {
+        await nodeRepo.create({
             ...node,
-            id: crypto.randomUUID(),
             title: `${node.title} (Copy)`,
             order: (node.order || 0) + 0.5,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-        };
-        await db.nodes.add(newScene);
+            type: 'scene',
+            projectId: node.projectId,
+        });
         toast.success('Scene duplicated');
     };
 
@@ -111,7 +110,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     };
 
     const executeArchive = async () => {
-        await db.nodes.update(nodeId, { archived: true } as Partial<Scene>);
+        await nodeRepo.update(nodeId, { archived: true } as any);
         toast.success('Scene archived');
         setIsArchiveDialogOpen(false);
     };
@@ -119,7 +118,7 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     const handleRename = async () => {
         const newTitle = prompt(`Enter new ${nodeType} title:`, node.title);
         if (newTitle && newTitle !== node.title) {
-            await db.nodes.update(nodeId, { title: newTitle });
+            await nodeRepo.update(nodeId, { title: newTitle });
             toast.success(`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`);
         }
     };

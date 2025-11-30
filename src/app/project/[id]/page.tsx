@@ -4,6 +4,7 @@ import { EditorContainer } from '@/features/editor/components/EditorContainer';
 import { ProjectNavigation } from '@/features/navigation/components/ProjectNavigation';
 import { PlanView } from '@/features/plan/components/plan-view';
 import { ChatInterface } from '@/features/chat/components/chat-interface';
+import { ReviewDashboard } from '@/features/review/components/ReviewDashboard';
 import { MultiTabWarning } from '@/components/multi-tab-warning';
 import { SearchPalette } from '@/features/search/components/SearchPalette';
 import { use, useEffect, useState } from 'react';
@@ -73,9 +74,11 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                     <EditorContainer projectId={id} />
                 ) : viewMode === 'chat' ? (
                     <ChatInterface projectId={id} />
+                ) : viewMode === 'review' ? (
+                    <ReviewDashboard projectId={id} />
                 ) : (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
-                        Review mode coming soon
+                        Unknown view mode
                     </div>
                 )}
             </div>
