@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { DocumentNode } from '@/lib/types';
 import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { CreateNodeDialog } from '@/features/project/components/CreateNodeDialog';
 import { SnippetList } from '@/features/snippets/components/snippet-list';
