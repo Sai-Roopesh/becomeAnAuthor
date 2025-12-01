@@ -83,6 +83,12 @@
 - F-53: Backup to Google Drive
 - F-54: Restore from Google Drive
 
+### **Story Analysis & Review**
+- F-55: Review Dashboard
+- F-56: Run Analysis (Scope & Type Selection)
+- F-57: Analysis Results Viewer
+- F-58: Analysis History Management
+
 ---
 
 ## 2. Detailed Feature Specs
@@ -316,6 +322,92 @@
   - Corrupt file: Error toast
 - **Data Read/Written:** Reads from Drive API, Overwrites DB
 - **Dependencies:** `google-drive-service.ts`
+
+---
+
+### Story Analysis & Review
+
+#### F-55: Review Dashboard
+- **ID:** F-55
+- **Name:** Review Dashboard
+- **Area/Module:** Review
+- **User Type:** Author
+- **Description:** Central hub for story analysis, showing past analyses, summary metrics, and manuscript health status.
+- **Entry Points:** "Review" mode/tab in Project Workspace
+- **Preconditions:** Project loaded
+- **Main Flow:**
+  1. User switches to "Review" mode
+  2. System fetches past analyses from DB
+  3. Displays summary metrics (Total Analyses, Latest Date, Analysis Types)
+  4. Shows list of recent analyses with summaries
+  5. Displays "Version Warning" if manuscript has been edited since last analysis
+- **Edge Cases & Error States:**
+  - No analyses: Shows empty state with CTA to run first analysis
+- **Data Read/Written:** Reads `storyAnalyses` table
+- **Dependencies:** Dexie DB
+
+#### F-56: Run Analysis
+- **ID:** F-56
+- **Name:** Run Analysis (Scope & Type Selection)
+- **Area/Module:** Review
+- **User Type:** Author
+- **Description:** Configure and execute AI-powered story analysis with customizable scope and analysis types.
+- **Entry Points:** "Run Analysis" button on Review Dashboard
+- **Preconditions:** AI Model configured
+- **Main Flow:**
+  1. User clicks "Run Analysis"
+  2. Dialog opens
+  3. **Scope Selection:** Full Manuscript or Custom Selection (Acts/Chapters/Scenes)
+  4. **Model Selection:** Choose AI model
+  5. **Analysis Types:** Select Synopsis, Plot Threads, Character Arcs, Timeline, etc.
+  6. System estimates token usage
+  7. User clicks "Run"
+  8. AI processes request (streaming/async)
+  9. Results saved to DB and Dashboard updates
+- **Edge Cases & Error States:**
+  - No model selected: Button disabled
+  - API Failure: Error toast
+- **Data Read/Written:** Reads `nodes`, `codex`; Writes `storyAnalyses`
+- **Dependencies:** `AnalysisService`, AI Client
+
+#### F-57: Analysis Results Viewer
+- **ID:** F-57
+- **Name:** Analysis Results Viewer
+- **Area/Module:** Review
+- **User Type:** Author
+- **Description:** Detailed view of analysis insights, issues, and suggestions.
+- **Entry Points:** Clicking an analysis in Review Dashboard
+- **Preconditions:** Analysis exists
+- **Main Flow:**
+  1. User opens analysis
+  2. **Overview Tab:** Executive summary, critical issues (severity 3)
+  3. **Detailed Results Tab:** Specific visualizations (Plot Threads cards, Character Arc status, Timeline events)
+  4. **Insights Tab:** List of warnings/errors with severity badges and auto-suggestions
+  5. **Metadata Tab:** Token usage, model used, word count at time of analysis
+- **Edge Cases & Error States:**
+  - None
+- **Data Read/Written:** Reads `storyAnalyses`
+- **Dependencies:** None
+
+#### F-58: Analysis History Management
+- **ID:** F-58
+- **Name:** Analysis History Management
+- **Area/Module:** Review
+- **User Type:** Author
+- **Description:** Manage storage of past analyses (delete old runs).
+- **Entry Points:** Delete button in Analysis Results Viewer
+- **Preconditions:** Analysis exists
+- **Main Flow:**
+  1. User views analysis
+  2. User clicks Delete icon
+  3. Confirmation dialog appears
+  4. User confirms
+  5. Analysis removed from DB
+  6. Dialog closes and list updates
+- **Edge Cases & Error States:**
+  - None
+- **Data Read/Written:** Deletes from `storyAnalyses`
+- **Dependencies:** Dexie DB
 
 ---
 
@@ -1155,7 +1247,7 @@
 
 I confirm that this document represents the **complete and comprehensive** state of all application features as discovered in the codebase. I will use this as the authoritative reference for all future development, feature evaluation, and architectural decisions.
 
-**Total Features Documented: 48**
+**Total Features Documented: 52**
 
 This specification covers:
 - ✅ Project & data management
@@ -1167,4 +1259,6 @@ This specification covers:
 - ✅ Snippets
 - ✅ Chat & AI assistant
 - ✅ Settings & configuration
+- ✅ Settings & configuration
 - ✅ Infrastructure & UX systems
+- ✅ Story Analysis & Review

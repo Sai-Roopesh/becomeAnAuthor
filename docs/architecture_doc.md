@@ -1307,3 +1307,64 @@ Key architectural decisions prioritize **user control** and **zero operational c
 ---
 
 > **This is Architecture Document v1.0 and will be treated as the source of truth for all future technical discussions.**
+
+---
+
+## 17. Recent Architecture Improvements (2025-12-01)
+
+### Phase 5 & 6 Refactoring Complete ✅
+
+**Toast Consolidation**  
+- Migrated all direct `sonner` imports to centralized `toast-service`
+- Result: 100% toast centralization across codebase
+- See: [maintenance.md](./maintenance.md) for details
+
+**Feature Boundaries & Shared Components**  
+- Moved `ContextSelector` from chat to shared components
+- Moved `CreateNodeDialog` from project to shared components
+- Result: Zero unintentional cross-feature dependencies
+- All features now depend only on `shared` or `ai` modules
+
+**Codebase Cleanup**  
+- Removed 4 redundant files (~712 lines)
+- Removed 2 empty directories
+- Result: Cleaner architecture, smaller bundle
+
+### Critical Bug Fixes ✅
+
+**DataCloneError Resolution**  
+IndexedDB was failing to store data containing Promises. Fixed in 3 locations:
+1. **SaveCoordinator** - Serialize editor content before storing
+2. **AnalysisService** - Serialize AI response metrics
+3. **DexieAnalysisRepository** - Deep clone analysis objects
+
+Solution: `JSON.parse(JSON.stringify())` at all IndexedDB boundaries  
+See: [troubleshooting.md](./troubleshooting.md) for complete details
+
+**JSON Parsing Robustness**  
+AI responses sometimes contained unescaped control characters. Added two-tier sanitization in `AnalysisService.parseResponse()` to handle imperfectly formatted JSON.
+
+### Current Architecture Metrics
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Cross-Feature Dependencies | 0 | ✅ Clean |
+| Direct DB Access | 0 | ✅ All via repositories |
+| Repository Pattern Coverage | 100% | ✅ Complete |
+| Toast Centralization | 100% | ✅ Complete |
+| Type Safety | 100% | ✅ Full TypeScript |
+| Empty Directories | 0 | ✅ Cleaned |
+| Redundant Files | 0 | ✅ Removed |
+
+### Additional Documentation
+
+- **[dependency_analysis.md](./dependency_analysis.md)** - Comprehensive dependency analysis with 12 mermaid diagrams
+- **[maintenance.md](./maintenance.md)** - Ongoing maintenance log
+- **[troubleshooting.md](./troubleshooting.md)** - Common issues and solutions
+- **[README.md](./README.md)** - Documentation index
+
+---
+
+**Document Version**: v1.1  
+**Last Updated**: 2025-12-01  
+**Status**: Active - Source of Truth for Technical Decisions
