@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Pin, Archive, Download, Trash2, Settings as SettingsIcon } from 'lucide-react';
+import { MoreVertical, Pin, Archive, Download, Trash2, Settings as SettingsIcon, MessageSquare } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ChatHeaderProps {
     threadName: string;
@@ -40,7 +41,11 @@ export function ChatHeader({
     };
 
     return (
-        <div className="border-b p-3 flex items-center gap-2 bg-background z-10">
+        <div className="sticky top-0 z-20 border-b border-border/50 p-4 flex items-center gap-3 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <MessageSquare className="h-4 w-4" />
+            </div>
+
             {isEditing ? (
                 <Input
                     value={name}
@@ -53,13 +58,14 @@ export function ChatHeader({
                             setIsEditing(false);
                         }
                     }}
-                    className="flex-1"
+                    className="flex-1 h-8 font-heading font-semibold"
                     autoFocus
                 />
             ) : (
                 <h2
-                    className="flex-1 font-semibold cursor-pointer hover:text-primary"
+                    className="flex-1 font-heading font-semibold text-lg cursor-pointer hover:text-primary transition-colors truncate"
                     onClick={() => setIsEditing(true)}
+                    title="Click to rename"
                 >
                     {threadName}
                 </h2>
@@ -68,30 +74,30 @@ export function ChatHeader({
             {/* Actions Menu */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted">
                         <MoreVertical className="h-4 w-4" />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={onPin}>
-                        <Pin className="h-4 w-4 mr-2" />
-                        {isPinned ? 'Unpin' : 'Pin'}
+                        <Pin className={cn("h-4 w-4 mr-2", isPinned && "fill-current")} />
+                        {isPinned ? 'Unpin Chat' : 'Pin Chat'}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onArchive}>
                         <Archive className="h-4 w-4 mr-2" />
-                        Archive
+                        Archive Chat
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onExport}>
                         <Download className="h-4 w-4 mr-2" />
-                        Export
+                        Export to Markdown
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onOpenSettings}>
                         <SettingsIcon className="h-4 w-4 mr-2" />
-                        Settings
+                        Chat Settings
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                    <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                        Delete Chat
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

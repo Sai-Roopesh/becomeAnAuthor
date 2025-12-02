@@ -26,7 +26,11 @@ const TITLES = [
     "The Crimson Crown", "Beyond the Horizon", "The Forgotten City", "Starlight and Ash"
 ];
 
-export function CreateProjectDialog() {
+interface CreateProjectDialogProps {
+    trigger?: React.ReactNode;
+}
+
+export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState(1);
     const nodeRepo = useNodeRepository();
@@ -65,7 +69,7 @@ export function CreateProjectDialog() {
 
             // ✅ Use repository - validation happens inside repository
             const projectRepo = new DexieProjectRepository();
-            const project = await projectRepo.create({
+            const projectId = await projectRepo.create({
                 title: formData.title,
                 author: formData.author,
                 language: formData.language,
@@ -75,7 +79,7 @@ export function CreateProjectDialog() {
 
             // Create initial manuscript structure using repository
             const act = await nodeRepo.create({
-                projectId: project.id,
+                projectId: projectId,
                 type: 'act',
                 title: 'Act 1',
                 order: 0,
@@ -84,7 +88,7 @@ export function CreateProjectDialog() {
             });
 
             const chapter = await nodeRepo.create({
-                projectId: project.id,
+                projectId: projectId,
                 type: 'chapter',
                 title: 'Chapter 1',
                 order: 0,
@@ -93,7 +97,7 @@ export function CreateProjectDialog() {
             });
 
             await nodeRepo.create({
-                projectId: project.id,
+                projectId: projectId,
                 type: 'scene',
                 title: 'Scene 1',
                 order: 0,
@@ -119,9 +123,11 @@ export function CreateProjectDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
-                    <Plus className="mr-2 h-4 w-4" /> New Novel
-                </Button>
+                {trigger || (
+                    <Button>
+                        <Plus className="mr-2 h-4 w-4" /> New Novel
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>

@@ -37,53 +37,49 @@ export function PlanView({ projectId }: { projectId: string }) {
     return (
         <div className="h-full flex flex-col bg-background">
             {/* Toolbar */}
-            <div className="border-b p-3 flex items-center gap-4">
-                {/* View Switcher */}
-                <div className="flex gap-1 bg-muted rounded-lg p-1">
-                    <Button
-                        variant={viewType === 'grid' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewType('grid')}
-                        className="gap-2"
-                    >
-                        <LayoutGrid className="h-4 w-4" />
-                        Grid
-                    </Button>
-                    <Button
-                        variant={viewType === 'outline' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewType('outline')}
-                        className="gap-2"
-                    >
-                        <List className="h-4 w-4" />
-                        Outline
-                    </Button>
-                    <Button
-                        variant={viewType === 'matrix' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewType('matrix')}
-                        className="gap-2"
-                    >
-                        <Table className="h-4 w-4" />
-                        Matrix
-                    </Button>
+            <div className="sticky top-0 z-10 border-b p-4 flex flex-col sm:flex-row items-center gap-4 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+                {/* View Switcher - Segmented Control */}
+                <div className="flex p-1 bg-muted/50 rounded-lg border border-border/50 shadow-inner">
+                    {(['grid', 'outline', 'matrix'] as const).map((type) => (
+                        <button
+                            key={type}
+                            onClick={() => setViewType(type)}
+                            className={`
+                                flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200
+                                ${viewType === type
+                                    ? 'bg-background text-primary shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}
+                            `}
+                        >
+                            {type === 'grid' && <LayoutGrid className="h-4 w-4" />}
+                            {type === 'outline' && <List className="h-4 w-4" />}
+                            {type === 'matrix' && <Table className="h-4 w-4" />}
+                            <span className="capitalize">{type}</span>
+                        </button>
+                    ))}
                 </div>
 
                 {/* Search */}
-                <div className="flex-1 max-w-md relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <div className="flex-1 w-full max-w-md relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input
-                        placeholder="Search scenes..."
+                        placeholder="Search scenes, characters, plot points..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-9"
+                        className="pl-10 bg-muted/30 border-border/50 focus:bg-background transition-all"
                     />
                 </div>
 
-                {/* Settings */}
-                <Button variant="ghost" size="icon">
-                    <Settings className="h-4 w-4" />
-                </Button>
+                {/* Settings & Actions */}
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="gap-2 hidden sm:flex">
+                        <Settings className="h-4 w-4" />
+                        <span>View Options</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="sm:hidden">
+                        <Settings className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
 
             {/* Main View */}

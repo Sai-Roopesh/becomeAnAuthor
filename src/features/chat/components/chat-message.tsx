@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { MoreVertical, Copy, Save, RefreshCw, Trash2, Pencil } from 'lucide-react';
+import { MoreVertical, Copy, Save, RefreshCw, Trash2, Pencil, Sparkles, User } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@/lib/config/types';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
 import ReactMarkdown from 'react-markdown';
@@ -13,6 +12,7 @@ import remarkGfm from 'remark-gfm';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { useChatRepository } from '@/hooks/use-chat-repository';
+import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -25,6 +25,8 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(message.content);
     const { confirm, ConfirmationDialog } = useConfirmation();
+
+    const isUser = message.role === 'user';
 
     const handleCopy = () => {
         navigator.clipboard.writeText(message.content);
@@ -91,7 +93,7 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
             let messagesToDelete: ChatMessageType[] = [];
             let description: string;
 
-            if (message.role === 'user') {
+            if (isUser) {
                 const allMessages = await chatRepo.getMessagesByThread(message.threadId);
 
                 const messageIndex = allMessages.findIndex(m => m.id === message.id);
@@ -129,14 +131,17 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
 
     if (isEditing) {
         return (
-            <div className={`p-3 rounded-lg ${message.role === 'user' ? 'bg-primary/10 ml-12' : 'bg-muted mr-12'}`}>
+            <div className={cn(
+                "p-4 rounded-2xl border shadow-sm bg-background",
+                isUser ? "ml-12" : "mr-12"
+            )}>
                 <Textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="min-h-[100px] mb-2 bg-background"
+                    className="min-h-[100px] mb-3 bg-muted/30 resize-none"
                 />
                 <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
+                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
                         Cancel
                     </Button>
                     <Button size="sm" onClick={handleSaveEdit}>
@@ -149,70 +154,104 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
 
     return (
         <>
-            <div
-                className={`group relative p-3 rounded-lg ${message.role === 'user'
-                    ? 'bg-primary/10 ml-12'
-                    : 'bg-muted mr-12'
-                    }`}
-            >
-                <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                        <div className="text-xs font-medium text-muted-foreground mb-1">
-                            {message.role === 'user' ? 'You' : 'AI'}
-                        </div>
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                    code(props) {
-                                        const { className, children, ...rest } = props;
-                                        const match = /language-(\w+)/.exec(className || '');
-                                        const isInline = !match;
+            <div className={cn(
+                "group relative flex gap-3",
+                isUser ? "flex-row-reverse pl-12" : "pr-12"
+            )}>
+                {/* Avatar */}
+                <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1 shadow-sm",
+                    isUser ? "bg-primary text-primary-foreground" : "bg-background border border-border/50 text-primary"
+                )}>
+                    {isUser ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                </div>
 
-                                        return isInline ? (
-                                            <code className="bg-muted px-1 py-0.5 rounded text-sm" {...rest}>
-                                                {children}
-                                            </code>
-                                        ) : (
-                                            <pre className="bg-muted/50 p-3 rounded-lg overflow-x-auto my-2">
-                                                <code className={className} {...rest}>
+                {/* Message Bubble */}
+                <div className={cn(
+                    "relative px-4 py-3 shadow-sm max-w-full overflow-hidden",
+                    isUser
+                        ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
+                        : "bg-card border border-border/50 rounded-2xl rounded-tl-sm"
+                )}>
+                    <div className={cn(
+                        "prose prose-sm max-w-none break-words leading-relaxed",
+                        isUser ? "prose-invert" : "dark:prose-invert"
+                    )}>
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                code(props) {
+                                    const { className, children, ...rest } = props;
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    const isInline = !match;
+
+                                    return isInline ? (
+                                        <code className={cn(
+                                            "px-1 py-0.5 rounded text-sm font-mono",
+                                            isUser ? "bg-primary-foreground/20" : "bg-muted"
+                                        )} {...rest}>
+                                            {children}
+                                        </code>
+                                    ) : (
+                                        <div className="relative my-3 rounded-lg overflow-hidden border border-border/50 bg-muted/50">
+                                            <div className="flex items-center justify-between px-3 py-1.5 bg-muted/80 border-b border-border/50 text-xs text-muted-foreground">
+                                                <span>{match?.[1] || 'code'}</span>
+                                            </div>
+                                            <pre className="p-3 overflow-x-auto">
+                                                <code className={cn("text-sm font-mono", className)} {...rest}>
                                                     {children}
                                                 </code>
                                             </pre>
-                                        );
-                                    },
-                                    p({ children }) {
-                                        return <p className="mb-2 last:mb-0">{children}</p>;
-                                    },
-                                    ul({ children }) {
-                                        return <ul className="list-disc list-inside mb-2">{children}</ul>;
-                                    },
-                                    ol({ children }) {
-                                        return <ol className="list-decimal list-inside mb-2">{children}</ol>;
-                                    },
-                                }}
-                            >
-                                {message.content}
-                            </ReactMarkdown>
-                        </div>
+                                        </div>
+                                    );
+                                },
+                                p({ children }) {
+                                    return <p className="mb-2 last:mb-0">{children}</p>;
+                                },
+                                ul({ children }) {
+                                    return <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>;
+                                },
+                                ol({ children }) {
+                                    return <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>;
+                                },
+                                a({ children, href }) {
+                                    return <a href={href} className="underline underline-offset-2 hover:opacity-80" target="_blank" rel="noopener noreferrer">{children}</a>
+                                }
+                            }}
+                        >
+                            {message.content}
+                        </ReactMarkdown>
                     </div>
 
+                    <div className={cn(
+                        "text-[10px] mt-1 opacity-70 flex justify-end",
+                        isUser ? "text-primary-foreground" : "text-muted-foreground"
+                    )}>
+                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </div>
+
+                {/* Actions Dropdown */}
+                <div className={cn(
+                    "opacity-0 group-hover:opacity-100 transition-opacity self-start mt-2",
+                    isUser ? "mr-2" : "ml-2"
+                )}>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-6 w-6 rounded-full hover:bg-muted"
                             >
-                                <MoreVertical className="h-3 w-3" />
+                                <MoreVertical className="h-3 w-3 text-muted-foreground" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align={isUser ? "end" : "start"}>
                             <DropdownMenuItem onClick={handleCopy}>
                                 <Copy className="h-4 w-4 mr-2" />
                                 Copy
                             </DropdownMenuItem>
-                            {message.role === 'user' && (
+                            {isUser && (
                                 <DropdownMenuItem onClick={handleEdit}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Edit Message
@@ -224,7 +263,7 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
                                     Save as Snippet
                                 </DropdownMenuItem>
                             )}
-                            {message.role === 'assistant' && FEATURE_FLAGS.RETRY_MESSAGE && (
+                            {!isUser && FEATURE_FLAGS.RETRY_MESSAGE && (
                                 <DropdownMenuItem onClick={handleRetry}>
                                     <RefreshCw className="h-4 w-4 mr-2" />
                                     Retry
@@ -232,17 +271,13 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
                             )}
                             <DropdownMenuItem
                                 onClick={confirmDelete}
-                                className="text-destructive"
+                                className="text-destructive focus:text-destructive"
                             >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete Message
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-
-                <div className="text-xs text-muted-foreground mt-2">
-                    {new Date(message.timestamp).toLocaleTimeString()}
                 </div>
             </div>
 

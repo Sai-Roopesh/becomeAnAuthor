@@ -8,13 +8,21 @@ import { toast } from './toast-service';
 class SafeStorage {
     /**
      * Safely get an item from localStorage with fallback
+     * Handles both JSON-encoded values (new) and plain strings (legacy)
      */
     getItem<T>(key: string, fallback: T): T {
         try {
             const item = localStorage.getItem(key);
             if (item === null) return fallback;
 
-            return JSON.parse(item) as T;
+            // Try to parse as JSON first (new format)
+            try {
+                return JSON.parse(item) as T;
+            } catch {
+                // If JSON parse fails, assume it's a legacy plain string value
+                // This handles cases where old code stored strings directly
+                return item as T;
+            }
         } catch (error) {
             console.error(`Failed to read from localStorage (${key}):`, error);
             return fallback;

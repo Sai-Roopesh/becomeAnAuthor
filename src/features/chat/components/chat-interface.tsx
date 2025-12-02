@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { useChatRepository } from '@/hooks/use-chat-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, Search, Trash2, MessageSquare, Sparkles } from 'lucide-react';
 import { useChatStore } from '@/store/use-chat-store';
 import { ChatThread } from './chat-thread';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
+import { cn } from '@/lib/utils';
 
 interface ChatInterfaceProps {
     projectId: string;
@@ -63,69 +63,103 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
     );
 
     return (
-        <div className="h-full flex">
+        <div className="h-full flex bg-background/95 backdrop-blur-sm">
             {/* Thread List Sidebar */}
-            <div className="w-64 border-r flex flex-col bg-muted/10">
-                <div className="p-3 border-b space-y-2">
-                    <Button onClick={createNewThread} className="w-full" size="sm">
+            <div className="w-72 border-r border-border/50 flex flex-col bg-background/50 backdrop-blur-md">
+                <div className="p-4 border-b border-border/50 space-y-4">
+                    <Button
+                        onClick={createNewThread}
+                        className="w-full shadow-sm bg-primary/90 hover:bg-primary transition-all"
+                        size="default"
+                    >
                         <Plus className="h-4 w-4 mr-2" />
                         New Chat
                     </Button>
-                    <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input
                             placeholder="Search chats..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-8"
+                            className="pl-9 bg-muted/50 border-transparent focus:bg-background transition-all"
                         />
                     </div>
                 </div>
 
-                <ScrollArea className="flex-1">
-                    <div className="p-2 space-y-1">
+                <ScrollArea className="flex-1 p-3">
+                    <div className="space-y-2">
                         {filteredThreads?.map((thread) => (
                             <div
                                 key={thread.id}
-                                className={`group flex items-center gap-2 w-full p-2 rounded hover:bg-accent transition-colors ${activeThreadId === thread.id ? 'bg-accent' : ''
-                                    }`}
+                                className={cn(
+                                    "group flex items-center gap-3 w-full p-3 rounded-xl border transition-all duration-200 cursor-pointer",
+                                    activeThreadId === thread.id
+                                        ? 'bg-primary/5 border-primary/20 shadow-sm'
+                                        : 'bg-transparent border-transparent hover:bg-card hover:border-border/50 hover:shadow-sm'
+                                )}
+                                onClick={() => setActiveThreadId(thread.id)}
                             >
-                                <button
-                                    onClick={() => setActiveThreadId(thread.id)}
-                                    className="flex-1 text-left min-w-0"
-                                >
-                                    <div className="font-medium text-sm truncate">{thread.name}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {new Date(thread.updatedAt).toLocaleDateString()}
+                                <div className={cn(
+                                    "h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors",
+                                    activeThreadId === thread.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary"
+                                )}>
+                                    <MessageSquare className="h-4 w-4" />
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                    <div className={cn(
+                                        "font-heading font-medium text-sm truncate transition-colors",
+                                        activeThreadId === thread.id ? "text-primary" : "text-foreground"
+                                    )}>
+                                        {thread.name}
                                     </div>
-                                </button>
+                                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                        <span>{new Date(thread.updatedAt).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive -mr-1"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleDeleteThread(thread.id);
                                     }}
                                 >
-                                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
                         ))}
+
+                        {filteredThreads?.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <p className="text-sm">No chats found</p>
+                            </div>
+                        )}
                     </div>
                 </ScrollArea>
             </div>
 
             {/* Chat Thread View */}
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col min-w-0 bg-background/30 relative">
+                {/* Subtle background texture */}
+                <div className="absolute inset-0 z-[-1] opacity-30 pointer-events-none bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)]" />
+
                 {activeThreadId ? (
                     <ChatThread threadId={activeThreadId} />
                 ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground">
-                        <div className="text-center">
-                            <p className="text-lg mb-2">No chat selected</p>
-                            <p className="text-sm">Create a new chat or select an existing one</p>
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground animate-in fade-in zoom-in duration-500">
+                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 shadow-sm">
+                            <Sparkles className="h-10 w-10 text-primary" />
                         </div>
+                        <h2 className="text-2xl font-heading font-bold text-foreground mb-2">AI Assistant</h2>
+                        <p className="text-sm max-w-sm text-center leading-relaxed">
+                            Select a chat from the sidebar or start a new conversation to brainstorm, outline, or write with AI.
+                        </p>
+                        <Button onClick={createNewThread} className="mt-6" variant="outline">
+                            Start New Chat
+                        </Button>
                     </div>
                 )}
             </div>
