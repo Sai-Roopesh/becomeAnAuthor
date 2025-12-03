@@ -1,22 +1,30 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
+import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
 import { isScene, DocumentNode, CodexEntry } from '@/lib/config/types';
 
-export function useSearch() {
+export function useSearch(projectId: string) {
     const [query, setQuery] = useState('');
+    const nodeRepo = useNodeRepository();
+    const codexRepo = useCodexRepository();
 
-    // Fetch scenes and codex entries
-    // NOTE: Keeping direct DB access here as INodeRepository/ICodexRepository lack getAll() methods
-    // TODO: Add getAll() to repository interfaces for complete abstraction
-    const scenes = useLiveQuery(() =>
-        db.nodes.where('type').equals('scene').toArray()
+    // Fetch scenes and codex entries using repositories
+    const allNodes = useLiveQuery(
+        () => nodeRepo.getByProject(projectId),
+        [projectId, nodeRepo]
     );
 
-    const codexEntries = useLiveQuery(() =>
-        db.codex.toArray()
+    const codexEntries = useLiveQuery(
+        () => codexRepo.getByProject(projectId),
+        [projectId, codexRepo]
     );
+
+    // Filter to just scenes
+    const scenes = useMemo(() => {
+        return allNodes?.filter(node => isScene(node)) || [];
+    }, [allNodes]);
 
     // Initialize scene search index
     useEffect(() => {
@@ -60,6 +68,6 @@ export function useSearch() {
         query,
         setQuery,
         results,
-        isLoading: !scenes || !codexEntries,
+        isLoading: !allNodes || !codexEntries,
     };
 }

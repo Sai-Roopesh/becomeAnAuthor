@@ -16,7 +16,7 @@ interface SearchPaletteProps {
 }
 
 export function SearchPalette({ projectId, open, onOpenChange }: SearchPaletteProps) {
-    const { query, setQuery, results, isLoading } = useSearch();
+    const { query, setQuery, results, isLoading } = useSearch(projectId);
     const { setActiveSceneId, setViewMode } = useProjectStore();
     const router = useRouter();
     const [selectedIndex, setSelectedIndex] = useState(0);

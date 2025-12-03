@@ -1,3 +1,20 @@
+/**
+ * Document Export Hook
+ * 
+ * ARCHITECTURAL EXCEPTION: This hook is permitted to directly import and use `db`
+ * because it operates at the infrastructure layer performing document export operations
+ * that need to traverse the entire manuscript tree structure.
+ * 
+ * This is one of the ONLY exceptions to Rule #2 (Data Access Pattern) and should
+ * NOT be used as a precedent for other hooks or components.
+ * 
+ * Rationale:
+ * - Performs full manuscript export to DOCX format
+ * - Needs to query and traverse entire project tree atomically
+ * - Is a low-level export utility, not feature code
+ * 
+ * Future: Consider moving to infrastructure/services/ExportService.ts
+ */
 import { db } from '@/lib/core/database';
 import { toast } from '@/lib/toast-service';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak } from 'docx';

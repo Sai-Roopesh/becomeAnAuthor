@@ -1,17 +1,15 @@
 import { ReactRenderer } from '@tiptap/react';
 import tippy from 'tippy.js';
 import { MentionList } from './mention-list';
-import { db } from '@/lib/core/database';
-import { DexieCodexRepository } from '@/infrastructure/repositories/DexieCodexRepository';
+import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 
-const codexRepo = new DexieCodexRepository(db);
-
-export const suggestion = {
+/**
+ * Creates a Tiptap suggestion configuration for codex mentions
+ * Factory function to allow dependency injection of projectId and repository
+ */
+export const createCodexSuggestion = (projectId: string, codexRepo: ICodexRepository) => ({
     items: async ({ query }: { query: string }) => {
-        // TODO: This needs access to projectId
-        // Currently using empty string as workaround
-        // Should pass projectId from EditorContainer context
-        const entries = await codexRepo.getByProject('');
+        const entries = await codexRepo.getByProject(projectId);
 
         if (!query) {
             return entries
@@ -78,4 +76,5 @@ export const suggestion = {
             },
         };
     },
-};
+});
+

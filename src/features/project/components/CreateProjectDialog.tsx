@@ -13,12 +13,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { db } from '@/lib/core/database';
 import { v4 as uuidv4 } from 'uuid';
 import { Sparkles, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DexieProjectRepository } from '@/infrastructure/repositories/DexieProjectRepository';
+import { useProjectRepository } from '@/hooks/use-project-repository';
 import { useNodeRepository } from '@/hooks/use-node-repository';
+// TODO: Remove this import once SeriesRepository is created
+import { db } from '@/lib/core/database';
 
 const TITLES = [
     "The Last Starship", "Whispers in the Dark", "The Clockwork Heart", "Echoes of Eternity",
@@ -33,6 +34,7 @@ interface CreateProjectDialogProps {
 export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState(1);
+    const projectRepo = useProjectRepository();
     const nodeRepo = useNodeRepository();
     const [formData, setFormData] = useState({
         title: '',
@@ -51,8 +53,8 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
         try {
             let seriesId = undefined;
             if (formData.seriesName) {
-                // Check if series exists or create new
-                // Note: db.series still used directly - needs ISeriesRepository in future
+                // TODO: Create SeriesRepository and use it here instead of direct db access
+                // Current temporary solution until SeriesRepository is implemented
                 const existingSeries = await db.series.where('title').equals(formData.seriesName).first();
                 if (existingSeries) {
                     seriesId = existingSeries.id;
@@ -68,7 +70,6 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
             }
 
             // ✅ Use repository - validation happens inside repository
-            const projectRepo = new DexieProjectRepository();
             const projectId = await projectRepo.create({
                 title: formData.title,
                 author: formData.author,

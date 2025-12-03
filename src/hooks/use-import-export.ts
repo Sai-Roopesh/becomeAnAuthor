@@ -1,3 +1,21 @@
+/**
+ * Import/Export Hook
+ * 
+ * ARCHITECTURAL EXCEPTION: This hook is permitted to directly import and use `db`
+ * because it operates at the infrastructure layer performing complex cross-table
+ * operations that require atomic transactions across multiple repositories.
+ * 
+ * This is one of the ONLY exceptions to Rule #2 (Data Access Pattern) and should
+ * NOT be used as a precedent for other hooks or components.
+ * 
+ * Rationale:
+ * - Performs full database backup/restore operations
+ * - Requires atomic transactions across ALL tables
+ * - Would be extremely complex to coordinate through individual repositories
+ * - Is a low-level infrastructure utility, not feature code
+ * 
+ * Future: Consider moving to infrastructure/services/ImportExportService.ts
+ */
 import { db } from '@/lib/core/database';
 import { toast } from '@/lib/toast-service';
 import { ExportedProject, Project, DocumentNode, CodexEntry, ChatThread, ChatMessage, CodexRelation, CodexAddition, Section, Snippet, DriveBackupMetadata } from '@/lib/config/types';
@@ -68,6 +86,9 @@ export function useImportExport() {
             const codexAdditions = await db.codexAdditions.where('sceneId').anyOf(sceneIds).toArray();
             const sections = await db.sections.where('sceneId').anyOf(sceneIds).toArray();
 
+            // Get story analyses for the project
+            const storyAnalyses = await db.storyAnalyses.where('projectId').equals(projectId).toArray();
+
             const exportData: ExportedProject = {
                 version: 1,
                 project,
@@ -79,6 +100,7 @@ export function useImportExport() {
                 codexAdditions,
                 sections,
                 snippets,
+                storyAnalyses,
             };
 
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -353,6 +375,9 @@ export function useImportExport() {
             const codexAdditions = await db.codexAdditions.where('sceneId').anyOf(sceneIds).toArray();
             const sections = await db.sections.where('sceneId').anyOf(sceneIds).toArray();
 
+            // Get story analyses for the project
+            const storyAnalyses = await db.storyAnalyses.where('projectId').equals(projectId).toArray();
+
             const exportData: ExportedProject = {
                 version: 1,
                 project,
@@ -364,6 +389,7 @@ export function useImportExport() {
                 codexAdditions,
                 sections,
                 snippets,
+                storyAnalyses,
             };
 
             // Prepare Drive backup metadata

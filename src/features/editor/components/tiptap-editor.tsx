@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAutoSave } from '@/hooks/use-auto-save';
 import { useAI } from '@/hooks/use-ai';
@@ -17,7 +17,8 @@ import { Section } from '@/lib/tiptap-extensions/section-node';
 import { AI_DEFAULTS } from '@/lib/config/constants';
 
 import Mention from '@tiptap/extension-mention';
-import { suggestion } from './suggestion';
+import { createCodexSuggestion } from './suggestion';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
 
 export function TiptapEditor({
     sceneId,
@@ -33,6 +34,13 @@ export function TiptapEditor({
     const formatSettings = useFormatStore();
     const [showContinueMenu, setShowContinueMenu] = useState(false);
     const previousSceneIdRef = useRef<string | null>(null);
+    const codexRepo = useCodexRepository();
+
+    // Create suggestion configuration with projectId and repository
+    const suggestion = useMemo(
+        () => createCodexSuggestion(projectId, codexRepo),
+        [projectId, codexRepo]
+    );
 
     const editor = useEditor({
         immediatelyRender: false,

@@ -1,7 +1,6 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/core/database';
 import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

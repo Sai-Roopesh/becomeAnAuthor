@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, FileText, Layers, Users, Clock, AlertCircle, Eye } from 'lucide-react';
 import { useAnalysisRunner } from '../hooks/use-analysis-runner';
 import { ManuscriptTreeSelector } from './ManuscriptTreeSelector';
 import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { cn } from '@/lib/utils';
 
 interface AnalysisRunDialogProps {
     projectId: string;
@@ -65,119 +66,133 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border/50">
                 <DialogHeader>
-                    <DialogTitle>Run Story Analysis</DialogTitle>
+                    <DialogTitle className="text-2xl font-heading font-bold">Run Story Analysis</DialogTitle>
                     <DialogDescription>
                         Select the scope and types of analysis to run on your manuscript
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-6 py-4">
+                <div className="space-y-8 py-4">
                     {/* Scope Selection */}
-                    <div className="space-y-3">
-                        <Label>Analysis Scope</Label>
-                        <RadioGroup value={scope} onValueChange={(v) => setScope(v as 'full' | 'custom')}>
-                            <div className="flex items-center space-x-2">
+                    <div className="space-y-4">
+                        <Label className="text-base font-semibold">Analysis Scope</Label>
+                        <RadioGroup value={scope} onValueChange={(v) => setScope(v as 'full' | 'custom')} className="grid grid-cols-2 gap-4">
+                            <div className={cn(
+                                "flex items-center space-x-3 p-4 rounded-xl border transition-all cursor-pointer",
+                                scope === 'full' ? "bg-primary/10 border-primary" : "hover:bg-muted/50 border-border"
+                            )}>
                                 <RadioGroupItem value="full" id="full" />
-                                <Label htmlFor="full" className="font-normal cursor-pointer">
+                                <Label htmlFor="full" className="font-medium cursor-pointer">
                                     Full Manuscript
                                 </Label>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className={cn(
+                                "flex items-center space-x-3 p-4 rounded-xl border transition-all cursor-pointer",
+                                scope === 'custom' ? "bg-primary/10 border-primary" : "hover:bg-muted/50 border-border"
+                            )}>
                                 <RadioGroupItem value="custom" id="custom" />
-                                <Label htmlFor="custom" className="font-normal cursor-pointer">
-                                    Selected Acts/Chapters/Scenes
+                                <Label htmlFor="custom" className="font-medium cursor-pointer">
+                                    Selected Scenes
                                 </Label>
                             </div>
                         </RadioGroup>
 
                         {scope === 'custom' && (
-                            <ManuscriptTreeSelector
-                                projectId={projectId}
-                                selected={selectedNodes}
-                                onSelect={setSelectedNodes}
-                            />
+                            <div className="mt-4 p-4 border rounded-xl bg-muted/30">
+                                <ManuscriptTreeSelector
+                                    projectId={projectId}
+                                    selected={selectedNodes}
+                                    onSelect={setSelectedNodes}
+                                />
+                            </div>
                         )}
                     </div>
 
-                    {/* Model Selection - Using existing ModelCombobox */}
-                    <div className="space-y-2">
-                        <Label>AI Model</Label>
+                    {/* Model Selection */}
+                    <div className="space-y-4">
+                        <Label className="text-base font-semibold">AI Model</Label>
                         <ModelCombobox
                             value={selectedModel}
                             onValueChange={setSelectedModel}
                         />
                     </div>
-                </div>
 
-                {/* Analysis Types */}
-                <div className="space-y-3">
-                    <Label>Analysis Types</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <AnalysisTypeCheckbox
-                            id="synopsis"
-                            label="Synopsis Generation"
-                            checked={analysisTypes.synopsis}
-                            onCheckedChange={() => toggleAnalysisType('synopsis')}
-                        />
-                        <AnalysisTypeCheckbox
-                            id="plot-threads"
-                            label="Plot Thread Tracking"
-                            checked={analysisTypes['plot-threads']}
-                            onCheckedChange={() => toggleAnalysisType('plot-threads')}
-                        />
-                        <AnalysisTypeCheckbox
-                            id="character-arcs"
-                            label="Character Arc Analysis"
-                            checked={analysisTypes['character-arcs']}
-                            onCheckedChange={() => toggleAnalysisType('character-arcs')}
-                        />
-                        <AnalysisTypeCheckbox
-                            id="timeline"
-                            label="Timeline Analysis"
-                            checked={analysisTypes.timeline}
-                            onCheckedChange={() => toggleAnalysisType('timeline')}
-                        />
-                        <AnalysisTypeCheckbox
-                            id="contradictions"
-                            label="Contradiction Detection"
-                            badge="Coming Soon"
-                            checked={analysisTypes.contradictions}
-                            onCheckedChange={() => toggleAnalysisType('contradictions')}
-                            disabled
-                        />
-                        <AnalysisTypeCheckbox
-                            id="foreshadowing"
-                            label="Foreshadowing Tracker"
-                            badge="Coming Soon"
-                            checked={analysisTypes.foreshadowing}
-                            onCheckedChange={() => toggleAnalysisType('foreshadowing')}
-                            disabled
-                        />
+                    {/* Analysis Types */}
+                    <div className="space-y-4">
+                        <Label className="text-base font-semibold">Analysis Types</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <AnalysisTypeCheckbox
+                                id="synopsis"
+                                label="Synopsis Generation"
+                                icon={<FileText className="h-4 w-4" />}
+                                checked={analysisTypes.synopsis}
+                                onCheckedChange={() => toggleAnalysisType('synopsis')}
+                            />
+                            <AnalysisTypeCheckbox
+                                id="plot-threads"
+                                label="Plot Thread Tracking"
+                                icon={<Layers className="h-4 w-4" />}
+                                checked={analysisTypes['plot-threads']}
+                                onCheckedChange={() => toggleAnalysisType('plot-threads')}
+                            />
+                            <AnalysisTypeCheckbox
+                                id="character-arcs"
+                                label="Character Arc Analysis"
+                                icon={<Users className="h-4 w-4" />}
+                                checked={analysisTypes['character-arcs']}
+                                onCheckedChange={() => toggleAnalysisType('character-arcs')}
+                            />
+                            <AnalysisTypeCheckbox
+                                id="timeline"
+                                label="Timeline Analysis"
+                                icon={<Clock className="h-4 w-4" />}
+                                checked={analysisTypes.timeline}
+                                onCheckedChange={() => toggleAnalysisType('timeline')}
+                            />
+                            <AnalysisTypeCheckbox
+                                id="contradictions"
+                                label="Contradiction Detection"
+                                icon={<AlertCircle className="h-4 w-4" />}
+                                badge="Coming Soon"
+                                checked={analysisTypes.contradictions}
+                                onCheckedChange={() => toggleAnalysisType('contradictions')}
+                                disabled
+                            />
+                            <AnalysisTypeCheckbox
+                                id="foreshadowing"
+                                label="Foreshadowing Tracker"
+                                icon={<Eye className="h-4 w-4" />}
+                                badge="Coming Soon"
+                                checked={analysisTypes.foreshadowing}
+                                onCheckedChange={() => toggleAnalysisType('foreshadowing')}
+                                disabled
+                            />
+                        </div>
                     </div>
+
+                    {/* Token Warning */}
+                    <Alert className="bg-primary/5 border-primary/20">
+                        <AlertTriangle className="h-4 w-4 text-primary" />
+                        <AlertDescription className="text-primary/80">
+                            <strong>Estimated tokens: ~{estimatedTokens.toLocaleString()}</strong>
+                            <br />
+                            This will use your AI quota. Make sure you have an AI connection configured in settings.
+                        </AlertDescription>
+                    </Alert>
                 </div>
 
-                {/* Token Warning */}
-                <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                        <strong>Estimated tokens: ~{estimatedTokens.toLocaleString()}</strong>
-                        <br />
-                        This will use your AI quota. Make sure you have an AI connection configured in settings.
-                    </AlertDescription>
-                </Alert>
+                <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="ghost" onClick={onClose} disabled={isRunning}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleRunAnalysis} disabled={isRunning || enabledTypes.length === 0 || !selectedModel} className="min-w-[140px]">
+                        {isRunning && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        {isRunning ? 'Running...' : 'Run Analysis'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
-
-            <DialogFooter>
-                <Button variant="outline" onClick={onClose} disabled={isRunning}>
-                    Cancel
-                </Button>
-                <Button onClick={handleRunAnalysis} disabled={isRunning || enabledTypes.length === 0 || !selectedModel}>
-                    {isRunning && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {isRunning ? 'Running Analysis...' : 'Run Analysis'}
-                </Button>
-            </DialogFooter>
         </Dialog>
     );
 }
@@ -185,22 +200,39 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
 interface AnalysisTypeCheckboxProps {
     id: string;
     label: string;
+    icon?: React.ReactNode;
     badge?: string;
     checked: boolean;
     onCheckedChange: (checked: boolean) => void;
     disabled?: boolean;
 }
 
-function AnalysisTypeCheckbox({ id, label, badge, checked, onCheckedChange, disabled }: AnalysisTypeCheckboxProps) {
+function AnalysisTypeCheckbox({ id, label, icon, badge, checked, onCheckedChange, disabled }: AnalysisTypeCheckboxProps) {
     return (
-        <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
-            <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+        <div
+            className={cn(
+                "flex items-center space-x-3 p-3 border rounded-xl transition-all cursor-pointer",
+                checked ? "bg-primary/5 border-primary shadow-sm" : "hover:bg-muted/50 border-border",
+                disabled && "opacity-60 cursor-not-allowed hover:bg-transparent"
+            )}
+            onClick={() => !disabled && onCheckedChange(!checked)}
+        >
+            <Checkbox
+                id={id}
+                checked={checked}
+                onCheckedChange={onCheckedChange}
+                disabled={disabled}
+                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
             <div className="flex-1">
-                <Label htmlFor={id} className={`font-normal cursor-pointer ${disabled ? 'text-muted-foreground' : ''}`}>
-                    {label}
-                </Label>
+                <div className="flex items-center gap-2">
+                    {icon && <span className={cn("text-muted-foreground", checked && "text-primary")}>{icon}</span>}
+                    <Label htmlFor={id} className={cn("font-medium cursor-pointer", disabled && "cursor-not-allowed")}>
+                        {label}
+                    </Label>
+                </div>
                 {badge && (
-                    <span className="ml-2 text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
+                    <span className="mt-1 inline-block text-[10px] px-1.5 py-0.5 bg-muted rounded-full text-muted-foreground font-medium">
                         {badge}
                     </span>
                 )}
