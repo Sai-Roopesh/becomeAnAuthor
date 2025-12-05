@@ -18,6 +18,18 @@ import type {
     CodexRelationType
 } from '@/lib/config/types';
 
+/**
+ * Emergency backup stored in IndexedDB (replaces localStorage for safety)
+ * Used when normal save fails or on page unload
+ */
+export interface EmergencyBackup {
+    id: string;
+    sceneId: string;
+    content: any;
+    createdAt: number;
+    expiresAt: number;
+}
+
 export class NovelDB extends Dexie {
     projects!: Table<Project>;
     nodes!: Table<DocumentNode | Scene>;
@@ -31,14 +43,38 @@ export class NovelDB extends Dexie {
     chatMessages!: Table<ChatMessage>;
     storyAnalyses!: Table<StoryAnalysis>;
 
-    // NEW: Phase 1 Codex enhancements
+    // Phase 1 Codex enhancements
     codexTags!: Table<CodexTag>;
     codexEntryTags!: Table<CodexEntryTag>;
     codexTemplates!: Table<CodexTemplate>;
     codexRelationTypes!: Table<CodexRelationType>;
 
+    // NEW: Emergency backup table (replaces localStorage)
+    emergencyBackups!: Table<EmergencyBackup>;
+
     constructor() {
         super('NovelDB');
+
+        // Version 9: Add emergencyBackups table for safe offline backup
+        this.version(9).stores({
+            projects: 'id, title, createdAt, archived, seriesId',
+            nodes: 'id, projectId, parentId, type, order',
+            codex: 'id, projectId, name, category, *tags',
+            series: 'id, title',
+            snippets: 'id, projectId, title, pinned',
+            codexRelations: 'id, parentId, childId, type',
+            codexAdditions: 'id, sceneId, codexEntryId',
+            sections: 'id, sceneId',
+            chatThreads: 'id, projectId, pinned, archived, createdAt',
+            chatMessages: 'id, threadId, timestamp',
+            storyAnalyses: 'id, projectId, analysisType, scope, createdAt, manuscriptVersion',
+            codexTags: 'id, projectId, name, category',
+            codexEntryTags: 'id, entryId, tagId, [entryId+tagId]',
+            codexTemplates: 'id, [name+category], category, isBuiltIn, projectId',
+            codexRelationTypes: 'id, [name+category], category, isBuiltIn',
+            // NEW: Emergency backup table
+            emergencyBackups: 'id, sceneId, expiresAt',
+        });
 
         // Version 8: Add unique constraints to prevent duplicates
         this.version(8).stores({

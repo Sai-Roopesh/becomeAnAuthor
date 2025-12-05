@@ -15,17 +15,18 @@ describe('DexieProjectRepository', () => {
 
     describe('create', () => {
         it('should create project with valid data', async () => {
-            const project = await repo.create({
+            const projectId = await repo.create({
                 title: 'Test Project',
                 author: 'Test Author',
                 language: 'English (US)',
             });
 
-            expect(project.id).toBeDefined();
-            expect(project.title).toBe('Test Project');
-            expect(project.author).toBe('Test Author');
-            expect(project.createdAt).toBeDefined();
-            expect(project.updatedAt).toBeDefined();
+            expect(projectId).toBeDefined();
+            const project = await repo.get(projectId);
+            expect(project?.title).toBe('Test Project');
+            expect(project?.author).toBe('Test Author');
+            expect(project?.createdAt).toBeDefined();
+            expect(project?.updatedAt).toBeDefined();
         });
 
         it('should reject project with empty title', async () => {
@@ -48,34 +49,34 @@ describe('DexieProjectRepository', () => {
         });
 
         it('should generate unique IDs for multiple projects', async () => {
-            const project1 = await repo.create({
+            const projectId1 = await repo.create({
                 title: 'Project 1',
                 author: 'Author 1',
                 language: 'English (US)',
             });
 
-            const project2 = await repo.create({
+            const projectId2 = await repo.create({
                 title: 'Project 2',
                 author: 'Author 2',
                 language: 'English (US)',
             });
 
-            expect(project1.id).not.toBe(project2.id);
+            expect(projectId1).not.toBe(projectId2);
         });
     });
 
     describe('get', () => {
         it('should retrieve project by ID', async () => {
-            const created = await repo.create({
+            const createdId = await repo.create({
                 title: 'Test Project',
                 author: 'Test Author',
                 language: 'English (US)',
             });
 
-            const retrieved = await repo.get(created.id);
+            const retrieved = await repo.get(createdId);
 
             expect(retrieved).toBeDefined();
-            expect(retrieved?.id).toBe(created.id);
+            expect(retrieved?.id).toBe(createdId);
             expect(retrieved?.title).toBe('Test Project');
         });
 
@@ -111,71 +112,72 @@ describe('DexieProjectRepository', () => {
 
     describe('update', () => {
         it('should update project title', async () => {
-            const project = await repo.create({
+            const projectId = await repo.create({
                 title: 'Original Title',
                 author: 'Test Author',
                 language: 'English (US)',
             });
+            const project = await repo.get(projectId);
 
-            await repo.update(project.id, { title: 'Updated Title' });
+            await repo.update(projectId, { title: 'Updated Title' });
 
-            const updated = await repo.get(project.id);
+            const updated = await repo.get(projectId);
             expect(updated?.title).toBe('Updated Title');
-            expect(updated?.updatedAt).toBeGreaterThan(project.updatedAt);
+            expect(updated?.updatedAt).toBeGreaterThan(project!.updatedAt);
         });
     });
 
     describe('archive', () => {
         it('should archive project', async () => {
-            const project = await repo.create({
+            const projectId = await repo.create({
                 title: 'Test Project',
                 author: 'Test Author',
                 language: 'English (US)',
             });
 
-            await repo.archive(project.id);
+            await repo.archive(projectId);
 
-            const archived = await repo.get(project.id);
+            const archived = await repo.get(projectId);
             expect(archived?.archived).toBe(true);
         });
 
         it('should filter archived projects in getAllActive', async () => {
-            const project1 = await repo.create({
+            const projectId1 = await repo.create({
                 title: 'Active Project',
                 author: 'Test Author',
                 language: 'English (US)',
             });
 
-            const project2 = await repo.create({
+            const projectId2 = await repo.create({
                 title: 'Archived Project',
                 author: 'Test Author',
                 language: 'English (US)',
             });
 
-            await repo.archive(project2.id);
+            await repo.archive(projectId2);
 
             const activeProjects = await repo.getAllActive();
             expect(activeProjects).toHaveLength(1);
-            expect(activeProjects[0].id).toBe(project1.id);
+            expect(activeProjects[0].id).toBe(projectId1);
         });
     });
 
     describe('deleteWithRelatedData', () => {
         it('should delete project', async () => {
-            const project = await repo.create({
+            const projectId = await repo.create({
                 title: 'Test Project',
                 author: 'Test Author',
                 language: 'English (US)',
             });
 
-            await repo.deleteWithRelatedData(project.id);
+            await repo.deleteWithRelatedData(projectId);
 
-            const deleted = await repo.get(project.id);
+            const deleted = await repo.get(projectId);
             expect(deleted).toBeUndefined();
         });
 
         it('should delete project atomically', async () => {
-            const project = await repo.create({
+            const projectId = await repo.create({
                 title: 'Test Project',
                 author: 'Test Author',
                 language: 'English (US)',
@@ -184,7 +186,7 @@ describe('DexieProjectRepository', () => {
             // Create related node
             await db.nodes.add({
                 id: crypto.randomUUID(),
-                projectId: project.id,
+                projectId: projectId,
                 type: 'act',
                 title: 'Test Act',
                 order: 0,
@@ -194,18 +196,19 @@ describe('DexieProjectRepository', () => {
                 updatedAt: Date.now(),
             });
 
-            await repo.deleteWithRelatedData(project.id);
+            await repo.deleteWithRelatedData(projectId);
 
             // Verify project deleted
-            const deletedProject = await repo.get(project.id);
+            const deletedProject = await repo.get(projectId);
             expect(deletedProject).toBeUndefined();
 
             // Verify related nodes deleted
             const remainingNodes = await db.nodes
                 .where('projectId')
-                .equals(project.id)
+                .equals(projectId)
                 .toArray();
             expect(remainingNodes).toHaveLength(0);
         });
     });
 });
+

@@ -3,7 +3,8 @@
 import { ChatMessage as ChatMessageComponent } from '../chat-message';
 import type { ChatMessage } from '@/lib/config/types';
 import { RefObject } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Lightbulb, BookOpen, Pencil, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ChatMessageListProps {
     messages: ChatMessage[] | undefined;
@@ -11,7 +12,15 @@ interface ChatMessageListProps {
     threadId: string;
     onRegenerateFrom: (timestamp: number) => void;
     messagesEndRef: RefObject<HTMLDivElement | null>;
+    onSuggestionClick?: (suggestion: string) => void;
 }
+
+const QUICK_SUGGESTIONS = [
+    { icon: Lightbulb, text: "Help me brainstorm character ideas", color: "text-amber-500" },
+    { icon: BookOpen, text: "Outline my next chapter", color: "text-blue-500" },
+    { icon: Pencil, text: "Describe this scene's setting", color: "text-green-500" },
+    { icon: Users, text: "Develop my protagonist's backstory", color: "text-purple-500" },
+];
 
 /**
  * Chat Message List Component
@@ -22,7 +31,8 @@ export function ChatMessageList({
     isLoading,
     threadId,
     onRegenerateFrom,
-    messagesEndRef
+    messagesEndRef,
+    onSuggestionClick
 }: ChatMessageListProps) {
     if (!messages || messages.length === 0) {
         return (
@@ -31,7 +41,27 @@ export function ChatMessageList({
                     <Sparkles className="h-8 w-8 text-primary/40" />
                 </div>
                 <p className="text-lg font-medium text-foreground mb-1">No messages yet</p>
-                <p className="text-sm max-w-xs text-center">Start a conversation to brainstorm ideas, outline your story, or get writing assistance.</p>
+                <p className="text-sm max-w-xs text-center mb-6">
+                    Start a conversation to brainstorm ideas, outline your story, or get writing assistance.
+                </p>
+
+                {/* Quick Suggestions */}
+                {onSuggestionClick && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md w-full">
+                        {QUICK_SUGGESTIONS.map((suggestion, idx) => (
+                            <Button
+                                key={idx}
+                                variant="outline"
+                                size="sm"
+                                className="justify-start text-left h-auto py-2.5 px-3 hover:bg-accent/50 transition-all"
+                                onClick={() => onSuggestionClick(suggestion.text)}
+                            >
+                                <suggestion.icon className={`h-4 w-4 mr-2 flex-shrink-0 ${suggestion.color}`} />
+                                <span className="text-xs text-muted-foreground">{suggestion.text}</span>
+                            </Button>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     }
@@ -62,3 +92,4 @@ export function ChatMessageList({
         </div>
     );
 }
+

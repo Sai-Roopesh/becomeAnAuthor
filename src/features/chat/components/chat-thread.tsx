@@ -6,7 +6,7 @@ import { useChatRepository } from '@/hooks/use-chat-repository';
 import { useChatService } from '@/hooks/use-chat-service';
 import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
 import { useChatStore } from '@/store/use-chat-store';
-import { ContextItem } from './context-selector';
+import { type ContextItem } from '@/features/shared/components';
 import type { ChatContext } from '@/lib/config/types';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
@@ -40,7 +40,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     const [selectedPromptId, setSelectedPromptId] = useState('general');
     const [selectedModel, setSelectedModel] = useState('');
     const [showSettings, setShowSettings] = useState(false);
-    const [showControls, setShowControls] = useState(true);
+    const [showControls, setShowControls] = useState(false);
     const [settings, setSettings] = useState<ChatSettings>({
         model: '',
         temperature: 0.7,
@@ -286,6 +286,14 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                 threadId={threadId}
                 onRegenerateFrom={handleRegenerateFrom}
                 messagesEndRef={messagesEndRef}
+                onSuggestionClick={(suggestion) => {
+                    setMessage(suggestion);
+                    // Auto-send after a short delay for better UX
+                    setTimeout(() => {
+                        const sendBtn = document.querySelector('[data-chat-send]') as HTMLButtonElement;
+                        sendBtn?.click();
+                    }, 100);
+                }}
             />
 
             {/* Input Component */}

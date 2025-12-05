@@ -177,8 +177,8 @@ export async function getDatabaseHealthReport(): Promise<CodexHealthReport> {
     const issues: string[] = [];
 
     // Analyze templates
-    const builtinTemplates = templates.filter(t => t.isBuiltIn === true || t.isBuiltIn === 1);
-    const customTemplates = templates.filter(t => !t.isBuiltIn || (t.isBuiltIn !== true && t.isBuiltIn !== 1));
+    const builtinTemplates = templates.filter(t => t.isBuiltIn === true);
+    const customTemplates = templates.filter(t => !t.isBuiltIn);
 
     const templateDuplicates = new Map<string, CodexTemplate[]>();
     for (const template of templates) {
@@ -197,8 +197,8 @@ export async function getDatabaseHealthReport(): Promise<CodexHealthReport> {
         });
 
     // Analyze relation types
-    const builtinRelationTypes = relationTypes.filter(t => t.isBuiltIn === true || t.isBuiltIn === 1);
-    const customRelationTypes = relationTypes.filter(t => !t.isBuiltIn || (t.isBuiltIn !== true && t.isBuiltIn !== 1));
+    const builtinRelationTypes = relationTypes.filter(t => t.isBuiltIn === true);
+    const customRelationTypes = relationTypes.filter(t => !t.isBuiltIn);
 
     const relationTypeDuplicates = new Map<string, CodexRelationType[]>();
     for (const type of relationTypes) {

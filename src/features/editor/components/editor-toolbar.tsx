@@ -3,6 +3,12 @@
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
     Bold,
     Italic,
     Strikethrough,
@@ -18,6 +24,37 @@ import {
 import { FormatMenu } from './format-menu';
 import { Separator } from '@/components/ui/separator';
 
+interface ToolbarButtonProps {
+    icon: React.ElementType;
+    label: string;
+    shortcut?: string;
+    onClick: () => void;
+    isActive?: boolean;
+    disabled?: boolean;
+}
+
+function ToolbarButton({ icon: Icon, label, shortcut, onClick, isActive, disabled }: ToolbarButtonProps) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onClick}
+                    disabled={disabled}
+                    className={`h-8 w-8 rounded-full ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                    <Icon className="h-4 w-4" />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="flex items-center gap-2">
+                <span>{label}</span>
+                {shortcut && <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">{shortcut}</kbd>}
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
 export function EditorToolbar({
     editor,
     isGenerating,
@@ -28,107 +65,93 @@ export function EditorToolbar({
     onInsertSection?: () => void;
 }) {
     return (
-        <div className="sticky top-0 z-20 mx-auto max-w-3xl mt-4 mb-6 rounded-full border border-border/40 bg-background/80 backdrop-blur-md shadow-sm px-4 py-2 flex items-center gap-1 transition-all hover:border-border/60 hover:shadow-md supports-[backdrop-filter]:bg-background/60">
-            {/* History */}
-            <div className="flex items-center gap-0.5">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                    onClick={() => editor.chain().focus().undo().run()}
-                    disabled={!editor.can().undo()}
-                >
-                    <Undo className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                    onClick={() => editor.chain().focus().redo().run()}
-                    disabled={!editor.can().redo()}
-                >
-                    <Redo className="h-4 w-4" />
-                </Button>
+        <TooltipProvider delayDuration={300}>
+            <div className="sticky top-0 z-20 mx-auto max-w-3xl mt-4 mb-6 rounded-full border border-border/40 bg-background/80 backdrop-blur-md shadow-sm px-4 py-2 flex items-center gap-1 transition-all hover:border-border/60 hover:shadow-md supports-[backdrop-filter]:bg-background/60">
+                {/* History */}
+                <div className="flex items-center gap-0.5">
+                    <ToolbarButton
+                        icon={Undo}
+                        label="Undo"
+                        shortcut="⌘Z"
+                        onClick={() => editor.chain().focus().undo().run()}
+                        disabled={!editor.can().undo()}
+                    />
+                    <ToolbarButton
+                        icon={Redo}
+                        label="Redo"
+                        shortcut="⌘⇧Z"
+                        onClick={() => editor.chain().focus().redo().run()}
+                        disabled={!editor.can().redo()}
+                    />
+                </div>
+
+                <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
+
+                {/* Basic Formatting */}
+                <div className="flex items-center gap-0.5">
+                    <ToolbarButton
+                        icon={Bold}
+                        label="Bold"
+                        shortcut="⌘B"
+                        onClick={() => editor.chain().focus().toggleBold().run()}
+                        isActive={editor.isActive('bold')}
+                    />
+                    <ToolbarButton
+                        icon={Italic}
+                        label="Italic"
+                        shortcut="⌘I"
+                        onClick={() => editor.chain().focus().toggleItalic().run()}
+                        isActive={editor.isActive('italic')}
+                    />
+                    <ToolbarButton
+                        icon={Strikethrough}
+                        label="Strikethrough"
+                        shortcut="⌘⇧S"
+                        onClick={() => editor.chain().focus().toggleStrike().run()}
+                        isActive={editor.isActive('strike')}
+                    />
+                </div>
+
+                <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
+
+                {/* Lists & Structure */}
+                <div className="flex items-center gap-0.5">
+                    <ToolbarButton
+                        icon={List}
+                        label="Bullet List"
+                        onClick={() => editor.chain().focus().toggleBulletList().run()}
+                        isActive={editor.isActive('bulletList')}
+                    />
+                    <ToolbarButton
+                        icon={ListOrdered}
+                        label="Numbered List"
+                        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                        isActive={editor.isActive('orderedList')}
+                    />
+                    <ToolbarButton
+                        icon={Quote}
+                        label="Quote"
+                        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                        isActive={editor.isActive('blockquote')}
+                    />
+                </div>
+
+                {onInsertSection && (
+                    <>
+                        <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
+                        <ToolbarButton
+                            icon={Square}
+                            label="Insert Section"
+                            onClick={onInsertSection}
+                        />
+                    </>
+                )}
+
+                <div className="flex-1" />
+
+                <FormatMenu />
             </div>
-
-            <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
-
-            {/* Basic Formatting */}
-            <div className="flex items-center gap-0.5">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={`h-8 w-8 rounded-full ${editor.isActive('bold') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                    <Bold className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                    className={`h-8 w-8 rounded-full ${editor.isActive('italic') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                    <Italic className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => editor.chain().focus().toggleStrike().run()}
-                    className={`h-8 w-8 rounded-full ${editor.isActive('strike') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                    <Strikethrough className="h-4 w-4" />
-                </Button>
-            </div>
-
-            <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
-
-            {/* Lists & Structure */}
-            <div className="flex items-center gap-0.5">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => editor.chain().focus().toggleBulletList().run()}
-                    className={`h-8 w-8 rounded-full ${editor.isActive('bulletList') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                    <List className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                    className={`h-8 w-8 rounded-full ${editor.isActive('orderedList') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                    <ListOrdered className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                    className={`h-8 w-8 rounded-full ${editor.isActive('blockquote') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                    <Quote className="h-4 w-4" />
-                </Button>
-            </div>
-
-            {onInsertSection && (
-                <>
-                    <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onInsertSection}
-                        title="Insert Section"
-                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                    >
-                        <Square className="h-4 w-4" />
-                    </Button>
-                </>
-            )}
-
-            <div className="flex-1" />
-
-            <FormatMenu />
-        </div>
+        </TooltipProvider>
     );
 }
+

@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAutoSave } from '@/hooks/use-auto-save';
 import { useAI } from '@/hooks/use-ai';
@@ -33,6 +33,7 @@ export function TiptapEditor({
 }) {
     const formatSettings = useFormatStore();
     const [showContinueMenu, setShowContinueMenu] = useState(false);
+    const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
     const previousSceneIdRef = useRef<string | null>(null);
     const codexRepo = useCodexRepository();
 
@@ -41,6 +42,20 @@ export function TiptapEditor({
         () => createCodexSuggestion(projectId, codexRepo),
         [projectId, codexRepo]
     );
+
+    // Get cursor position in the editor
+    const getCursorPosition = useCallback((view: any) => {
+        const { state } = view;
+        const { selection } = state;
+
+        // Get the DOM coordinates of the cursor
+        const coords = view.coordsAtPos(selection.from);
+
+        return {
+            x: coords.left,
+            y: coords.bottom + 8, // Position slightly below the cursor
+        };
+    }, []);
 
     const editor = useEditor({
         immediatelyRender: false,
@@ -73,6 +88,8 @@ export function TiptapEditor({
             handleKeyDown: (view, event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === 'j') {
                     event.preventDefault();
+                    const pos = getCursorPosition(view);
+                    setMenuPosition(pos);
                     setShowContinueMenu(true);
                     return true;
                 }
@@ -164,6 +181,13 @@ export function TiptapEditor({
             .run();
     };
 
+    const handleMenuClose = (open: boolean) => {
+        setShowContinueMenu(open);
+        if (!open) {
+            setMenuPosition(null);
+        }
+    };
+
     return (
         <div className="w-full h-full flex flex-col">
             <EditorToolbar
@@ -174,11 +198,12 @@ export function TiptapEditor({
             <TextSelectionMenu editor={editor} projectId={projectId} />
             <ContinueWritingMenu
                 open={showContinueMenu}
-                onOpenChange={setShowContinueMenu}
+                onOpenChange={handleMenuClose}
                 onGenerate={generate}
                 projectId={projectId}
                 isGenerating={isGenerating}
                 onCancel={cancel}
+                position={menuPosition}
             />
             <div className="flex-1 overflow-y-auto p-4">
                 <div className="mx-auto" style={{ maxWidth: `${formatSettings.pageWidth}px` }}>
@@ -188,3 +213,4 @@ export function TiptapEditor({
         </div>
     );
 }
+

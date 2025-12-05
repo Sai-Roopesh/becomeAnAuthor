@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Sparkles } from 'lucide-react';
 
 const QUOTES = [
     "The scariest moment is always just before you start.",
     "You can always edit a bad page. You can't edit a blank page.",
     "Start writing, no matter what. The water does not flow until the faucet is turned on.",
-    "Every secret of a writer’s soul, every experience of his life, every quality of his mind, is written large in his works.",
+    "Every secret of a writer's soul is written large in his works.",
     "There is no greater agony than bearing an untold story inside you.",
 ];
 
@@ -23,25 +23,28 @@ export function DashboardHeader() {
     }, []);
 
     return (
-        <div className="relative mb-12 p-8 md:p-12 rounded-3xl bg-gradient-to-br from-primary/10 via-background to-accent/5 border border-border/50 overflow-hidden shadow-xl shadow-primary/5">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+        <div className="relative mb-8 p-6 rounded-2xl bg-gradient-to-r from-primary/5 via-background to-accent/5 border border-border/30 overflow-hidden">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px)] bg-[size:20px_20px] opacity-50" />
 
-            <div className="relative z-10 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="flex items-center gap-3 text-primary mb-2">
-                    <div className="p-2.5 bg-background/50 backdrop-blur-md rounded-xl border border-white/10 shadow-sm">
-                        <BookOpen className="w-5 h-5" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-xl">
+                        <BookOpen className="w-5 h-5 text-primary" />
                     </div>
-                    <span className="font-heading font-semibold tracking-wider uppercase text-xs">Writer's Studio</span>
+                    <div>
+                        <h1 className="text-2xl font-heading font-bold text-foreground">
+                            {greeting}, <span className="text-primary">Author</span>
+                        </h1>
+                        <p className="text-sm text-muted-foreground">Your novels await</p>
+                    </div>
                 </div>
 
-                <h1 className="text-4xl md:text-6xl font-heading font-bold text-foreground tracking-tight">
-                    {greeting}, <span className="text-primary">Author</span>.
-                </h1>
-
-                <p className="text-lg md:text-xl text-muted-foreground max-w-2xl font-light italic leading-relaxed">
-                    "{quote}"
-                </p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground italic max-w-md">
+                    <Sparkles className="w-4 h-4 text-primary/50 flex-shrink-0" />
+                    <span className="line-clamp-1">"{quote}"</span>
+                </div>
             </div>
         </div>
     );
 }
+

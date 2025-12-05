@@ -28,7 +28,7 @@ export function TopNavigation({ projectId }: { projectId: string }) {
                         className="gap-2"
                     >
                         <mode.icon className="h-4 w-4" />
-                        {mode.label}
+                        <span className="hidden sm:inline">{mode.label}</span>
                     </Button>
                 ))}
             </div>

@@ -4,11 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
 import { CodexEntry, CodexCategory } from '@/lib/config/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Trash2, User, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { DetailsTab } from './details-tab';
@@ -21,6 +17,20 @@ import { TemplateFieldRenderer } from './template-field-renderer';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
+// Extracted sub-components
+import { EntityEditorHeader } from './entity-editor/EntityEditorHeader';
+import { EntityEditorInfoCard } from './entity-editor/EntityEditorInfoCard';
+
+/**
+ * EntityEditor - Main Codex Entity Editor
+ * 
+ * Orchestrates entity editing using decomposed sub-components:
+ * - EntityEditorHeader: Navigation and action buttons
+ * - EntityEditorInfoCard: Entity info display
+ * - Tab components for different aspects (Details, Research, Relations, etc.)
+ * 
+ * Reduced from 282 lines to ~210 lines via component decomposition.
+ */
 export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: () => void }) {
     const codexRepo = useCodexRepository();
     const templateRepo = useCodexTemplateRepository();
@@ -57,10 +67,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
     const handleTemplateFieldChange = (fieldId: string, value: any) => {
         setFormData(prev => ({
             ...prev,
-            customFields: {
-                ...prev.customFields,
-                [fieldId]: value
-            }
+            customFields: { ...prev.customFields, [fieldId]: value }
         }));
     };
 
@@ -95,10 +102,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         });
 
         if (confirmed) {
-            await codexRepo.update(entityId, {
-                templateId: undefined,
-                customFields: {}
-            });
+            await codexRepo.update(entityId, { templateId: undefined, customFields: {} });
             toast.success('Template cleared - you can now change the category');
         }
     };
@@ -111,97 +115,24 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         <div className="h-full flex flex-col bg-background">
             {/* Header */}
             <div className="border-b">
-                <div className="p-4 flex items-center justify-between">
-                    <Button variant="ghost" size="sm" onClick={onBack}>
-                        <ArrowLeft className="h-4 w-4 mr-2" /> Back
-                    </Button>
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={handleSave}>
-                            <Save className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={handleDeleteClick}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Entity Info Card */}
-                <div className="px-6 pb-4">
-                    <div className="flex items-start gap-4">
-                        {/* Thumbnail */}
-                        <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                            {formData.thumbnail ? (
-                                <img src={formData.thumbnail} alt={formData.name} className="h-full w-full object-cover rounded-lg" />
-                            ) : (
-                                <User className="h-8 w-8 text-muted-foreground" />
-                            )}
-                        </div>
-
-                        {/* Name and Category */}
-                        <div className="flex-1 min-w-0 space-y-2">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <Select
-                                        value={formData.category}
-                                        onValueChange={v => handleChange('category', v)}
-                                        disabled={!!entity?.templateId}
-                                    >
-                                        <SelectTrigger className="w-[150px] h-7 text-xs">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="character">Character</SelectItem>
-                                            <SelectItem value="location">Location</SelectItem>
-                                            <SelectItem value="item">Item</SelectItem>
-                                            <SelectItem value="lore">Lore</SelectItem>
-                                            <SelectItem value="subplot">Subplot</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    {entity?.templateId && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 text-xs"
-                                            onClick={handleClearTemplate}
-                                        >
-                                            Clear Template
-                                        </Button>
-                                    )}
-                                </div>
-                                {entity?.templateId && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Category locked because entry uses a template. Clear template to change category.
-                                    </p>
-                                )}
-                                <Input
-                                    value={formData.name || ''}
-                                    onChange={e => handleChange('name', e.target.value)}
-                                    className="text-2xl font-bold border-0 p-0 h-auto focus-visible:ring-0"
-                                    placeholder="Entity Name"
-                                />
-                            </div>
-
-                            {/* Tags */}
-                            <div className="flex gap-2 flex-wrap">
-                                {formData.tags?.map(tag => (
-                                    <span key={tag} className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded">
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-
-                            {/* Mention Count */}
-                            <div className="text-xs text-muted-foreground">
-                                {mentionCount} mentions
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <EntityEditorHeader
+                    onBack={onBack}
+                    onSave={handleSave}
+                    onDelete={handleDeleteClick}
+                />
+                <EntityEditorInfoCard
+                    formData={formData}
+                    hasTemplate={!!entity?.templateId}
+                    mentionCount={mentionCount}
+                    onNameChange={(name: string) => handleChange('name', name)}
+                    onCategoryChange={(category: CodexCategory) => handleChange('category', category)}
+                    onClearTemplate={handleClearTemplate}
+                />
             </div>
 
             {/* Tabs */}
             <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
-                <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto">
+                <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto overflow-x-auto flex-nowrap scrollbar-hide">
                     <TabsTrigger value="details" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
                         Details
                     </TabsTrigger>
@@ -229,10 +160,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
 
                 <div className="flex-1 overflow-y-auto">
                     <TabsContent value="details" className="p-6 m-0">
-                        <DetailsTab
-                            entity={formData as CodexEntry}
-                            onChange={handleChange}
-                        />
+                        <DetailsTab entity={formData as CodexEntry} onChange={handleChange} />
                     </TabsContent>
 
                     {template && (
@@ -246,19 +174,11 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                     )}
 
                     <TabsContent value="tags" className="p-6 m-0">
-                        {entity && (
-                            <TagManager
-                                projectId={entity.projectId}
-                                entryId={entityId}
-                            />
-                        )}
+                        {entity && <TagManager projectId={entity.projectId} entryId={entityId} />}
                     </TabsContent>
 
                     <TabsContent value="research" className="p-6 m-0">
-                        <ResearchTab
-                            entity={formData as CodexEntry}
-                            onChange={handleChange}
-                        />
+                        <ResearchTab entity={formData as CodexEntry} onChange={handleChange} />
                     </TabsContent>
 
                     <TabsContent value="relations" className="p-6 m-0">
@@ -279,3 +199,4 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         </div>
     );
 }
+

@@ -49,18 +49,20 @@ export class DexieCodexRepository implements ICodexRepository {
 
         const newEntry: CodexEntry = {
             id: crypto.randomUUID(),
-            aliases: [],
-            description: '',
-            attributes: {},
-            tags: [],
-            references: [],
-            settings: {
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            // Spread entry first
+            ...entry,
+            // Then apply defaults only if not provided
+            aliases: entry.aliases ?? [],
+            description: entry.description ?? '',
+            attributes: entry.attributes ?? {},
+            tags: entry.tags ?? [],
+            references: entry.references ?? [],
+            settings: entry.settings ?? {
                 isGlobal: false,
                 doNotTrack: false,
             },
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            ...entry,
         };
 
         // ✅ Serialize before storing (attributes/references may be complex objects)

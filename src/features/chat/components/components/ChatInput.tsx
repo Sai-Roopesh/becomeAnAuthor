@@ -64,6 +64,7 @@ export function ChatInput({
                                 onClick={onSend}
                                 disabled={disabled || !value.trim()}
                                 size="icon"
+                                data-chat-send
                                 className={cn(
                                     "h-8 w-8 rounded-lg transition-all",
                                     value.trim() ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg" : "bg-muted text-muted-foreground"

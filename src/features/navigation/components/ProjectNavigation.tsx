@@ -96,29 +96,33 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                     style={{ paddingLeft: `${level * 12 + 4}px` }}
                     onClick={() => isScene && setActiveSceneId(node.id)}
                 >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="truncate flex-1">{node.title}</span>
 
-                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Always show indicator, expand on hover */}
+                    <div className="flex items-center">
                         {!isScene && (
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-6 w-6 opacity-40 group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     openCreateDialog(node.id, node.type === 'act' ? 'chapter' : 'scene');
                                 }}
+                                title={node.type === 'act' ? 'Add Chapter' : 'Add Scene'}
                             >
                                 <Plus className="h-3 w-3" />
                             </Button>
                         )}
 
-                        <NodeActionsMenu
-                            nodeId={node.id}
-                            nodeType={node.type as 'act' | 'chapter' | 'scene'}
-                            onDelete={confirmDeleteNode}
-                        />
+                        <div className="opacity-40 group-hover:opacity-100 transition-opacity">
+                            <NodeActionsMenu
+                                nodeId={node.id}
+                                nodeType={node.type as 'act' | 'chapter' | 'scene'}
+                                onDelete={confirmDeleteNode}
+                            />
+                        </div>
                     </div>
                 </div>
 

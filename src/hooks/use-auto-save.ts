@@ -1,14 +1,16 @@
 /**
  * Custom hook for auto-saving editor content to the database
  * Handles debounced saves with error recovery and emergency backup
+ * 
+ * UPDATED: Now uses IndexedDB-based EmergencyBackupService instead of localStorage
+ * to avoid 5MB quota issues and silent failures.
  */
-
 
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from '@/lib/toast-service';
 import { Editor } from '@tiptap/react';
-import { useDebounce } from '@/hooks/use-debounce';
 import { saveCoordinator } from '@/lib/core/save-coordinator';
+import { emergencyBackupService } from '@/lib/services/emergency-backup-service';
 
 export function useAutoSave(sceneId: string, editor: Editor | null) {
     // Keep track of the latest editor instance and sceneId for cleanup
@@ -36,7 +38,7 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
         }
     }, []);
 
-    // Debounced save
+    // Debounced save interval
     useEffect(() => {
         if (!editor || !sceneId) return;
 
@@ -58,7 +60,7 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
         };
     }, [editor, sceneId, saveContent]);
 
-    // \u2705 FIXED: Synchronous emergency backup + recovery on unload
+    // ✅ UPDATED: Emergency backup using IndexedDB (not localStorage)
     useEffect(() => {
         const handleUnload = (event: BeforeUnloadEvent) => {
             if (editorRef.current && sceneIdRef.current && hasUnsavedChanges.current) {
@@ -66,15 +68,12 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
                 event.preventDefault();
                 event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
 
-                // \u2705 Create synchronous localStorage backup (browser will wait)
+                // ✅ UPDATED: Save to IndexedDB via EmergencyBackupService
+                // Note: This is async but we can't await in beforeunload
+                // The service handles errors gracefully
                 try {
                     const content = editorRef.current.getJSON();
-                    const backupKey = `emergency_backup_${sceneIdRef.current}`;
-                    localStorage.setItem(backupKey, JSON.stringify({
-                        content,
-                        timestamp: Date.now(),
-                        sceneId: sceneIdRef.current,
-                    }));
+                    emergencyBackupService.saveBackup(sceneIdRef.current, content);
                 } catch (error) {
                     console.error('Emergency backup failed:', error);
                 }
@@ -92,37 +91,45 @@ export function useAutoSave(sceneId: string, editor: Editor | null) {
         };
     }, [saveContent]);
 
-    // \u2705 NEW: Automatic recovery on mount
+    // ✅ UPDATED: Automatic recovery from IndexedDB backup on mount
     useEffect(() => {
         if (!editor || !sceneId) return;
 
-        const backupKey = `emergency_backup_${sceneId}`;
-        const backupData = localStorage.getItem(backupKey);
-
-        if (backupData) {
+        const checkForBackup = async () => {
             try {
-                const backup = JSON.parse(backupData);
-                const backupAge = Date.now() - backup.timestamp;
+                const backup = await emergencyBackupService.getBackup(sceneId);
 
-                // Only offer recovery if backup is less than 1 hour old
-                if (backupAge < 3600000 && backup.content) {
-                    const shouldRestore = confirm(
-                        `Unsaved changes detected from ${new Date(backup.timestamp).toLocaleTimeString()}. Restore?`
-                    );
+                if (backup && backup.content) {
+                    const backupAge = Date.now() - backup.createdAt;
+                    const backupDate = new Date(backup.createdAt).toLocaleTimeString();
 
-                    if (shouldRestore) {
-                        editor.commands.setContent(backup.content);
-                        toast.success('Unsaved changes restored');
-                        hasUnsavedChanges.current = true;
+                    // Only offer recovery if backup is less than 1 hour old
+                    if (backupAge < 3600000) {
+                        const shouldRestore = confirm(
+                            `Unsaved changes detected from ${backupDate}. Restore?`
+                        );
+
+                        if (shouldRestore) {
+                            editor.commands.setContent(backup.content);
+                            toast.success('Unsaved changes restored from backup');
+                            hasUnsavedChanges.current = true;
+                        }
                     }
-                }
 
-                // Clean up backup
-                localStorage.removeItem(backupKey);
+                    // Clean up backup after handling
+                    await emergencyBackupService.deleteBackup(sceneId);
+                }
             } catch (error) {
-                console.error('Failed to restore backup:', error);
-                localStorage.removeItem(backupKey);
+                console.error('Failed to check for backup:', error);
             }
-        }
+        };
+
+        checkForBackup();
     }, [sceneId, editor]);
+
+    // ✅ NEW: Cleanup expired backups on mount (once per session)
+    useEffect(() => {
+        emergencyBackupService.cleanupExpired();
+    }, []);
 }
+

@@ -15,11 +15,12 @@ interface ContinueWritingMenuProps {
     onOpenChange: (open: boolean) => void;
     onGenerate: (options: GenerateOptions & { mode: GenerationMode }) => void;
     projectId: string;
-    isGenerating?: boolean; // NEW: track generation state
-    onCancel?: () => void; // NEW: cancel handler
+    isGenerating?: boolean;
+    onCancel?: () => void;
+    position?: { x: number; y: number } | null; // NEW: cursor position
 }
 
-export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId, isGenerating, onCancel }: ContinueWritingMenuProps) {
+export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId, isGenerating, onCancel, position }: ContinueWritingMenuProps) {
     const [wordCount, setWordCount] = useState('400');
     const [model, setModel] = useState('');
     const [showTweakDialog, setShowTweakDialog] = useState(false);
@@ -81,9 +82,19 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
         <>
             <Popover open={open} onOpenChange={onOpenChange}>
                 <PopoverTrigger asChild>
-                    <div />
+                    {/* Invisible anchor positioned at cursor */}
+                    <div
+                        style={position ? {
+                            position: 'fixed',
+                            left: position.x,
+                            top: position.y,
+                            width: 1,
+                            height: 1,
+                            pointerEvents: 'none',
+                        } : undefined}
+                    />
                 </PopoverTrigger>
-                <PopoverContent className="w-80" align="start">
+                <PopoverContent className="w-80" align="start" sideOffset={4}>
                     <div className="space-y-3">
                         <div>
                             <h4 className="font-medium text-sm mb-3">AI</h4>

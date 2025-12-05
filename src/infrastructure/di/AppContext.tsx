@@ -78,21 +78,53 @@ interface AppProviderProps {
  * </AppProvider>
  */
 export function AppProvider({ children, services: customServices }: AppProviderProps) {
-    // Create singleton instances (memoized to prevent recreation on re-renders)
+    // Create singleton instances with LAZY initialization
+    // Repositories are only created when first accessed, improving startup time
     const services: AppServices = useMemo(() => {
-        // Create repositories
-        const nodeRepo = customServices?.nodeRepository ?? new DexieNodeRepository();
-        const codexRepo = customServices?.codexRepository ?? new DexieCodexRepository();
-        const chatRepo = customServices?.chatRepository ?? new DexieChatRepository();
-        const snippetRepo = customServices?.snippetRepository ?? new DexieSnippetRepository();
-        const projectRepo = customServices?.projectRepository ?? new DexieProjectRepository();
-        const codexRelationRepo = customServices?.codexRelationRepository ?? new DexieCodexRelationRepository();
-        // NEW: Phase 1 Codex enhancement repositories
-        const codexTagRepo = customServices?.codexTagRepository ?? new DexieCodexTagRepository();
-        const codexTemplateRepo = customServices?.codexTemplateRepository ?? new DexieCodexTemplateRepository();
-        const codexRelationTypeRepo = customServices?.codexRelationTypeRepository ?? new DexieCodexRelationTypeRepository();
+        // Lazy factory helper - creates instance only on first property access
+        const createLazy = <T extends object>(factory: () => T): T => {
+            let instance: T | null = null;
+            return new Proxy({} as T, {
+                get(_, prop: string | symbol) {
+                    if (!instance) {
+                        instance = factory();
+                    }
+                    return (instance as any)[prop];
+                },
+                // Support method binding
+                apply(_, thisArg, args) {
+                    if (!instance) {
+                        instance = factory();
+                    }
+                    return Reflect.apply(instance as any, thisArg, args);
+                }
+            });
+        };
 
-        // Create services (with repository dependencies)
+        // Create lazy repositories (instantiated on first use)
+        const nodeRepo = customServices?.nodeRepository ??
+            createLazy(() => new DexieNodeRepository());
+        const codexRepo = customServices?.codexRepository ??
+            createLazy(() => new DexieCodexRepository());
+        const chatRepo = customServices?.chatRepository ??
+            createLazy(() => new DexieChatRepository());
+        const snippetRepo = customServices?.snippetRepository ??
+            createLazy(() => new DexieSnippetRepository());
+        const projectRepo = customServices?.projectRepository ??
+            createLazy(() => new DexieProjectRepository());
+        const codexRelationRepo = customServices?.codexRelationRepository ??
+            createLazy(() => new DexieCodexRelationRepository());
+        const codexTagRepo = customServices?.codexTagRepository ??
+            createLazy(() => new DexieCodexTagRepository());
+        const codexTemplateRepo = customServices?.codexTemplateRepository ??
+            createLazy(() => new DexieCodexTemplateRepository());
+        const codexRelationTypeRepo = customServices?.codexRelationTypeRepository ??
+            createLazy(() => new DexieCodexRelationTypeRepository());
+        const analysisRepo = customServices?.analysisRepository ??
+            createLazy(() => new DexieAnalysisRepository());
+
+        // Services still need eager instantiation as they're commonly used
+        // But they use lazy repos internally
         const chatSvc = customServices?.chatService ?? new DexieChatService(
             nodeRepo,
             codexRepo,
@@ -102,8 +134,6 @@ export function AppProvider({ children, services: customServices }: AppProviderP
         const exportSvc = customServices?.exportService ?? new DocumentExportService(
             nodeRepo
         );
-
-        const analysisRepo = customServices?.analysisRepository ?? new DexieAnalysisRepository();
 
         const analysisSvc = customServices?.analysisService ?? new AnalysisService(
             nodeRepo,
@@ -119,7 +149,6 @@ export function AppProvider({ children, services: customServices }: AppProviderP
             projectRepository: projectRepo,
             analysisRepository: analysisRepo,
             codexRelationRepository: codexRelationRepo,
-            // NEW: Phase 1 repositories
             codexTagRepository: codexTagRepo,
             codexTemplateRepository: codexTemplateRepo,
             codexRelationTypeRepository: codexRelationTypeRepo,

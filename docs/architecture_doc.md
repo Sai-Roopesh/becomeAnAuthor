@@ -1,6 +1,6 @@
-# Architecture Document v1.0 – Become An Author
+# Architecture Document v2.0 – Become An Author
 
-> **This is Architecture Document v1.0 and will be treated as the source of truth for all future technical discussions.**
+> **This is Architecture Document v2.0 and is the source of truth for all technical discussions.**
 
 ---
 
@@ -10,42 +10,19 @@
 
 **Become An Author** is a local-first, browser-based novel writing application designed to provide:
 - **Offline-first authoring environment** with zero server dependencies
-- **AI-assisted writing** with user-controlled API connections
+- **AI-assisted writing** with user-controlled API connections (5 providers)
 - **Rich manuscript management** (hierarchical structure: Acts → Chapters → Scenes)
-- **World-building tools** (Codex for characters, locations, lore)
-- **Planning and outlining** capabilities
+- **World-building tools** (Codex for characters, locations, lore with templates, tags, and relations)
+- **Planning and outlining** capabilities with story beats
+- **AI-powered story analysis** (synopsis, plot threads, character arcs, timeline, contradictions)
 - **Privacy-first design** (all data stays on user's device)
 
 ### Key Constraints
 
 1. **Frontend-only architecture** – No backend server (except optional Google Drive integration)
-2. **Browser-based persistence** – All data stored in IndexedDB (via Dexie)
+2. **Browser-based persistence** – All data stored in IndexedDB (via Dexie, 16 tables)
 3. **Single-device scope** – No cross-device sync (except via manual Google Drive backup)
-4. **User-controlled AI** – Users bring their own API keys (OpenAI, Anthropic, etc.)
-
-### Non-Functional Requirements
-
-#### Maintainability
-- Domain-driven folder structure for clear boundaries
-- Repository pattern for data access abstraction
-- Zustand for predictable state management
-- TypeScript for type safety
-
-#### Performance
-- IndexedDB for fast local queries
-- Live queries with `dexie-react-hooks` for reactivity
-- Debounced auto-save to minimize DB writes
-- Save Coordinator to prevent race conditions
-
-#### Offline-First Behavior
-- 100% offline-capable (no network required except for AI features)
-- Emergency backup to `localStorage` on DB failure
-- Export/import capabilities for data portability
-
-#### Scalability (Single-Device)
-- IndexedDB can handle large manuscripts (millions of words)
-- Hierarchical navigation to manage complexity
-- Efficient querying with indexed fields
+4. **User-controlled AI** – Users bring their own API keys (OpenRouter, Google, Mistral, OpenAI, Kimi)
 
 ---
 
@@ -53,30 +30,32 @@
 
 ```mermaid
 flowchart TB
-    subgraph UI["Presentation Layer"]
+    subgraph UI["🖥️ Presentation Layer"]
         Pages["Next.js Pages"]
-        Components["React Components"]
-        Forms["Forms & Dialogs"]
+        Features["Feature Components"]
+        Shared["Shared UI Components"]
     end
     
-    subgraph State["State Management"]
-        Zustand["Zustand Stores"]
+    subgraph State["📊 State Management"]
+        Zustand["Zustand Stores (3)"]
         LiveQueries["Dexie Live Queries"]
     end
     
-    subgraph Domain["Domain Layer"]
-        Interfaces["Repository Interfaces"]
-        Entities["Domain Entities"]
+    subgraph Domain["🎯 Domain Layer"]
+        RepoInterfaces["Repository Interfaces (10)"]
+        ServiceInterfaces["Service Interfaces (4)"]
+        Entities["Domain Entities (44 types)"]
     end
 
-    subgraph Infrastructure["Infrastructure Layer"]
-        Impl["Repository Implementations"]
-        Services["Services"]
-        DB["Dexie DB"]
+    subgraph Infrastructure["⚙️ Infrastructure Layer"]
+        RepoImpl["Dexie Repositories (10)"]
+        ServiceImpl["Services (4)"]
+        DI["Dependency Injection"]
+        DB["NovelDB (16 tables)"]
     end
     
-    subgraph External["External APIs"]
-        AI["AI APIs"]
+    subgraph External["🌐 External APIs"]
+        AI["AI APIs (5 providers)"]
         Drive["Google Drive API"]
     end
     
@@ -97,1027 +76,1053 @@ flowchart TB
 
 ---
 
-## 3. Layered Architecture Breakdown
+## 2.1 State Management Decision Tree
 
-### Layer 1: Presentation Layer
+> **Use this decision tree to determine where to store application state.**
 
-**Location:** `src/app/`, `src/features/*/components/`, `src/components/`
+```mermaid
+flowchart TD
+    Q1{Is it persisted data?}
+    Q1 -->|Yes| IndexedDB["💾 IndexedDB via Dexie"]
+    Q1 -->|No| Q2{Does it need to survive refresh?}
+    
+    Q2 -->|Yes| Q3{Is it user preference?}
+    Q2 -->|No| ZustandEphemeral["⚡ Zustand ephemeral"]
+    
+    Q3 -->|Yes| ZustandPersist["🔧 Zustand + localStorage"]
+    Q3 -->|No| URL["🔗 URL params"]
+    
+    IndexedDB --> E1["Projects, Scenes, Codex, Chat"]
+    ZustandEphemeral --> E2["isLoading, isGenerating"]
+    ZustandPersist --> E3["selectedModel, formatSettings"]
+    URL --> E4["projectId, sceneId, activeTab"]
+```
 
-**Responsibilities:**
-- Render UI components
-- Handle user interactions
-- Trigger state updates via hooks/stores
-- Display data from live queries or Zustand stores
+### State Location Guide
 
-**Contains:**
-- Next.js pages (`page.tsx`, `layout.tsx`)
-- Feature-specific components (Editor, Chat, Codex, etc.)
-- Shared UI components (Button, Dialog, Input, etc.)
+| State Type | Storage | Example |
+|------------|---------|---------|
+| **Application data** | IndexedDB | Projects, scenes, codex entries |
+| **UI loading states** | Zustand (ephemeral) | `isGenerating`, `isSaving` |
+| **User preferences** | Zustand + localStorage | Selected AI model, theme |
+| **Navigation state** | URL params | Current project, scene ID |
+| **Form draft state** | Component state | Unsaved form inputs |
 
-**Should NEVER contain:**
-- Direct database calls
-- Business logic
-- Data transformation logic
-- API key storage
+### Three Zustand Stores
 
-### Layer 2: State Management Layer
-
-**Location:** `src/store/`, `src/hooks/use-*-repository.ts`
-
-**Responsibilities:**
-- Manage transient UI state (Zustand)
-- Provide reactive data subscriptions (Dexie Live Queries)
-- Expose state to components via hooks
-
-**Contains:**
-- **Zustand stores:**
-  - `use-project-store.ts` – Active project, scene, view mode
-  - `use-chat-store.ts` – Active chat thread
-  - `use-format-store.ts` – Editor formatting preferences
-- **Live Query hooks:**
-  - `useLiveQuery(() => db.projects.toArray())`
-  - Real-time reactivity to DB changes
-
-**Should NEVER contain:**
-- Complex business logic
-- Direct DOM manipulation
-- External API calls
-
-### Layer 3: Domain Layer (New)
-
-**Location:** `src/domain/`
-
-**Responsibilities:**
-- Define core business entities and interfaces
-- Enforce dependency inversion (Infrastructure depends on Domain)
-- Pure TypeScript, no framework dependencies
-
-**Contains:**
-- **Repositories (Interfaces):**
-  - `INodeRepository.ts`
-  - `ICodexRepository.ts`
-  - `IChatRepository.ts`
-- **Services (Interfaces):**
-  - `IAIService.ts`
-
-**Should NEVER contain:**
-- Database implementation details (Dexie)
-- UI components
-- External API calls
-
-### Layer 4: Infrastructure Layer (Refactored)
-
-**Location:** `src/infrastructure/`, `src/lib/`
-
-**Responsibilities:**
-- Implement domain interfaces
-- Handle external communication (DB, API)
-- Manage technical concerns (Logging, Storage)
-
-**Contains:**
-- **Repository Implementations:**
-  - `DexieNodeRepository.ts` (implements `INodeRepository`)
-  - `DexieProjectRepository.ts`
-- **External Services:**
-  - `GoogleDriveService` (`src/lib/services/`)
-  - `GoogleAuthService`
-  - `AIService`
-- **Database:**
-  - `lib/core/database.ts` (NovelDB - Dexie schema with 10 tables)
-
-**Should NEVER contain:**
-- Business rules that belong in Domain
-- UI rendering logic
-
-> **📝 Note:** See [security.md](./security.md) for comprehensive documentation on security fixes, error handling patterns, and toast notification system.
-
-### Layer 5: Utility / Core Modules
-
-**Location:** `src/lib/`, `src/hooks/`
-
-**Responsibilities:**
-- Provide reusable utilities
-- Extract common patterns
-
-**Contains:**
-- `use-debounce.ts` – Debouncing hook
-- `prompt-templates.ts` – AI prompt library
-- `ai-vendors.ts` – AI provider configurations
-- `search-service.ts` – Fuzzy search utility (Fuse.js)
-- `logger.ts` – Structured logging service
-- `context-assembler.ts` – AI context token management
-- `tab-coordinator.ts` – Multi-tab synchronization
+| Store | Purpose | Persistence |
+|-------|---------|-------------|
+| `useProjectStore` | Current project/scene selection | None (URL drives this) |
+| `useChatStore` | Chat UI state (selected thread) | None |
+| `useFormatStore` | Editor formatting preferences | localStorage |
 
 ---
 
-## 4. Low-Level Architecture (LLD)
+## 3. Complete Data Flow Architecture
 
-### 4.1 Module Breakdown
+```mermaid
+flowchart TB
+    subgraph UserActions["👤 User Actions"]
+        Type["Type in Editor"]
+        Chat["Send Chat Message"]
+        Edit["Edit Codex Entry"]
+        Analyze["Run Analysis"]
+    end
 
-#### Editor Module (`src/features/editor/`)
+    subgraph Hooks["🪝 Hooks Layer"]
+        useAutoSave["useAutoSave()"]
+        useChatService["useChatService()"]
+        useCodexRepo["useCodexRepository()"]
+        useAnalysisRunner["useAnalysisRunner()"]
+    end
 
-**Components:**
-- `EditorContainer.tsx` – Orchestrates editor layout (panels, timeline, snippets)
-- `TiptapEditor.tsx` – Core Tiptap editor instance
-- `EditorToolbar.tsx` – Formatting controls
-- `FormatMenu.tsx` – Typography settings popover
-- AI Components:
-  - `ContinueWritingMenu.tsx`
-  - `RewriteMenu.tsx`
-  - `TextSelectionMenu.tsx`
-  - `TextReplaceDialog.tsx`
-  - `TinkerMode.tsx`
-- `StoryTimeline.tsx` – Visual scene progression
-- `SceneActionMenu.tsx` – Scene-level actions
+    subgraph Services["⚙️ Services"]
+        SaveCoord["SaveCoordinator"]
+        ChatSvc["DexieChatService"]
+        AnalysisSvc["AnalysisService"]
+    end
 
-**Data Flow:**
+    subgraph CoreSystems["🔧 Core Systems"]
+        AIClient["AI Client"]
+        ContextAsm["Context Assembler"]
+    end
+
+    subgraph Persistence["💾 Persistence"]
+        Dexie["IndexedDB via Dexie"]
+        LocalStorage["localStorage"]
+    end
+
+    subgraph Reactivity["⚡ Reactivity"]
+        LiveQuery["useLiveQuery()"]
+        ZustandStore["Zustand Store"]
+    end
+
+    Type --> useAutoSave
+    Chat --> useChatService
+    Edit --> useCodexRepo
+    Analyze --> useAnalysisRunner
+
+    useAutoSave --> SaveCoord
+    useChatService --> ChatSvc
+    useAnalysisRunner --> AnalysisSvc
+
+    ChatSvc --> ContextAsm
+    AnalysisSvc --> ContextAsm
+    ContextAsm --> AIClient
+
+    AIClient -->|"API Call"| External["AI Provider"]
+    External -->|"Response"| AIClient
+
+    SaveCoord --> Dexie
+    ChatSvc --> Dexie
+    AnalysisSvc --> Dexie
+    useCodexRepo --> Dexie
+
+    SaveCoord -->|"Emergency"| LocalStorage
+
+    Dexie --> LiveQuery
+    LocalStorage --> ZustandStore
+    LiveQuery --> UI["UI Re-render"]
+    ZustandStore --> UI
+```
+
+---
+
+## 4. Feature Deep Dives
+
+### 4.1 Editor Feature
+
+The Editor is the core writing interface with AI-assisted features and robust auto-save.
+
+#### Component Architecture
+
+```mermaid
+flowchart TB
+    subgraph EditorContainer["EditorContainer.tsx"]
+        Nav["ProjectNavigation"]
+        Editor["TiptapEditor"]
+        Timeline["StoryTimeline"]
+        Snippets["Pinned Snippets Panel"]
+    end
+
+    subgraph EditorTools["Editor AI Tools"]
+        Continue["ContinueWritingMenu"]
+        Rewrite["RewriteMenu"]
+        TextSel["TextSelectionMenu"]
+        Replace["TextReplaceDialog"]
+        Tinker["TinkerMode"]
+    end
+
+    subgraph Hooks["Hooks Used"]
+        H1["useProjectStore()"]
+        H2["useNodeRepository()"]
+        H3["useSnippetRepository()"]
+        H4["useAutoSave()"]
+        H5["useDebounce()"]
+        H6["useLiveQuery()"]
+    end
+
+    EditorContainer --> Hooks
+    Editor --> EditorTools
+    EditorTools --> AIClient["AI Client"]
+```
+
+#### Auto-Save Data Flow
+
 ```mermaid
 sequenceDiagram
     participant User
     participant Editor as TiptapEditor
-    participant Coordinator as SaveCoordinator
-    participant DB as Dexie DB
+    participant AutoSave as useAutoSave()
+    participant Coord as SaveCoordinator
+    participant DB as IndexedDB
     participant Backup as localStorage
 
     User->>Editor: Type content
-    Editor->>Editor: Debounce (auto-save)
-    Editor->>Coordinator: scheduleSave(sceneId, content)
+    Editor->>AutoSave: editor.on('update')
+    AutoSave->>AutoSave: Mark hasUnsavedChanges = true
+    
+    Note over AutoSave: Every 1 second interval check
+    AutoSave->>Coord: scheduleSave(sceneId, getContent)
     
     alt Save succeeds
-        Coordinator->>DB: nodes.update(sceneId, {content, updatedAt})
-        DB-->>Editor: Success
+        Coord->>Coord: JSON.parse(JSON.stringify(content))
+        Coord->>DB: nodes.update(sceneId, {content, updatedAt})
+        DB-->>Editor: Success (via LiveQuery)
     else Save fails
-        Coordinator->>Backup: backup_scene_{sceneId}
-        Coordinator->>User: Toast error
+        Coord->>Backup: storage.setItem('backup_scene_{id}')
+        Coord->>User: toast.error('Failed to save')
+    end
+
+    Note over AutoSave: On page unload
+    AutoSave->>Backup: Emergency backup to localStorage
+    
+    Note over AutoSave: On next mount
+    AutoSave->>Backup: Check for emergency backup
+    alt Backup found (< 1 hour old)
+        AutoSave->>User: Confirm restore?
+        User->>AutoSave: Yes
+        AutoSave->>Editor: editor.commands.setContent(backup)
     end
 ```
 
-#### Chat Module (`src/features/chat/`)
+#### Key Implementation Patterns
 
-**Components:**
-- `ChatInterface.tsx` – Thread list + active thread view
-- `ChatThread.tsx` – Message display and input
-- `ContextSelector.tsx` – Select manuscript/codex for context
-- `PromptSelector.tsx` – Choose system prompt
-- `ModelSelector.tsx` – Choose AI model
-- `ChatSettingsDialog.tsx` – Temperature, max tokens, etc.
+**SaveCoordinator (Singleton):**
+```typescript
+// Prevents race conditions between auto-save and AI-generated saves
+class SaveCoordinator {
+    private saveQueue: Map<string, Promise<void>> = new Map();
+    
+    async scheduleSave(sceneId: string, getContent: () => any) {
+        // 1. Wait for existing save to complete
+        const existing = this.saveQueue.get(sceneId);
+        if (existing) await existing;
+        
+        // 2. Serialize content (removes Promises/non-serializable)
+        const cleanContent = JSON.parse(JSON.stringify(getContent()));
+        
+        // 3. Save to IndexedDB
+        await db.nodes.update(sceneId, { content: cleanContent });
+    }
+}
+```
 
-**Services:**
-- `use-chat-service.ts` – Handles AI generation with context assembly
+**useAutoSave Hook:**
+```typescript
+function useAutoSave(sceneId: string, editor: Editor | null) {
+    // 1. Track unsaved changes
+    const hasUnsavedChanges = useRef(false);
+    
+    // 2. Listen to editor updates
+    editor.on('update', () => { hasUnsavedChanges.current = true; });
+    
+    // 3. Interval-based save (not debounce - more reliable)
+    setInterval(() => {
+        if (hasUnsavedChanges.current) {
+            saveCoordinator.scheduleSave(sceneId, () => editor.getJSON());
+        }
+    }, 1000);
+    
+    // 4. Emergency backup on unload
+    window.addEventListener('beforeunload', () => {
+        localStorage.setItem(`emergency_backup_${sceneId}`, ...);
+    });
+}
+```
 
-**Data Flow:**
+---
+
+### 4.2 Chat Feature
+
+AI-powered conversation with full manuscript context support.
+
+#### Component Architecture
+
+```mermaid
+flowchart TB
+    subgraph ChatInterface["ChatInterface.tsx"]
+        ThreadList["Thread List"]
+        ActiveThread["ChatThread"]
+    end
+
+    subgraph ChatThread["ChatThread.tsx (Coordinator)"]
+        Header["ChatHeader"]
+        Controls["ChatControls"]
+        Messages["ChatMessageList"]
+        Input["ChatInput"]
+    end
+
+    subgraph Controls["ChatControls"]
+        Context["ContextSelector"]
+        Prompt["PromptSelector"]
+        Model["ModelSelector"]
+    end
+
+    subgraph Hooks["Hooks Used"]
+        H1["useChatRepository()"]
+        H2["useChatService()"]
+        H3["useChatStore()"]
+        H4["useLiveQuery()"]
+        H5["useConfirmation()"]
+    end
+
+    ChatInterface --> ChatThread
+    ChatThread --> Hooks
+```
+
+#### Chat Generation Flow
+
 ```mermaid
 sequenceDiagram
     participant User
     participant UI as ChatThread
-    participant Service as ChatService
     participant Repo as ChatRepository
-    participant DB as Dexie
-    participant AI as AI API
+    participant Service as DexieChatService
+    participant Context as ContextAssembler
+    participant AI as AI Client
+    participant DB as IndexedDB
 
-    User->>UI: Send message
+    User->>UI: Type message + Select context
+    User->>UI: Click Send
+    
+    UI->>UI: Build ChatContext from selections
+    Note over UI: { novelText: 'full', scenes: ['id1'], codexEntries: ['id2'] }
+    
     UI->>Repo: createMessage(userMessage)
-    Repo->>DB: chat_messages.add()
+    Repo->>DB: chatMessages.add()
     
     UI->>Service: generateResponse({message, context, model})
-    Service->>DB: Fetch context (scenes, codex, etc.)
-    Service->>AI: POST /chat/completions
+    
+    Service->>Context: buildContextText(context, projectId)
+    Context->>DB: Fetch scenes, codex entries
+    Context-->>Service: Formatted context string
+    
+    Service->>Service: Build system prompt + conversation history
+    Service->>AI: generateText({system, prompt, model})
+    
     AI-->>Service: AI response
     
-    Service->>Repo: createMessage(aiMessage)
-    Repo->>DB: chat_messages.add()
-    DB-->>UI: Live query update
+    Service-->>UI: { responseText, model }
+    
+    UI->>Repo: createMessage(aiMessage)
+    Repo->>DB: chatMessages.add()
+    
+    DB-->>UI: LiveQuery triggers re-render
     UI->>User: Display AI response
 ```
 
-#### Codex Module (`src/features/codex/`)
-
-**Components:**
-- `CodexList.tsx` – Entity browser
-- `EntityEditor.tsx` – Full entity editor with tabs
-- Tabs:
-  - `DetailsTab.tsx`
-  - `ResearchTab.tsx`
-  - `RelationsTab.tsx`
-  - `MentionsTab.tsx`
-  - `TrackingTab.tsx`
-
-**Repository:**
-- `use-codex-repository.ts` – CRUD operations
-
-**Data Flow:**
-```mermaid
-flowchart LR
-    UI[Entity Editor] -->|Edit| Debounce[useDebounce 1s]
-    Debounce --> Repo[CodexRepository]
-    Repo --> DB[(Dexie)]
-    DB -->|Live Query| List[CodexList]
-```
-
-#### Search Module (`src/features/search/`)
-
-**Components:**
-- `SearchPalette.tsx` – Main modal dialog
-- `SearchInput.tsx` – Input field
-- `SearchResults.tsx` – Grouped results list
-
-**Services:**
-- `search-service.ts` – Singleton wrapper around Fuse.js
-- `use-search.ts` – Hook for search state and index management
-
-**Data Flow:**
-```mermaid
-flowchart TB
-    User[User Input] --> Hook[useSearch]
-    Hook --> Service[SearchService]
-    Service --> Fuse[Fuse.js Index]
-    Fuse --> Results[Ranked Matches]
-    Results --> UI[SearchPalette]
-```
-
-#### Google Drive Module (`src/features/google-drive/`)
-
-**Components:**
-- `DriveBackupBrowser.tsx` – List and restore backups
-- `InlineGoogleAuth.tsx` – Sign-in/out button
-
-**Services:**
-- `google-drive-service.ts` – Drive API wrapper (Upload, List, Download)
-- `google-auth-service.ts` – OAuth 2.0 PKCE flow
-
-**Data Flow:**
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI as DriveBrowser
-    participant Service as DriveService
-    participant Auth as AuthService
-    participant Drive as Google Drive API
-
-    User->>UI: Click "Backups"
-    UI->>Auth: isAuthenticated?
-    
-    alt Not Authenticated
-        UI->>User: Show Sign In
-        User->>Auth: Sign In (OAuth)
-    end
-    
-    UI->>Service: listBackups()
-    Service->>Drive: GET /files
-    Drive-->>UI: File List
-    
-    User->>UI: Click "Restore"
-    UI->>Service: downloadBackup(id)
-    Service->>Drive: GET /files/id?alt=media
-    Drive-->>UI: JSON Data
-    UI->>DB: Import Data
-```
-
-### 4.2 Cross-Cutting Concerns
-
-#### Save Coordination
-
-**Problem:** Race conditions between auto-save and AI-generated saves.
-
-**Solution:** `SaveCoordinator` singleton with per-scene queues.
+#### Context Building Implementation
 
 ```mermaid
 flowchart TB
-    S1["Save Request 1"] --> Queue{"Scene Queue"}
-    S2["Save Request 2"] --> Queue
-    S3["Save Request 3"] --> Queue
-    
-    Queue --> Serial["Serialize Saves"]
-    Serial --> DB["Database"]
-    DB -->|"On Failure"| LocalBackup["localStorage<br/>Backup"]
-```
-
-**Implementation:**
-```typescript
-class SaveCoordinator {
-  private saveQueue = new Map<string, Promise<void>>();
-  
-  async scheduleSave(sceneId: string, getContent: () => any): Promise<void> {
-    // Wait for existing save to complete
-    // Then execute new save
-    // On failure, backup to localStorage
-  }
-}
-```
-
-#### AI Integration Architecture
-
-**Design:** Provider-agnostic AI client with user-managed connections.
-
-```mermaid
-flowchart TB
-    UI["AI Feature"] --> Client["AI Client"]
-    Client --> Config["Get AI Connections<br/>from localStorage"]
-    Config --> Provider{"Select Provider"}
-    
-    Provider -->|"OpenAI"| OpenAI["OpenAI API"]
-    Provider -->|"Anthropic"| Anthropic["Anthropic API"]
-    Provider -->|"OpenRouter"| OpenRouter["OpenRouter API"]
-    
-    OpenAI --> Response["Unified Response"]
-    Anthropic --> Response
-    OpenRouter --> Response
-    Response --> UI
-```
-
-**Key Points:**
-- No API keys stored server-side (impossible, no server)
-- User manages connections in Settings
-- Connections stored in `localStorage` as JSON
-- `fetchModelsForConnection()` validates and loads available models
-- Last used model cached for convenience
-
----
-
-## 5. Data Flow Architecture
-
-### 5.1 Data Origins
-
-1. **User Input:**
-   - Text typed in TiptapEditor
-   - Metadata in forms (project title, entity name, etc.)
-   - Selections in dropdowns and dialogs
-
-2. **AI Generation:**
-   - Text from AI APIs
-   - Streaming responses assembled into messages
-
-3. **File Import:**
-   - Project JSON files
-   - Full database backup files
-
-### 5.2 Data Transformations
-
-```mermaid
-flowchart LR
-    Input["User Input"] --> Validation["Validation"]
-    Validation --> Transform["Transform<br/>to Schema"]
-    Transform --> Repo["Repository"]
-    
-    Repo --> DB["Dexie"]
-    DB --> Query["Live Query"]
-    Query --> Render["Component<br/>Render"]
-    
-    AI["AI Response"] --> Parse["Parse/Clean"]
-    Parse --> Repo
-```
-
-**Transformation Points:**
-1. **Form to Entity:** Dialog forms → TypeScript types → Dexie schema
-2. **Tiptap to DB:** ProseMirror JSON → `nodes.content` field
-3. **AI to Editor:** Text response → Tiptap commands (`insertContent`)
-4. **Export:** Dexie records → JSON → Blob → Download
-
-### 5.3 Data Storage Locations
-
-| Data Type | Storage | Rationale |
-|-----------|---------|-----------|
-| Projects | IndexedDB (`projects` table) | Project metadata, queryable, persistent |
-| Manuscript Structure (Acts, Chapters, Scenes) | IndexedDB (`nodes` table) | Hierarchical tree data, large datasets |
-| Codex Entries | IndexedDB (`codex` table) | World-building data, searchable by tags |
-| Codex Relations | IndexedDB (`codexRelations` table) | Entity relationships |
-| Codex Additions | IndexedDB (`codexAdditions` table) | Scene-specific codex references |
-| Sections | IndexedDB (`sections` table) | Colored content blocks within scenes |
-| Series | IndexedDB (`series` table) | Project groupings |
-| Snippets | IndexedDB (`snippets` table) | Reusable text templates |
-| Chat Threads | IndexedDB (`chatThreads` table) | Conversation threads with AI |
-| Chat Messages | IndexedDB (`chatMessages` table) | Individual messages in threads |
-| AI Connections | `localStorage` | Small config, simple key-value |
-| User Preferences (theme, formatting) | Zustand + `localStorage` | Small, frequently accessed |
-| Emergency Backups | `localStorage` | Fallback only, temporary |
-| Cloud Backups | **Google Drive** | Optional off-site backup, user-controlled |
-| Exports | File downloads | User-controlled portability |
-
-### 5.4 Complete Data Flow Diagram
-
-```mermaid
-flowchart TB
-    subgraph Input
-        UserTyping["User Typing"]
-        AIGen["AI Generation"]
-        Import["File Import"]
+    subgraph Selection["User Context Selection"]
+        Novel["Full Novel"]
+        Outline["Outline Only"]
+        Acts["Specific Acts"]
+        Chapters["Specific Chapters"]
+        Scenes["Specific Scenes"]
+        Codex["Codex Entries"]
     end
-    
-    subgraph Processing
-        Validation["Input<br/>Validation"]
-        Transform["Schema<br/>Transform"]
-        Debounce["Debounce<br/>Logic"]
+
+    subgraph Building["DexieChatService.buildContextText()"]
+        Check["Check context.novelText"]
+        FetchScenes["Fetch all scenes"]
+        FetchNodes["Fetch manuscript tree"]
+        FetchActs["Fetch acts + children"]
+        FetchChapters["Fetch chapters + scenes"]
+        FetchSpecific["Fetch specific scenes"]
+        FetchCodex["Fetch codex entries"]
     end
-    
-    subgraph Persistence
-        Repos["Repositories"]
-        DB["IndexedDB/<br/>Dexie"]
-        LS["localStorage"]
+
+    subgraph Output["Formatted Output"]
+        FullText["=== FULL NOVEL TEXT ===<br/>[Scene: Title]\nContent..."]
+        OutlineText["=== NOVEL OUTLINE ===<br/>- [ACT] Act 1\n  - [CHAPTER] Ch 1"]
+        ActText["=== ACT: Act 1 ===<br/>Scene content..."]
+        CodexText["=== CODEX ENTRIES ===<br/>[Codex: Name (category)]"]
     end
-    
-    subgraph Reactivity
-        LiveQueries["Live<br/>Queries"]
-        Zustand["Zustand<br/>Stores"]
-    end
-    
-    subgraph Display
-        Components["React<br/>Components"]
-        UI["User<br/>Interface"]
-    end
-    
-    UserTyping --> Validation
-    AIGen --> Transform
-    Import --> Repos
-    
-    Validation --> Transform
-    Transform --> Debounce
-    Debounce --> Repos
-    
-    Repos --> DB
-    Repos --> LS
-    
-    DB --> LiveQueries
-    LS --> Zustand
-    
-    LiveQueries --> Components
-    Zustand --> Components
-    Components --> UI
-    UI --> UserTyping
+
+    Novel --> Check --> FetchScenes --> FullText
+    Outline --> Check --> FetchNodes --> OutlineText
+    Acts --> FetchActs --> ActText
+    Codex --> FetchCodex --> CodexText
 ```
 
 ---
 
-## 6. State Management Strategy
+### 4.3 Codex Feature
 
-### 6.1 State Categories
+World-building system with templates, tags, and entity relationships.
 
-#### Global UI State (Zustand)
+#### Component Architecture
 
-**Stores:**
-1. **`use-project-store.ts`**
-   - `activeProjectId`
-   - `activeSceneId`
-   - `viewMode` (plan, write, chat)
-   
-2. **`use-chat-store.ts`**
-   - `activeThreadId`
+```mermaid
+flowchart TB
+    subgraph CodexModule["Codex Module"]
+        List["CodexList"]
+        Editor["EntityEditor"]
+    end
 
-3. **`use-format-store.ts`**
-   - `fontFamily`, `fontSize`, `lineHeight`
-   - `typewriterMode`, `showWordCount`
-   - Persisted to `localStorage`
+    subgraph EntityTabs["Entity Editor Tabs"]
+        Details["DetailsTab"]
+        Template["TemplateFieldRenderer"]
+        Tags["TagManager"]
+        Research["ResearchTab"]
+        Relations["RelationsTab"]
+        Mentions["MentionsTab"]
+        Tracking["TrackingTab"]
+    end
 
-**Pattern:**
-```typescript
-export const useProjectStore = create<ProjectStore>()(
-  persist(
-    (set) => ({
-      activeProjectId: null,
-      setActiveProjectId: (id) => set({ activeProjectId: id }),
-      // ...
-    }),
-    { name: 'project-store' }
-  )
-);
+    subgraph Hooks["Hooks Used"]
+        H1["useCodexRepository()"]
+        H2["useCodexTemplateRepository()"]
+        H3["useCodexTagRepository()"]
+        H4["useCodexRelationTypeRepository()"]
+        H5["useDebounce()"]
+        H6["useLiveQuery()"]
+        H7["useConfirmation()"]
+    end
+
+    List --> Editor
+    Editor --> EntityTabs
+    Editor --> Hooks
 ```
 
-#### Persistent Data State (Dexie Live Queries)
-
-**Pattern:**
-```typescript
-const projects = useLiveQuery(() => db.projects.toArray());
-const scenes = useLiveQuery(() => 
-  db.nodes
-    .where('projectId').equals(projectId)
-    .and(n => n.type === 'scene')
-    .toArray()
-);
-```
-
-**Reactivity:**
-- Any DB mutation triggers live query re-execution
-- Components automatically re-render with fresh data
-- No manual state synchronization needed
-
-#### Component-Local State (useState)
-
-**Used for:**
-- Form inputs before submission
-- Transient UI (dialogs open/closed, tabs)
-- Loading states (isGenerating, isSaving)
-
-### 6.2 State Consistency Mechanisms
-
-1. **Single Source of Truth:**
-   - DB is truth for persistent data
-   - Zustand is truth for UI state
-   - Never duplicate data across stores
-
-2. **Debouncing:**
-   - Editor: 1-2s debounce before DB write
-   - Forms: `useDebounce` hook for auto-save
-
-3. **Save Coordination:**
-   - `SaveCoordinator` ensures serialized writes per scene
-   - Prevents "last write wins" data loss
-
-4. **Emergency Backup:**
-   - If DB write fails, backup to `localStorage`
-   - User alerted via toast
-
-### 6.3 State Update Propagation
+#### Entity Editor Data Flow
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Component
-    participant Zustand as Zustand Store
-    participant Repo as Repository
-    participant DB as Dexie
-    participant LiveQuery as Live Query
+    participant Editor as EntityEditor
+    participant Debounce as useDebounce(1000ms)
+    participant Repo as CodexRepository
+    participant DB as IndexedDB
+    participant LiveQuery as useLiveQuery
 
-    User->>Component: Interact (e.g., change scene)
-    Component->>Zustand: setActiveSceneId(id)
-    Zustand-->>Component: State updated
-    Component->>Component: Re-render
-
-    Note over Component,DB: Separate flow for data mutation
-
-    User->>Component: Edit content
-    Component->>Repo: update(sceneId, {content})
-    Repo->>DB: nodes.update(sceneId, {content})
+    User->>Editor: Edit field (name, description, etc.)
+    Editor->>Editor: setFormData({...prev, [field]: value})
+    
+    Editor->>Debounce: formData changes
+    
+    Note over Debounce: Wait 1000ms for typing to stop
+    
+    Debounce->>Repo: codexRepo.update(entityId, formData)
+    Repo->>DB: codex.update()
+    
     DB-->>LiveQuery: Trigger update
-    LiveQuery-->>Component: Fresh data
-    Component->>Component: Re-render
+    LiveQuery-->>Editor: Fresh entity data
+    
+    Note over Editor: Template fields work the same way
+    User->>Editor: Edit custom template field
+    Editor->>Editor: Update formData.customFields[fieldId]
+    Editor->>Debounce: Wait...
+    Debounce->>Repo: Save with customFields
 ```
 
----
-
-## 7. Dependency & Module Interaction Map
+#### Codex Data Model
 
 ```mermaid
-graph TD
-    subgraph Presentation
-        Pages[Next.js Pages]
-        Features[Feature Components]
-        Shared[Shared UI Components]
-    end
+erDiagram
+    CodexEntry ||--o{ CodexEntryTag : "has tags"
+    CodexEntry ||--o{ CodexRelation : "parent_of"
+    CodexEntry ||--o{ CodexRelation : "child_of"
+    CodexEntry }o--|| CodexTemplate : "uses"
     
-    subgraph State
-        Zustand[Zustand Stores]
-        LiveQueries[Live Queries]
-    end
+    CodexTag ||--o{ CodexEntryTag : "assigned_to"
+    CodexRelationType ||--o{ CodexRelation : "typed_by"
     
-    subgraph Logic
-        Repos[Repositories]
-        Services[Services]
-        Hooks[Custom Hooks]
-    end
+    CodexEntry {
+        string id PK
+        string projectId FK
+        string name
+        CodexCategory category
+        string description
+        string notes
+        string templateId FK
+        object customFields
+        object tracking
+        boolean isGlobal
+    }
     
-    subgraph Infrastructure
-        DB[Dexie Database]
-        LS[localStorage]
-        Toast[Toast Service]
-        Confirm[Confirmation Dialog]
-        SaveCoord[Save Coordinator]
-        Logger[Logger Service]
-        TabCoord[Tab Coordinator]
-    end
+    CodexTemplate {
+        string id PK
+        string name
+        CodexCategory category
+        array fields
+        boolean isBuiltIn
+    }
     
-    subgraph External
-        AI[AI APIs]
-    end
+    CodexRelation {
+        string id PK
+        string parentId FK
+        string childId FK
+        string type FK
+        number strength
+        string description
+    }
     
-    Pages --> Features
-    Features --> Shared
-    Features --> Zustand
-    Features --> LiveQueries
-    Features --> Hooks
-    
-    Hooks --> Repos
-    Hooks --> Services
-    
-    Repos --> DB
-    Repos --> Toast
-    
-    Services --> AI
-    Services --> Repos
-    
-    Zustand --> LS
-    
-    Features --> SaveCoord
-    SaveCoord --> DB
-    SaveCoord --> LS
-    SaveCoord --> Toast
-    
-    Features --> Confirm
-    
-    style DB fill:#4CAF50
-    style AI fill:#FF9800
-    style Zustand fill:#2196F3
+    CodexTag {
+        string id PK
+        string projectId FK
+        string name
+        string color
+    }
 ```
 
-### Coupling Analysis
-
-| Module Pair | Coupling Level | Notes |
-|-------------|---------------|-------|
-| Components ↔ Repositories | **Loose** | Via hooks, mockable for testing |
-| Components ↔ Dexie | **None** | Always go through repositories |
-| Repositories ↔ Dexie | **Tight** | Intentional, encapsulates all DB logic |
-| Services ↔ AI APIs | **Loose** | Provider-agnostic interface |
-| Components ↔ Zustand | **Medium** | Direct hook calls, but stores are modular |
-
 ---
 
-## 8. Architectural Decisions & Rationale
+### 4.4 Review/Analysis Feature
 
-### ADR-001: Frontend-Only Architecture
+AI-powered story analysis with manuscript versioning.
 
-**Context:**
-Need for a privacy-focused, offline-first novel writing app.
+#### Component Architecture
 
-**Decision:**
-Build as a client-side-only web application with no backend server.
+```mermaid
+flowchart TB
+    subgraph ReviewModule["Review Module"]
+        Dashboard["ReviewDashboard"]
+        RunDialog["AnalysisRunDialog"]
+        DetailDialog["AnalysisDetailDialog"]
+        TreeSelector["ManuscriptTreeSelector"]
+        Warning["VersionWarning"]
+    end
 
-**Rationale:**
-- **Privacy:** All data stays on user's device
-- **Cost:** Zero server/hosting costs
-- **Simplicity:** No auth, no server deployment, no API versioning
-- **Offline:** Works without internet (except AI features)
+    subgraph Hooks["Feature Hooks"]
+        H1["useAnalysisRunner()"]
+        H2["useAnalysisRepository()"]
+        H3["useAnalysisDelete()"]
+        H4["useManuscriptNodes()"]
+        H5["useManuscriptVersion()"]
+    end
 
-**Consequences:**
-- ✅ Maximum privacy
-- ✅ Zero operational cost
-- ✅ Simple deployment (static hosting)
-- ❌ No cross-device sync
-- ❌ No collaborative editing
-- ❌ Limited by browser storage (~1GB typical quota)
+    subgraph DI["Dependency Injection"]
+        AppContext["useAppServices()"]
+        AnalysisSvc["AnalysisService"]
+    end
 
----
-
-### ADR-002: IndexedDB (via Dexie) for Storage
-
-**Context:**
-Need persistent storage for large manuscripts (hundreds of scenes, thousands of words).
-
-**Decision:**
-Use Dexie.js (wrapper for IndexedDB) as primary storage.
-
-**Rationale:**
-- **Capacity:** Much larger than `localStorage` (5MB limit)
-- **Queryability:** Indexed queries for fast lookups
-- **Reactivity:** `dexie-react-hooks` for live queries
-- **Schema versioning:** Migration support as schema evolves
-
-**Consequences:**
-- ✅ Can handle large projects (millions of words)
-- ✅ Fast queries with indexes
-- ✅ Automatic UI updates via live queries
-- ❌ More complex than `localStorage`
-- ❌ Browser compatibility (though wide support now)
-
----
-
-### ADR-003: Domain-Driven Folder Structure
-
-**Context:**
-As features grow, need clear module boundaries.
-
-**Decision:**
-Organize by domain/feature, not by technical layer:
-```
-src/
-  app/                    # Next.js App Router pages
-  features/               # Feature-based modules
-    ai/
-    chat/
-    codex/
-    data-management/
-    editor/
-    google-drive/
-    navigation/
-    plan/
-    project/
-    search/
-    settings/
-    shared/
-    snippets/
-  domain/                 # Domain Layer (Interfaces)
-    repositories/
-    services/
-  infrastructure/         # Infrastructure Layer (Implementations)
-    repositories/
-    services/
-    di/                   # Dependency Injection
-  lib/                    # Utilities and services
-    core/                 # Core utilities (database, logger)
-    config/               # Configuration and types
-    services/             # External services
-    tiptap-extensions/
-  components/             # Shared React components
-    ui/                   # Reusable UI components
-  hooks/                  # Custom React hooks
-  store/                  # Zustand stores
-  test/                   # Test utilities
+    Dashboard --> Hooks
+    Hooks --> DI
+    DI --> AnalysisSvc
 ```
 
-**Rationale:**
-- **Cohesion:** All related code (components, hooks, types) in one place
-- **Discoverability:** Easy to find feature-specific code
-- **Scalability:** Can add features without sprawling file trees
-- **Clean Architecture:** Clear separation between domain and infrastructure
+#### Analysis Execution Flow
 
-**Consequences:**
-- ✅ High feature cohesion
-- ✅ Easier to understand feature scope
-- ❌ Some code duplication vs. strict layering
-- ❌ Risk of circular dependencies if not careful
+```mermaid
+sequenceDiagram
+    participant User
+    participant Dialog as AnalysisRunDialog
+    participant Hook as useAnalysisRunner
+    participant DI as AppContext
+    participant Service as AnalysisService
+    participant AI as AI Client
+    participant DB as IndexedDB
+
+    User->>Dialog: Select scope & analysis types
+    User->>Dialog: Click Run
+    
+    Dialog->>Hook: runAnalysis(projectId, scope, types, model)
+    Hook->>DI: useAppServices().analysisService
+    Hook->>Service: runAnalysis(...)
+    
+    loop For each analysis type
+        Service->>Service: filterScenesByScope()
+        Service->>Service: getPromptForType()
+        Service->>AI: generateText({prompt, model})
+        AI-->>Service: AI response
+        Service->>Service: parseResponse()
+        Service->>Service: convertToInsights()
+        Service->>DB: analysisRepo.create(analysis)
+    end
+    
+    Service-->>Hook: StoryAnalysis[]
+    Hook->>User: toast.success('Analysis complete!')
+    
+    DB-->>Dialog: LiveQuery updates dashboard
+```
+
+#### Analysis Types
+
+| Type | Purpose | Output |
+|------|---------|--------|
+| **Synopsis** | Story summary generation | Overall summary with key themes |
+| **Plot Threads** | Track storylines | List of plot lines with status |
+| **Character Arcs** | Character development | Arc stages per character |
+| **Timeline** | Chronological consistency | Timeline events with potential conflicts |
+| **Contradictions** | Logical conflicts | List of inconsistencies with scene refs |
+| **Alpha/Beta Reader** | Reader feedback simulation | Simulated reader feedback |
+
+#### Manuscript Version Tracking
+
+```mermaid
+flowchart LR
+    subgraph Analysis["Stored Analysis"]
+        ManuscriptVersion["manuscriptVersion: 12345678"]
+        ScenesAnalyzed["scenesAnalyzedCount: 45"]
+        WordCount["wordCountAtAnalysis: 25000"]
+    end
+
+    subgraph Current["Current Manuscript"]
+        CalcVersion["Calculate current version hash"]
+        Compare["Compare with stored"]
+    end
+
+    subgraph Status["Staleness Check"]
+        Fresh["✅ Fresh - versions match"]
+        Stale["⚠️ Stale - 5 scenes edited"]
+    end
+
+    Analysis --> Compare
+    Current --> Compare
+    Compare --> Status
+```
 
 ---
 
-### ADR-004: Repository Pattern for Data Access
+### 4.5 Plan Feature
 
-**Context:**
-Components should not directly call Dexie; need abstraction layer.
+Visual manuscript planning with multiple view modes.
 
-**Decision:**
-Refine Repository Pattern to separate Interface from Implementation (Clean Architecture).
-- `src/domain/repositories/` -> Interfaces (e.g., `INodeRepository`)
-- `src/infrastructure/repositories/` -> Implementations (e.g., `DexieNodeRepository`)
+#### Components (5)
 
-**Rationale:**
-- **Testability:** Can easily mock repositories for unit tests
-- **Flexibility:** Can swap Dexie for another DB if needed (unlikely but good practice)
-- **Clarity:** Defines clear contract for data access
-
-**Consequences:**
-- ✅ Better separation of concerns
-- ✅ Easier testing
-- ❌ More boilerplate (Interface + Class + DI)
+| Component | Purpose |
+|-----------|---------|
+| `PlanView` | Main planning view container |
+| `OutlineView` | Hierarchical outline editor (13KB) |
+| `GridView` | Card-based grid layout (11KB) |
+| `MatrixView` | Matrix/timeline visualization (9KB) |
+| `SceneCard` | Individual scene card component |
 
 ---
 
-### ADR-005: Google Drive Integration
+### 4.6 Settings Feature
 
-**Context:**
-Users need off-site backup without a dedicated backend server.
+Application configuration and AI connection management.
 
-**Decision:**
-Implement client-side Google Drive integration using OAuth 2.0 PKCE flow.
+#### Components (4)
 
-**Rationale:**
-- **Privacy:** User owns the storage and credentials
-- **Cost:** Free for us (uses user's Drive quota)
-- **Reliability:** Google's infrastructure is reliable
+| Component | Purpose |
+|-----------|---------|
+| `SettingsDialog` | Main settings modal (19KB) |
+| `AIConnectionsTab` | Manage AI provider connections (18KB) |
+| `NewConnectionDialog` | Add new AI connection (10KB) |
+| `GoogleDriveConnection` | Google Drive auth & backup settings |
 
-**Consequences:**
-- ✅ Cloud backup without server costs
-- ✅ User retains control
-- ❌ Requires Google Cloud Console setup (Client ID)
-- ❌ User must have Google account
+---
 
-**Decision:**
-Implement repository pattern as custom hooks:
+### 4.7 Shared Components (`src/features/shared/`)
+
+Cross-feature reusable components.
+
+| Component | Purpose |
+|-----------|---------|
+| `ContextSelector` | Select manuscript/codex context for AI (11KB) |
+| `CreateNodeDialog` | Create new acts/chapters/scenes |
+| `ErrorBoundary` | React error boundary wrapper |
+| `ThemeProvider` | Theme context provider |
+
+---
+
+### 4.8 Tiptap Editor Extensions (`src/lib/tiptap-extensions/`)
+
+Custom editor capabilities.
+
+| Extension | Purpose |
+|-----------|---------|
+| `section-node.ts` | Colored section blocks for story structure |
+| `slash-commands.ts` | `/` command palette implementation |
+| `slash-commands-list.tsx` | Command list UI rendering |
+
+---
+
+### 4.9 Google Integration Services (`src/lib/services/`)
+
+External Google API integration.
+
+| Service | Purpose |
+|---------|---------|
+| `GoogleAuthService` | OAuth 2.0 PKCE flow (9KB) |
+| `GoogleDriveService` | Drive API for backup/restore (8KB) |
+
+---
+
+### 4.10 UI Component Library (`src/components/ui/`)
+
+25 reusable Shadcn/UI primitives:
+
+| Category | Components |
+|----------|------------|
+| **Dialogs** | `alert-dialog`, `dialog`, `sheet`, `popover` |
+| **Forms** | `button`, `input`, `textarea`, `checkbox`, `switch`, `slider`, `radio-group`, `select`, `label` |
+| **Layout** | `card`, `tabs`, `separator`, `resizable`, `scroll-area`, `sidebar` |
+| **Feedback** | `alert`, `badge`, `skeleton`, `tooltip` |
+| **Navigation** | `command`, `dropdown-menu` |
+
+---
+
+### 4.11 Application Components (`src/components/`)
+
+Top-level application components:
+
+| Component | Purpose |
+|-----------|---------|
+| `TopNavigation` | App-wide navigation bar |
+| `ProjectTools` | Project-level toolbar |
+| `ErrorBoundary` | Global error handling |
+| `MultiTabWarning` | Multi-tab conflict detection |
+| `ThemeProvider` | Dark/light mode |
+| `ToastProvider` | Toast notification container |
+| `ClientToaster` | Client-side toast renderer |
+| `AppCleanup` | Cleanup on unmount |
+
+---
+
+## 5. AI Integration Deep Dive
+
+### Provider Architecture
+
+```mermaid
+flowchart TB
+    subgraph Feature["AI-Powered Feature"]
+        Chat["Chat"]
+        Editor["Editor AI"]
+        Analysis["Story Analysis"]
+    end
+
+    subgraph UseAI["useAI() Hook"]
+        Generate["generate()"]
+        Stream["generateStream()"]
+        Cancel["cancel()"]
+        Model["model / setModel()"]
+    end
+
+    subgraph Client["AI Client (ai-client.ts)"]
+        GetConn["getConnectionForModel()"]
+        Router["Route by Provider"]
+    end
+
+    subgraph Providers["Provider Implementations"]
+        OR["generateWithOpenRouter()"]
+        G["generateWithGoogle()"]
+        M["generateWithMistral()"]
+        O["generateWithOpenAI()"]
+        K["generateWithKimi()"]
+    end
+
+    subgraph Streaming["Streaming Implementations"]
+        SOR["streamWithOpenRouter()"]
+        SG["streamWithGoogle()"]
+        SM["streamWithMistral()"]
+        SO["streamWithOpenAI()"]
+        SK["streamWithKimi()"]
+    end
+
+    Feature --> UseAI
+    UseAI --> Client
+    Client --> GetConn
+    GetConn --> Router
+    Router --> Providers
+    Router --> Streaming
+```
+
+### useAI Hook Usage
+
 ```typescript
-export function useProjectRepository() {
-  return {
-    getAll: () => db.projects.toArray(),
-    get: (id) => db.projects.get(id),
-    create: (project) => db.projects.add(project),
-    update: (id, changes) => db.projects.update(id, changes),
-    delete: (id) => db.projects.delete(id),
-  };
+// Example: Using useAI in a component
+const { generate, generateStream, isGenerating, model, setModel } = useAI({
+    system: 'You are a creative writing assistant',
+    operationName: 'ContinueWriting'
+});
+
+// Non-streaming generation
+const result = await generate({
+    prompt: 'Continue this story...',
+    context: sceneContent,
+    maxTokens: 500,
+    temperature: 0.8
+});
+
+// Streaming generation
+await generateStream(
+    { prompt: 'Write a paragraph...' },
+    {
+        onChunk: (chunk) => setOutput(prev => prev + chunk),
+        onComplete: (fullText) => saveToScene(fullText)
+    }
+);
+```
+
+### Connection Resolution Flow
+
+```mermaid
+sequenceDiagram
+    participant Feature
+    participant Client as AI Client
+    participant Storage as localStorage
+    participant Provider as AI Provider API
+
+    Feature->>Client: generateText({model: 'gemini-2.0-flash'})
+    
+    Client->>Storage: getItem('ai_connections')
+    Storage-->>Client: AIConnection[]
+    
+    Client->>Client: Find connection supporting model
+    
+    alt Native provider has model
+        Client->>Client: Use native connection
+    else Model from OpenRouter
+        Client->>Client: Use OpenRouter connection
+    else No connection found
+        Client->>Feature: Error: No connection for model
+    end
+    
+    Client->>Provider: API request with connection.apiKey
+    Provider-->>Client: Response
+    Client-->>Feature: { text, model, provider }
+```
+
+---
+
+## 6. State Management Patterns
+
+### Zustand Stores
+
+```mermaid
+flowchart TB
+    subgraph Stores["Zustand Stores"]
+        Project["useProjectStore"]
+        Chat["useChatStore"]
+        Format["useFormatStore"]
+    end
+
+    subgraph ProjectStore["useProjectStore"]
+        ActiveProject["activeProjectId"]
+        ActiveScene["activeSceneId"]
+        ViewMode["viewMode: plan|write|chat"]
+    end
+
+    subgraph FormatStore["useFormatStore (persisted)"]
+        Font["fontFamily, fontSize"]
+        Line["lineHeight"]
+        TypeWriter["typewriterMode"]
+        WordCount["showWordCount"]
+    end
+
+    subgraph ChatStore["useChatStore"]
+        ActiveThread["activeThreadId"]
+    end
+
+    Stores --> ProjectStore
+    Stores --> FormatStore
+    Stores --> ChatStore
+
+    FormatStore -->|"persist middleware"| LS["localStorage"]
+    ProjectStore -->|"persist middleware"| LS
+```
+
+### Live Query Pattern
+
+```mermaid
+sequenceDiagram
+    participant Component
+    participant LiveQuery as useLiveQuery
+    participant Dexie as IndexedDB
+    participant Other as Other Component
+
+    Component->>LiveQuery: useLiveQuery(() => repo.getAll())
+    LiveQuery->>Dexie: Subscribe to changes
+    Dexie-->>LiveQuery: Initial data
+    LiveQuery-->>Component: Render with data
+
+    Other->>Dexie: db.table.update(id, changes)
+    Dexie-->>LiveQuery: Change notification
+    LiveQuery-->>Component: Re-render with new data
+```
+
+---
+
+## 7. Hooks Reference
+
+### Repository Hooks (10)
+
+| Hook | Returns | Purpose |
+|------|---------|---------|
+| `useNodeRepository()` | `INodeRepository` | Manuscript CRUD (Acts, Chapters, Scenes) |
+| `useProjectRepository()` | `IProjectRepository` | Project metadata CRUD |
+| `useCodexRepository()` | `ICodexRepository` | World-building entity CRUD |
+| `useChatRepository()` | `IChatRepository` | Chat threads/messages CRUD |
+| `useSnippetRepository()` | `ISnippetRepository` | Text snippet CRUD |
+| `useCodexTagRepository()` | `ICodexTagRepository` | Tag management |
+| `useCodexTemplateRepository()` | `ICodexTemplateRepository` | Template management |
+| `useCodexRelationTypeRepository()` | `ICodexRelationTypeRepository` | Relation type management |
+
+### Utility Hooks (12)
+
+| Hook | Purpose | Example Usage |
+|------|---------|---------------|
+| `useAutoSave(sceneId, editor)` | Auto-save with emergency backup | In TiptapEditor |
+| `useDebounce(value, delay)` | Debounce any value | Form auto-save (1000ms) |
+| `useAI(options)` | Unified AI generation | Editor AI features |
+| `useConfirmation()` | Confirmation dialogs | Delete confirmations |
+| `usePrompt()` | Input prompt dialogs | Rename dialogs |
+| `useImportExport()` | Full backup/restore | Data management |
+| `useDocumentExport()` | Export DOCX/TXT/MD | Manuscript export |
+| `useExportService()` | Access export service | Uses generic factory |
+| `useGoogleAuth()` | Google OAuth flow | Drive integration |
+| `useGoogleDrive()` | Drive file operations | Backup/restore |
+| `useMobile()` | Responsive breakpoint | Mobile detection |
+| `useRepository<T>()` | Generic factory hook | Reduces duplication |
+
+### Feature-Specific Hooks (6)
+
+| Hook | Feature | Purpose |
+|------|---------|---------|
+| `useAnalysisRunner()` | Review | Execute AI analyses |
+| `useAnalysisRepository()` | Review | Analysis CRUD |
+| `useAnalysisDelete()` | Review | Delete with confirmation |
+| `useManuscriptNodes()` | Review | Get manuscript tree |
+| `useManuscriptVersion()` | Review | Staleness detection |
+| `useSearch()` | Search | Fuzzy search across data |
+| `useChatService()` | Chat | AI generation with context |
+| `useNodeDeletion()` | Editor | Cascade delete with confirmation |
+
+---
+
+## 8. Database Schema (NovelDB v8)
+
+### Table Overview
+
+```mermaid
+erDiagram
+    projects ||--o{ nodes : "contains"
+    projects ||--o{ codex : "world-building"
+    projects ||--o{ chatThreads : "conversations"
+    projects ||--o{ snippets : "text-blocks"
+    projects ||--o{ storyAnalyses : "ai-analyses"
+    projects ||--o{ codexTags : "custom-tags"
+    
+    nodes ||--o{ sections : "colored-blocks"
+    nodes ||--o{ codexAdditions : "entity-refs"
+    
+    codex ||--o{ codexRelations : "parent"
+    codex ||--o{ codexEntryTags : "tagged"
+    codex }o--|| codexTemplates : "uses"
+    
+    chatThreads ||--o{ chatMessages : "messages"
+    
+    series ||--o{ projects : "groups"
+```
+
+### All 16 Tables
+
+| Table | Purpose | Key Indexes |
+|-------|---------|-------------|
+| `projects` | Project metadata | `id, title, seriesId, archived` |
+| `nodes` | Manuscript structure | `id, projectId, parentId, type, order` |
+| `codex` | World-building entries | `id, projectId, category, *tags` |
+| `series` | Project groupings | `id, title` |
+| `snippets` | Reusable text blocks | `id, projectId, pinned` |
+| `codexRelations` | Entity relationships | `id, parentId, childId, type` |
+| `codexAdditions` | Scene-entity references | `id, sceneId, codexEntryId` |
+| `sections` | Colored content blocks | `id, sceneId` |
+| `chatThreads` | AI conversation threads | `id, projectId, pinned, archived` |
+| `chatMessages` | Individual chat messages | `id, threadId, timestamp` |
+| `storyAnalyses` | AI story analyses | `id, projectId, analysisType, manuscriptVersion` |
+| `codexTags` | Custom tags | `id, projectId, name, category` |
+| `codexEntryTags` | Entry-tag associations | `id, entryId, tagId, [entryId+tagId]` |
+| `codexTemplates` | Entity templates | `id, [name+category], isBuiltIn` |
+| `codexRelationTypes` | Relationship type definitions | `id, [name+category], isBuiltIn` |
+
+---
+
+## 9. Dependency Injection
+
+### DI Architecture
+
+```mermaid
+flowchart TB
+    subgraph AppContext["AppContext Provider"]
+        AnalysisSvc["AnalysisService"]
+        ChatSvc["DexieChatService"]
+        ExportSvc["DocumentExportService"]
+    end
+
+    subgraph Repositories["Injected Repositories"]
+        NodeRepo["DexieNodeRepository"]
+        CodexRepo["DexieCodexRepository"]
+        ChatRepo["DexieChatRepository"]
+        AnalysisRepo["DexieAnalysisRepository"]
+    end
+
+    subgraph Usage["Component Usage"]
+        Hook["useAppServices()"]
+        Component["React Component"]
+    end
+
+    AppContext --> NodeRepo
+    AppContext --> CodexRepo
+    AppContext --> ChatRepo
+    AppContext --> AnalysisRepo
+
+    NodeRepo --> AnalysisSvc
+    CodexRepo --> AnalysisSvc
+    AnalysisRepo --> AnalysisSvc
+
+    NodeRepo --> ChatSvc
+    CodexRepo --> ChatSvc
+    ChatRepo --> ChatSvc
+
+    Component --> Hook
+    Hook --> AppContext
+```
+
+### Using DI in Components
+
+```typescript
+// In a feature hook
+function useAnalysisRunner() {
+    const { analysisService } = useAppServices();
+    
+    const runAnalysis = async (projectId, scope, types, model) => {
+        return await analysisService.runAnalysis(projectId, scope, types, model);
+    };
+    
+    return { runAnalysis };
 }
 ```
 
-**Rationale:**
-- **Abstraction:** Could swap Dexie for another DB without changing components
-- **Testability:** Easy to mock repositories in tests
-- **Consistency:** Standardized data access patterns
-
-**Consequences:**
-- ✅ Decoupled from storage implementation
-- ✅ Easier to test
-- ❌ Slight verbosity (extra layer)
-
 ---
 
-### ADR-005: Zustand for Global UI State
-
-**Context:**
-Need lightweight, predictable global state for:
-- Active project/scene
-- View mode (plan/write/chat)
-- User preferences
-
-**Decision:**
-Use Zustand instead of Redux or Context API.
-
-**Rationale:**
-- **Simplicity:** Less boilerplate than Redux
-- **Performance:** Avoids Context re-render issues
-- **Persistence:** Built-in `persist` middleware for `localStorage`
-- **Hooks-first:** Idiomatic for React
-
-**Consequences:**
-- ✅ Clean, minimal API
-- ✅ Good performance
-- ✅ Easy persistence
-- ❌ Less tooling than Redux (no DevTools time-travel)
-
----
-
-### ADR-006: User-Managed AI Connections
-
-**Context:**
-Need AI features but can't afford server-side API proxy.
-
-**Decision:**
-Users bring their own API keys, stored in browser `localStorage`.
-
-**Rationale:**
-- **Cost:** Zero AI API costs for developer
-- **Privacy:** API keys never leave user's device
-- **Flexibility:** Users can use any provider (OpenAI, Anthropic, local models)
-
-**Consequences:**
-- ✅ Zero AI infrastructure cost
-- ✅ Maximum user control
-- ❌ Higher barrier to entry (users must get API keys)
-- ❌ Risk of key exposure if user's device is compromised
-
----
-
-### ADR-007: Save Coordinator for Race Condition Prevention
-
-**Context:**
-Auto-save and AI-save can conflict, causing data loss.
-
-**Decision:**
-Implement `SaveCoordinator` singleton to serialize saves per scene.
-
-**Rationale:**
-- **Safety:** Prevents "last write wins" data corruption
-- **Reliability:** Queues saves, ensures order
-- **Backup:** Fallback to `localStorage` on failure
-
-**Consequences:**
-- ✅ No race conditions
-- ✅ Emergency backup on failure
-- ❌ Adds complexity to save flow
-
----
-
-## 9. Constraints & Non-Negotiables
-
-### Hard Constraints
-
-1. **No Backend Server**
-   - Cannot be changed without fundamentally altering the product
-   - All logic must run client-side
-
-2. **Browser Storage Only**
-   - IndexedDB + `localStorage` are the only storage options
-   - No external databases
-
-3. **User-Managed AI Keys**
-   - No server-side API proxying
-   - Users must provide their own keys
-
-4. **Single-Device Scope**
-   - No cross-device sync
-   - No real-time collaboration
-
-### Platform Limitations
-
-1. **IndexedDB Quota:**
-   - Varies by browser (~1GB typical, can request more)
-   - User may hit quota with very large projects
-
-2. **No Server-Side Processing:**
-   - Cannot offload heavy computations
-   - All AI processing is request/response (no server cache)
-
-3. **Browser Compatibility:**
-   - Must support IndexedDB (IE11 not supported)
-   - Modern browsers only (ES6+)
-
-### Performance Constraints
-
-1. **Large Manuscripts:**
-   - Loading hundreds of scenes at once may lag
-   - Current implementation loads entire project tree (acceptable for most use cases)
-
-2. **AI Response Time:**
-   - Depends on user's API provider
-   - No control over latency
-
----
-
-## 10. Known Architectural Weaknesses
-
-### Trade-Offs & Tech Debt
-
-#### 1. No Cross-Device Sync
-
-**Problem:**
-Users cannot access their work across devices.
-
-**Mitigation:**
-- Export/import feature allows manual transfer
-- Full database backup/restore
-
-**Future Consideration:**
-- Could add optional cloud sync (e.g., Dropbox, Google Drive)
-- Would require significant architecture changes
-
----
-
-#### 2. Limited Undo/Redo
-
-**Problem:**
-Tiptap provides editor-level undo, but no global undo across features.
-
-**Mitigation:**
-- Editor undo works within a scene
-- Database changes are not undo-able
-
-**Future Consideration:**
-- Implement event sourcing or snapshot-based history
-
----
-
-#### 3. No Conflict Resolution for Concurrent Edits
-
-**Problem:**
-If user opens same project in multiple tabs, race conditions possible.
-
-**Mitigation:**
-- `SaveCoordinator` helps within a single tab
-- Live queries propagate changes, but last write wins
-
-**Future Consideration:**
-- Detect multi-tab usage and warn user
-- Implement CRDT or OT for conflict-free merges
-
----
-
-#### 4. AI Context Token Limits Not Enforced
-
-**Problem:**
-User can select massive context (entire novel + all codex), may exceed token limits.
-
-**Mitigation:**
-- UI hints about context size
-- Errors are surfaced from AI API
-
-**Future Consideration:**
-- Calculate token counts client-side
-- Warn user before submitting
-
----
-
-#### 5. Search is Client-Side Only
-
-**Problem:**
-Full-text search across all scenes done in-memory (Dexie `where` clause).
-
-**Mitigation:**
-- Works fine for small-to-medium projects
-- IndexedDB is fast locally
-
-**Future Consideration:**
-- Add full-text search indexing (e.g., Lunr.js)
-
----
-
-#### 6. No Automated Backups
-
-**Problem:**
-If user clears browser data, everything is lost.
-
-**Mitigation:**
-- Export feature prominently placed
-- Emergency backup to `localStorage` on save failure
-
-**Future Consideration:**
-- Auto-export to user's Downloads folder periodically
-- Browser extension for automated cloud backup
-
----
-
-#### 7. Tight Coupling Between Repositories and Dexie
-
-**Problem:**
-Repositories directly use Dexie, making it hard to swap storage.
-
-**Mitigation:**
-- Repository pattern provides abstraction layer
-- Could theoretically swap Dexie, but would be significant work
-
-**Future Consideration:**
-- Define storage interface
-- Implement multiple storage backends (IndexedDB, SQLite via WASM)
+## 10. Core Utilities (`src/lib/`)
+
+### Utility Modules
+
+| Module | Purpose |
+|--------|---------|
+| `ai-client.ts` | Multi-provider AI routing with streaming |
+| `ai-service.ts` | AI service abstraction layer |
+| `ai-utils.ts` | AI helper functions |
+| `context-assembler.ts` | Assembles manuscript context for AI prompts |
+| `context-engine.ts` | Context optimization engine |
+| `search-service.ts` | Fuse.js-based fuzzy search |
+| `prompt-templates.ts` | 8 chat prompt templates |
+| `token-counter.ts` | Token estimation for context limits |
+| `streaming-utils.ts` | SSE streaming utilities |
+| `retry-utils.ts` | Retry logic with backoff |
+| `logger.ts` | Structured logging service |
+| `toast-service.ts` | Centralized toast notifications |
+| `safe-storage.ts` | Safe localStorage wrapper |
+| `tab-coordinator.ts` | Multi-tab synchronization |
+
+### Prompt Templates (8)
+
+| ID | Name | Purpose |
+|----|------|---------|
+| `general` | Creative Partner | Collaborative brainstorming |
+| `character` | Psychologist & Biographer | Deep character analysis |
+| `plot` | Master Architect | Structural plot analysis |
+| `scene` | Cinematographer & Director | Scene construction |
+| `prose` | Ruthless Editor | Line-level improvements |
+| `worldbuilding` | Historian & Geographer | World consistency |
+| `brainstorm` | The Idea Generator | Divergent thinking |
+| `critique` | The Critical Reviewer | Honest feedback |
+
+### Domain Services
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `NodeDeletionService` | `domain/services/` | Cascade delete with confirmation |
+| `IAnalysisService` | `domain/services/` | AI story analysis interface |
+| `IChatService` | `domain/services/` | Chat generation interface |
+| `IExportService` | `domain/services/` | Document export interface |
+
+### Infrastructure Services
+
+| Service | Purpose |
+|---------|---------|
+| `AnalysisService` | AI-powered story analysis (6 types) |
+| `DexieChatService` | Chat with context building |
+| `DocumentExportService` | DOCX/TXT/MD export |
+| `CodexSeedService` | Initialize built-in templates/relation types |
 
 ---
 
@@ -1125,246 +1130,74 @@ Repositories directly use Dexie, making it hard to swap storage.
 
 ### Adding a New Feature
 
-1. **Create Feature Directory:**
-   ```
-   src/features/my-feature/
-     components/
-     hooks/
-     types.ts
-   ```
+```mermaid
+flowchart TB
+    Step1["1. Create feature directory"]
+    Step2["2. Define repository interface"]
+    Step3["3. Implement Dexie repository"]
+    Step4["4. Create repository hook"]
+    Step5["5. Add Dexie table (increment version)"]
+    Step6["6. Build components with hooks"]
+    Step7["7. Update imports/exports"]
 
-2. **Define Types:**
-   - Add to `src/lib/config/types.ts` if shared
-   - Or keep in `features/my-feature/types.ts` if local
-
-3. **Create Repository (if needed):**
-   ```typescript
-   // src/hooks/use-my-feature-repository.ts
-   export function useMyFeatureRepository() {
-     return {
-       getAll: () => db.myFeature.toArray(),
-       // ...
-     };
-   }
-   ```
-
-4. **Add Dexie Table (if needed):**
-   ```typescript
-   // src/lib/core/database.ts
-   export class NovelDB extends Dexie {
-     // Add table property
-     myFeature!: Table<MyFeature>;
-     
-     constructor() {
-       super('NovelDB');
-       this.version(6).stores({
-         // ... existing tables
-         myFeature: 'id, projectId, createdAt',
-       });
-     }
-   }
-   ```
-
-5. **Build UI Components:**
-   - Use `useLiveQuery` for reactive data
-   - Use Zustand if global UI state needed
-   - Follow existing patterns (dialogs, toasts, confirmations)
-
-6. **Test Manually:**
-   - Verify IndexedDB schema migration
-   - Test export/import includes new data
-   - Ensure live queries update correctly
-
----
-
-### Modifying Data Schema
-
-1. **Increment Dexie Version:**
-   ```typescript
-   db.version(4).stores({
-     nodes: '++id, projectId, parentId, type, order, createdAt',
-     // New index added ↑
-   });
-   ```
-
-2. **Add Migration (if needed):**
-   ```typescript
-   db.version(4).stores({...}).upgrade(tx => {
-     return tx.table('nodes').toCollection().modify(node => {
-       node.newField = 'default';
-     });
-   });
-   ```
-
-3. **Update TypeScript Types:**
-   - Modify `src/lib/config/types.ts`
-
-4. **Update Repositories:**
-   - Adjust CRUD operations if schema changed
-
-5. **Test Migration:**
-   - Export data with old schema
-   - Upgrade code
-   - Verify migration runs on app load
-
----
-
-### Integrating New AI Provider
-
-1. **Add to AI Vendors Config:**
-   ```typescript
-   // src/lib/config/ai-vendors.ts
-   export const AI_VENDORS: Record<string, AIVendor> = {
-     // ... existing
-     myProvider: {
-       id: 'myProvider',
-       name: 'My Provider',
-       icon: '🤖',
-       requiresAuth: true,
-       apiKeyPlaceholder: 'my-api-key',
-       setupUrl: 'https://myprovider.com/api-keys',
-     },
-   };
-   ```
-
-2. **Update AI Client:**
-   ```typescript
-   // src/lib/core/ai-client.ts
-   export async function generateText(params) {
-     // Add provider-specific logic
-     if (connection.provider === 'myProvider') {
-       // Call API
-     }
-   }
-   ```
-
-3. **Update Model Fetching:**
-   ```typescript
-   // src/lib/core/ai-client.ts
-   export async function fetchModelsForConnection(conn) {
-     if (conn.provider === 'myProvider') {
-       // Fetch available models
-     }
-   }
-   ```
-
-4. **Test:**
-   - Add connection in Settings
-   - Verify models load
-   - Test generation in Editor/Chat
-
----
-
-## 12. Deployment & Build
-
-### Build Process
-
-```bash
-npm run build
+    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6 --> Step7
 ```
 
-Produces static HTML/CSS/JS in `.next/` (Next.js static export).
+### Adding a New AI Provider
 
-### Hosting
+```mermaid
+flowchart TB
+    Step1["1. Add to AI_VENDORS config"]
+    Step2["2. Implement generateWithProvider()"]
+    Step3["3. Implement streamWithProvider()"]
+    Step4["4. Add to fetchModelsForConnection()"]
+    Step5["5. Add key validation in validateApiKey()"]
+    Step6["6. Test in Settings UI"]
 
-**Recommended:**
-- Vercel (automatic Next.js support)
-- Netlify
-- GitHub Pages
-- Any static host
-
-**Configuration:**
-- No server-side rendering (SSR) – `output: 'export'` in `next.config.js`
-- No API routes
-- All routes must be static
-
-### Environment Variables
-
-**None required for core app.**
-
-AI features use user-provided API keys (stored in browser).
+    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6
+```
 
 ---
 
-## 13. Summary
-
-**Become An Author** is a **frontend-only, local-first novel writing application** built with:
-
-- **Next.js** for React framework
-- **Dexie (IndexedDB)** for persistent storage
-- **Zustand** for global UI state
-- **Tiptap** for rich text editing
-- **User-managed AI connections** for writing assistance
-
-The architecture is designed for:
-- **Privacy** (all data local)
-- **Offline-first** usage
-- **Maintainability** (domain-driven structure)
-- **Extensibility** (repository pattern, modular features)
-
-Key architectural decisions prioritize **user control** and **zero operational cost** over features requiring a backend (sync, collaboration).
-
----
-
-> **This is Architecture Document v1.0 and will be treated as the source of truth for all future technical discussions.**
-
----
-
-## 17. Recent Architecture Improvements (2025-12-01)
-
-### Phase 5 & 6 Refactoring Complete ✅
-
-**Toast Consolidation**  
-- Migrated all direct `sonner` imports to centralized `toast-service`
-- Result: 100% toast centralization across codebase
-- See: [maintenance.md](./maintenance.md) for details
-
-**Feature Boundaries & Shared Components**  
-- Moved `ContextSelector` from chat to shared components
-- Moved `CreateNodeDialog` from project to shared components
-- Result: Zero unintentional cross-feature dependencies
-- All features now depend only on `shared` or `ai` modules
-
-**Codebase Cleanup**  
-- Removed 4 redundant files (~712 lines)
-- Removed 2 empty directories
-- Result: Cleaner architecture, smaller bundle
-
-### Critical Bug Fixes ✅
-
-**DataCloneError Resolution**  
-IndexedDB was failing to store data containing Promises. Fixed in 3 locations:
-1. **SaveCoordinator** - Serialize editor content before storing
-2. **AnalysisService** - Serialize AI response metrics
-3. **DexieAnalysisRepository** - Deep clone analysis objects
-
-Solution: `JSON.parse(JSON.stringify())` at all IndexedDB boundaries  
-See: [troubleshooting.md](./troubleshooting.md) for complete details
-
-**JSON Parsing Robustness**  
-AI responses sometimes contained unescaped control characters. Added two-tier sanitization in `AnalysisService.parseResponse()` to handle imperfectly formatted JSON.
-
-### Current Architecture Metrics
+## 12. Current Architecture Metrics
 
 | Metric | Value | Status |
-|--------|-------|--------|
+|--------|-------|---------|
+| **Source Files** | **215** | ✅ |
+| Features | 15 | ✅ |
+| Feature Sections Documented | **11** | ✅ |
+| Hooks | **31** | ✅ (+3 new) |
+| Database Tables | **17** | ✅ (+1 emergencyBackups) |
+| Repository Interfaces | 10 | ✅ |
+| Repository Implementations | **10** | ✅ |
+| Domain Services | **4** | ✅ |
+| Infrastructure Services | **8** | ✅ (+4 new) |
+| AI Providers | 5 | ✅ |
+| Prompt Templates | 8 | ✅ |
+| Type Definitions | 44 | ✅ |
+| Domain Entities Location | `domain/entities/` | ✅ Relocated |
+| Core Utility Modules | 14 | ✅ |
+| UI Components | **25** | ✅ |
+| Tiptap Extensions | **3** | ✅ |
+| Google Services | **2** | ✅ |
 | Cross-Feature Dependencies | 0 | ✅ Clean |
 | Direct DB Access | 0 | ✅ All via repositories |
-| Repository Pattern Coverage | 100% | ✅ Complete |
-| Toast Centralization | 100% | ✅ Complete |
-| Type Safety | 100% | ✅ Full TypeScript |
-| Empty Directories | 0 | ✅ Cleaned |
-| Redundant Files | 0 | ✅ Removed |
-
-### Additional Documentation
-
-- **[dependency_analysis.md](./dependency_analysis.md)** - Comprehensive dependency analysis with 12 mermaid diagrams
-- **[maintenance.md](./maintenance.md)** - Ongoing maintenance log
-- **[troubleshooting.md](./troubleshooting.md)** - Common issues and solutions
-- **[README.md](./README.md)** - Documentation index
+| Circular Dependencies | 0 | ✅ Clean |
+| DI Pattern | Lazy Loading | ✅ Proxy-based |
 
 ---
 
-**Document Version**: v1.1  
-**Last Updated**: 2025-12-01  
+## 13. Documentation Index
+
+- [dependency_analysis.md](./dependency_analysis.md) - Comprehensive dependency analysis
+- [MIGRATIONS.md](./MIGRATIONS.md) - Database migration guide
+- [maintenance.md](./maintenance.md) - Ongoing maintenance log
+- [troubleshooting.md](./troubleshooting.md) - Common issues and solutions
+- [security.md](./security.md) - Security patterns and error handling
+
+---
+
+**Document Version**: v2.3  
+**Last Updated**: 2025-12-05  
+**Verified**: All 215 source files audited against documentation  
 **Status**: Active - Source of Truth for Technical Decisions
