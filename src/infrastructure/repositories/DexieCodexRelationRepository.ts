@@ -2,6 +2,7 @@ import { db } from '@/lib/core/database';
 import type { CodexRelation } from '@/lib/config/types';
 import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository';
 import { v4 as uuidv4 } from 'uuid';
+import { serializeForStorage } from './repository-helpers';
 
 /**
  * Dexie implementation of ICodexRelationRepository
@@ -17,12 +18,13 @@ export class DexieCodexRelationRepository implements ICodexRelationRepository {
             id: uuidv4(),
             parentId: relation.parentId,
             childId: relation.childId,
-            type: relation.type || 'related',
             createdAt: Date.now(),
-            updatedAt: Date.now(),
         };
 
-        await db.codexRelations.add(newRelation);
+        // ✅ Serialize before storing
+        const cleanRelation = serializeForStorage(newRelation);
+        await db.codexRelations.add(cleanRelation);
+
         return newRelation;
     }
 

@@ -1,6 +1,7 @@
 import { db } from '@/lib/core/database';
 import type { ChatThread, ChatMessage } from '@/lib/config/types';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
+import { serializeForStorage } from './repository-helpers';
 
 /**
  * Dexie implementation of IChatRepository
@@ -35,7 +36,10 @@ export class DexieChatRepository implements IChatRepository {
             ...thread,
         };
 
-        await db.chatThreads.add(newThread);
+        // ✅ Serialize before storing
+        const cleanThread = serializeForStorage(newThread);
+        await db.chatThreads.add(cleanThread);
+
         return newThread;
     }
 
@@ -74,7 +78,10 @@ export class DexieChatRepository implements IChatRepository {
             ...message,
         };
 
-        await db.chatMessages.add(newMessage);
+        // ✅ Serialize before storing
+        const cleanMessage = serializeForStorage(newMessage);
+        await db.chatMessages.add(cleanMessage);
+
         return newMessage;
     }
 
@@ -90,3 +97,4 @@ export class DexieChatRepository implements IChatRepository {
         await db.chatMessages.bulkDelete(ids);
     }
 }
+

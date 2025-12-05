@@ -1,6 +1,7 @@
 import { db } from '@/lib/core/database';
 import type { Project } from '@/lib/config/types';
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
+import { serializeForStorage } from './repository-helpers';
 
 /**
  * Repository for Project entity
@@ -46,7 +47,10 @@ export class DexieProjectRepository implements IProjectRepository {
         // Validate before inserting
         const validatedProject = ProjectSchema.parse(projectData);
 
-        await db.projects.add(validatedProject);
+        // ✅ Serialize after validation to ensure IndexedDB compatibility
+        const cleanProject = serializeForStorage(validatedProject);
+        await db.projects.add(cleanProject);
+
         return validatedProject.id;
     }
 

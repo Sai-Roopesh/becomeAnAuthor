@@ -1,6 +1,7 @@
 import { db } from '@/lib/core/database';
 import type { DocumentNode, Scene } from '@/lib/config/types';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
+import { serializeForStorage } from './repository-helpers';
 
 /**
  * Dexie implementation of INodeRepository
@@ -46,7 +47,10 @@ export class DexieNodeRepository implements INodeRepository {
             newNode.wordCount = newNode.wordCount || 0;
         }
 
-        await db.nodes.add(newNode);
+        // ✅ Serialize before storing to remove any non-serializable data (Promises, functions, circular refs)
+        const cleanNode = serializeForStorage(newNode);
+        await db.nodes.add(cleanNode);
+
         return newNode;
     }
 

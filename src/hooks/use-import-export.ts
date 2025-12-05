@@ -302,39 +302,52 @@ export function useImportExport() {
                 createdAt: sec.createdAt || Date.now(),
             }));
 
+            // ✅ Serialize all data before storing (defensive against user-provided data)
+            const { serializeForStorage, serializeArrayForStorage } = await import('@/infrastructure/repositories/repository-helpers');
+
+            const cleanProject = serializeForStorage(newProject);
+            const cleanNodes = serializeArrayForStorage(newNodes);
+            const cleanCodex = serializeArrayForStorage(newCodex);
+            const cleanSnippets = serializeArrayForStorage(newSnippets);
+            const cleanChats = serializeArrayForStorage(newChats);
+            const cleanMessages = serializeArrayForStorage(newMessages);
+            const cleanRelations = serializeArrayForStorage(newRelations);
+            const cleanAdditions = serializeArrayForStorage(newAdditions);
+            const cleanSections = serializeArrayForStorage(newSections);
+
             // ✅ ATOMIC TRANSACTION: All database operations succeed or all fail
             await db.transaction(
                 'rw',
                 [db.projects, db.nodes, db.codex, db.snippets, db.chatThreads,
                 db.chatMessages, db.codexRelations, db.codexAdditions, db.sections],
                 async () => {
-                    // All writes happen atomically - if ANY fails, ALL roll back
-                    await db.projects.add(newProject);
-                    await db.nodes.bulkAdd(newNodes);
-                    await db.codex.bulkAdd(newCodex);
+                    // All writes happen atomically with clean data - if ANY fails, ALL roll back
+                    await db.projects.add(cleanProject);
+                    await db.nodes.bulkAdd(cleanNodes);
+                    await db.codex.bulkAdd(cleanCodex);
 
-                    if (newSnippets.length > 0) {
-                        await db.snippets.bulkAdd(newSnippets);
+                    if (cleanSnippets.length > 0) {
+                        await db.snippets.bulkAdd(cleanSnippets);
                     }
 
-                    if (newChats.length > 0) {
-                        await db.chatThreads.bulkAdd(newChats);
+                    if (cleanChats.length > 0) {
+                        await db.chatThreads.bulkAdd(cleanChats);
                     }
 
-                    if (newMessages.length > 0) {
-                        await db.chatMessages.bulkAdd(newMessages);
+                    if (cleanMessages.length > 0) {
+                        await db.chatMessages.bulkAdd(cleanMessages);
                     }
 
-                    if (newRelations.length > 0) {
-                        await db.codexRelations.bulkAdd(newRelations);
+                    if (cleanRelations.length > 0) {
+                        await db.codexRelations.bulkAdd(cleanRelations);
                     }
 
-                    if (newAdditions.length > 0) {
-                        await db.codexAdditions.bulkAdd(newAdditions);
+                    if (cleanAdditions.length > 0) {
+                        await db.codexAdditions.bulkAdd(cleanAdditions);
                     }
 
-                    if (newSections.length > 0) {
-                        await db.sections.bulkAdd(newSections);
+                    if (cleanSections.length > 0) {
+                        await db.sections.bulkAdd(cleanSections);
                     }
                 }
             );

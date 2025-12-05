@@ -1,6 +1,7 @@
 import { db } from '@/lib/core/database';
 import type { Snippet } from '@/lib/config/types';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
+import { serializeForStorage } from './repository-helpers';
 
 /**
  * Dexie implementation of ISnippetRepository
@@ -22,9 +23,10 @@ export class DexieSnippetRepository implements ISnippetRepository {
             .toArray();
     }
 
-    async create(snippet: Partial<Snippet> & { projectId: string; title: string }): Promise<Snippet> {
+    async create(snippet: Partial<Snippet> & { projectId: string }): Promise<Snippet> {
         const newSnippet: Snippet = {
             id: crypto.randomUUID(),
+            title: 'New Snippet',
             content: { type: 'doc', content: [] },
             pinned: false,
             createdAt: Date.now(),
@@ -32,7 +34,10 @@ export class DexieSnippetRepository implements ISnippetRepository {
             ...snippet,
         };
 
-        await db.snippets.add(newSnippet);
+        // ✅ Serialize before storing (Tiptap content may have circular refs)
+        const cleanSnippet = serializeForStorage(newSnippet);
+        await db.snippets.add(cleanSnippet);
+
         return newSnippet;
     }
 

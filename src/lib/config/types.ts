@@ -63,6 +63,11 @@ export interface CodexEntry {
         isGlobal: boolean;
         doNotTrack: boolean;
     };
+    // NEW: Phase 1 enhancements
+    templateId?: string; // which template was used
+    customFields?: Record<string, any>; // template field values
+    gallery?: string[]; // multiple images (Base64 or URLs)
+    completeness?: number; // % of template filled (0-100)
     createdAt: number;
     updatedAt: number;
 }
@@ -71,7 +76,13 @@ export interface CodexRelation {
     id: string;
     parentId: string; // Codex entry that contains the relation
     childId: string; // Codex entry being referenced
+    // NEW: Phase 1 enhancements
+    type?: string; // relationship type ID
+    strength?: number; // 1-10 scale
+    description?: string; // details about the relationship
+    tags?: string[]; // tag IDs
     createdAt: number;
+    updatedAt?: number; // when relationship was last modified
 }
 
 export interface Project {
@@ -284,3 +295,83 @@ export interface DriveBackupMetadata {
     backupType: 'manual' | 'auto';
     projectData: ExportedProject;
 }
+
+// ============================================
+// Phase 1: Codex Enhancements - New Types
+// ============================================
+
+/**
+ * Tag System
+ */
+export interface CodexTag {
+    id: string;
+    projectId: string;
+    name: string;
+    color: string;
+    category?: CodexCategory; // optional scope to specific category
+    createdAt: number;
+}
+
+export interface CodexEntryTag {
+    id: string;
+    entryId: string;
+    tagId: string;
+}
+
+/**
+ * Template System
+ */
+export type TemplateFieldType =
+    | 'text'
+    | 'textarea'
+    | 'number'
+    | 'date'
+    | 'select'
+    | 'multi-select'
+    | 'slider'
+    | 'image';
+
+export interface TemplateField {
+    id: string;
+    name: string;
+    type: TemplateFieldType;
+    required: boolean;
+    defaultValue?: string | number | boolean;
+    options?: string[]; // for select types
+    min?: number; // for number/slider
+    max?: number; // for number/slider
+    placeholder?: string;
+    helperText?: string;
+}
+
+export interface CodexTemplate {
+    id: string;
+    name: string;
+    category: CodexCategory;
+    fields: TemplateField[];
+    isBuiltIn: boolean;
+    projectId?: string; // null for built-ins
+    createdAt: number;
+}
+
+/**
+ * Relationship Types
+ */
+export type RelationCategory =
+    | 'personal'
+    | 'professional'
+    | 'geographical'
+    | 'item'
+    | 'lore';
+
+export interface CodexRelationType {
+    id: string;
+    name: string;
+    category: RelationCategory;
+    color: string;
+    icon?: string;
+    isDirectional: boolean;
+    isBuiltIn: boolean;
+    canHaveStrength: boolean;
+}
+

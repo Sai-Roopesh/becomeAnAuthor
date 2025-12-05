@@ -1,18 +1,24 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useMemo } from 'react';
+import { createContext, useContext, ReactNode, useMemo, useEffect, useRef } from 'react';
 import { DexieNodeRepository } from '@/infrastructure/repositories/DexieNodeRepository';
 import { DexieCodexRepository } from '@/infrastructure/repositories/DexieCodexRepository';
 import { DexieChatRepository } from '@/infrastructure/repositories/DexieChatRepository';
 import { DexieSnippetRepository } from '@/infrastructure/repositories/DexieSnippetRepository';
 import { DexieProjectRepository } from '@/infrastructure/repositories/DexieProjectRepository';
-import { DexieCodexRelationRepository } from '@/infrastructure/repositories/DexieCodexRelationRepository'; // New import
+import { DexieCodexRelationRepository } from '@/infrastructure/repositories/DexieCodexRelationRepository';
+import { DexieCodexTagRepository } from '@/infrastructure/repositories/DexieCodexTagRepository'; // NEW: Phase 1
+import { DexieCodexTemplateRepository } from '@/infrastructure/repositories/DexieCodexTemplateRepository'; // NEW: Phase 1
+import { DexieCodexRelationTypeRepository } from '@/infrastructure/repositories/DexieCodexRelationTypeRepository'; // NEW: Phase 1
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
-import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository'; // New import
+import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository';
+import type { ICodexTagRepository } from '@/domain/repositories/ICodexTagRepository'; // NEW: Phase 1
+import type { ICodexTemplateRepository } from '@/domain/repositories/ICodexTemplateRepository'; // NEW: Phase 1
+import type { ICodexRelationTypeRepository } from '@/domain/repositories/ICodexRelationTypeRepository'; // NEW: Phase 1
 import type { IChatService } from '@/domain/services/IChatService';
 import { DexieChatService } from '@/infrastructure/services/DexieChatService';
 import type { IExportService } from '@/domain/services/IExportService';
@@ -35,7 +41,11 @@ interface AppServices {
     snippetRepository: ISnippetRepository;
     projectRepository: IProjectRepository;
     analysisRepository: IAnalysisRepository;
-    codexRelationRepository: ICodexRelationRepository; // Added
+    codexRelationRepository: ICodexRelationRepository;
+    // NEW: Phase 1 Codex enhancements
+    codexTagRepository: ICodexTagRepository;
+    codexTemplateRepository: ICodexTemplateRepository;
+    codexRelationTypeRepository: ICodexRelationTypeRepository;
 
     // Services
     chatService: IChatService;
@@ -76,7 +86,11 @@ export function AppProvider({ children, services: customServices }: AppProviderP
         const chatRepo = customServices?.chatRepository ?? new DexieChatRepository();
         const snippetRepo = customServices?.snippetRepository ?? new DexieSnippetRepository();
         const projectRepo = customServices?.projectRepository ?? new DexieProjectRepository();
-        const codexRelationRepo = customServices?.codexRelationRepository ?? new DexieCodexRelationRepository(); // Added
+        const codexRelationRepo = customServices?.codexRelationRepository ?? new DexieCodexRelationRepository();
+        // NEW: Phase 1 Codex enhancement repositories
+        const codexTagRepo = customServices?.codexTagRepository ?? new DexieCodexTagRepository();
+        const codexTemplateRepo = customServices?.codexTemplateRepository ?? new DexieCodexTemplateRepository();
+        const codexRelationTypeRepo = customServices?.codexRelationTypeRepository ?? new DexieCodexRelationTypeRepository();
 
         // Create services (with repository dependencies)
         const chatSvc = customServices?.chatService ?? new DexieChatService(
@@ -104,12 +118,33 @@ export function AppProvider({ children, services: customServices }: AppProviderP
             snippetRepository: snippetRepo,
             projectRepository: projectRepo,
             analysisRepository: analysisRepo,
-            codexRelationRepository: codexRelationRepo, // Added
+            codexRelationRepository: codexRelationRepo,
+            // NEW: Phase 1 repositories
+            codexTagRepository: codexTagRepo,
+            codexTemplateRepository: codexTemplateRepo,
+            codexRelationTypeRepository: codexRelationTypeRepo,
             chatService: chatSvc,
             exportService: exportSvc,
             analysisService: analysisSvc,
         };
     }, [customServices]);
+
+    // ✅ NEW: Use CodexSeedService with localStorage-based completion tracking
+    // This prevents re-seeding on HMR (Hot Module Replacement) during development
+    const seedingRef = useRef(false);
+
+    useEffect(() => {
+        if (!seedingRef.current) {
+            seedingRef.current = true;
+
+            // Import dynamically to avoid circular dependencies
+            import('@/infrastructure/services/CodexSeedService').then(({ codexSeedService }) => {
+                codexSeedService.seed().catch((error) => {
+                    console.error('Failed to seed codex data:', error);
+                });
+            });
+        }
+    }, []);
 
     return (
         <AppContext.Provider value={services}>

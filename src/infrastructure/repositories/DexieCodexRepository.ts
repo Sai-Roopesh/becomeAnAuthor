@@ -1,6 +1,7 @@
 import { db } from '@/lib/core/database';
 import type { CodexEntry, CodexCategory } from '@/lib/config/types';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
+import { serializeForStorage } from './repository-helpers';
 
 /**
  * Dexie implementation of ICodexRepository
@@ -35,7 +36,17 @@ export class DexieCodexRepository implements ICodexRepository {
             .toArray();
     }
 
-    async create(entry: Partial<CodexEntry> & { projectId: string; name: string; category: CodexCategory }): Promise<CodexEntry> {
+    async create(entry: Omit<CodexEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<CodexEntry> {
+        // ✅ Validate template matches category (safety net)
+        if (entry.templateId) {
+            const template = await db.codexTemplates.get(entry.templateId);
+            if (template && template.category !== entry.category) {
+                throw new Error(
+                    `Template category mismatch: template "${template.name}" is for "${template.category}" but entry category is "${entry.category}"`
+                );
+            }
+        }
+
         const newEntry: CodexEntry = {
             id: crypto.randomUUID(),
             aliases: [],
@@ -52,11 +63,34 @@ export class DexieCodexRepository implements ICodexRepository {
             ...entry,
         };
 
-        await db.codex.add(newEntry);
+        // ✅ Serialize before storing (attributes/references may be complex objects)
+        const cleanEntry = serializeForStorage(newEntry);
+        await db.codex.add(cleanEntry);
+
         return newEntry;
     }
 
     async update(id: string, data: Partial<CodexEntry>): Promise<void> {
+        // ✅ Validate template-category match if either is being changed
+        if (data.category || data.templateId !== undefined) {
+            const existing = await this.get(id);
+            if (!existing) throw new Error('Entry not found');
+
+            const finalCategory = data.category || existing.category;
+            const finalTemplateId = data.templateId !== undefined
+                ? data.templateId
+                : existing.templateId;
+
+            if (finalTemplateId) {
+                const template = await db.codexTemplates.get(finalTemplateId);
+                if (template && template.category !== finalCategory) {
+                    throw new Error(
+                        `Template category mismatch: cannot use "${template.category}" template for "${finalCategory}" entry`
+                    );
+                }
+            }
+        }
+
         await db.codex.update(id, {
             ...data,
             updatedAt: Date.now(),

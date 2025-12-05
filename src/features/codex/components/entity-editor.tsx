@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
 import { CodexEntry, CodexCategory } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,12 +16,22 @@ import { ResearchTab } from './research-tab';
 import { RelationsTab } from './relations-tab';
 import { MentionsTab } from './mentions-tab';
 import { TrackingTab } from './tracking-tab';
+import { TagManager } from './tag-manager';
+import { TemplateFieldRenderer } from './template-field-renderer';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: () => void }) {
     const codexRepo = useCodexRepository();
+    const templateRepo = useCodexTemplateRepository();
     const entity = useLiveQuery(() => codexRepo.get(entityId), [entityId]);
+
+    // Load template if entity has one
+    const template = useLiveQuery(
+        () => entity?.templateId ? templateRepo.get(entity.templateId) : Promise.resolve(undefined),
+        [entity?.templateId]
+    );
+
     const [formData, setFormData] = useState<Partial<CodexEntry>>({});
     const debouncedData = useDebounce(formData, 1000);
     const { confirm, ConfirmationDialog } = useConfirmation();
@@ -43,6 +54,16 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleTemplateFieldChange = (fieldId: string, value: any) => {
+        setFormData(prev => ({
+            ...prev,
+            customFields: {
+                ...prev.customFields,
+                [fieldId]: value
+            }
+        }));
+    };
+
     const handleSave = async () => {
         if (formData.id) {
             await codexRepo.update(entityId, formData);
@@ -50,7 +71,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         }
     };
 
-    const handleDelete = async () => {
+    const handleDeleteClick = async () => {
         const confirmed = await confirm({
             title: 'Delete Entity',
             description: 'Are you sure you want to delete this entity? This action cannot be undone.',
@@ -58,10 +79,27 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
             variant: 'destructive'
         });
 
-        if (confirmed) {
+        if (confirmed && entity) {
             await codexRepo.delete(entityId);
             toast.success('Entity deleted');
             onBack();
+        }
+    };
+
+    const handleClearTemplate = async () => {
+        const confirmed = await confirm({
+            title: 'Clear Template?',
+            description: 'This will remove all template fields and their data. This action cannot be undone.',
+            confirmText: 'Clear Template',
+            variant: 'destructive'
+        });
+
+        if (confirmed) {
+            await codexRepo.update(entityId, {
+                templateId: undefined,
+                customFields: {}
+            });
+            toast.success('Template cleared - you can now change the category');
         }
     };
 
@@ -78,10 +116,10 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                         <ArrowLeft className="h-4 w-4 mr-2" /> Back
                     </Button>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleSave}>
-                            <Save className="h-4 w-4 mr-2" /> Save
+                        <Button variant="ghost" size="icon" onClick={handleSave}>
+                            <Save className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive">
+                        <Button variant="ghost" size="icon" onClick={handleDeleteClick}>
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
@@ -102,18 +140,39 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                         {/* Name and Category */}
                         <div className="flex-1 min-w-0 space-y-2">
                             <div className="space-y-1">
-                                <Select value={formData.category} onValueChange={v => handleChange('category', v)}>
-                                    <SelectTrigger className="w-[150px] h-7 text-xs">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="character">Character</SelectItem>
-                                        <SelectItem value="location">Location</SelectItem>
-                                        <SelectItem value="item">Item</SelectItem>
-                                        <SelectItem value="lore">Lore</SelectItem>
-                                        <SelectItem value="subplot">Subplot</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-2">
+                                    <Select
+                                        value={formData.category}
+                                        onValueChange={v => handleChange('category', v)}
+                                        disabled={!!entity?.templateId}
+                                    >
+                                        <SelectTrigger className="w-[150px] h-7 text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="character">Character</SelectItem>
+                                            <SelectItem value="location">Location</SelectItem>
+                                            <SelectItem value="item">Item</SelectItem>
+                                            <SelectItem value="lore">Lore</SelectItem>
+                                            <SelectItem value="subplot">Subplot</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {entity?.templateId && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            onClick={handleClearTemplate}
+                                        >
+                                            Clear Template
+                                        </Button>
+                                    )}
+                                </div>
+                                {entity?.templateId && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Category locked because entry uses a template. Clear template to change category.
+                                    </p>
+                                )}
                                 <Input
                                     value={formData.name || ''}
                                     onChange={e => handleChange('name', e.target.value)}
@@ -146,6 +205,14 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                     <TabsTrigger value="details" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
                         Details
                     </TabsTrigger>
+                    {template && (
+                        <TabsTrigger value="template" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
+                            Template Fields
+                        </TabsTrigger>
+                    )}
+                    <TabsTrigger value="tags" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
+                        Tags
+                    </TabsTrigger>
                     <TabsTrigger value="research" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
                         Research
                     </TabsTrigger>
@@ -160,25 +227,50 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                     </TabsTrigger>
                 </TabsList>
 
-                <div className="flex-1 overflow-auto">
-                    <TabsContent value="details" className="m-0 p-6">
-                        <DetailsTab entity={formData} onChange={handleChange} />
+                <div className="flex-1 overflow-y-auto">
+                    <TabsContent value="details" className="p-6 m-0">
+                        <DetailsTab
+                            entity={formData as CodexEntry}
+                            onChange={handleChange}
+                        />
                     </TabsContent>
 
-                    <TabsContent value="research" className="m-0 p-6">
-                        <ResearchTab entity={formData} onChange={handleChange} />
+                    {template && (
+                        <TabsContent value="template" className="p-6 m-0">
+                            <TemplateFieldRenderer
+                                template={template}
+                                values={formData.customFields || {}}
+                                onChange={handleTemplateFieldChange}
+                            />
+                        </TabsContent>
+                    )}
+
+                    <TabsContent value="tags" className="p-6 m-0">
+                        {entity && (
+                            <TagManager
+                                projectId={entity.projectId}
+                                entryId={entityId}
+                            />
+                        )}
                     </TabsContent>
 
-                    <TabsContent value="relations" className="m-0 p-6">
+                    <TabsContent value="research" className="p-6 m-0">
+                        <ResearchTab
+                            entity={formData as CodexEntry}
+                            onChange={handleChange}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="relations" className="p-6 m-0">
                         <RelationsTab entityId={entityId} />
                     </TabsContent>
 
-                    <TabsContent value="mentions" className="m-0 p-6">
+                    <TabsContent value="mentions" className="p-6 m-0">
                         <MentionsTab entityId={entityId} entityName={formData.name || ''} />
                     </TabsContent>
 
-                    <TabsContent value="tracking" className="m-0 p-6">
-                        <TrackingTab entity={formData} onChange={handleChange} />
+                    <TabsContent value="tracking" className="p-6 m-0">
+                        <TrackingTab entity={formData as CodexEntry} onChange={handleChange} />
                     </TabsContent>
                 </div>
             </Tabs>

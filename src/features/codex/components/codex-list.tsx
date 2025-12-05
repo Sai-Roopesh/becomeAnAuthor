@@ -2,25 +2,32 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
-import { CodexEntry, CodexCategory } from '@/lib/config/types';
+import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
+import { CodexEntry, CodexCategory, CodexTemplate } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
-import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2 } from 'lucide-react';
+import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { EntityEditor } from '@/features/codex/components/entity-editor';
+import { TemplateSelector } from '@/features/codex/components/template-selector';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
+    DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function CodexList({ projectId }: { projectId: string }) {
     const codexRepo = useCodexRepository();
+    const templateRepo = useCodexTemplateRepository();
     const [search, setSearch] = useState('');
     const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+    const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+    const [pendingCategory, setPendingCategory] = useState<CodexCategory>('character');
 
     const entries = useLiveQuery(
         () => codexRepo.getByProject(projectId),
@@ -32,11 +39,32 @@ export function CodexList({ projectId }: { projectId: string }) {
         e.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
     );
 
-    const createEntry = async () => {
+    const createEntry = async (category: CodexCategory) => {
+        setPendingCategory(category);
+        setShowTemplateSelector(true);
+    };
+
+    const handleTemplateSelected = async (template: CodexTemplate) => {
+        // Create entry from template
+        const newEntry = await templateRepo.get(template.id).then(t => {
+            if (!t) throw new Error('Template not found');
+            return codexRepo.create({
+                projectId,
+                name: 'New ' + t.category.charAt(0).toUpperCase() + t.category.slice(1),
+                category: t.category,
+                templateId: t.id,
+                customFields: {},
+            });
+        });
+        setSelectedEntityId(newEntry.id);
+    };
+
+    const handleSkipTemplate = async () => {
+        // Create blank entry without template
         const newEntry = await codexRepo.create({
             projectId,
             name: 'New Entity',
-            category: 'character',
+            category: pendingCategory,
         });
         setSelectedEntityId(newEntry.id);
     };
@@ -74,7 +102,39 @@ export function CodexList({ projectId }: { projectId: string }) {
             <div className="p-4 border-b space-y-2">
                 <div className="flex justify-between items-center">
                     <h3 className="font-semibold">Codex</h3>
-                    <Button size="sm" onClick={createEntry}><Plus className="h-4 w-4" /></Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm">
+                                <Plus className="h-4 w-4 mr-1" />
+                                New Entry
+                                <ChevronDown className="h-3 w-3 ml-1" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Choose Category</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => createEntry('character')}>
+                                <User className="h-4 w-4 mr-2" />
+                                Character
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => createEntry('location')}>
+                                <MapPin className="h-4 w-4 mr-2" />
+                                Location
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => createEntry('item')}>
+                                <Box className="h-4 w-4 mr-2" />
+                                Item
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => createEntry('lore')}>
+                                <Book className="h-4 w-4 mr-2" />
+                                Lore
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => createEntry('subplot')}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Subplot
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
@@ -113,6 +173,15 @@ export function CodexList({ projectId }: { projectId: string }) {
                     </div>
                 )}
             </div>
+
+            <TemplateSelector
+                category={pendingCategory}
+                projectId={projectId}
+                onSelectTemplate={handleTemplateSelected}
+                onSkip={handleSkipTemplate}
+                open={showTemplateSelector}
+                onOpenChange={setShowTemplateSelector}
+            />
 
             <ConfirmationDialog />
         </div>
