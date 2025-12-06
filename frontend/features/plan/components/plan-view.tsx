@@ -1,0 +1,156 @@
+'use client';
+
+import { useLiveQuery } from '@/hooks/use-live-query';
+import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useRepository } from '@/hooks/use-repository';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
+import type { CodexCategory } from '@/lib/config/types';
+import { useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { LayoutGrid, List, Table, Search, Settings, ChevronDown, ChevronUp, Layers } from 'lucide-react';
+import { GridView } from './grid-view';
+import { OutlineView } from './outline-view';
+import { MatrixView } from './matrix-view';
+import { TimelineView } from './timeline-view';
+import { CodexFilterBar } from './codex-filter-bar';
+import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
+
+type PlanViewType = 'grid' | 'outline' | 'matrix' | 'timeline';
+
+export function PlanView({ projectId }: { projectId: string }) {
+    const nodeRepo = useNodeRepository();
+    const projectRepo = useRepository<IProjectRepository>('projectRepository');
+    const linkRepo = useSceneCodexLinkRepository();
+
+    const [viewType, setViewType] = useState<PlanViewType>('grid');
+    const [search, setSearch] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+    const [selectedCodexIds, setSelectedCodexIds] = useState<string[]>([]);
+    const [categoryFilter, setCategoryFilter] = useState<CodexCategory | null>(null);
+
+    const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
+    const nodes = useLiveQuery(
+        () => nodeRepo.getByProject(projectId),
+        [projectId, nodeRepo]
+    );
+
+    // Get all scene-codex links for filtering
+    const allLinks = useLiveQuery(
+        () => linkRepo.getByProject(projectId),
+        [projectId, linkRepo]
+    );
+
+    // Filter nodes based on selected codex entries
+    const filteredNodes = useMemo(() => {
+        if (!nodes) return [];
+        if (selectedCodexIds.length === 0) return nodes;
+
+        // Get scene IDs that have at least one of the selected codex entries
+        const linkedSceneIds = new Set(
+            allLinks
+                ?.filter(link => selectedCodexIds.includes(link.codexId))
+                .map(link => link.sceneId) || []
+        );
+
+        // Keep all non-scene nodes (acts, chapters) and scenes that match filter
+        return nodes.filter(node => {
+            if (node.type !== 'scene') return true; // Keep structure nodes
+            return linkedSceneIds.has(node.id);
+        });
+    }, [nodes, selectedCodexIds, allLinks]);
+
+    if (!project || !nodes) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="text-muted-foreground">Loading...</div>
+            </div>
+        );
+    }
+
+    const hasActiveFilters = selectedCodexIds.length > 0 || categoryFilter !== null;
+
+    return (
+        <div className="h-full flex flex-col bg-background">
+            {/* Toolbar */}
+            <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+                <div className="p-4 flex flex-col sm:flex-row items-center gap-4">
+                    {/* View Switcher - Segmented Control */}
+                    <div className="flex p-1 bg-muted/50 rounded-lg border border-border/50 shadow-inner">
+                        {(['grid', 'outline', 'matrix', 'timeline'] as const).map((type) => (
+                            <button
+                                key={type}
+                                onClick={() => setViewType(type)}
+                                className={`
+                                    flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200
+                                    ${viewType === type
+                                        ? 'bg-background text-primary shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}
+                                `}
+                            >
+                                {type === 'grid' && <LayoutGrid className="h-4 w-4" />}
+                                {type === 'outline' && <List className="h-4 w-4" />}
+                                {type === 'matrix' && <Table className="h-4 w-4" />}
+                                {type === 'timeline' && <Layers className="h-4 w-4" />}
+                                <span className="capitalize">{type}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Search */}
+                    <div className="flex-1 w-full max-w-md relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <Input
+                            placeholder="Search scenes, characters, plot points..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-10 bg-muted/30 border-border/50 focus:bg-background transition-all"
+                        />
+                    </div>
+
+                    {/* Filter Toggle & Settings */}
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant={hasActiveFilters ? 'default' : 'outline'}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setShowFilters(!showFilters)}
+                        >
+                            {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            <span>Filters</span>
+                            {hasActiveFilters && (
+                                <span className="ml-1 h-5 w-5 bg-primary-foreground text-primary text-xs rounded-full flex items-center justify-center">
+                                    {selectedCodexIds.length}
+                                </span>
+                            )}
+                        </Button>
+                        <Button variant="ghost" size="icon">
+                            <Settings className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Filter Bar (expandable) */}
+                {showFilters && (
+                    <div className="px-4 pb-4 border-t pt-3 bg-muted/30">
+                        <CodexFilterBar
+                            projectId={projectId}
+                            selectedIds={selectedCodexIds}
+                            onSelectionChange={setSelectedCodexIds}
+                            categoryFilter={categoryFilter}
+                            onCategoryFilterChange={setCategoryFilter}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Main View */}
+            <div className={`flex-1 overflow-auto ${viewType === 'timeline' ? '' : 'p-6'}`}>
+                {viewType === 'grid' && <GridView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'outline' && <OutlineView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'matrix' && <MatrixView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'timeline' && <TimelineView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
+            </div>
+        </div>
+    );
+}

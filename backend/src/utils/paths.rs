@@ -1,0 +1,28 @@
+// Path utilities
+
+use std::fs;
+use std::path::PathBuf;
+
+/// Get the application root directory
+pub fn get_app_dir() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    let app_dir = home.join("BecomeAnAuthor");
+    fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
+    Ok(app_dir)
+}
+
+/// Get the projects directory
+pub fn get_projects_dir() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let projects_dir = app_dir.join("Projects");
+    fs::create_dir_all(&projects_dir).map_err(|e| e.to_string())?;
+    Ok(projects_dir)
+}
+
+/// Get the series storage path
+pub fn get_series_path() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let series_path = app_dir.join(".meta").join("series.json");
+    fs::create_dir_all(app_dir.join(".meta")).map_err(|e| e.to_string())?;
+    Ok(series_path)
+}
