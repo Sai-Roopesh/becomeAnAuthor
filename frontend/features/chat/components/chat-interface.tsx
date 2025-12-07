@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLiveQuery } from '@/hooks/use-live-query';
+import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useChatRepository } from '@/hooks/use-chat-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
             projectId,
             name: 'New Chat',
         });
+        invalidateQueries(); // Refresh the chat list
         setActiveThreadId(newThread.id);
         if (isMobile) setSidebarOpen(false);
     };
@@ -55,6 +56,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 if (activeThreadId === threadId) {
                     setActiveThreadId(null);
                 }
+                invalidateQueries(); // Refresh the chat list
                 toast.success('Chat deleted');
             } catch (error) {
                 console.error('Failed to delete chat:', error);

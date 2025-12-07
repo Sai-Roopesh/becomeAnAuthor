@@ -19,6 +19,7 @@ import { AI_DEFAULTS } from '@/lib/config/constants';
 import Mention from '@tiptap/extension-mention';
 import { createCodexSuggestion } from './suggestion';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useNodeRepository } from '@/hooks/use-node-repository';
 
 export function TiptapEditor({
     sceneId,
@@ -37,6 +38,7 @@ export function TiptapEditor({
     const previousSceneIdRef = useRef<string | null>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const codexRepo = useCodexRepository();
+    const nodeRepo = useNodeRepository(); // ✅ Add repository access
 
     // Create suggestion configuration with projectId and repository
     const suggestion = useMemo(
@@ -110,16 +112,91 @@ export function TiptapEditor({
     useEffect(() => {
         if (!editor) return;
 
-        // When scene changes, update the editor content
-        if (previousSceneIdRef.current !== sceneId) {
-            // Only update content if we're switching scenes (not on first load)
-            // The editor is initialized with validatedContent, so first load is handled
-            if (previousSceneIdRef.current !== null) {
-                editor.commands.setContent(validatedContent);
+        // When scene changes, save previous scene and load new scene
+        const handleSceneSwitch = async () => {
+            if (previousSceneIdRef.current !== sceneId) {
+                console.log(`[SceneSwitch] Switching from ${previousSceneIdRef.current} to ${sceneId}`);
+
+                // Step 1: Save the previous scene's content before switching
+                if (previousSceneIdRef.current !== null && editor && !editor.isDestroyed) {
+                    try {
+                        const oldSceneContent = editor.getJSON();
+                        const oldSceneId = previousSceneIdRef.current;
+
+                        console.log(`[SceneSwitch] Captured content for scene ${oldSceneId}, has ${oldSceneContent.content?.length || 0} nodes`);
+
+                        const { saveCoordinator } = await import('@/lib/core/save-coordinator');
+                        await saveCoordinator.scheduleSave(
+                            oldSceneId,
+                            () => oldSceneContent
+                        );
+                        console.log(`[SceneSwitch] Save completed for ${oldSceneId}`);
+                    } catch (error) {
+                        console.error('[SceneSwitch] Failed to save scene before switch:', error);
+                    }
+                }
+
+                // Step 2: Fetch FRESH content DIRECTLY from backend, bypassing ALL caches
+                console.log(`[SceneSwitch] Fetching fresh content for scene ${sceneId} from BACKEND`);
+                try {
+                    const { getStructure, loadScene } = await import('@/lib/tauri/commands');
+                    const { getCurrentProjectPath } = await import('@/infrastructure/repositories/TauriNodeRepository');
+
+                    const projectPath = getCurrentProjectPath();
+                    if (!projectPath) throw new Error('No project path');
+
+                    // Get structure to find the scene file
+                    const structure = await getStructure(projectPath);
+
+                    // Flatten and find the scene
+                    const flattenStructure = (nodes: any[]): any[] => {
+                        const result: any[] = [];
+                        for (const node of nodes) {
+                            result.push(node);
+                            if (node.children?.length) {
+                                result.push(...flattenStructure(node.children));
+                            }
+                        }
+                        return result;
+                    };
+
+                    const allNodes = flattenStructure(structure);
+                    const sceneNode = allNodes.find(n => n.id === sceneId);
+
+                    if (sceneNode?.file) {
+                        // Load scene content DIRECTLY from backend file
+                        const scene = await loadScene(projectPath, sceneNode.file);
+
+                        // Parse the content
+                        let parsedContent;
+                        try {
+                            parsedContent = typeof scene.content === 'string'
+                                ? JSON.parse(scene.content)
+                                : scene.content;
+                        } catch {
+                            parsedContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: scene.content }] }] };
+                        }
+
+                        console.log(`[SceneSwitch] Loaded FRESH content from file, has ${parsedContent.content?.length || 0} nodes`);
+                        console.log(`[SceneSwitch] Content preview:`, JSON.stringify(parsedContent).substring(0, 150));
+                        editor.commands.setContent(parsedContent);
+                    } else {
+                        console.warn(`[SceneSwitch] Scene ${sceneId} has no file, using empty`);
+                        editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
+                    }
+                } catch (error) {
+                    console.error('[SceneSwitch] Failed to fetch from backend:', error);
+                    // Fallback to prop
+                    editor.commands.setContent(validatedContent);
+                }
+
+                previousSceneIdRef.current = sceneId;
             }
-            previousSceneIdRef.current = sceneId;
-        }
-    }, [sceneId, validatedContent, editor]);
+        };
+
+        handleSceneSwitch();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sceneId, editor]); // validatedContent removed - we fetch fresh from backend now
 
     useAutoSave(sceneId, editor);
 
@@ -194,6 +271,9 @@ export function TiptapEditor({
 
                     const { saveCoordinator } = await import('@/lib/core/save-coordinator');
                     await saveCoordinator.scheduleSave(sceneId, () => editor!.getJSON());
+
+                    // Close the continue writing menu after successful generation
+                    setShowContinueMenu(false);
                 },
             }
         );

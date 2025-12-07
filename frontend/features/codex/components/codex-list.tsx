@@ -1,6 +1,6 @@
 'use client';
 
-import { useLiveQuery } from '@/hooks/use-live-query';
+import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
 import { CodexEntry, CodexCategory, CodexTemplate } from '@/lib/config/types';
@@ -56,6 +56,7 @@ export function CodexList({ projectId }: { projectId: string }) {
                 customFields: {},
             });
         });
+        invalidateQueries(); // Refresh the entry list
         setSelectedEntityId(newEntry.id);
     };
 
@@ -66,6 +67,7 @@ export function CodexList({ projectId }: { projectId: string }) {
             name: 'New Entity',
             category: pendingCategory,
         });
+        invalidateQueries(); // Refresh the entry list
         setSelectedEntityId(newEntry.id);
     };
 
@@ -83,6 +85,7 @@ export function CodexList({ projectId }: { projectId: string }) {
         if (confirmed) {
             try {
                 await codexRepo.delete(id);
+                invalidateQueries(); // Refresh the entry list
                 toast.success('Entity deleted');
                 if (selectedEntityId === id) {
                     setSelectedEntityId(null);

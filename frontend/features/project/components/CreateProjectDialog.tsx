@@ -41,8 +41,26 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
         author: '',
         language: 'English (US)',
         seriesName: '',
-        seriesIndex: ''
+        seriesIndex: '',
+        savePath: '' // REQUIRED - user must choose
     });
+
+    const handleChooseLocation = async () => {
+        try {
+            const { showOpenDialog } = await import('@/lib/tauri/commands');
+            const selected = await showOpenDialog({
+                directory: true,
+                title: 'Choose where to save your novel'
+            });
+
+            if (selected && typeof selected === 'string') {
+                setFormData(prev => ({ ...prev, savePath: selected }));
+            }
+        } catch (error) {
+            console.error('Failed to open directory picker:', error);
+            alert('Failed to open directory picker');
+        }
+    };
 
     const handleSurpriseMe = () => {
         const randomTitle = TITLES[Math.floor(Math.random() * TITLES.length)];
@@ -50,6 +68,12 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
     };
 
     const handleCreate = async () => {
+        // Validate required location
+        if (!formData.savePath) {
+            alert('Please choose a save location for your project');
+            return;
+        }
+
         try {
             // ✅ Handle series - create or find existing
             let seriesId: string | undefined = undefined;
@@ -68,14 +92,15 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                 }
             }
 
-            // ✅ Use repository - validation happens inside repository
+            // ✅ Use repository with REQUIRED custom path
             const projectId = await projectRepo.create({
                 title: formData.title,
                 author: formData.author,
                 language: formData.language,
-                seriesId: seriesId,
+                seriesId,
                 seriesIndex: formData.seriesIndex,
-            });
+                customPath: formData.savePath,
+            } as any); // Type assertion needed since customPath not in base Project type
 
             // Create initial manuscript structure using repository
             const act = await nodeRepo.create({
@@ -109,9 +134,16 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                 summary: ''
             });
 
+            // Invalidate project list cache so new project appears
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
+
+            // Navigate to the new project
+            window.location.href = `/project?id=${projectId}`;
+
             setOpen(false);
             setStep(1);
-            setFormData({ title: '', author: '', language: 'English (US)', seriesName: '', seriesIndex: '' });
+            setFormData({ title: '', author: '', language: 'English (US)', seriesName: '', seriesIndex: '', savePath: '' });
         } catch (error) {
             console.error('Failed to create project:', error);
             // ✅ Show user-friendly error
@@ -181,6 +213,29 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                     </div>
 
                     <div className="space-y-2">
+                        <Label>Save Location *</Label>
+                        <div className="flex gap-2">
+                            <Input
+                                value={formData.savePath}
+                                readOnly
+                                placeholder="Click 'Choose Folder' to select location"
+                                className="flex-1"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleChooseLocation}
+                                className="shrink-0"
+                            >
+                                📁 Choose Folder
+                            </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Your project will be saved in a folder named after your title at this location.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label>Language</Label>
                         <Select value={formData.language} onValueChange={val => setFormData({ ...formData, language: val })}>
                             <SelectTrigger>
@@ -199,7 +254,12 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                 </div>
 
                 <DialogFooter>
-                    <Button onClick={handleCreate} disabled={!formData.title}>Create Novel</Button>
+                    <Button
+                        onClick={handleCreate}
+                        disabled={!formData.title || !formData.savePath}
+                    >
+                        Create Novel
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

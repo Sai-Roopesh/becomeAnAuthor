@@ -83,8 +83,8 @@ export async function listProjects(): Promise<ProjectMeta[]> {
     return invoke<ProjectMeta[]>('list_projects');
 }
 
-export async function createProject(title: string, author: string): Promise<ProjectMeta> {
-    return invoke<ProjectMeta>('create_project', { title, author });
+export async function createProject(title: string, author: string, customPath: string): Promise<ProjectMeta> {
+    return invoke<ProjectMeta>('create_project', { title, author, customPath });
 }
 
 export async function deleteProject(projectPath: string): Promise<void> {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useLiveQuery } from '@/hooks/use-live-query';
+import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useCodexTagRepository } from '@/hooks/use-codex-tag-repository';
 import type { CodexTag } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,7 @@ export function TagManager({ projectId, entryId }: TagManagerProps) {
             });
 
             await tagRepo.addTagToEntry(entryId, newTag.id);
+            invalidateQueries(); // Refresh tags
             setNewTagName('');
             toast.success('Tag created and added');
         } catch (error) {
@@ -65,6 +66,7 @@ export function TagManager({ projectId, entryId }: TagManagerProps) {
     const handleAddExistingTag = async (tagId: string) => {
         try {
             await tagRepo.addTagToEntry(entryId, tagId);
+            invalidateQueries(); // Refresh tags
             toast.success('Tag added');
         } catch (error) {
             console.error('Failed to add tag:', error);
@@ -76,6 +78,7 @@ export function TagManager({ projectId, entryId }: TagManagerProps) {
         e.stopPropagation();
         try {
             await tagRepo.removeTagFromEntry(entryId, tagId);
+            invalidateQueries(); // Refresh tags
             toast.success('Tag removed');
         } catch (error) {
             console.error('Failed to remove tag:', error);

@@ -8,7 +8,7 @@ import type { Project } from '@/lib/types';
 import {
     listProjects,
     createProject,
-    deleteProject,
+    deleteProject as deleteProjectCommand,
     updateProject as updateProjectCommand,
     archiveProject as archiveProjectCommand,
     type ProjectMeta
@@ -62,8 +62,15 @@ export class TauriProjectRepository implements IProjectRepository {
         }
     }
 
-    async create(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-        const created = await createProject(project.title, project.author || 'Unknown');
+    async create(params: {
+        title: string;
+        author: string;
+        language?: string;
+        seriesId?: string;
+        seriesIndex?: string;
+        customPath: string;
+    }): Promise<string> {
+        const created = await createProject(params.title, params.author || 'Unknown', params.customPath);
         // Set the current project path so TauriNodeRepository can create nodes
         setCurrentProjectPath(created.path);
         return created.id;
@@ -97,7 +104,12 @@ export class TauriProjectRepository implements IProjectRepository {
         const project = projects.find(p => p.id === id);
 
         if (project) {
-            await deleteProject(project.path);
+            // Delete via Tauri
+            await deleteProjectCommand(project.path);
+
+            // Invalidate cache so UI updates
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
         }
     }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useLiveQuery } from '@/hooks/use-live-query';
+import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
             projectId,
             title: 'New Snippet',
         });
+        invalidateQueries(); // Refresh snippet list
         onSelect(newSnippet.id);
     };
 
@@ -49,6 +50,7 @@ export function SnippetList({ projectId, onSelect }: { projectId: string, onSele
 
         if (confirmed) {
             await snippetRepo.delete(id);
+            invalidateQueries(); // Refresh snippet list
             toast.success('Snippet deleted');
         }
     };

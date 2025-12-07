@@ -97,9 +97,21 @@ export class TauriNodeRepository implements INodeRepository {
             if (tauriNode._tauriFile) {
                 try {
                     const scene = await loadScene(currentProjectPath, tauriNode._tauriFile);
+
+                    // CRITICAL FIX: Parse content as JSON - backend saves it as stringified JSON
+                    let parsedContent;
+                    try {
+                        parsedContent = typeof scene.content === 'string'
+                            ? JSON.parse(scene.content)
+                            : scene.content;
+                    } catch {
+                        // Fallback if content isn't valid JSON
+                        parsedContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: scene.content }] }] };
+                    }
+
                     return {
                         ...node,
-                        content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: scene.content }] }] },
+                        content: parsedContent,
                         wordCount: scene.meta.word_count,
                         status: scene.meta.status,
                     } as Scene;

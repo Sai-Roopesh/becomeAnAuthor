@@ -20,11 +20,12 @@ export class TauriChatRepository implements IChatRepository {
         if (!projectPath) return undefined;
 
         try {
-            const result = await invoke<{ thread: ChatThread; messages: ChatMessage[] } | null>('get_chat_thread', {
+            // Backend returns ChatThread directly, not a wrapper
+            const result = await invoke<ChatThread | null>('get_chat_thread', {
                 projectPath,
                 threadId: id
             });
-            return result?.thread;
+            return result || undefined;
         } catch {
             return undefined;
         }

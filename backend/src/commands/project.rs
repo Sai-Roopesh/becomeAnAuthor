@@ -16,20 +16,39 @@ pub fn get_projects_path() -> Result<String, String> {
 
 #[tauri::command]
 pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
-    let projects_dir = get_projects_dir()?;
+    let app_dir = get_app_dir()?;
+    let registry_path = app_dir.join("project_registry.json");
+    
+    // Read from registry file (tracks all project locations)
+    let project_paths: Vec<String> = if registry_path.exists() {
+        let content = fs::read_to_string(&registry_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        // If no registry, scan default directory for backward compatibility
+        let projects_dir = get_projects_dir()?;
+        let mut paths = Vec::new();
+        
+        if let Ok(entries) = fs::read_dir(&projects_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_dir() && path.join(".meta/project.json").exists() {
+                    paths.push(path.to_string_lossy().to_string());
+                }
+            }
+        }
+        paths
+    };
+    
+    // Load all projects from registry
     let mut projects = Vec::new();
-
-    if let Ok(entries) = fs::read_dir(&projects_dir) {
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.is_dir() {
-                let meta_path = path.join(".meta").join("project.json");
-                if meta_path.exists() {
-                    if let Ok(content) = fs::read_to_string(&meta_path) {
-                        if let Ok(project) = serde_json::from_str::<ProjectMeta>(&content) {
-                            projects.push(project);
-                        }
-                    }
+    for path_str in project_paths {
+        let path = PathBuf::from(&path_str);
+        let meta_path = path.join(".meta/project.json");
+        
+        if meta_path.exists() {
+            if let Ok(content) = fs::read_to_string(&meta_path) {
+                if let Ok(project) = serde_json::from_str::<ProjectMeta>(&content) {
+                    projects.push(project);
                 }
             }
         }
@@ -39,13 +58,20 @@ pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
 }
 
 #[tauri::command]
-pub fn create_project(title: String, author: String) -> Result<ProjectMeta, String> {
-    let projects_dir = get_projects_dir()?;
+pub fn create_project(title: String, author: String, custom_path: String) -> Result<ProjectMeta, String> {
+    // User must provide custom path - no default fallback
+    let base_dir = PathBuf::from(&custom_path);
+    
+    // Validate the custom path
+    if !base_dir.exists() {
+        return Err(format!("Directory does not exist: {}", custom_path));
+    }
+    
     let slug = slugify(&title);
-    let project_dir = projects_dir.join(&slug);
+    let project_dir = base_dir.join(&slug);
 
     if project_dir.exists() {
-        return Err(format!("Project '{}' already exists", title));
+        return Err(format!("Project '{}' already exists at this location", title));
     }
 
     // Create directory structure
@@ -81,6 +107,28 @@ pub fn create_project(title: String, author: String) -> Result<ProjectMeta, Stri
     // Seed built-in templates and relation types
     seed_built_in_data(&project_dir)?;
 
+    // Add to project registry so it can be discovered
+    let app_dir = get_app_dir()?;
+    let registry_path = app_dir.join("project_registry.json");
+    
+    // Read existing registry
+    let mut project_paths: Vec<String> = if registry_path.exists() {
+        let content = fs::read_to_string(&registry_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    
+    // Add new project path
+    let project_path_str = project_dir.to_string_lossy().to_string();
+    if !project_paths.contains(&project_path_str) {
+        project_paths.push(project_path_str);
+    }
+    
+    // Write back to registry
+    let registry_json = serde_json::to_string_pretty(&project_paths).map_err(|e| e.to_string())?;
+    fs::write(&registry_path, registry_json).map_err(|e| e.to_string())?;
+
     Ok(project)
 }
 
@@ -104,6 +152,20 @@ pub fn delete_project(project_path: String) -> Result<(), String> {
     let trash_path = trash_dir.join(format!("{}_{}", folder_name, timestamp));
     
     fs::rename(&path, &trash_path).map_err(|e| e.to_string())?;
+    
+    // Remove from registry
+    let registry_path = app_dir.join("project_registry.json");
+    if registry_path.exists() {
+        let content = fs::read_to_string(&registry_path).map_err(|e| e.to_string())?;
+        let mut project_paths: Vec<String> = serde_json::from_str(&content).unwrap_or_default();
+        
+        // Remove this project
+        project_paths.retain(|p| p != &project_path);
+        
+        // Write back
+        let registry_json = serde_json::to_string_pretty(&project_paths).map_err(|e| e.to_string())?;
+        fs::write(&registry_path, registry_json).map_err(|e| e.to_string())?;
+    }
     
     Ok(())
 }
@@ -290,7 +352,6 @@ pub fn rename_node(project_path: String, node_id: String, new_title: String) -> 
     
     let json = serde_json::to_string_pretty(&structure).map_err(|e| e.to_string())?;
     fs::write(&structure_path, json).map_err(|e| e.to_string())?;
-    
     Ok(())
 }
 

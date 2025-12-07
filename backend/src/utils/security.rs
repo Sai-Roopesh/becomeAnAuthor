@@ -14,21 +14,34 @@ pub const MAX_GENERAL_SIZE: u64 = 5 * 1024 * 1024; // 5MB
 pub fn validate_project_path(path: &str) -> Result<PathBuf, String> {
     let path_buf = PathBuf::from(path);
     
-    // Canonicalize to resolve any .. or symlinks
-    let canonical = fs::canonicalize(&path_buf)
-        .map_err(|e| format!("Invalid path: {}", e))?;
+    let project_path = PathBuf::from(path);
     
-    // Get the app directory
-    let app_dir = get_app_dir()?;
-    let canonical_app = fs::canonicalize(&app_dir)
-        .map_err(|e| format!("Failed to resolve app directory: {}", e))?;
-    
-    // Ensure the path is within the app directory
-    if !canonical.starts_with(&canonical_app) {
-        return Err("Access denied: path outside application directory".to_string());
+    // Check if path exists
+    if !project_path.exists() {
+        return Err("Project path does not exist".to_string());
     }
     
-    Ok(canonical)
+    // Check if it's a valid project directory (has .meta/project.json)
+    let meta_file = project_path.join(".meta/project.json");
+    if !meta_file.exists() {
+        return Err("Invalid project: missing project metadata".to_string());
+    }
+    
+    // Verify it's in the registry (for security - only allow tracked projects)
+    let app_dir = get_app_dir()?;
+    let registry_path = app_dir.join("project_registry.json");
+    
+    if registry_path.exists() {
+        let content = std::fs::read_to_string(&registry_path).map_err(|e| e.to_string())?;
+        let project_paths: Vec<String> = serde_json::from_str(&content).unwrap_or_default();
+        
+        let path_str = project_path.to_string_lossy().to_string();
+        if !project_paths.contains(&path_str) {
+            return Err("Access denied: project not in registry".to_string());
+        }
+    }
+    
+    Ok(project_path)
 }
 
 /// Checks if a file is within the allowed size limit

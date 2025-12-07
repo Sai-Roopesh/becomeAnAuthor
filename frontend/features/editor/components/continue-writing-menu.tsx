@@ -57,12 +57,12 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
             model: model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
             mode: selectedMode,
         });
-        onOpenChange(false);
+        // Keep popover open so user can see loading state and cancel if needed
     };
 
     const handleTweakAndGenerate = () => {
         setShowTweakDialog(true);
-        onOpenChange(false);
+        // Keep menu open until user explicitly closes or generation completes
     };
 
     const getModeInstructions = (mode: GenerationMode): string => {
