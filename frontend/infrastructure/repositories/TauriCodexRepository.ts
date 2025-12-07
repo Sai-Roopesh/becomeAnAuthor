@@ -5,7 +5,11 @@
 
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { CodexEntry, CodexCategory } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listCodexEntries,
+    saveCodexEntry,
+    deleteCodexEntry
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 /**
@@ -26,7 +30,7 @@ export class TauriCodexRepository implements ICodexRepository {
         if (!projectPath) return [];
 
         try {
-            return await invoke<CodexEntry[]>('list_codex_entries', { projectPath });
+            return await listCodexEntries(projectPath);
         } catch (error) {
             console.error('Failed to list codex entries:', error);
             return [];
@@ -38,7 +42,7 @@ export class TauriCodexRepository implements ICodexRepository {
         if (!projectPath) return [];
 
         try {
-            return await invoke<CodexEntry[]>('list_codex_entries', { projectPath, category });
+            return await listCodexEntries(projectPath, category);
         } catch (error) {
             console.error('Failed to list codex entries by category:', error);
             return [];
@@ -75,8 +79,16 @@ export class TauriCodexRepository implements ICodexRepository {
             updatedAt: now,
         };
 
-        await invoke('save_codex_entry', { projectPath, entry: newEntry });
-        return newEntry;
+        try {
+            await saveCodexEntry(projectPath, newEntry);
+            // ✅ Invalidate cache to trigger UI refresh
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
+            return newEntry;
+        } catch (error) {
+            console.error('Failed to save codex entry:', error);
+            throw error;
+        }
     }
 
     async update(id: string, data: Partial<CodexEntry>): Promise<void> {
@@ -92,7 +104,15 @@ export class TauriCodexRepository implements ICodexRepository {
             updatedAt: Date.now(),
         };
 
-        await invoke('save_codex_entry', { projectPath, entry: updated });
+        try {
+            await saveCodexEntry(projectPath, updated);
+            // ✅ Invalidate cache to trigger UI refresh
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
+        } catch (error) {
+            console.error('Failed to update codex entry:', error);
+            throw error;
+        }
     }
 
     async delete(id: string): Promise<void> {
@@ -101,11 +121,15 @@ export class TauriCodexRepository implements ICodexRepository {
 
         const entry = await this.get(id);
         if (entry) {
-            await invoke('delete_codex_entry', {
-                projectPath,
-                category: entry.category,
-                entryId: id
-            });
+            try {
+                await deleteCodexEntry(projectPath, entry.category, id);
+                // ✅ Invalidate cache to trigger UI refresh
+                const { invalidateQueries } = await import('@/hooks/use-live-query');
+                invalidateQueries();
+            } catch (error) {
+                console.error('Failed to delete codex entry:', error);
+                throw error;
+            }
         }
     }
 

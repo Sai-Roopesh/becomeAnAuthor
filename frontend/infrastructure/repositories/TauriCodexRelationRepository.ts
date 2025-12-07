@@ -5,7 +5,11 @@
 
 import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository';
 import type { CodexRelation } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listCodexRelations,
+    saveCodexRelation,
+    deleteCodexRelation
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexRelationRepository implements ICodexRelationRepository {
@@ -14,9 +18,10 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         if (!projectPath) return [];
 
         try {
-            const relations = await invoke<CodexRelation[]>('list_codex_relations', { projectPath });
+            const relations = await listCodexRelations(projectPath) as unknown as CodexRelation[];
             return relations.filter(r => r.parentId === parentId);
-        } catch {
+        } catch (error) {
+            console.error('Failed to list codex relations:', error);
             return [];
         }
     }
@@ -25,26 +30,37 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
+        const now = Date.now();
         const newRelation: CodexRelation = {
             id: crypto.randomUUID(),
             parentId: relation.parentId,
             childId: relation.childId,
-            type: relation.type,
+            projectId: relation.projectId || 'current',  // Get from context
+            typeId: relation.typeId,
+            label: relation.label,
             strength: relation.strength,
-            description: relation.description,
-            tags: relation.tags,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            createdAt: now,
+            updatedAt: now,
         };
 
-        await invoke('save_codex_relation', { projectPath, relation: newRelation });
-        return newRelation;
+        try {
+            await saveCodexRelation(projectPath, newRelation as any);
+            return newRelation;
+        } catch (error) {
+            console.error('Failed to save codex relation:', error);
+            throw error;
+        }
     }
 
     async delete(id: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_codex_relation', { projectPath, relationId: id });
+        try {
+            await deleteCodexRelation(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete codex relation:', error);
+            throw error;
+        }
     }
 }

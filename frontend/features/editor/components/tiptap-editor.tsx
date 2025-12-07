@@ -20,6 +20,7 @@ import Mention from '@tiptap/extension-mention';
 import { createCodexSuggestion } from './suggestion';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useContextAssembly } from '@/hooks/use-context-assembly';
 
 export function TiptapEditor({
     sceneId,
@@ -38,7 +39,8 @@ export function TiptapEditor({
     const previousSceneIdRef = useRef<string | null>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const codexRepo = useCodexRepository();
-    const nodeRepo = useNodeRepository(); // ✅ Add repository access
+    const nodeRepo = useNodeRepository();
+    const { assembleContext } = useContextAssembly(projectId);
 
     // Create suggestion configuration with projectId and repository
     const suggestion = useMemo(
@@ -238,10 +240,24 @@ export function TiptapEditor({
     }, [editor, formatSettings.typewriterMode]);
 
     const { generateStream, isGenerating, model, setModel, cancel } = useAI({
-        system: 'You are a creative writing assistant helping to continue a story.',
+        system: `You are an expert fiction writer specializing in immersive storytelling.
+
+CORE PRINCIPLES:
+- Show, don't tell: Use sensory details and actions to convey emotions
+- Remove filter words: Eliminate "saw," "felt," "heard," "seemed," "appeared"
+- Maintain tension: Every paragraph should pull the reader forward
+- Match tone: Adapt seamlessly to the existing narrative voice
+
+WRITING STYLE:
+- Active voice over passive
+- Strong, specific verbs over weak verb + adverb
+- Concise, punchy sentences for action; longer, flowing sentences for reflection
+- Vivid sensory details: sight, sound, touch, smell, taste
+
+When continuing a story, extend the narrative naturally while honoring the established world, characters, and tone.`,
         streaming: true,
         persistModel: true,
-        operationName: 'Continue Writing',
+        operationName: 'Generate',
     });
 
     const generate = async (options: any) => {
@@ -250,14 +266,53 @@ export function TiptapEditor({
         const currentText = editor.getText();
         const lastContext = currentText.slice(-AI_DEFAULTS.CONTEXT_WINDOW_CHARS);
 
-        const prompt = `Context: ${lastContext}\n\n${options.instructions || `Write approximately ${options.wordCount || 200} words continuing from this context.`}`;
+        // ✅ Use centralized context assembly
+        const additionalContext = options.selectedContexts && options.selectedContexts.length > 0
+            ? '\n\n=== ADDITIONAL CONTEXT ===\n' + await assembleContext(options.selectedContexts)
+            : '';
+
+        // Enhanced prompt with style guidelines and examples
+        const getModeGuidance = (mode: string) => {
+            switch (mode) {
+                case 'scene-beat':
+                    return 'Create a pivotal moment with clear value change—the scene must end differently than it began.';
+                case 'codex-progression':
+                    return 'Analyze recent events and suggest how they affect characters, relationships, or world elements.';
+                default:
+                    return 'Match the existing tone and pacing, maintaining narrative tension.';
+            }
+        };
+
+        const prompt = `Continue this story with approximately ${options.wordCount || 400} words.
+
+CONTEXT:
+${lastContext}${additionalContext}
+
+REQUIREMENTS:
+- Style: ${getModeGuidance(options.mode || 'continue-writing')}
+- Show, don't tell: Use vivid sensory details (sight, sound, touch, smell, taste)
+- No filter words: Avoid "saw," "felt," "heard," "seemed," "appeared"
+- Active voice: Choose strong, specific verbs
+- Narrative drive: Maintain or increase tension
+
+GOOD EXAMPLE OF CONTINUATION:
+[Context] "The door stood ajar."
+[Output] "Hinges creaked—metal on metal, sharp in the silence. Beyond, shadows pooled thick. A floorboard groaned. Not empty, then."
+
+${options.instructions || 'Continue the story naturally from the current context.'}
+
+YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
 
         let generatedText = '';
 
         await generateStream(
             {
                 prompt,
-                maxTokens: options.wordCount ? options.wordCount * 2 : AI_DEFAULTS.MAX_TOKENS,
+                // ✅ Use EXACT word count from UI (200/400/600 buttons)
+                maxTokens: (await import('@/lib/config/model-specs')).calculateMaxTokens(
+                    model,
+                    options.wordCount  // No fallback - UI always provides this
+                ),
                 temperature: AI_DEFAULTS.TEMPERATURE,
             },
             {

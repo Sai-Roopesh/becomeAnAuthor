@@ -52,9 +52,17 @@ pub struct CodexEntry {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct CodexSettings {
+    // Backend fields
     #[serde(skip_serializing_if = "Option::is_none", rename = "showInMentions")]
     pub show_in_mentions: Option<bool>,
+    #[serde(default)]
     pub fields: Vec<CodexField>,
+    
+    // Frontend fields - merged
+    #[serde(skip_serializing_if = "Option::is_none", rename = "isGlobal")]
+    pub is_global: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "doNotTrack")]
+    pub do_not_track: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -60,8 +60,12 @@ export interface CodexEntry {
     notes?: string; // Research notes (not seen by AI)
     externalLinks?: string[]; // External reference URLs
     settings: {
-        isGlobal: boolean;
-        doNotTrack: boolean;
+        // Backend fields
+        showInMentions?: boolean;
+        fields?: Array<{ name: string; value: string }>;
+        // Frontend fields
+        isGlobal?: boolean;
+        doNotTrack?: boolean;
     };
     // NEW: Phase 1 enhancements
     templateId?: string; // which template was used
@@ -74,15 +78,14 @@ export interface CodexEntry {
 
 export interface CodexRelation {
     id: string;
-    parentId: string; // Codex entry that contains the relation
-    childId: string; // Codex entry being referenced
-    // NEW: Phase 1 enhancements
-    type?: string; // relationship type ID
-    strength?: number; // 1-10 scale
-    description?: string; // details about the relationship
-    tags?: string[]; // tag IDs
+    parentId: string;
+    childId: string;
+    projectId: string;  // ✅ Added - required in backend
+    typeId?: string;    // ✅ Renamed from 'type'
+    label?: string;     // ✅ Renamed from 'description'
+    strength?: number;
     createdAt: number;
-    updatedAt?: number; // when relationship was last modified
+    updatedAt: number;  // ✅ Made required
 }
 
 export interface Project {
@@ -310,6 +313,7 @@ export interface CodexTag {
     color: string;
     category?: CodexCategory; // optional scope to specific category
     createdAt: number;
+    updatedAt: number;  // ✅ Added to match backend
 }
 
 export interface CodexEntryTag {

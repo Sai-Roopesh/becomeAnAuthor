@@ -7,8 +7,7 @@ pub struct ChatThread {
     pub id: String,
     #[serde(rename = "projectId")]
     pub project_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub name: String,  // Made required to match frontend
     #[serde(default)]
     pub pinned: bool,
     #[serde(default)]

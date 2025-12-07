@@ -10,7 +10,7 @@ export interface ICodexTagRepository {
     get(id: string): Promise<CodexTag | undefined>;
     getByProject(projectId: string): Promise<CodexTag[]>;
     getByCategory(projectId: string, category: string): Promise<CodexTag[]>;
-    create(tag: Omit<CodexTag, 'id' | 'createdAt'>): Promise<CodexTag>;
+    create(tag: Omit<CodexTag, 'id' | 'createdAt' | 'updatedAt'>): Promise<CodexTag>;
     update(id: string, data: Partial<CodexTag>): Promise<void>;
     delete(id: string): Promise<void>;
 

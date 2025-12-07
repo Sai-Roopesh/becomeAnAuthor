@@ -5,7 +5,16 @@
 
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 import type { ChatThread, ChatMessage } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listChatThreads,
+    getChatThread,
+    createChatThread,
+    updateChatThread,
+    deleteChatThread,
+    getChatMessages,
+    createChatMessage,
+    deleteChatMessage
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 /**
@@ -20,13 +29,10 @@ export class TauriChatRepository implements IChatRepository {
         if (!projectPath) return undefined;
 
         try {
-            // Backend returns ChatThread directly, not a wrapper
-            const result = await invoke<ChatThread | null>('get_chat_thread', {
-                projectPath,
-                threadId: id
-            });
-            return result || undefined;
-        } catch {
+            const result = await getChatThread(projectPath, id);
+            return result as unknown as ChatThread || undefined;
+        } catch (error) {
+            console.error('Failed to get chat thread:', error);
             return undefined;
         }
     }
@@ -36,7 +42,7 @@ export class TauriChatRepository implements IChatRepository {
         if (!projectPath) return [];
 
         try {
-            return await invoke<ChatThread[]>('list_chat_threads', { projectPath });
+            return await listChatThreads(projectPath) as unknown as ChatThread[];
         } catch (error) {
             console.error('Failed to list chat threads:', error);
             return [];
@@ -61,7 +67,7 @@ export class TauriChatRepository implements IChatRepository {
         const newThread = {
             id: crypto.randomUUID(),
             projectId: thread.projectId,
-            name: thread.name, // Both frontend and backend now use 'name'
+            name: thread.name,
             pinned: false,
             archived: false,
             defaultModel: null,
@@ -69,10 +75,12 @@ export class TauriChatRepository implements IChatRepository {
             updatedAt: now,
         };
 
-        return await invoke<ChatThread>('create_chat_thread', {
-            projectPath,
-            thread: newThread
-        });
+        try {
+            return await createChatThread(projectPath, newThread as any) as unknown as ChatThread;
+        } catch (error) {
+            console.error('Failed to create chat thread:', error);
+            throw error;
+        }
     }
 
     async updateThread(id: string, data: Partial<ChatThread>): Promise<void> {
@@ -90,17 +98,24 @@ export class TauriChatRepository implements IChatRepository {
             updatedAt: Date.now(),
         };
 
-        await invoke('update_chat_thread', {
-            projectPath,
-            thread: updatedThread
-        });
+        try {
+            await updateChatThread(projectPath, id, updatedThread as any);
+        } catch (error) {
+            console.error('Failed to update chat thread:', error);
+            throw error;
+        }
     }
 
     async deleteThread(id: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_chat_thread', { projectPath, threadId: id });
+        try {
+            await deleteChatThread(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete chat thread:', error);
+            throw error;
+        }
     }
 
     // ============ Message Operations ============
@@ -108,7 +123,6 @@ export class TauriChatRepository implements IChatRepository {
     async getMessage(id: string): Promise<ChatMessage | undefined> {
         // To get a specific message, we'd need to know the thread ID
         // For now, this is not efficiently supported by the file-based approach
-        // This could be implemented by scanning all threads, but that's expensive
         console.warn('TauriChatRepository.getMessage: Not efficient for file-based storage');
         return undefined;
     }
@@ -118,10 +132,7 @@ export class TauriChatRepository implements IChatRepository {
         if (!projectPath) return [];
 
         try {
-            return await invoke<ChatMessage[]>('get_chat_messages', {
-                projectPath,
-                threadId
-            });
+            return await getChatMessages(projectPath, threadId) as unknown as ChatMessage[];
         } catch (error) {
             console.error('Failed to get chat messages:', error);
             return [];
@@ -144,21 +155,21 @@ export class TauriChatRepository implements IChatRepository {
             timestamp: Date.now(),
         };
 
-        return await invoke<ChatMessage>('create_chat_message', {
-            projectPath,
-            message: newMessage
-        });
+        try {
+            return await createChatMessage(projectPath, newMessage as any) as unknown as ChatMessage;
+        } catch (error) {
+            console.error('Failed to create chat message:', error);
+            throw error;
+        }
     }
 
     async updateMessage(id: string, data: Partial<ChatMessage>): Promise<void> {
         // Message updates are not commonly needed in this app
-        // Would require reading the thread file, finding the message, updating it, and writing back
         console.warn('TauriChatRepository.updateMessage: Not implemented');
     }
 
     async deleteMessage(id: string): Promise<void> {
         // Need thread ID to delete message efficiently
-        // This would require scanning all threads to find the message
         console.warn('TauriChatRepository.deleteMessage: Requires threadId');
     }
 
@@ -167,11 +178,12 @@ export class TauriChatRepository implements IChatRepository {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_chat_message', {
-            projectPath,
-            threadId,
-            messageId
-        });
+        try {
+            await deleteChatMessage(projectPath, threadId, messageId);
+        } catch (error) {
+            console.error('Failed to delete chat message:', error);
+            throw error;
+        }
     }
 
     async bulkDeleteMessages(ids: string[]): Promise<void> {

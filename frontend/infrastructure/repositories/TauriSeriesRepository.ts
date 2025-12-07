@@ -1,4 +1,9 @@
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listSeries,
+    createSeries,
+    updateSeries,
+    deleteSeries
+} from '@/lib/tauri';
 import type { ISeriesRepository } from '@/domain/repositories/ISeriesRepository';
 import type { Series } from '@/domain/entities/types';
 
@@ -10,7 +15,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
 
     async list(): Promise<Series[]> {
         try {
-            return await invoke<Series[]>('list_series');
+            return await listSeries() as unknown as Series[];
         } catch (error) {
             console.error('Failed to list series:', error);
             return [];
@@ -21,7 +26,8 @@ export class TauriSeriesRepository implements ISeriesRepository {
         try {
             const all = await this.list();
             return all.find(s => s.id === id);
-        } catch {
+        } catch (error) {
+            console.error('Failed to get series:', error);
             return undefined;
         }
     }
@@ -32,20 +38,30 @@ export class TauriSeriesRepository implements ISeriesRepository {
     }
 
     async create(series: Omit<Series, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-        const result = await invoke<{ id: string }>('create_series', {
-            title: series.title
-        });
-        return result.id;
+        try {
+            const result = await createSeries({ title: series.title });
+            return result.id;
+        } catch (error) {
+            console.error('Failed to create series:', error);
+            throw error;
+        }
     }
 
     async update(id: string, updates: Partial<Series>): Promise<void> {
-        await invoke('update_series', {
-            seriesId: id,
-            updates
-        });
+        try {
+            await updateSeries(id, updates as any);
+        } catch (error) {
+            console.error('Failed to update series:', error);
+            throw error;
+        }
     }
 
     async delete(id: string): Promise<void> {
-        await invoke('delete_series', { seriesId: id });
+        try {
+            await deleteSeries(id);
+        } catch (error) {
+            console.error('Failed to delete series:', error);
+            throw error;
+        }
     }
 }

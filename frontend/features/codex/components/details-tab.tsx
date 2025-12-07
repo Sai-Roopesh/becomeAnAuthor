@@ -26,13 +26,57 @@ export function DetailsTab({ entity, onChange }: DetailsTabProps) {
     const generateDescription = async () => {
         if (!entity.name || !entity.category) return;
 
-        const prompt = `Generate a creative and detailed description for a ${entity.category} named "${entity.name}". 
-        ${entity.aliases?.length ? `Aliases: ${entity.aliases.join(', ')}.` : ''}
-        Write about 2-3 paragraphs.`;
+        const getCategoryGuidance = (category: string) => {
+            switch (category.toLowerCase()) {
+                case 'character':
+                    return `FOCUS: Physical traits, personality, mannerisms, and role in story
+- Opening Hook: Most striking feature
+- Physical Description: Appearance and mannerisms
+- Personality: Core traits and motivations
+- Story Role: How they fit the narrative`;
+                case 'location':
+                case 'place':
+                    return `FOCUS: Sensory details, atmosphere, and significance
+- Visual: What dominates the space
+- Atmosphere: Mood and feeling
+- Function: Purpose in the story
+- Details: Distinctive features`;
+                case 'item':
+                case 'object':
+                    return `FOCUS: Appearance, function, and significance
+- Appearance: What it looks like
+- Function: What it does or represents
+- Origin: Where it came from
+- Significance: Why it matters`;
+                default:
+                    return `FOCUS: Key defining features and story relevance
+- Core Identity: What makes this unique
+- Description: Vivid details
+- Function/Role: Purpose in the story`;
+            }
+        };
+
+        const prompt = `Generate a detailed ${entity.category} description for "${entity.name}".
+${entity.aliases?.length ? `\nAliases: ${entity.aliases.join(', ')}` : ''}
+
+OUTPUT FORMAT:
+${getCategoryGuidance(entity.category)}
+
+STYLE:
+- Tone: ${entity.category === 'character' ? 'Intimate, revealing personality' : 'Immersive, world-building'}
+- Length: 150-200 words (2-3 paragraphs)
+- Avoid: Clichés, generic descriptions, backstory dumps
+
+EXAMPLE (Character):
+"Marcus never made eye contact. His gaze flicked sideways, cataloging exits. Forty-two, wiry, with calloused hands that never stopped moving—tapping, drumming, checking his watch.
+
+A fixer, they called him. The man who made problems disappear. But the tremor in his left hand told a different story. Nightmares, Mai guessed. The kind that came from fixing too many problems the hard way."
+
+Generate now for: ${entity.name} (${entity.category})`;
 
         const description = await generate({
             prompt,
-            maxTokens: 1000,
+            maxTokens: 500,
         });
 
         if (description) {

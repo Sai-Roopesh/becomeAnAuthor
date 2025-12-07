@@ -24,7 +24,22 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const { generate, isGenerating } = useAI({
-        system: 'You are a helpful assistant that summarizes creative writing scenes.',
+        system: `You are an expert story analyst specializing in scene summarization.
+
+SUMMARIZATION FRAMEWORK:
+1. Goal: What does the POV character want in this scene?
+2. Conflict: What obstacles or opposition do they face?
+3. Outcome: How does the scene end? (Success, failure, complication?)
+4. Value Change: What shifts emotionally or situationally?
+
+STYLE:
+- Concise: 2-3 sentences maximum
+- Present tense: "Sarah confronts..." not "Sarah confronted..."
+- Focus on action and change, not description
+- Highlight turning points
+
+EXAMPLE:
+"Marcus infiltrates the gala to steal classified files. Security recognizes him from surveillance footage, forcing an improvised escape through the kitchen. He escapes but without the files—and now they know he's onto them."`,
         streaming: false,
         operationName: 'Scene Summarization',
     });
@@ -62,8 +77,17 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
 
         const text = extractTextFromTiptapJSON(node.content);
         const result = await generate({
-            prompt: `Summarize this scene in 2-3 sentences:\n\n${text}`,
-            maxTokens: 500,
+            prompt: `Summarize this scene using the framework:
+1. Goal (what character wants)
+2. Conflict (what opposes them)
+3. Outcome (success/failure/complication)
+4. Value Change (what shifts)
+
+SCENE TEXT:
+${text}
+
+SUMMARY (2-3 sentences, present tense):`,
+            maxTokens: 300,
         });
 
         if (result) {

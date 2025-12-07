@@ -5,7 +5,11 @@
 
 import type { ICodexRelationTypeRepository } from '@/domain/repositories/ICodexRelationTypeRepository';
 import type { CodexRelationType } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listCodexRelationTypes,
+    saveCodexRelationType,
+    deleteCodexRelationType
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepository {
@@ -14,9 +18,10 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         if (!projectPath) return undefined;
 
         try {
-            const types = await invoke<CodexRelationType[]>('list_codex_relation_types', { projectPath });
+            const types = await listCodexRelationTypes(projectPath) as unknown as CodexRelationType[];
             return types.find(t => t.id === id);
-        } catch {
+        } catch (error) {
+            console.error('Failed to get codex relation type:', error);
             return undefined;
         }
     }
@@ -26,15 +31,16 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         if (!projectPath) return [];
 
         try {
-            return await invoke<CodexRelationType[]>('list_codex_relation_types', { projectPath });
-        } catch {
+            return await listCodexRelationTypes(projectPath) as unknown as CodexRelationType[];
+        } catch (error) {
+            console.error('Failed to list codex relation types:', error);
             return [];
         }
     }
 
     async getByCategory(category: string): Promise<CodexRelationType[]> {
         const types = await this.getAll();
-        return types.filter(t => t.category === category);
+        return types.filter(t => (t as any).category === category);
     }
 
     async getBuiltIn(): Promise<CodexRelationType[]> {
@@ -49,10 +55,15 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         const newType: CodexRelationType = {
             ...type,
             id: crypto.randomUUID(),
-        };
+        } as CodexRelationType;
 
-        await invoke('save_codex_relation_type', { projectPath, relationType: newType });
-        return newType;
+        try {
+            await saveCodexRelationType(projectPath, newType as any);
+            return newType;
+        } catch (error) {
+            console.error('Failed to create codex relation type:', error);
+            throw error;
+        }
     }
 
     async update(id: string, data: Partial<CodexRelationType>): Promise<void> {
@@ -63,13 +74,23 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         if (!existing) return;
 
         const updated = { ...existing, ...data };
-        await invoke('save_codex_relation_type', { projectPath, relationType: updated });
+        try {
+            await saveCodexRelationType(projectPath, updated as any);
+        } catch (error) {
+            console.error('Failed to update codex relation type:', error);
+            throw error;
+        }
     }
 
     async delete(id: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_codex_relation_type', { projectPath, typeId: id });
+        try {
+            await deleteCodexRelationType(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete codex relation type:', error);
+            throw error;
+        }
     }
 }

@@ -6,6 +6,7 @@ import { ChatSettingsDialog, ChatSettings } from '@/features/chat/components/cha
 import { getPromptTemplate } from '@/lib/prompt-templates';
 import { useAI } from '@/hooks/use-ai';
 import { useChatRepository } from '@/hooks/use-chat-repository';
+import { useContextAssembly } from '@/hooks/use-context-assembly';
 import { ChatMessage } from '@/lib/config/types';
 import { useLiveQuery } from '@/hooks/use-live-query';
 
@@ -26,6 +27,7 @@ export function AIChat({ projectId }: { projectId: string }) {
     const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
     const [input, setInput] = useState('');
     const chatRepo = useChatRepository();
+    const { assembleContext } = useContextAssembly(projectId);
 
     // Context & Prompt
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
@@ -63,8 +65,7 @@ export function AIChat({ projectId }: { projectId: string }) {
             const dbMessages = await chatRepo.getMessagesByThread(currentThreadId);
             return dbMessages.map(m => ({ role: m.role, content: m.content, id: m.id, model: m.model }));
         },
-        [currentThreadId, chatRepo],
-        []
+        [currentThreadId, chatRepo]
     ) as Array<Pick<ChatMessage, 'role' | 'content' | 'id' | 'model'>> | undefined;
 
     // Initialize or load thread on mount
@@ -89,15 +90,6 @@ export function AIChat({ projectId }: { projectId: string }) {
         initThread();
     }, [projectId, chatRepo]);
 
-    const assembleContextText = async (): Promise<string> => {
-        if (selectedContexts.length === 0) return '';
-        const contexts: string[] = [];
-        for (const context of selectedContexts) {
-            contexts.push(`[${context.label}]: Context will be loaded here`);
-        }
-        return contexts.join('\n\n---\n\n');
-    };
-
     const sendMessage = async () => {
         if (!input.trim() || !currentThreadId) return;
 
@@ -118,12 +110,12 @@ export function AIChat({ projectId }: { projectId: string }) {
         const userInput = input;
         setInput('');
 
-        // Build prompt
-        const contextText = await assembleContextText();
+        // Build prompt - ✅ Use centralized context assembly
+        const contextText = await assembleContext(selectedContexts);
         const template = getPromptTemplate(selectedPromptId);
         let systemPrompt = template.systemPrompt;
         if (contextText) {
-            systemPrompt += `\n\n=== CONTEXT ===\n${contextText}`;
+            systemPrompt += `\\n\\n=== CONTEXT ===\\n${contextText}`;
         }
 
         const conversationHistory = messages?.map(m => m.content).join('\n\n') || '';

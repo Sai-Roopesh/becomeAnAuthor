@@ -21,7 +21,22 @@ export function RewriteMenu({ editor }: { editor: Editor | null }) {
     const [currentMode, setCurrentMode] = useState<string | null>(null);
 
     const { generateStream, isGenerating, model, setModel, cancel } = useAI({
-        system: 'You are a creative writing assistant.',
+        system: `You are an expert creative writing editor specializing in prose improvement.
+
+EDITING PRINCIPLES:
+- Show, don't tell: Transform telling into vivid scenes
+- Strong verbs: Replace weak verb + adverb with precise, powerful verbs
+- Active voice: Prioritize active constructions over passive
+- Sensory details: Engage sight, sound, touch, smell, taste
+- Filter words: Remove distancing words ("saw," "felt," "heard," "seemed")
+
+STYLE GOALS:
+- Clarity: Every sentence should be immediately understood
+- Conciseness: Cut unnecessary words without losing impact
+- Vividness: Make the reader see and feel the scene
+- Flow: Vary sentence length and structure for rhythm
+
+Provide only the improved text without explanation, matching the original tone and style.`,
         streaming: true,
         persistModel: true,
         operationName: 'Rewrite',
@@ -35,20 +50,86 @@ export function RewriteMenu({ editor }: { editor: Editor | null }) {
 
         if (!text) return;
 
-        // Build prompt based on mode
+        // Build prompt based on mode with few-shot examples
         let prompt = "";
         switch (mode) {
             case 'shorten':
-                prompt = `Shorten the following text while keeping the core meaning:\n\n"${text}"`;
+                prompt = `Shorten this text while keeping the core meaning.
+
+GUIDELINES:
+- Remove unnecessary words and redundancy
+- Keep the strongest verbs and most vivid details
+- Maintain the original tone
+
+EXAMPLES:
+Before: "He walked slowly across the room, feeling nervous and uncertain about what he might find."
+After: "He crept across the room, uncertain."
+
+Before: "The sky was gray and cloudy, with dark storm clouds gathering overhead."
+After: "Storm clouds gathered overhead."
+
+Now shorten:
+"${text}"`;
                 break;
             case 'expand':
-                prompt = `Expand the following text with more descriptive details:\n\n"${text}"`;
+                prompt = `Expand this text with vivid sensory details.
+
+GUIDELINES:
+- Add sight, sound, touch, smell, or taste
+- Use strong, specific verbs
+- Show character emotions through body language
+- Maintain the original meaning and tone
+
+EXAMPLES:
+Before: "He walked into the room."
+After: "He pushed through the door. The room smelled of stale coffee and old paper. Fluorescent lights hummed overhead, casting everything in pale, sickly white."
+
+Before: "She was happy."
+After: "A smile tugged at her lips. Her steps lightened, almost bouncing. The weight she'd carried for weeks—gone."
+
+Now expand:
+"${text}"`;
                 break;
             case 'rephrase':
-                prompt = `Rephrase the following text to improve flow and clarity:\n\n"${text}"`;
+                prompt = `Rephrase this text to improve flow and clarity.
+
+GUIDELINES:
+- Vary sentence structure
+- Use active voice
+- Choose precise, vivid words
+- Maintain the meaning and tone
+
+EXAMPLES:
+Before: "The man was seen walking down the street by the detective."
+After: "The detective spotted the man walking down the street."
+
+Before: "There was a loud sound that came from the basement."
+After: "A crash echoed from the basement."
+
+Now rephrase:
+"${text}"`;
                 break;
             case 'show-dont-tell':
-                prompt = `Rewrite the following text using the "Show, Don't Tell" technique. Describe sensory details and actions instead of feelings:\n\n"${text}"`;
+                prompt = `Rewrite using "Show, Don't Tell" technique.
+
+GUIDELINES:
+- Replace emotion words with physical reactions
+- Use sensory details (sight, sound, touch, smell, taste)
+- Show actions and body language
+- Remove filter words ("felt," "seemed," "appeared")
+
+EXAMPLES:
+Before: "He was nervous."
+After: "His hands trembled. Sweat beaded on his forehead. He wiped his palms on his jeans."
+
+Before: "She felt relieved."
+After: "Her shoulders dropped. The knot in her chest loosened. She exhaled—long, shaky."
+
+Before: "The room was creepy."
+After: "Shadows clung to the corners. Dust motes drifted through pale light. The floorboards groaned underfoot."
+
+Now rewrite:
+"${text}"`;
                 break;
         }
 

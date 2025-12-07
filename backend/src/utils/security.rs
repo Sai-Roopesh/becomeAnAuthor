@@ -12,8 +12,6 @@ pub const MAX_GENERAL_SIZE: u64 = 5 * 1024 * 1024; // 5MB
 /// Validates that a project path is within the BecomeAnAuthor directory
 /// Prevents path traversal attacks (e.g., ../../etc/passwd)
 pub fn validate_project_path(path: &str) -> Result<PathBuf, String> {
-    let path_buf = PathBuf::from(path);
-    
     let project_path = PathBuf::from(path);
     
     // Check if path exists

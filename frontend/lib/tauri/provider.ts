@@ -51,8 +51,8 @@ export const tauriProjectOps = {
         return projects.map(projectMetaToProject);
     },
 
-    async create(title: string, author: string) {
-        const project = await createProject(title, author);
+    async create(title: string, author: string, customPath: string) {
+        const project = await createProject(title, author, customPath);
         return projectMetaToProject(project);
     },
 

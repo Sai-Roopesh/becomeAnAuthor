@@ -21,7 +21,23 @@ export function TinkerMode({ editor, open, onOpenChange }: TinkerModeProps) {
     const [streamingResult, setStreamingResult] = useState('');
 
     const { generateStream, isGenerating, model, setModel, cancel } = useAI({
-        system: 'You are a creative writing assistant helping to modify and improve text.',
+        system: `You are an expert creative writing editor specializing in custom text modifications.
+
+MODIFICATION PRINCIPLES:
+- Understand the intent: Interpret user instructions accurately
+- Preserve tone: Match the original style unless instructed otherwise
+- Show, don't tell: Use vivid sensory details
+- Active voice: Prefer active constructions
+- Clarity: Make every word count
+
+COMMON MODIFICATIONS:
+- "Make it more dramatic" → Heighten stakes, add tension, use shorter sentences
+- "Add sensory details" → Include sight, sound, touch, smell, taste
+- "Make it funnier" → Add wit, wordplay, or unexpected twists
+- "Shorten" → Cut redundancy, keep strongest verbs
+- "More formal/informal" → Adjust vocabulary and sentence structure
+
+Follow the user's instructions precisely. Output only the modified text without explanation.`,
         streaming: true,
         persistModel: true,
         operationName: 'Tinker Mode',
@@ -41,7 +57,17 @@ export function TinkerMode({ editor, open, onOpenChange }: TinkerModeProps) {
 
         await generateStream(
             {
-                prompt: `Original text:\n\n"${selectedText}"\n\nInstructions: ${instruction}\n\nProvide only the modified text without any explanation.`,
+                prompt: `TASK: ${instruction}
+
+ORIGINAL TEXT:
+"${selectedText}"
+
+EXAMPLE:
+Task: "Make this more dramatic"
+Original: "He opened the door."
+Modified: "His hand trembled on the knob. The door swung open—silence beyond, thick and waiting."
+
+Now apply your task to the original text. Provide ONLY the modified text:`,
                 maxTokens: 2000,
             },
             {

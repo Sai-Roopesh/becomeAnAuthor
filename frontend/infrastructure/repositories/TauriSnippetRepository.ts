@@ -5,7 +5,11 @@
 
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 import type { Snippet } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listSnippets,
+    saveSnippet,
+    deleteSnippet
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 /**
@@ -26,7 +30,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
         if (!projectPath) return [];
 
         try {
-            return await invoke<Snippet[]>('list_snippets', { projectPath });
+            return await listSnippets(projectPath) as unknown as Snippet[];
         } catch (error) {
             console.error('Failed to list snippets:', error);
             return [];
@@ -55,8 +59,13 @@ export class TauriSnippetRepository implements ISnippetRepository {
             updatedAt: now,
         };
 
-        await invoke('save_snippet', { projectPath, snippet: newSnippet });
-        return newSnippet;
+        try {
+            await saveSnippet(projectPath, newSnippet as any);
+            return newSnippet;
+        } catch (error) {
+            console.error('Failed to create snippet:', error);
+            throw error;
+        }
     }
 
     async update(id: string, data: Partial<Snippet>): Promise<void> {
@@ -72,7 +81,12 @@ export class TauriSnippetRepository implements ISnippetRepository {
             updatedAt: Date.now(),
         };
 
-        await invoke('save_snippet', { projectPath, snippet: updated });
+        try {
+            await saveSnippet(projectPath, updated as any);
+        } catch (error) {
+            console.error('Failed to update snippet:', error);
+            throw error;
+        }
     }
 
     async togglePin(id: string): Promise<void> {
@@ -86,6 +100,11 @@ export class TauriSnippetRepository implements ISnippetRepository {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_snippet', { projectPath, snippetId: id });
+        try {
+            await deleteSnippet(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete snippet:', error);
+            throw error;
+        }
     }
 }

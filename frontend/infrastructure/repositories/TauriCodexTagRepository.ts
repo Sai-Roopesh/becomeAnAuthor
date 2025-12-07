@@ -5,7 +5,14 @@
 
 import type { ICodexTagRepository } from '@/domain/repositories/ICodexTagRepository';
 import type { CodexTag } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listCodexTags,
+    saveCodexTag,
+    deleteCodexTag,
+    listCodexEntryTags,
+    saveCodexEntryTag,
+    deleteCodexEntryTag
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexTagRepository implements ICodexTagRepository {
@@ -14,9 +21,10 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         if (!projectPath) return undefined;
 
         try {
-            const tags = await invoke<CodexTag[]>('list_codex_tags', { projectPath });
+            const tags = await listCodexTags(projectPath) as unknown as CodexTag[];
             return tags.find(t => t.id === id);
-        } catch {
+        } catch (error) {
+            console.error('Failed to get codex tag:', error);
             return undefined;
         }
     }
@@ -26,29 +34,37 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         if (!projectPath) return [];
 
         try {
-            return await invoke<CodexTag[]>('list_codex_tags', { projectPath });
-        } catch {
+            return await listCodexTags(projectPath) as unknown as CodexTag[];
+        } catch (error) {
+            console.error('Failed to list codex tags:', error);
             return [];
         }
     }
 
     async getByCategory(projectId: string, category: string): Promise<CodexTag[]> {
         const tags = await this.getByProject(projectId);
-        return tags.filter(t => t.category === category);
+        return tags.filter(t => (t as any).category === category);
     }
 
-    async create(tag: Omit<CodexTag, 'id' | 'createdAt'>): Promise<CodexTag> {
+    async create(tag: Omit<CodexTag, 'id' | 'createdAt' | 'updatedAt'>): Promise<CodexTag> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
+        const now = Date.now();
         const newTag: CodexTag = {
             ...tag,
             id: crypto.randomUUID(),
-            createdAt: Date.now(),
-        };
+            createdAt: now,
+            updatedAt: now,
+        } as CodexTag;
 
-        await invoke('save_codex_tag', { projectPath, tag: newTag });
-        return newTag;
+        try {
+            await saveCodexTag(projectPath, newTag as any);
+            return newTag;
+        } catch (error) {
+            console.error('Failed to create codex tag:', error);
+            throw error;
+        }
     }
 
     async update(id: string, data: Partial<CodexTag>): Promise<void> {
@@ -59,14 +75,24 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         if (!existing) return;
 
         const updated = { ...existing, ...data };
-        await invoke('save_codex_tag', { projectPath, tag: updated });
+        try {
+            await saveCodexTag(projectPath, updated as any);
+        } catch (error) {
+            console.error('Failed to update codex tag:', error);
+            throw error;
+        }
     }
 
     async delete(id: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_codex_tag', { projectPath, tagId: id });
+        try {
+            await deleteCodexTag(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete codex tag:', error);
+            throw error;
+        }
     }
 
     // Entry-Tag associations using codex_entry_tags.json
@@ -76,20 +102,31 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
 
         const entryTag = {
             id: crypto.randomUUID(),
-            entryId,
-            tagId,
+            entry_id: entryId,
+            tag_id: tagId,
         };
-        await invoke('save_codex_entry_tag', { projectPath, entryTag });
+
+        try {
+            await saveCodexEntryTag(projectPath, entryTag);
+        } catch (error) {
+            console.error('Failed to add tag to entry:', error);
+            throw error;
+        }
     }
 
     async removeTagFromEntry(entryId: string, tagId: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        const entryTags = await invoke<{ id: string; entryId: string; tagId: string }[]>('list_codex_entry_tags', { projectPath });
-        const toDelete = entryTags.find(et => et.entryId === entryId && et.tagId === tagId);
-        if (toDelete) {
-            await invoke('delete_codex_entry_tag', { projectPath, entryTagId: toDelete.id });
+        try {
+            const entryTags = await listCodexEntryTags(projectPath);
+            const toDelete = entryTags.find(et => et.entry_id === entryId && et.tag_id === tagId);
+            if (toDelete) {
+                await deleteCodexEntryTag(projectPath, toDelete.id);
+            }
+        } catch (error) {
+            console.error('Failed to remove tag from entry:', error);
+            throw error;
         }
     }
 
@@ -97,17 +134,27 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return [];
 
-        const entryTags = await invoke<{ id: string; entryId: string; tagId: string }[]>('list_codex_entry_tags', { projectPath });
-        return entryTags.filter(et => et.tagId === tagId).map(et => et.entryId);
+        try {
+            const entryTags = await listCodexEntryTags(projectPath);
+            return entryTags.filter(et => et.tag_id === tagId).map(et => et.entry_id);
+        } catch (error) {
+            console.error('Failed to get entries by tag:', error);
+            return [];
+        }
     }
 
     async getTagsByEntry(entryId: string): Promise<CodexTag[]> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return [];
 
-        const allTags = await this.getByProject('current');
-        const entryTags = await invoke<{ id: string; entryId: string; tagId: string }[]>('list_codex_entry_tags', { projectPath });
-        const tagIds = entryTags.filter(et => et.entryId === entryId).map(et => et.tagId);
-        return allTags.filter(t => tagIds.includes(t.id));
+        try {
+            const allTags = await this.getByProject('current');
+            const entryTags = await listCodexEntryTags(projectPath);
+            const tagIds = entryTags.filter(et => et.entry_id === entryId).map(et => et.tag_id);
+            return allTags.filter(t => tagIds.includes(t.id));
+        } catch (error) {
+            console.error('Failed to get tags by entry:', error);
+            return [];
+        }
     }
 }

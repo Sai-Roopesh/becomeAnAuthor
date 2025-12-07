@@ -17,8 +17,8 @@ export interface ProjectMeta {
     description: string;
     path: string;
     archived: boolean;
-    created_at: string;
-    updated_at: string;
+    created_at: number;  // ✅ Changed from string
+    updated_at: number;  // ✅ Changed from string
 }
 
 export interface StructureNode {
@@ -37,8 +37,8 @@ export interface SceneMeta {
     status: string;
     word_count: number;
     pov_character?: string;
-    created_at: string;
-    updated_at: string;
+    created_at: number;  // ✅ Changed from string
+    updated_at: number;  // ✅ Changed from string
 }
 
 export interface Scene {
@@ -52,10 +52,10 @@ export interface Scene {
 export interface Snippet {
     id: string;
     title: string;
-    content: string;
+    content: any;  // ✅ Changed to any for Tiptap JSON
     pinned: boolean;
-    created_at: string;
-    updated_at: string;
+    created_at: number;  // ✅ Changed from string
+    updated_at: number;  // ✅ Changed from string
 }
 
 export interface SearchResult {
@@ -168,6 +168,258 @@ export async function deleteCodexEntry(
     entryId: string
 ): Promise<void> {
     return invoke('delete_codex_entry', { projectPath, category, entryId });
+}
+
+// ============ Codex Relations ============
+
+export interface CodexRelation {
+    id: string;
+    source_entry_id: string;
+    target_entry_id: string;
+    relation_type: string;
+    description?: string;
+}
+
+export async function listCodexRelations(projectPath: string): Promise<CodexRelation[]> {
+    return invoke<CodexRelation[]>('list_codex_relations', { projectPath });
+}
+
+export async function saveCodexRelation(projectPath: string, relation: CodexRelation): Promise<void> {
+    return invoke('save_codex_relation', { projectPath, relation });
+}
+
+export async function deleteCodexRelation(projectPath: string, relationId: string): Promise<void> {
+    return invoke('delete_codex_relation', { projectPath, relationId });
+}
+
+// ============ Codex Tags ============
+
+export interface CodexTag {
+    id: string;
+    name: string;
+    color?: string;
+}
+
+export interface CodexEntryTag {
+    id: string;
+    entry_id: string;
+    tag_id: string;
+}
+
+export async function listCodexTags(projectPath: string): Promise<CodexTag[]> {
+    return invoke<CodexTag[]>('list_codex_tags', { projectPath });
+}
+
+export async function saveCodexTag(projectPath: string, tag: CodexTag): Promise<void> {
+    return invoke('save_codex_tag', { projectPath, tag });
+}
+
+export async function deleteCodexTag(projectPath: string, tagId: string): Promise<void> {
+    return invoke('delete_codex_tag', { projectPath, tagId });
+}
+
+export async function listCodexEntryTags(projectPath: string): Promise<CodexEntryTag[]> {
+    return invoke<CodexEntryTag[]>('list_codex_entry_tags', { projectPath });
+}
+
+export async function saveCodexEntryTag(projectPath: string, entryTag: CodexEntryTag): Promise<void> {
+    return invoke('save_codex_entry_tag', { projectPath, entryTag });
+}
+
+export async function deleteCodexEntryTag(projectPath: string, entryTagId: string): Promise<void> {
+    return invoke('delete_codex_entry_tag', { projectPath, entryTagId });
+}
+
+// ============ Codex Templates ============
+
+export interface TemplateField {
+    id: string;
+    name: string;
+    fieldType: string;
+    required: boolean;
+    defaultValue?: string;
+    placeholder?: string;
+    options?: string[];
+    min?: number;
+    max?: number;
+}
+
+export interface CodexTemplate {
+    id: string;
+    name: string;
+    category: string;
+    isBuiltIn: boolean;
+    fields: TemplateField[];
+    createdAt: number;
+}
+
+export async function listCodexTemplates(projectPath: string): Promise<CodexTemplate[]> {
+    return invoke<CodexTemplate[]>('list_codex_templates', { projectPath });
+}
+
+export async function saveCodexTemplate(projectPath: string, template: CodexTemplate): Promise<void> {
+    return invoke('save_codex_template', { projectPath, template });
+}
+
+export async function deleteCodexTemplate(projectPath: string, templateId: string): Promise<void> {
+    return invoke('delete_codex_template', { projectPath, templateId });
+}
+
+// ============ Codex Relation Types ============
+
+export interface CodexRelationType {
+    id: string;
+    name: string;
+    inverse_name?: string;
+    color?: string;
+    is_builtin?: boolean;
+}
+
+export async function listCodexRelationTypes(projectPath: string): Promise<CodexRelationType[]> {
+    return invoke<CodexRelationType[]>('list_codex_relation_types', { projectPath });
+}
+
+export async function saveCodexRelationType(projectPath: string, relationType: CodexRelationType): Promise<void> {
+    return invoke('save_codex_relation_type', { projectPath, relationType });
+}
+
+export async function deleteCodexRelationType(projectPath: string, typeId: string): Promise<void> {
+    return invoke('delete_codex_relation_type', { projectPath, typeId });
+}
+
+// ============ Scene-Codex Links ============
+
+export interface SceneCodexLink {
+    id: string;
+    scene_id: string;
+    codex_id: string;        // ✅ Renamed from codex_entry_id
+    project_id: string;      // ✅ Added
+    role: string;            // ✅ Renamed from link_type
+    auto_detected?: boolean; // ✅ Added
+    created_at: number;
+    updated_at: number;
+}
+
+export async function listSceneCodexLinks(projectPath: string): Promise<SceneCodexLink[]> {
+    return invoke<SceneCodexLink[]>('list_scene_codex_links', { projectPath });
+}
+
+export async function saveSceneCodexLink(projectPath: string, link: SceneCodexLink): Promise<void> {
+    return invoke('save_scene_codex_link', { projectPath, link });
+}
+
+export async function deleteSceneCodexLink(projectPath: string, linkId: string): Promise<void> {
+    return invoke('delete_scene_codex_link', { projectPath, linkId });
+}
+
+// ============ Chat Commands ============
+
+export interface ChatThread {
+    id: string;
+    title: string;
+    created_at: number;  // ✅ Changed from string
+    updated_at: number;  // ✅ Changed from string
+}
+
+export interface ChatMessage {
+    id: string;
+    thread_id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    created_at: number;  // ✅ Changed from string
+}
+
+export async function listChatThreads(projectPath: string): Promise<ChatThread[]> {
+    return invoke<ChatThread[]>('list_chat_threads', { projectPath });
+}
+
+export async function getChatThread(projectPath: string, threadId: string): Promise<ChatThread | null> {
+    return invoke<ChatThread | null>('get_chat_thread', { projectPath, threadId });
+}
+
+export async function createChatThread(projectPath: string, thread: Omit<ChatThread, 'id' | 'created_at' | 'updated_at'>): Promise<ChatThread> {
+    return invoke<ChatThread>('create_chat_thread', { projectPath, thread });
+}
+
+export async function updateChatThread(projectPath: string, threadId: string, updates: Partial<ChatThread>): Promise<void> {
+    return invoke('update_chat_thread', { projectPath, threadId, updates });
+}
+
+export async function deleteChatThread(projectPath: string, threadId: string): Promise<void> {
+    return invoke('delete_chat_thread', { projectPath, threadId });
+}
+
+export async function getChatMessages(projectPath: string, threadId: string): Promise<ChatMessage[]> {
+    return invoke<ChatMessage[]>('get_chat_messages', { projectPath, threadId });
+}
+
+export async function createChatMessage(projectPath: string, message: Omit<ChatMessage, 'id' | 'created_at'>): Promise<ChatMessage> {
+    return invoke<ChatMessage>('create_chat_message', { projectPath, message });
+}
+
+export async function deleteChatMessage(projectPath: string, threadId: string, messageId: string): Promise<void> {
+    return invoke('delete_chat_message', { projectPath, threadId, messageId });
+}
+
+// ============ Analysis Commands ============
+
+export interface Analysis {
+    id: string;
+    projectId: string;
+    analysisType: string;
+    title: string;
+    content: any;
+    scope: string;
+    scopeIds: string[];
+    results: any;
+    manuscriptVersion: number;
+    wordCountAtAnalysis: number;
+    scenesAnalyzedCount: number;
+    model: string;
+    tokensUsed?: number;
+    dismissed: boolean;
+    resolved: boolean;
+    userNotes?: string;
+    createdAt: number;  // ✅ Changed from string
+    updatedAt: number;  // ✅ Changed from string
+}
+
+export async function listAnalyses(projectPath: string): Promise<Analysis[]> {
+    return invoke<Analysis[]>('list_analyses', { projectPath });
+}
+
+export async function saveAnalysis(projectPath: string, analysis: Analysis): Promise<void> {
+    return invoke('save_analysis', { projectPath, analysis });
+}
+
+export async function deleteAnalysis(projectPath: string, analysisId: string): Promise<void> {
+    return invoke('delete_analysis', { projectPath, analysisId });
+}
+
+// ============ Series Commands ============
+
+export interface Series {
+    id: string;
+    title: string;
+    description?: string;
+    created_at: number;  // ✅ Changed from string
+    updated_at: number;  // ✅ Changed from string
+}
+
+export async function listSeries(): Promise<Series[]> {
+    return invoke<Series[]>('list_series');
+}
+
+export async function createSeries(series: Omit<Series, 'id' | 'created_at' | 'updated_at'>): Promise<Series> {
+    return invoke<Series>('create_series', { series });
+}
+
+export async function updateSeries(seriesId: string, updates: Partial<Series>): Promise<void> {
+    return invoke('update_series', { seriesId, updates });
+}
+
+export async function deleteSeries(seriesId: string): Promise<void> {
+    return invoke('delete_series', { seriesId });
 }
 
 // ============ Snippet Commands ============

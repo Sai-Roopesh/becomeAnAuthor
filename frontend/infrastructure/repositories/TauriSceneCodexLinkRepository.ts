@@ -5,7 +5,11 @@
 
 import type { ISceneCodexLinkRepository } from '@/domain/repositories/ISceneCodexLinkRepository';
 import type { SceneCodexLink, SceneCodexLinkRole } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listSceneCodexLinks,
+    saveSceneCodexLink,
+    deleteSceneCodexLink
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository {
@@ -14,8 +18,9 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         if (!projectPath) return [];
 
         try {
-            return await invoke<SceneCodexLink[]>('list_scene_codex_links', { projectPath });
-        } catch {
+            return await listSceneCodexLinks(projectPath) as unknown as SceneCodexLink[];
+        } catch (error) {
+            console.error('Failed to list scene codex links:', error);
             return [];
         }
     }
@@ -56,8 +61,13 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
             updatedAt: now,
         };
 
-        await invoke('save_scene_codex_link', { projectPath, link: newLink });
-        return newLink;
+        try {
+            await saveSceneCodexLink(projectPath, newLink as any);
+            return newLink;
+        } catch (error) {
+            console.error('Failed to create scene codex link:', error);
+            throw error;
+        }
     }
 
     async createMany(links: Omit<SceneCodexLink, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<SceneCodexLink[]> {
@@ -83,23 +93,38 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
             updatedAt: Date.now(),
         };
 
-        await invoke('save_scene_codex_link', { projectPath, link: updated });
+        try {
+            await saveSceneCodexLink(projectPath, updated as any);
+        } catch (error) {
+            console.error('Failed to update scene codex link:', error);
+            throw error;
+        }
     }
 
     async delete(id: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_scene_codex_link', { projectPath, linkId: id });
+        try {
+            await deleteSceneCodexLink(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete scene codex link:', error);
+            throw error;
+        }
     }
 
     async deleteByScene(sceneId: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        const links = await this.getByScene(sceneId);
-        for (const link of links) {
-            await invoke('delete_scene_codex_link', { projectPath, linkId: link.id });
+        try {
+            const links = await this.getByScene(sceneId);
+            for (const link of links) {
+                await deleteSceneCodexLink(projectPath, link.id);
+            }
+        } catch (error) {
+            console.error('Failed to delete links by scene:', error);
+            throw error;
         }
     }
 
@@ -107,9 +132,14 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        const links = await this.getByCodex(codexId);
-        for (const link of links) {
-            await invoke('delete_scene_codex_link', { projectPath, linkId: link.id });
+        try {
+            const links = await this.getByCodex(codexId);
+            for (const link of links) {
+                await deleteSceneCodexLink(projectPath, link.id);
+            }
+        } catch (error) {
+            console.error('Failed to delete links by codex:', error);
+            throw error;
         }
     }
 
@@ -117,9 +147,14 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        const links = await this.getByScene(sceneId);
-        for (const link of links.filter(l => l.autoDetected)) {
-            await invoke('delete_scene_codex_link', { projectPath, linkId: link.id });
+        try {
+            const links = await this.getByScene(sceneId);
+            for (const link of links.filter(l => l.autoDetected)) {
+                await deleteSceneCodexLink(projectPath, link.id);
+            }
+        } catch (error) {
+            console.error('Failed to delete auto-detected links:', error);
+            throw error;
         }
     }
 }

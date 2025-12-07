@@ -5,7 +5,11 @@
 
 import type { IAnalysisRepository } from '@/domain/repositories/IAnalysisRepository';
 import type { StoryAnalysis, AnalysisInsight } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listAnalyses,
+    saveAnalysis,
+    deleteAnalysis
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriAnalysisRepository implements IAnalysisRepository {
@@ -14,8 +18,9 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         if (!projectPath) return [];
 
         try {
-            return await invoke<StoryAnalysis[]>('list_analyses', { projectPath });
-        } catch {
+            return await listAnalyses(projectPath) as unknown as StoryAnalysis[];
+        } catch (error) {
+            console.error('Failed to list analyses:', error);
             return [];
         }
     }
@@ -50,8 +55,13 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
             createdAt: Date.now(),
         };
 
-        await invoke('save_analysis', { projectPath, analysis: newAnalysis });
-        return newAnalysis;
+        try {
+            await saveAnalysis(projectPath, newAnalysis as any);
+            return newAnalysis;
+        } catch (error) {
+            console.error('Failed to create analysis:', error);
+            throw error;
+        }
     }
 
     async update(id: string, data: Partial<StoryAnalysis>): Promise<void> {
@@ -62,7 +72,12 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         if (!existing) return;
 
         const updated = { ...existing, ...data };
-        await invoke('save_analysis', { projectPath, analysis: updated });
+        try {
+            await saveAnalysis(projectPath, updated as any);
+        } catch (error) {
+            console.error('Failed to update analysis:', error);
+            throw error;
+        }
     }
 
     async updateInsight(analysisId: string, insightId: string, updates: { dismissed?: boolean; resolved?: boolean }): Promise<void> {
@@ -88,16 +103,26 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_analysis', { projectPath, analysisId: id });
+        try {
+            await deleteAnalysis(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete analysis:', error);
+            throw error;
+        }
     }
 
     async deleteByProject(projectId: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        const analyses = await this.getAllAnalyses();
-        for (const analysis of analyses) {
-            await invoke('delete_analysis', { projectPath, analysisId: analysis.id });
+        try {
+            const analyses = await this.getAllAnalyses();
+            for (const analysis of analyses) {
+                await deleteAnalysis(projectPath, analysis.id);
+            }
+        } catch (error) {
+            console.error('Failed to delete analyses by project:', error);
+            throw error;
         }
     }
 }

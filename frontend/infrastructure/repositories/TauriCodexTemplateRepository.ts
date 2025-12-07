@@ -5,7 +5,11 @@
 
 import type { ICodexTemplateRepository } from '@/domain/repositories/ICodexTemplateRepository';
 import type { CodexTemplate, CodexCategory } from '@/domain/entities/types';
-import { invoke } from '@tauri-apps/api/core';
+import {
+    listCodexTemplates,
+    saveCodexTemplate,
+    deleteCodexTemplate
+} from '@/lib/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
@@ -14,9 +18,10 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         if (!projectPath) return undefined;
 
         try {
-            const templates = await invoke<CodexTemplate[]>('list_codex_templates', { projectPath });
+            const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.find(t => t.id === id);
-        } catch {
+        } catch (error) {
+            console.error('Failed to get codex template:', error);
             return undefined;
         }
     }
@@ -26,9 +31,10 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         if (!projectPath) return [];
 
         try {
-            const templates = await invoke<CodexTemplate[]>('list_codex_templates', { projectPath });
+            const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.filter(t => t.category === category);
-        } catch {
+        } catch (error) {
+            console.error('Failed to list codex templates by category:', error);
             return [];
         }
     }
@@ -38,9 +44,10 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         if (!projectPath) return [];
 
         try {
-            const templates = await invoke<CodexTemplate[]>('list_codex_templates', { projectPath });
+            const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.filter(t => t.isBuiltIn);
-        } catch {
+        } catch (error) {
+            console.error('Failed to get built-in templates:', error);
             return [];
         }
     }
@@ -50,9 +57,10 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         if (!projectPath) return [];
 
         try {
-            const templates = await invoke<CodexTemplate[]>('list_codex_templates', { projectPath });
+            const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.filter(t => !t.isBuiltIn);
-        } catch {
+        } catch (error) {
+            console.error('Failed to get custom templates:', error);
             return [];
         }
     }
@@ -65,10 +73,15 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
             ...template,
             id: crypto.randomUUID(),
             createdAt: Date.now(),
-        };
+        } as CodexTemplate;
 
-        await invoke('save_codex_template', { projectPath, template: newTemplate });
-        return newTemplate;
+        try {
+            await saveCodexTemplate(projectPath, newTemplate as any);
+            return newTemplate;
+        } catch (error) {
+            console.error('Failed to create codex template:', error);
+            throw error;
+        }
     }
 
     async update(id: string, data: Partial<CodexTemplate>): Promise<void> {
@@ -79,13 +92,23 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         if (!existing) return;
 
         const updated = { ...existing, ...data };
-        await invoke('save_codex_template', { projectPath, template: updated });
+        try {
+            await saveCodexTemplate(projectPath, updated as any);
+        } catch (error) {
+            console.error('Failed to update codex template:', error);
+            throw error;
+        }
     }
 
     async delete(id: string): Promise<void> {
         const projectPath = getCurrentProjectPath();
         if (!projectPath) return;
 
-        await invoke('delete_codex_template', { projectPath, templateId: id });
+        try {
+            await deleteCodexTemplate(projectPath, id);
+        } catch (error) {
+            console.error('Failed to delete codex template:', error);
+            throw error;
+        }
     }
 }
