@@ -3,7 +3,7 @@
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Wand2, Minimize2, Maximize2, RefreshCw, Eye, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useAI } from '@/hooks/use-ai';
 import {
     DropdownMenu,
@@ -15,7 +15,7 @@ import {
 import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import { TinkerMode } from './tinker-mode';
 
-export function RewriteMenu({ editor }: { editor: Editor | null }) {
+export const RewriteMenu = memo(function RewriteMenu({ editor }: { editor: Editor | null }) {
     const [showTinker, setShowTinker] = useState(false);
     const [streamingResult, setStreamingResult] = useState('');
     const [currentMode, setCurrentMode] = useState<string | null>(null);
@@ -273,4 +273,4 @@ Now rewrite:
             />
         </>
     );
-}
+});

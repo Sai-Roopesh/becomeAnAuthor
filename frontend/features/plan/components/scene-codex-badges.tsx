@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
 import type { CodexEntry, SceneCodexLink, CodexCategory } from '@/lib/config/types';
 import { User, MapPin, Scroll, BookOpen, Sparkles } from 'lucide-react';
 import {

@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
 import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
 import { useProjectStore } from '@/store/use-project-store';
 import type { DocumentNode, CodexEntry, CodexCategory, SceneCodexLink } from '@/lib/config/types';

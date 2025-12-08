@@ -16,7 +16,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useSnippetRepository } from '@/hooks/use-snippet-repository';
+import { useSnippetRepository } from '@/features/snippets/hooks/use-snippet-repository';
 import { saveCoordinator } from '@/lib/core/save-coordinator';
 import { cn } from '@/lib/utils';
 import {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
 import { isScene, DocumentNode, CodexEntry } from '@/lib/config/types';
 import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';

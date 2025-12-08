@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Cloud } from 'lucide-react';
-import { useGoogleAuth } from '@/hooks/use-google-auth';
+import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 
 interface InlineGoogleAuthProps {
     onAuthComplete?: () => void;

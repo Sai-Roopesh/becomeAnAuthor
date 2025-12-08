@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useChatRepository } from '@/hooks/use-chat-repository';
-import { useChatService } from '@/hooks/use-chat-service';
+import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
+import { useChatService } from '@/features/chat/hooks/use-chat-service';
 import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
 import { useChatStore } from '@/store/use-chat-store';
 import { type ContextItem } from '@/features/shared/components';
@@ -13,10 +13,10 @@ import { useConfirmation } from '@/hooks/use-confirmation';
 import { storage } from '@/lib/safe-storage';
 
 // Import child components
-import { ChatHeader } from './components/ChatHeader';
-import { ChatControls } from './components/ChatControls';
-import { ChatMessageList } from './components/ChatMessageList';
-import { ChatInput } from './components/ChatInput';
+import { ChatHeader } from './chat-header';
+import { ChatControls } from './chat-controls';
+import { ChatMessageList } from './chat-message-list';
+import { ChatInput } from './chat-input';
 
 interface ChatThreadProps {
     threadId: string;

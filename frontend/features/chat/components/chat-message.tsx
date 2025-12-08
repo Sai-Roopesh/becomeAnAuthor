@@ -11,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from '@/lib/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
-import { useChatRepository } from '@/hooks/use-chat-repository';
+import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
 import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {

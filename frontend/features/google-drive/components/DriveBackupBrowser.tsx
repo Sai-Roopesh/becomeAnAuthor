@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText, Trash2, Clock, HardDrive } from 'lucide-react';
-import { useGoogleDrive } from '@/hooks/use-google-drive';
-import { useGoogleAuth } from '@/hooks/use-google-auth';
+import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
+import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useImportExport } from '@/hooks/use-import-export';
 import { DriveFile } from '@/lib/config/types';
 import { toast } from '@/lib/toast-service';

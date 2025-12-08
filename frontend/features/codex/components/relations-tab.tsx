@@ -5,7 +5,7 @@ import { usePrompt } from '@/hooks/use-prompt';
 import { Button } from '@/components/ui/button';
 import { Plus, X, Link2 } from 'lucide-react';
 import { toast } from '@/lib/toast-service';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
 import { useRepository } from '@/hooks/use-repository';
 import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository';
 

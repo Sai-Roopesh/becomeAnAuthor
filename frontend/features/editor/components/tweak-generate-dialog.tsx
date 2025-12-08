@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,11 @@ import { Expand, Copy } from 'lucide-react';
 import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import type { ChatContext } from '@/lib/config/types';
 import { storage } from '@/lib/safe-storage';
+import {
+    useDialogState,
+    tweakGenerateReducer,
+    createInitialTweakGenerateState
+} from '@/hooks/use-dialog-state';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
@@ -36,40 +41,39 @@ export interface GenerateOptions {
 }
 
 export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, mode, projectId }: TweakGenerateDialogProps) {
-    const [wordCount, setWordCount] = useState(defaultWordCount.toString());
-    const [instructions, setInstructions] = useState('');
+    // Replace 6 useState calls with single useReducer
+    const [state, dispatch] = useDialogState(
+        createInitialTweakGenerateState(defaultWordCount),
+        tweakGenerateReducer
+    );
     const [context, setContext] = useState<ChatContext>({});
-    const [model, setModel] = useState('');
-    const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
 
-    useState(() => {
+    useEffect(() => {
         // Load default model from AI connections with safe parsing
         const connections = storage.getItem<any[]>('ai_connections', []);
         const allModels = connections
             .filter((c: any) => c.enabled)
             .flatMap((c: any) => c.models || []);
 
-        if (allModels.length > 0 && !model) {
-            setModel(allModels[0]);
+        if (allModels.length > 0 && !state.model) {
+            dispatch({ type: 'SET_MODEL', payload: allModels[0] });
         }
-    });
+    }, [state.model]);
 
     const handleGenerate = () => {
         onGenerate({
-            wordCount: parseInt(wordCount) || 400,
-            instructions,
+            wordCount: parseInt(state.wordCount) || 400,
+            instructions: state.instructions,
             context,
-            model: model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
-            selectedContexts
+            model: state.model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
+            selectedContexts: state.selectedContexts
         });
         onOpenChange(false);
     };
 
     const handleReset = () => {
-        setWordCount(defaultWordCount.toString());
-        setInstructions('');
+        dispatch({ type: 'RESET', payload: { wordCount: defaultWordCount.toString() } });
         setContext({});
-        setSelectedContexts([]);
     };
 
     return (
@@ -101,31 +105,31 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
                             </p>
                             <div className="flex gap-2">
                                 <Button
-                                    variant={wordCount === '200' ? 'default' : 'outline'}
+                                    variant={state.wordCount === '200' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setWordCount('200')}
+                                    onClick={() => dispatch({ type: 'SET_WORD_COUNT', payload: '200' })}
                                 >
                                     200
                                 </Button>
                                 <Button
-                                    variant={wordCount === '400' ? 'default' : 'outline'}
+                                    variant={state.wordCount === '400' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setWordCount('400')}
+                                    onClick={() => dispatch({ type: 'SET_WORD_COUNT', payload: '400' })}
                                 >
                                     400
                                 </Button>
                                 <Button
-                                    variant={wordCount === '600' ? 'default' : 'outline'}
+                                    variant={state.wordCount === '600' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setWordCount('600')}
+                                    onClick={() => dispatch({ type: 'SET_WORD_COUNT', payload: '600' })}
                                 >
                                     600
                                 </Button>
                                 <span className="text-muted-foreground mx-2">OR</span>
                                 <Input
                                     type="number"
-                                    value={wordCount}
-                                    onChange={(e) => setWordCount(e.target.value)}
+                                    value={state.wordCount}
+                                    onChange={(e) => dispatch({ type: 'SET_WORD_COUNT', payload: e.target.value })}
                                     placeholder="e.g. 300"
                                     className="w-32"
                                 />
@@ -144,8 +148,8 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
                                 Any (optional) additional instructions and notes for the AI
                             </p>
                             <Textarea
-                                value={instructions}
-                                onChange={(e) => setInstructions(e.target.value)}
+                                value={state.instructions}
+                                onChange={(e) => dispatch({ type: 'SET_INSTRUCTIONS', payload: e.target.value })}
                                 placeholder="e.g. You are a..."
                                 rows={4}
                             />
@@ -165,7 +169,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <Label>Additional Context</Label>
-                                <Button variant="ghost" size="sm" onClick={() => setSelectedContexts([])}>
+                                <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'SET_SELECTED_CONTEXTS', payload: [] })}>
                                     Reset
                                 </Button>
                             </div>
@@ -174,16 +178,16 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
                             </p>
                             <ContextSelector
                                 projectId={projectId}
-                                selectedContexts={selectedContexts}
-                                onContextsChange={setSelectedContexts}
+                                selectedContexts={state.selectedContexts}
+                                onContextsChange={(contexts) => dispatch({ type: 'SET_SELECTED_CONTEXTS', payload: contexts })}
                             />
                         </div>
 
                         {/* Model Selection */}
                         <div className="flex items-center justify-between pt-4 border-t">
                             <ModelCombobox
-                                value={model}
-                                onValueChange={setModel}
+                                value={state.model}
+                                onValueChange={(value) => dispatch({ type: 'SET_MODEL', payload: value })}
                                 className="w-[300px]"
                             />
 

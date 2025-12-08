@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Upload, Cloud, Download, AlertCircle } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
-import { useGoogleAuth } from '@/hooks/use-google-auth';
+import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { DriveBackupBrowser } from '@/features/google-drive/components/DriveBackupBrowser';
 import { InlineGoogleAuth } from '@/features/google-drive/components/InlineGoogleAuth';
 import { toast } from '@/lib/toast-service';

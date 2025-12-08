@@ -1,12 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Wand2, BookOpen, Settings2 } from 'lucide-react';
 import { TweakGenerateDialog, GenerateOptions } from './tweak-generate-dialog';
 import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import { storage } from '@/lib/safe-storage';
+import {
+    useDialogState,
+    continueWritingReducer,
+    initialContinueWritingState
+} from '@/hooks/use-dialog-state';
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
@@ -20,11 +25,12 @@ interface ContinueWritingMenuProps {
     position?: { x: number; y: number } | null; // NEW: cursor position
 }
 
-export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId, isGenerating, onCancel, position }: ContinueWritingMenuProps) {
-    const [wordCount, setWordCount] = useState('400');
-    const [model, setModel] = useState('');
-    const [showTweakDialog, setShowTweakDialog] = useState(false);
-    const [selectedMode, setSelectedMode] = useState<GenerationMode>('continue-writing');
+export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId, isGenerating, onCancel, position }: ContinueWritingMenuProps) {
+    // Replace 4 useState calls with single useReducer
+    const [state, dispatch] = useDialogState(
+        initialContinueWritingState,
+        continueWritingReducer
+    );
 
     useEffect(() => {
         // Load default model from AI connections with safe parsing
@@ -33,35 +39,34 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
             .filter((c: any) => c.enabled)
             .flatMap((c: any) => c.models || []);
 
-        if (allModels.length > 0 && !model) {
-            setModel(allModels[0]);
-        } else if (!model && allModels.length === 0) {
+        if (allModels.length > 0 && !state.model) {
+            dispatch({ type: 'SET_MODEL', payload: allModels[0] });
+        } else if (!state.model && allModels.length === 0) {
             // No AI connections configured - try last used
             const lastUsed = storage.getItem<string>('last_used_model', '');
             if (lastUsed) {
-                setModel(lastUsed);
+                dispatch({ type: 'SET_MODEL', payload: lastUsed });
             }
         }
-    }, []);
+    }, [state.model]);
 
     const handleModeSelect = (mode: GenerationMode) => {
-        setSelectedMode(mode);
-        // Mode is selected, user can now use quick generate or tweak
+        dispatch({ type: 'SET_MODE', payload: mode });
     };
 
     const handleQuickGenerate = () => {
         onGenerate({
-            wordCount: parseInt(wordCount),
-            instructions: getModeInstructions(selectedMode),
+            wordCount: parseInt(state.wordCount),
+            instructions: getModeInstructions(state.selectedMode),
             context: {},
-            model: model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
-            mode: selectedMode,
+            model: state.model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
+            mode: state.selectedMode,
         });
         // Keep popover open so user can see loading state and cancel if needed
     };
 
     const handleTweakAndGenerate = () => {
-        setShowTweakDialog(true);
+        dispatch({ type: 'OPEN_TWEAK_DIALOG' });
         // Keep menu open until user explicitly closes or generation completes
     };
 
@@ -102,7 +107,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
                             {/* Scene Beat */}
                             <button
                                 onClick={() => handleModeSelect('scene-beat')}
-                                className={`w-full p-3 rounded-md transition-colors text-left ${selectedMode === 'scene-beat' ? 'bg-accent' : 'hover:bg-accent'
+                                className={`w-full p-3 rounded-md transition-colors text-left ${state.selectedMode === 'scene-beat' ? 'bg-accent' : 'hover:bg-accent'
                                     }`}
                             >
                                 <div className="flex items-start gap-3">
@@ -119,7 +124,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
                             {/* Continue Writing */}
                             <button
                                 onClick={() => handleModeSelect('continue-writing')}
-                                className={`w-full p-3 rounded-md transition-colors text-left ${selectedMode === 'continue-writing' ? 'bg-accent' : 'hover:bg-accent'
+                                className={`w-full p-3 rounded-md transition-colors text-left ${state.selectedMode === 'continue-writing' ? 'bg-accent' : 'hover:bg-accent'
                                     }`}
                             >
                                 <div className="flex items-start gap-3">
@@ -140,7 +145,7 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
                             {/* Codex Progression */}
                             <button
                                 onClick={() => handleModeSelect('codex-progression')}
-                                className={`w-full p-3 rounded-md transition-colors text-left ${selectedMode === 'codex-progression' ? 'bg-accent' : 'hover:bg-accent'
+                                className={`w-full p-3 rounded-md transition-colors text-left ${state.selectedMode === 'codex-progression' ? 'bg-accent' : 'hover:bg-accent'
                                     }`}
                             >
                                 <div className="flex items-start gap-3">
@@ -157,29 +162,29 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
 
                         <div className="pt-2 border-t text-xs text-muted-foreground">
                             <p className="mb-2">
-                                {selectedMode === 'scene-beat' ? 'Generate a scene beat.' :
-                                    selectedMode === 'continue-writing' ? 'Continue the story.' :
+                                {state.selectedMode === 'scene-beat' ? 'Generate a scene beat.' :
+                                    state.selectedMode === 'continue-writing' ? 'Continue the story.' :
                                         'Analyze story progression.'}
                             </p>
                             <div className="flex gap-2 mb-2">
                                 <Button
-                                    variant={wordCount === '200' ? 'default' : 'outline'}
+                                    variant={state.wordCount === '200' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setWordCount('200')}
+                                    onClick={() => dispatch({ type: 'SET_WORD_COUNT', payload: '200' })}
                                 >
                                     200
                                 </Button>
                                 <Button
-                                    variant={wordCount === '400' ? 'default' : 'outline'}
+                                    variant={state.wordCount === '400' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setWordCount('400')}
+                                    onClick={() => dispatch({ type: 'SET_WORD_COUNT', payload: '400' })}
                                 >
                                     400
                                 </Button>
                                 <Button
-                                    variant={wordCount === '600' ? 'default' : 'outline'}
+                                    variant={state.wordCount === '600' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setWordCount('600')}
+                                    onClick={() => dispatch({ type: 'SET_WORD_COUNT', payload: '600' })}
                                 >
                                     600
                                 </Button>
@@ -195,8 +200,8 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
 
                             <div className="mb-3">
                                 <ModelCombobox
-                                    value={model}
-                                    onValueChange={setModel}
+                                    value={state.model}
+                                    onValueChange={(value) => dispatch({ type: 'SET_MODEL', payload: value })}
                                     className="h-8 text-xs"
                                 />
                             </div>
@@ -228,14 +233,16 @@ export function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId,
                 </PopoverContent>
             </Popover>
 
-            <TweakGenerateDialog
-                open={showTweakDialog}
-                onOpenChange={setShowTweakDialog}
-                onGenerate={(opts) => onGenerate({ ...opts, mode: selectedMode })}
-                defaultWordCount={parseInt(wordCount)}
-                mode={selectedMode}
-                projectId={projectId}
-            />
+            {state.showTweakDialog && (
+                <TweakGenerateDialog
+                    open={state.showTweakDialog}
+                    onOpenChange={(open) => dispatch({ type: open ? 'OPEN_TWEAK_DIALOG' : 'CLOSE_TWEAK_DIALOG' })}
+                    onGenerate={(options) => onGenerate({ ...options, mode: state.selectedMode })}
+                    defaultWordCount={parseInt(state.wordCount)}
+                    mode={state.selectedMode}
+                    projectId={projectId}
+                />
+            )}
         </>
     );
-}
+});

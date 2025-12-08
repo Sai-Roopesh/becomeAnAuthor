@@ -8,8 +8,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useGoogleAuth } from '@/hooks/use-google-auth';
-import { useGoogleDrive } from '@/hooks/use-google-drive';
+import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
+import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
 import { Cloud } from 'lucide-react';
 import { toast } from '@/lib/toast-service';
 import { DriveQuota } from '@/lib/config/types';

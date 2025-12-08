@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
+import { useCodexTemplateRepository } from '@/features/codex/hooks/use-codex-template-repository';
 import type { CodexCategory, CodexTemplate } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';

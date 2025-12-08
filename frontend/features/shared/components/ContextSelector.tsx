@@ -17,7 +17,7 @@ import { Plus, FileText, BookOpen, X, Layers, Hash, File, Book, User, MapPin, Bo
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Act, Chapter, Scene, CodexEntry, CodexCategory } from '@/lib/config/types';
 import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
 
 export interface ContextItem {
     type: 'novel' | 'outline' | 'act' | 'chapter' | 'scene' | 'codex';

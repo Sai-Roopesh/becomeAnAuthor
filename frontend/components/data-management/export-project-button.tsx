@@ -3,7 +3,7 @@
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Download, FileText, Cloud } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
-import { useGoogleAuth } from '@/hooks/use-google-auth';
+import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useDocumentExport } from '@/hooks/use-document-export';
 import { toast } from '@/lib/toast-service';
 import { useState } from 'react';

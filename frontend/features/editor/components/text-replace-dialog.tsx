@@ -13,6 +13,11 @@ import { Loader2, X } from 'lucide-react';
 import { ModelCombobox } from '@/features/ai/components/model-combobox';
 import { useAI } from '@/hooks/use-ai';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import {
+    useDialogState,
+    textReplaceReducer,
+    initialTextReplaceState
+} from '@/hooks/use-dialog-state';
 
 import { ContextSelector, type ContextItem } from '@/features/shared/components';
 
@@ -25,13 +30,11 @@ interface TextReplaceDialogProps {
 }
 
 export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId }: TextReplaceDialogProps) {
-    const [activeTab, setActiveTab] = useState<'tweak' | 'preview'>('tweak');
-    const [instruction, setInstruction] = useState('');
-    const [preset, setPreset] = useState('default');
-    const [customLength, setCustomLength] = useState('');
-    const [result, setResult] = useState('');
-    const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
-    const [streamingWordCount, setStreamingWordCount] = useState(0);
+    // Replace 7 useState calls with single useReducer
+    const [state, dispatch] = useDialogState(
+        initialTextReplaceState,
+        textReplaceReducer
+    );
 
     const { generateStream, isGenerating, model, setModel, error: aiError, cancel } = useAI({
         system: `You are an expert creative writing editor specializing in text transformation.
@@ -66,24 +69,24 @@ Provide only the transformed text. No explanations, no preamble.`,
         let systemPrompt = '';
 
         if (action === 'expand') {
-            const amount = preset === 'custom' ? `${customLength} words` : preset === 'double' ? 'double' : preset === 'triple' ? 'triple' : '50% more';
+            const amount = state.preset === 'custom' ? `${state.customLength} words` : state.preset === 'double' ? 'double' : state.preset === 'triple' ? 'triple' : '50% more';
             systemPrompt = `You are expanding the selected text to be approximately ${amount} long. Maintain the original meaning, tone, and style while adding more detail, description, and depth.`;
         } else if (action === 'rephrase') {
             systemPrompt = `You are rephrasing the selected text. Keep the same meaning and approximate length but use different words and sentence structures.`;
-            if (preset !== 'default') {
-                systemPrompt += ` Specifically: ${preset}.`;
+            if (state.preset !== 'default') {
+                systemPrompt += ` Specifically: ${state.preset}.`;
             }
         } else if (action === 'shorten') {
-            const amount = preset === 'custom' ? `${customLength} words` : preset === 'half' ? 'half the length' : preset === 'quarter' ? '25% of original length' : 'one paragraph';
+            const amount = state.preset === 'custom' ? `${state.customLength} words` : state.preset === 'half' ? 'half the length' : state.preset === 'quarter' ? '25% of original length' : 'one paragraph';
             systemPrompt = `You are condensing the selected text to approximately ${amount}. Preserve the core meaning while being more concise and removing unnecessary details.`;
         }
 
-        if (instruction.trim()) {
-            systemPrompt += `\n\nAdditional instructions: ${instruction}`;
+        if (state.instruction.trim()) {
+            systemPrompt += `\n\nAdditional instructions: ${state.instruction}`;
         }
 
-        if (selectedContexts.length > 0) {
-            const contextLabels = selectedContexts.map(c => c.label).join(', ');
+        if (state.selectedContexts.length > 0) {
+            const contextLabels = state.selectedContexts.map((c: ContextItem) => c.label).join(', ');
             systemPrompt += `\n\nConsider the following context: ${contextLabels}. (Note: Full context content would be injected here in a real implementation)`;
         }
 
@@ -95,10 +98,8 @@ Provide only the transformed text. No explanations, no preamble.`,
             return;
         }
 
-        // Clear previous result and switch to preview tab
-        setResult('');
-        setStreamingWordCount(0);
-        setActiveTab('preview');
+        // Clear previous result and switch to preview tab  
+        dispatch({ type: 'START_GENERATE' });
 
         await generateStream(
             {
@@ -108,18 +109,15 @@ Provide only the transformed text. No explanations, no preamble.`,
             },
             {
                 onChunk: (chunk) => {
-                    setResult(prev => {
-                        const updated = prev + chunk;
-                        // Update word count in real-time
-                        const words = updated.trim().split(/\s+/).filter(Boolean).length;
-                        setStreamingWordCount(words);
-                        return updated;
-                    });
+                    dispatch({ type: 'SET_RESULT', payload: state.result + chunk });
+                    // Update word count in real-time
+                    const words = (state.result + chunk).trim().split(/\s+/).filter(Boolean).length;
+                    dispatch({ type: 'UPDATE_STREAM_COUNT', payload: words });
                 },
                 onComplete: (fullText) => {
                     // Final word count
                     const words = fullText.trim().split(/\s+/).filter(Boolean).length;
-                    setStreamingWordCount(words);
+                    dispatch({ type: 'UPDATE_STREAM_COUNT', payload: words });
                 },
             }
         );
@@ -127,21 +125,20 @@ Provide only the transformed text. No explanations, no preamble.`,
 
     const handleCancelGeneration = () => {
         cancel();
-        setResult('');
-        setActiveTab('tweak');
+        dispatch({ type: 'RESET' });
     };
 
     const handleApply = () => {
-        if (result) {
+        if (state.result) {
             const { from, to } = editor.state.selection;
-            editor.chain().focus().insertContentAt({ from, to }, result).run();
+            editor.chain().focus().insertContentAt({ from, to }, state.result).run();
             onClose();
         }
     };
 
     const handleRetry = () => {
-        setResult('');
-        setActiveTab('tweak');
+        dispatch({ type: 'SWITCH_TAB', payload: 'tweak' });
+        dispatch({ type: 'SET_RESULT', payload: '' });
     };
 
     return (
@@ -155,11 +152,11 @@ Provide only the transformed text. No explanations, no preamble.`,
                     <h2 className="text-lg font-semibold">{getActionTitle()}</h2>
                 </div>
 
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'tweak' | 'preview')} className="flex-1 flex flex-col overflow-hidden">
+                <Tabs value={state.activeTab} onValueChange={(v) => dispatch({ type: 'SWITCH_TAB', payload: v as 'tweak' | 'preview' })} className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-none px-6 pt-2">
                         <TabsList className="w-full grid grid-cols-2">
                             <TabsTrigger value="tweak">✏️ Tweak</TabsTrigger>
-                            <TabsTrigger value="preview" disabled={!result}>👁️ Preview</TabsTrigger>
+                            <TabsTrigger value="preview" disabled={!state.result}>👁️ Preview</TabsTrigger>
                         </TabsList>
                     </div>
 
@@ -171,7 +168,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                             <p className="text-xs text-muted-foreground mb-2">
                                 How should the text be {action === 'expand' ? 'expanded' : action === 'rephrase' ? 'rephrased' : 'shortened'}?
                             </p>
-                            <Select value={preset} onValueChange={setPreset}>
+                            <Select value={state.preset} onValueChange={(value) => dispatch({ type: 'SET_PRESET', payload: value })}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
@@ -207,15 +204,15 @@ Provide only the transformed text. No explanations, no preamble.`,
                         </div>
 
                         {/* Custom Length Input */}
-                        {(preset === 'custom' && (action === 'expand' || action === 'shorten')) && (
+                        {(state.preset === 'custom' && (action === 'expand' || action === 'shorten')) && (
                             <div>
                                 <Label className="text-sm font-medium">
                                     Target Word Count
                                 </Label>
                                 <Input
                                     type="number"
-                                    value={customLength}
-                                    onChange={(e) => setCustomLength(e.target.value)}
+                                    value={state.customLength}
+                                    onChange={(e) => dispatch({ type: 'SET_CUSTOM_LENGTH', payload: e.target.value })}
                                     placeholder="e.g., 400 words"
                                     className="mt-2"
                                 />
@@ -226,8 +223,8 @@ Provide only the transformed text. No explanations, no preamble.`,
                         <div>
                             <Label className="text-sm font-medium">AND</Label>
                             <Textarea
-                                value={instruction}
-                                onChange={(e) => setInstruction(e.target.value)}
+                                value={state.instruction}
+                                onChange={(e) => dispatch({ type: 'SET_INSTRUCTION', payload: e.target.value })}
                                 placeholder="e.g., describe the setting"
                                 className="min-h-[80px] mt-2"
                             />
@@ -238,8 +235,8 @@ Provide only the transformed text. No explanations, no preamble.`,
                             <Label className="text-sm font-medium mb-2 block">Context</Label>
                             <ContextSelector
                                 projectId={projectId}
-                                selectedContexts={selectedContexts}
-                                onContextsChange={setSelectedContexts}
+                                selectedContexts={state.selectedContexts}
+                                onContextsChange={(contexts) => dispatch({ type: 'SET_SELECTED_CONTEXTS', payload: contexts })}
                             />
                         </div>
 
@@ -286,8 +283,8 @@ Provide only the transformed text. No explanations, no preamble.`,
                         <div>
                             <Label className="text-sm font-medium">After</Label>
                             <Textarea
-                                value={result}
-                                onChange={(e) => setResult(e.target.value)}
+                                value={state.result}
+                                onChange={(e) => dispatch({ type: 'SET_RESULT', payload: e.target.value })}
                                 className="min-h-[200px] mt-2"
                                 readOnly={isGenerating}
                             />
@@ -295,10 +292,10 @@ Provide only the transformed text. No explanations, no preamble.`,
                                 {isGenerating ? (
                                     <>
                                         <span className="inline-block w-2 h-2 mr-1 bg-blue-500 rounded-full animate-pulse" />
-                                        {streamingWordCount} words (streaming...)
+                                        {state.streamingWordCount} words (streaming...)
                                     </>
                                 ) : (
-                                    `${result.trim().split(/\s+/).filter(Boolean).length} words`
+                                    `${state.result.trim().split(/\s+/).filter(Boolean).length} words`
                                 )}
                             </p>
                         </div>
@@ -307,7 +304,7 @@ Provide only the transformed text. No explanations, no preamble.`,
 
                 {/* Footer Actions */}
                 <div className="flex-none px-6 py-4 border-t flex justify-end gap-2">
-                    {activeTab === 'tweak' ? (
+                    {state.activeTab === 'tweak' ? (
                         <>
                             <Button variant="outline" onClick={onClose}>
                                 Cancel

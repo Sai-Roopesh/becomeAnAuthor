@@ -1,8 +1,8 @@
 'use client';
 
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
-import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
+import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
+import { useCodexTemplateRepository } from '@/features/codex/hooks/use-codex-template-repository';
 import { CodexEntry, CodexCategory } from '@/lib/config/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEffect, useState } from 'react';

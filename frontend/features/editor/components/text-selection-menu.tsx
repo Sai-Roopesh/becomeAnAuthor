@@ -3,8 +3,13 @@
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Expand, RefreshCw, Minimize2, Sparkles } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { TextReplaceDialog } from './text-replace-dialog';
+import {
+    useDialogState,
+    textSelectionReducer,
+    initialTextSelectionState
+} from '@/hooks/use-dialog-state';
 
 interface TextSelectionMenuProps {
     editor: Editor;
@@ -13,11 +18,12 @@ interface TextSelectionMenuProps {
 
 type ReplaceAction = 'expand' | 'rephrase' | 'shorten' | null;
 
-export function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps) {
-    const [action, setAction] = useState<ReplaceAction>(null);
-    const [selectedText, setSelectedText] = useState('');
-    const [showMenu, setShowMenu] = useState(false);
-    const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps) {
+    // Replace 4 useState calls with single useReducer
+    const [state, dispatch] = useDialogState(
+        initialTextSelectionState,
+        textSelectionReducer
+    );
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -28,7 +34,6 @@ export function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps)
                 const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
 
                 if (wordCount >= 4) {
-                    setShowMenu(true);
                     // Get the DOM position of the selection
                     const { view } = editor;
                     const start = view.coordsAtPos(from);
@@ -36,15 +41,21 @@ export function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps)
 
                     // Position menu above the selection, centered
                     const centerX = (start.left + end.right) / 2;
-                    setMenuPosition({
-                        top: start.top - 50, // 50px above selection
-                        left: centerX,
+                    dispatch({
+                        type: 'SHOW_MENU',
+                        payload: {
+                            text,
+                            position: {
+                                top: start.top - 50, // 50px above selection
+                                left: centerX,
+                            }
+                        }
                     });
                 } else {
-                    setShowMenu(false);
+                    dispatch({ type: 'HIDE_MENU' });
                 }
             } else {
-                setShowMenu(false);
+                dispatch({ type: 'HIDE_MENU' });
             }
         };
 
@@ -66,29 +77,27 @@ export function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps)
             return;
         }
 
-        // Immediately set the text and action to open dialog
-        setSelectedText(text);
-        setAction(actionType);
+        // Set the action to open dialog
+        dispatch({ type: 'SET_ACTION', payload: actionType });
     };
 
     const handleClose = () => {
-        setAction(null);
-        // Don't hide menu immediately, let it update naturally
+        dispatch({ type: 'SET_ACTION', payload: null });
     };
 
-    if (!showMenu && !action) {
+    if (!state.showMenu && !state.action) {
         return null;
     }
 
     return (
         <>
-            {showMenu && !action && (
+            {state.showMenu && !state.action && (
                 <div
                     ref={menuRef}
                     className="fixed z-50 bg-background border rounded-lg shadow-lg flex items-center gap-1 p-1"
                     style={{
-                        top: `${menuPosition.top}px`,
-                        left: `${menuPosition.left}px`,
+                        top: `${state.menuPosition.top}px`,
+                        left: `${state.menuPosition.left}px`,
                         transform: 'translateX(-50%)', // Center horizontally
                     }}
                 >
@@ -132,10 +141,10 @@ export function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps)
                 </div>
             )}
 
-            {action && (
+            {state.action && (
                 <TextReplaceDialog
-                    action={action}
-                    selectedText={selectedText}
+                    action={state.action}
+                    selectedText={state.selectedText}
                     editor={editor}
                     onClose={handleClose}
                     projectId={projectId}
@@ -143,4 +152,4 @@ export function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps)
             )}
         </>
     );
-}
+});

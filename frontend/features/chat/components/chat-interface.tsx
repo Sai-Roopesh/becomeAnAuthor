@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
-import { useChatRepository } from '@/hooks/use-chat-repository';
+import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
