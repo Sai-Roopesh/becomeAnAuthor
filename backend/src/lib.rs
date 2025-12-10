@@ -111,6 +111,11 @@ pub fn run() {
             create_series,
             update_series,
             delete_series,
+            // Security commands
+            security::store_api_key,
+            security::get_api_key,
+            security::delete_api_key,
+            security::list_api_key_providers,
             // App info
             get_app_info,
         ])

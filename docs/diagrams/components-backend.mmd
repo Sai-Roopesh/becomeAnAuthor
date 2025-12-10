@@ -1,0 +1,42 @@
+graph TB
+    subgraph Backend["Rust/Tauri Backend"]
+        LibRS["lib.rs<br/>(Entry Point)"]
+        
+        subgraph Commands["Command Handlers (12 modules)"]
+            ProjectCmd["project.rs<br/>(11 commands)"]
+            SceneCmd["scene.rs<br/>(4 commands)"]
+            CodexCmd["codex.rs<br/>(21 commands)"]
+            ChatCmd["chat.rs<br/>(8 commands)"]
+            BackupCmd["backup.rs<br/>(7 commands)"]
+            TrashCmd["trash.rs<br/>(5 commands)"]
+            OtherCmd["snippet, analysis,<br/>search, series"]
+        end
+        
+        subgraph Models["Data Models"]
+            ProjectModel["ProjectMeta<br/>StructureNode<br/>Series"]
+            SceneModel["Scene<br/>SceneMeta"]
+            CodexModel["CodexEntry<br/>Relations<br/>Tags"]
+            ChatModel["ChatThread<br/>ChatMessage"]
+        end
+        
+        subgraph Utils["Utilities"]
+            IOUtil["io.rs<br/>(atomic_write)"]
+            PathUtil["paths.rs<br/>(validate_project_path)"]
+            SecurityUtil["security.rs<br/>(file size limits)"]
+            TextUtil["text.rs<br/>(count_words)"]
+        end
+    end
+    
+    Filesystem["Filesystem<br/>(JSON/Markdown)"]
+    
+    LibRS --> Commands
+    Commands --> Models
+    Commands --> Utils
+    Utils --> Filesystem
+    Commands --> Filesystem
+    
+    style LibRS fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+    style Commands fill:#f87171,stroke:#dc2626,stroke-width:2px
+    style Models fill:#fca5a5,stroke:#dc2626,stroke-width:1px
+    style Utils fill:#fca5a5,stroke:#dc2626,stroke-width:1px
+    style Filesystem fill:#d1d5db,stroke:#6b7280,stroke-width:2px

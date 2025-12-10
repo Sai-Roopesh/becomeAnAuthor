@@ -1,0 +1,30 @@
+sequenceDiagram
+    actor User
+    participant Editor as TiptapEditor
+    participant Debounce as useDebounce
+    participant SaveCoord as SaveCoordinator
+    participant Repo as TauriNodeRepository
+    participant IPC as Tauri IPC
+    participant Backend as Rust: save_scene
+    participant Filesystem as Filesystem
+    participant LiveQuery as useLiveQuery
+    
+    User->>Editor: Type content
+    Editor->>Editor: Local state update
+    Editor->>Debounce: onChange event
+    Note over Debounce: Wait 500ms
+    Debounce->>SaveCoord: scheduleSave(sceneId, fn)
+    SaveCoord->>Repo: update(sceneId, content)
+    Repo->>IPC: invoke('save_scene', {...})
+    IPC->>Backend: save_scene command
+    Backend->>Backend: Parse YAML frontmatter
+    Backend->>Backend: count_words(content)
+    Backend->>Backend: Update timestamps
+    Backend->>Filesystem: atomic_write(temp → final)
+    Filesystem-->>Backend: Success
+    Backend-->>IPC: Result<SceneMeta>
+    IPC-->>Repo: SceneMeta
+    Repo->>LiveQuery: invalidateQueries()
+    LiveQuery->>Repo: Refetch scene data
+    LiveQuery->>Editor: Update UI
+    Note over User,Editor: Scene saved ✅

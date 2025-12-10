@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import { AppProvider } from '@/infrastructure/di/AppContext';
 import { ClientToaster } from '@/components/client-toaster';
 import { AppCleanup } from '@/components/app-cleanup';
+import { useAPIKeyMigration } from '@/hooks/use-api-key-migration';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,13 +39,32 @@ export default function RootLayout({
         >
           <AppProvider>
             <ErrorBoundary>
-              <AppCleanup />
-              {children}
+              <MigrationWrapper>
+                {children}
+              </MigrationWrapper>
             </ErrorBoundary>
           </AppProvider>
         </ThemeProvider>
         <ClientToaster />
       </body>
     </html>
+  );
+}
+
+/**
+ * Wrapper component to handle API key migration on mount
+ * Runs migration in background without blocking UI
+ */
+function MigrationWrapper({ children }: { children: React.ReactNode }) {
+  'use client';
+
+  const { migrated } = useAPIKeyMigration();
+
+  // Don't block rendering - migration happens in background
+  return (
+    <>
+      <AppCleanup />
+      {children}
+    </>
   );
 }

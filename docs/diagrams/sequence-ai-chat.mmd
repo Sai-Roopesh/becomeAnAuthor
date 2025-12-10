@@ -1,0 +1,37 @@
+sequenceDiagram
+    actor User
+    participant ChatUI as ChatInterface
+    participant ContextAsm as ContextAssembler
+    participant AIClient as AI Client
+    participant Streaming as Vercel AI SDK
+    participant Backend as Tauri Backend
+    participant ChatRepo as ChatRepository
+    participant Filesystem as Filesystem
+    
+    User->>ChatUI: Send message
+    ChatUI->>ContextAsm: assembleContext(projectId, threadId)
+    ContextAsm->>Backend: get_structure(projectPath)
+    Backend-->>ContextAsm: Structure nodes
+    ContextAsm->>Backend: list_codex_entries(projectPath)
+    Backend-->>ContextAsm: Codex entries
+    ContextAsm->>Backend: get_chat_messages(threadId)
+    Backend-->>ContextAsm: Previous messages
+    ContextAsm-->>ChatUI: Context assembled
+    ChatUI->>ChatRepo: create_chat_message(userMessage)
+    ChatRepo->>Backend: create_chat_message(...)
+    Backend->>Filesystem: Append to messages/{threadId}.json
+    Filesystem-->>Backend: Success
+    Backend-->>ChatRepo: Message
+    ChatUI->>AIClient: streamCompletion(prompt + context)
+    AIClient->>Streaming: POST /api/chat/completions
+    Note over Streaming: Stream SSE events
+    Streaming-->>AIClient: Chunk 1
+    AIClient-->>ChatUI: Display token
+    Streaming-->>AIClient: Chunk 2
+    AIClient-->>ChatUI: Display token
+    Streaming-->>AIClient: [DONE]
+    ChatUI->>ChatRepo: create_chat_message(assistantMessage)
+    ChatRepo->>Backend: create_chat_message(...)
+    Backend->>Filesystem: Append to messages/{threadId}.json
+    Filesystem-->>Backend: Success
+    Note over User,ChatUI: Chat complete ✅

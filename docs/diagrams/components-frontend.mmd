@@ -1,0 +1,54 @@
+graph TB
+    subgraph Frontend["Next.js Frontend"]
+        AppRouter["App Router<br/>(Routes)"]
+        
+        subgraph Features["Features (15 modules)"]
+            Editor["editor<br/>(Tiptap)"]
+            Plan["plan<br/>(Structure Tree)"]
+            Codex["codex<br/>(World-building)"]
+            Chat["chat<br/>(AI Assistant)"]
+            Review["review<br/>(Analysis)"]
+            OtherFeatures["dashboard, search,<br/>snippets, settings"]
+        end
+        
+        subgraph Infrastructure["Infrastructure"]
+            DI["AppContext<br/>(Dependency Injection)"]
+            Repos["Repositories<br/>(12 Tauri repos)"]
+            Services["Services<br/>(Chat, Export, Analysis)"]
+        end
+        
+        subgraph Core["Core"]
+            TauriWrapper["Tauri IPC Wrapper"]
+            AIClients["AI Clients<br/>(Gemini, OpenAI)"]
+            Storage["SafeStorage<br/>(LocalStorage)"]
+            TabCoord["TabCoordinator<br/>(BroadcastChannel)"]
+        end
+        
+        subgraph State["State Management"]
+            Zustand["Zustand Stores<br/>(UI State)"]
+            LiveQuery["useLiveQuery<br/>(Server State)"]
+        end
+        
+        subgraph UI["UI Components"]
+            Shadcn["Shadcn/UI<br/>(Radix + Tailwind)"]
+            Tiptap["Tiptap Editor"]
+        end
+    end
+    
+    Backend["Rust Backend<br/>(Tauri IPC)"]
+    
+    AppRouter --> Features
+    Features --> Infrastructure
+    Features --> State
+    Features --> UI
+    Infrastructure --> Core
+    Core --> Backend
+    State --> Infrastructure
+    
+    style AppRouter fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#fff
+    style Features fill:#60a5fa,stroke:#3b82f6,stroke-width:2px
+    style Infrastructure fill:#93c5fd,stroke:#3b82f6,stroke-width:1px
+    style Core fill:#93c5fd,stroke:#3b82f6,stroke-width:1px
+    style State fill:#93c5fd,stroke:#3b82f6,stroke-width:1px
+    style UI fill:#bfdbfe,stroke:#3b82f6,stroke-width:1px
+    style Backend fill:#f87171,stroke:#dc2626,stroke-width:2px,color:#fff

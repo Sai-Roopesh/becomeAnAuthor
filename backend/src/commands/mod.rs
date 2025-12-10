@@ -11,6 +11,7 @@ pub mod search;
 pub mod trash;
 pub mod series;
 pub mod seed;
+pub mod security;
 
 // Re-export all commands for easy access in lib.rs
 pub use project::*;

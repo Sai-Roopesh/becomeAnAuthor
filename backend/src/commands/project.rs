@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, StructureNode};
-use crate::utils::{get_app_dir, get_projects_dir, slugify};
+use crate::utils::{get_app_dir, get_projects_dir, slugify, validate_project_creation};
 use crate::commands::seed::seed_built_in_data;
 
 #[tauri::command]
@@ -59,6 +59,9 @@ pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
 
 #[tauri::command]
 pub fn create_project(title: String, author: String, custom_path: String) -> Result<ProjectMeta, String> {
+    // VALIDATION: Validate project title and author
+    validate_project_creation(&title, Some(&author))?;
+    
     // User must provide custom path - no default fallback
     let base_dir = PathBuf::from(&custom_path);
     

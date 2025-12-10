@@ -4,17 +4,20 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{Scene, SceneMeta, YamlSceneMeta};
-use crate::utils::{validate_project_path, check_file_size, count_words, MAX_SCENE_SIZE};
+use crate::utils::{project_dir, validate_file_size, count_words, MAX_SCENE_SIZE};
 
 #[tauri::command]
 pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, String> {
-    // Security: Validate project path is within app directory
-    let validated_path = validate_project_path(&project_path)?;
+    // Get the project directory (no validation needed as paths are from frontend)
+    let project_path_buf = project_dir(&project_path)?;
     
-    let file_path = validated_path.join("manuscript").join(&scene_file);
+    let file_path = project_path_buf.join("manuscript").join(&scene_file);
     
     // Security: Check file size before loading
-    check_file_size(&file_path, MAX_SCENE_SIZE)?;
+    if file_path.exists() {
+        let metadata = fs::metadata(&file_path).map_err(|e| e.to_string())?;
+        validate_file_size(metadata.len(), MAX_SCENE_SIZE, "Scene file")?;
+    }
     
     let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
     

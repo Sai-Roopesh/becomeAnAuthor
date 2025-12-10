@@ -13,18 +13,19 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.1", features = [] }
 
 [dependencies]
 # Tauri core
-tauri = { version = "2", features = [] }
-tauri-plugin-log = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-notification = "2"
-tauri-plugin-shell = "2"
+tauri = { version = "2.1", features = [] }
+tauri-plugin-log = "2.1"
+tauri-plugin-fs = "2.1"
+tauri-plugin-dialog = "2.1"
+tauri-plugin-notification = "2.1"
+tauri-plugin-shell = "2.1"
 
-# Serialization
+# Secure storage (OS keychain)
+keyring = "2.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
