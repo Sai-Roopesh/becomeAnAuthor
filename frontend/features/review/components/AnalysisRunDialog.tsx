@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Loader2, FileText, Layers, Users, Clock, AlertCircle, Eye } from 'lucide-react';
 import { useAnalysisRunner } from '../hooks/use-analysis-runner';
 import { ManuscriptTreeSelector } from './ManuscriptTreeSelector';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { ModelCombobox } from '@/features/ai';
 import { cn } from '@/lib/utils';
 
 interface AnalysisRunDialogProps {

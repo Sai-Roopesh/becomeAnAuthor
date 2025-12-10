@@ -48,7 +48,7 @@ export function SearchPalette({ projectId, open, onOpenChange }: SearchPalettePr
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
-            } else if (e.key === 'Enter' && allResults.length > 0) {
+            } else if (e.key === 'Enter' && allResults.length > 0 && allResults[selectedIndex]) {
                 e.preventDefault();
                 handleSelect(allResults[selectedIndex]);
             }

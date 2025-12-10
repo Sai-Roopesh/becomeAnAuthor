@@ -11,7 +11,7 @@ import { TopNavigation } from '@/components/top-navigation';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useProjectStore } from '@/store/use-project-store';
-import { getTabCoordinator } from '@/lib/tab-coordinator';
+import { getTabCoordinator } from '@/core/tab-coordinator';
 
 function ProjectContent() {
     const searchParams = useSearchParams();

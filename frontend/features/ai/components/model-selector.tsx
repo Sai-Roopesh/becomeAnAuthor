@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { storage } from '@/lib/safe-storage';
+import { storage } from '@/core/storage/safe-storage';
 
 interface ModelInfo {
     id: string;

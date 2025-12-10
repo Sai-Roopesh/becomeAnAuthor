@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
 import { Cloud } from 'lucide-react';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { DriveQuota } from '@/lib/config/types';
 
 export function GoogleDriveConnection() {

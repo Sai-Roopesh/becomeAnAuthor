@@ -1,8 +1,7 @@
 'use client';
 
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
-import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { CodexEntry, SceneCodexLink, CodexCategory } from '@/lib/config/types';
 import { User, MapPin, Scroll, BookOpen, Sparkles } from 'lucide-react';
 import {
@@ -39,8 +38,7 @@ export function SceneCodexBadges({
     maxBadges = 4,
     size = 'sm'
 }: SceneCodexBadgesProps) {
-    const linkRepo = useSceneCodexLinkRepository();
-    const codexRepo = useCodexRepository();
+    const { sceneCodexLinkRepository: linkRepo, codexRepository: codexRepo } = useAppServices();
 
     // Get all links for this scene
     const links = useLiveQuery(

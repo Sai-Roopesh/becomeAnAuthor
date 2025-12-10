@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
     const params = useParams();
-    const projectId = params.id as string;
+    const projectId = params['id'] as string;
 
     return (
         <div className="h-screen w-full flex flex-col overflow-hidden bg-background">

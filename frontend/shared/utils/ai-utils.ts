@@ -3,7 +3,7 @@
  * Extracted common functionality used across all AI features
  */
 
-import { storage } from '@/lib/safe-storage';
+import { storage } from '@/core/storage/safe-storage';
 import { STORAGE_KEYS, AI_DEFAULTS } from '@/lib/config/constants';
 
 /**

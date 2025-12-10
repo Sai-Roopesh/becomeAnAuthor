@@ -3,7 +3,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 interface Props {
     children: ReactNode;
@@ -16,7 +16,7 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-    public state: State = {
+    public override state: State = {
         hasError: false,
         error: null,
     };
@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return { hasError: true, error };
     }
 
-    public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
         toast.error('Something went wrong', {
             description: error.message,
@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
         window.location.reload();
     };
 
-    public render() {
+    public override render() {
         if (this.state.hasError) {
             if (this.props.fallback) {
                 return this.props.fallback;

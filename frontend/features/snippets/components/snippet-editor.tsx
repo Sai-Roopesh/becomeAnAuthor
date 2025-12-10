@@ -73,6 +73,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
             editor.on('update', updateHandler);
             return () => { editor.off('update', updateHandler); };
         }
+        return undefined;
     }, [editor]);
 
     useEffect(() => {

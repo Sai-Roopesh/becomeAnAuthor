@@ -18,17 +18,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { NodeActionsMenu } from '../../editor/components/NodeActionsMenu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProjectSettingsDialog } from '../../project/components/ProjectSettingsDialog';
-import { useRepository } from '@/hooks/use-repository';
-import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
-import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: string, onSelectSnippet?: (id: string) => void }) {
-    const projectRepo = useRepository<IProjectRepository>('projectRepository');
-    const nodeRepo = useNodeRepository();
+    const { projectRepository: projectRepo, nodeRepository: nodeRepo } = useAppServices();
 
     const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
     const nodes = useLiveQuery(

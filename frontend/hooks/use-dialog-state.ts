@@ -1,5 +1,5 @@
 import { useReducer, Reducer } from 'react';
-import type { ContextItem } from '@/features/shared/components/ContextSelector';
+import type { ContextItem } from '@/features/shared';
 
 /**
  * Reusable reducer hook for complex dialog state management

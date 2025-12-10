@@ -1,9 +1,7 @@
 'use client';
 
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useRepository } from '@/hooks/use-repository';
-import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { CodexCategory } from '@/lib/config/types';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -14,14 +12,11 @@ import { OutlineView } from './outline-view';
 import { MatrixView } from './matrix-view';
 import { TimelineView } from './timeline-view';
 import { CodexFilterBar } from './codex-filter-bar';
-import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
 
 type PlanViewType = 'grid' | 'outline' | 'matrix' | 'timeline';
 
 export function PlanView({ projectId }: { projectId: string }) {
-    const nodeRepo = useNodeRepository();
-    const projectRepo = useRepository<IProjectRepository>('projectRepository');
-    const linkRepo = useSceneCodexLinkRepository();
+    const { nodeRepository: nodeRepo, projectRepository: projectRepo, sceneCodexLinkRepository: linkRepo } = useAppServices();
 
     const [viewType, setViewType] = useState<PlanViewType>('grid');
     const [search, setSearch] = useState('');

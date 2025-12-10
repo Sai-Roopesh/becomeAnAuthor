@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { SceneCodexLinkRole } from '@/lib/config/types';
 
 interface MentionData {
@@ -16,8 +15,7 @@ interface MentionData {
  * Extracts mention nodes from Tiptap JSON and creates persistent links
  */
 export function useAutoLinkMentions() {
-    const linkRepo = useSceneCodexLinkRepository();
-    const codexRepo = useCodexRepository();
+    const { sceneCodexLinkRepository: linkRepo, codexRepository: codexRepo } = useAppServices();
 
     /**
      * Extract all mention nodes from Tiptap JSON content

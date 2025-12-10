@@ -1,0 +1,70 @@
+{
+    "extends": [
+        "next/core-web-vitals",
+        "next/typescript"
+    ],
+    "plugins": [
+        "import",
+        "boundaries"
+    ],
+    "rules": {
+        "no-restricted-imports": [
+            "error",
+            {
+                "patterns": [
+                    {
+                        "group": [
+                            "**/features/*/components/*"
+                        ],
+                        "message": "❌ Deep import detected! Import from feature's public API instead: '@/features/[name]'"
+                    },
+                    {
+                        "group": [
+                            "**/features/*/hooks/*"
+                        ],
+                        "message": "❌ Deep import detected! Import from feature's public API instead: '@/features/[name]'"
+                    },
+                    {
+                        "group": [
+                            "**/features/*/utils/*"
+                        ],
+                        "message": "❌ Deep import detected! Import from feature's public API instead: '@/features/[name]'"
+                    },
+                    {
+                        "group": [
+                            "@/features/*/components/*"
+                        ],
+                        "message": "❌ Deep import detected! Import from feature's public API instead: '@/features/[name]'"
+                    },
+                    {
+                        "group": [
+                            "@/features/*/hooks/*"
+                        ],
+                        "message": "❌ Deep import detected! Import from feature's public API instead: '@/features/[name]'"
+                    },
+                    {
+                        "group": [
+                            "@/features/*/utils/*"
+                        ],
+                        "message": "❌ Deep import detected! Import from feature's public API instead: '@/features/[name]'"
+                    }
+                ]
+            }
+        ],
+        "import/no-cycle": [
+            "warn",
+            {
+                "maxDepth": 10,
+                "ignoreExternal": true
+            }
+        ]
+    },
+    "settings": {
+        "import/resolver": {
+            "typescript": {
+                "alwaysTryTypes": true,
+                "project": "./tsconfig.json"
+            }
+        }
+    }
+}

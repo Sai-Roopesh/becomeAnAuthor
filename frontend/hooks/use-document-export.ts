@@ -6,7 +6,7 @@
  * TODO: Implement full DOCX export with formatting using Tauri
  */
 import { invoke } from '@tauri-apps/api/core';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
 
 export function useDocumentExport() {

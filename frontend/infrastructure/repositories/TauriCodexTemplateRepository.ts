@@ -9,7 +9,7 @@ import {
     listCodexTemplates,
     saveCodexTemplate,
     deleteCodexTemplate
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexTemplateRepository implements ICodexTemplateRepository {

@@ -9,7 +9,7 @@ import {
     listCodexRelations,
     saveCodexRelation,
     deleteCodexRelation
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexRelationRepository implements ICodexRelationRepository {
@@ -36,9 +36,9 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
             parentId: relation.parentId,
             childId: relation.childId,
             projectId: relation.projectId || 'current',  // Get from context
-            typeId: relation.typeId,
-            label: relation.label,
-            strength: relation.strength,
+            ...(relation.typeId !== undefined && { typeId: relation.typeId }),
+            ...(relation.label !== undefined && { label: relation.label }),
+            ...(relation.strength !== undefined && { strength: relation.strength }),
             createdAt: now,
             updatedAt: now,
         };

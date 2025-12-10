@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, Trash2, MessageSquare, Sparkles, Menu } from 'lucide-react';
 import { useChatStore } from '@/store/use-chat-store';
 import { ChatThread } from './chat-thread';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';

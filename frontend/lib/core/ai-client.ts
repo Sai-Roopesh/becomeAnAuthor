@@ -4,10 +4,10 @@
  */
 
 import { AIConnection, AI_VENDORS, AIProvider, getVendor } from '@/lib/config/ai-vendors';
-import { storage } from '@/lib/safe-storage';
-import { fetchWithTimeout } from '@/lib/fetch-utils';
-import { withRetry } from '@/lib/retry-utils';
-import { parseSSEStream, parseGeminiStream } from '@/lib/streaming-utils';
+import { storage } from '@/core/storage/safe-storage';
+import { fetchWithTimeout } from '@/core/api/fetch-utils';
+import { withRetry } from '@/shared/utils/retry-utils';
+import { parseSSEStream, parseGeminiStream } from '@/core/api/streaming-utils';
 
 export interface GenerateOptions {
     model: string;
@@ -171,7 +171,7 @@ export async function generateText(options: GenerateOptions): Promise<GenerateRe
     }, {
         maxRetries: 3,
         initialDelay: 1000,
-        shouldRetry: (error) => {
+        shouldRetry: (error: Error) => {
             // Don't retry if request was cancelled
             if (options.signal?.aborted || error.message.includes('cancelled')) {
                 return false;
@@ -320,7 +320,7 @@ async function generateWithOpenRouter(
                 max_tokens: options.maxTokens,
                 temperature: options.temperature ?? 0.7,
             }),
-            signal: options.signal, // Pass abort signal
+            ...(options.signal && { signal: options.signal }), // Pass abort signal
         }, 60000); // 60 second timeout for AI generation
 
         if (!response.ok) {
@@ -415,7 +415,7 @@ async function generateWithGoogle(
                     temperature: options.temperature ?? 0.7,
                 },
             }),
-            signal: options.signal, // Pass abort signal
+            ...(options.signal && { signal: options.signal }), // Pass abort signal
         }, 60000);
 
         if (!response.ok) {
@@ -477,7 +477,7 @@ async function generateWithMistral(
             max_tokens: options.maxTokens,
             temperature: options.temperature ?? 0.7,
         }),
-        signal: options.signal, // Pass abort signal
+        ...(options.signal && { signal: options.signal }), // Pass abort signal
     });
 
     if (!response.ok) {
@@ -519,7 +519,7 @@ async function generateWithOpenAI(
             max_tokens: options.maxTokens,
             temperature: options.temperature ?? 0.7,
         }),
-        signal: options.signal, // Pass abort signal
+        ...(options.signal && { signal: options.signal }), // Pass abort signal
     });
 
     if (!response.ok) {
@@ -559,7 +559,7 @@ async function generateWithKimi(
             max_tokens: options.maxTokens,
             temperature: options.temperature ?? 0.7,
         }),
-        signal: options.signal, // Pass abort signal
+        ...(options.signal && { signal: options.signal }), // Pass abort signal
     });
 
     if (!response.ok) {
@@ -698,7 +698,7 @@ async function streamWithOpenRouter(connection: AIConnection, options: GenerateS
             temperature: options.temperature ?? 0.7,
             stream: true, // Enable streaming
         }),
-        signal: options.signal,
+        ...(options.signal && { signal: options.signal }),
     });
 
     if (!response.ok) {
@@ -708,7 +708,7 @@ async function streamWithOpenRouter(connection: AIConnection, options: GenerateS
 
     await parseSSEStream(
         response,
-        (chunk) => {
+        (chunk: string) => {
             fullText += chunk;
             options.onChunk(chunk);
         },
@@ -742,7 +742,7 @@ async function streamWithOpenAI(connection: AIConnection, options: GenerateStrea
             temperature: options.temperature ?? 0.7,
             stream: true,
         }),
-        signal: options.signal,
+        ...(options.signal && { signal: options.signal }),
     });
 
     if (!response.ok) {
@@ -752,7 +752,7 @@ async function streamWithOpenAI(connection: AIConnection, options: GenerateStrea
 
     await parseSSEStream(
         response,
-        (chunk) => {
+        (chunk: string) => {
             fullText += chunk;
             options.onChunk(chunk);
         },
@@ -785,7 +785,7 @@ async function streamWithMistral(connection: AIConnection, options: GenerateStre
             temperature: options.temperature ?? 0.7,
             stream: true,
         }),
-        signal: options.signal,
+        ...(options.signal && { signal: options.signal }),
     });
 
     if (!response.ok) {
@@ -795,7 +795,7 @@ async function streamWithMistral(connection: AIConnection, options: GenerateStre
 
     await parseSSEStream(
         response,
-        (chunk) => {
+        (chunk: string) => {
             fullText += chunk;
             options.onChunk(chunk);
         },
@@ -838,7 +838,7 @@ async function streamWithGoogle(connection: AIConnection, options: GenerateStrea
                 temperature: options.temperature ?? 0.7,
             },
         }),
-        signal: options.signal,
+        ...(options.signal && { signal: options.signal }),
     });
 
     console.log('[streamWithGoogle] Response status:', response.status, response.statusText);
@@ -851,7 +851,7 @@ async function streamWithGoogle(connection: AIConnection, options: GenerateStrea
     // Gemini with alt=sse returns SSE format, not custom JSON
     await parseSSEStream(
         response,
-        (chunk) => {
+        (chunk: string) => {
             console.log('[streamWithGoogle] Received chunk');
             fullText += chunk;
             options.onChunk(chunk);
@@ -886,7 +886,7 @@ async function streamWithKimi(connection: AIConnection, options: GenerateStreamO
             temperature: options.temperature ?? 0.7,
             stream: true,
         }),
-        signal: options.signal,
+        ...(options.signal && { signal: options.signal }),
     });
 
     if (!response.ok) {
@@ -896,7 +896,7 @@ async function streamWithKimi(connection: AIConnection, options: GenerateStreamO
 
     await parseSSEStream(
         response,
-        (chunk) => {
+        (chunk: string) => {
             fullText += chunk;
             options.onChunk(chunk);
         },

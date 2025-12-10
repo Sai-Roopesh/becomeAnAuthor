@@ -1,6 +1,6 @@
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import { useConfirmation } from '@/hooks/use-confirmation';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 /**
  * Centralized Node Deletion Service

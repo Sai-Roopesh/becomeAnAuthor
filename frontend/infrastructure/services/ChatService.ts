@@ -15,10 +15,10 @@ import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 import { generateText } from '@/lib/core/ai-client';
-import { getPromptTemplate } from '@/lib/prompt-templates';
-import { extractTextFromContent } from '@/lib/utils/editor';
-import { aiRateLimiter } from '@/lib/services/ai-rate-limiter';
-import { toast } from '@/lib/toast-service';
+import { getPromptTemplate } from '@/shared/prompts/templates';
+import { extractTextFromContent } from '@/shared/utils/editor';
+import { aiRateLimiter } from '@/lib/integrations/ai-rate-limiter';
+import { toast } from '@/shared/utils/toast-service';
 
 /**
  * Chat Service with AI Rate Limiting

@@ -2,8 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
-import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { CodexCategory, CodexEntry, SceneCodexLinkRole } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,7 @@ import {
     SheetTrigger
 } from '@/components/ui/sheet';
 import { User, MapPin, Scroll, BookOpen, Sparkles, Plus, X, Link2, Check } from 'lucide-react';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 interface SceneLinkPanelProps {
     sceneId: string;
@@ -65,8 +64,7 @@ export function SceneLinkPanel({
     const open = isControlled ? controlledOpen : internalOpen;
     const setOpen = isControlled ? (controlledOnOpenChange ?? (() => { })) : setInternalOpen;
 
-    const linkRepo = useSceneCodexLinkRepository();
-    const codexRepo = useCodexRepository();
+    const { sceneCodexLinkRepository: linkRepo, codexRepository: codexRepo } = useAppServices();
 
     // Get all codex entries
     const entries = useLiveQuery(

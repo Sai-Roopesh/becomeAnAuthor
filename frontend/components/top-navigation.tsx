@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProjectStore, ViewMode } from '@/store/use-project-store';
 import { LayoutTemplate, PenTool, MessageSquare, Eye, Home } from 'lucide-react';
-import { ProjectSettingsDialog } from '@/features/project/components/ProjectSettingsDialog';
-import { SettingsDialog } from '@/features/settings/components/SettingsDialog';
+import { ProjectSettingsDialog } from '@/features/project';
+import { SettingsDialog } from '@/features/settings';
 
 export function TopNavigation({ projectId }: { projectId: string }) {
     const { viewMode, setViewMode } = useProjectStore();

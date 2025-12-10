@@ -13,7 +13,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function SnippetList({ projectId, onSelect }: { projectId: string, onSelect: (id: string) => void }) {

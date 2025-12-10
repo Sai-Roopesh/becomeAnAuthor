@@ -59,8 +59,8 @@ export class ContextAssembler {
         totalTokens: number;
         warningMessage?: string;
     } {
-        const model = MODEL_CONFIGS[modelKey] || MODEL_CONFIGS['gpt-3.5-turbo'];
-        const maxContextTokens = model.maxTokens - model.responseTokens;
+        const modelConfig = MODEL_CONFIGS[modelKey ?? 'gpt-3.5-turbo'] || MODEL_CONFIGS['gpt-3.5-turbo'];
+        const maxContextTokens = modelConfig!.maxTokens - modelConfig!.responseTokens;
 
         // System prompt always included
         const systemTokens = this.estimateTokens(systemPrompt);
@@ -74,7 +74,7 @@ export class ContextAssembler {
         let truncated = false;
 
         for (const item of sortedItems) {
-            if (item.tokens <= availableTokens) {
+            if (availableTokens >= item.tokens) {
                 // Include full item
                 includedItems.push(item);
                 availableTokens -= item.tokens;
@@ -84,7 +84,7 @@ export class ContextAssembler {
                 const truncatedContent = this.truncateText(item.content, availableTokens);
                 const truncatedItem: ContextItem = {
                     ...item,
-                    content: truncatedContent + '\n\n[... content truncated ...]',
+                    content: truncatedContent,
                     tokens: availableTokens,
                 };
                 includedItems.push(truncatedItem);
@@ -95,20 +95,21 @@ export class ContextAssembler {
             } else {
                 // Can't fit - skip
                 truncated = true;
+                break;
             }
         }
 
         let warningMessage: string | undefined;
         if (truncated) {
             const skipped = sortedItems.length - includedItems.length;
-            warningMessage = `Context limited to ${totalTokens.toLocaleString()} tokens. ${skipped} items excluded to fit within ${model.name} limits.`;
+            warningMessage = `Context limited to ${totalTokens.toLocaleString()} tokens. ${skipped} items excluded to fit within ${modelConfig!.name} limits.`;
         }
 
         return {
             context: includedItems,
             truncated,
             totalTokens,
-            warningMessage,
+            ...(warningMessage && { warningMessage }),
         };
     }
 

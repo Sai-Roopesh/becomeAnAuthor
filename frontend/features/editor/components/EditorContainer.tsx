@@ -15,7 +15,7 @@ import { PinOff, PenTool, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight
 import { useDebounce } from '@/hooks/use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useSnippetRepository } from '@/features/snippets/hooks/use-snippet-repository';
 import { saveCoordinator } from '@/lib/core/save-coordinator';
 import { cn } from '@/lib/utils';
@@ -34,7 +34,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
     const [editorWordCount, setEditorWordCount] = useState(0);
     const isMobile = useIsMobile();
 
-    const nodeRepo = useNodeRepository();
+    const { nodeRepository: nodeRepo } = useAppServices();
     const snippetRepo = useSnippetRepository();
 
     const activeScene = useLiveQuery(

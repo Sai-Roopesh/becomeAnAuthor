@@ -9,7 +9,7 @@ import {
     listAnalyses,
     saveAnalysis,
     deleteAnalysis
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriAnalysisRepository implements IAnalysisRepository {

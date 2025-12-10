@@ -4,8 +4,7 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { useNodeRepository } from './use-node-repository';
-import { useCodexRepository } from './use-codex-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { ContextItem } from '@/features/shared/components';
 
 /**
@@ -13,8 +12,7 @@ import type { ContextItem } from '@/features/shared/components';
  * Provides caching to avoid re-fetching same nodes
  */
 export function useContextAssembly(projectId: string) {
-    const nodeRepo = useNodeRepository();
-    const codexRepo = useCodexRepository();
+    const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
     const cacheRef = useRef(new Map<string, string>());
 
     /**
@@ -36,7 +34,7 @@ export function useContextAssembly(projectId: string) {
                 return cacheRef.current.get(cacheKey)!;
             }
 
-            const { contextAssembler } = await import('@/lib/context-assembler');
+            const { contextAssembler } = await import('@/shared/utils/context-assembler');
             const contexts: string[] = [];
 
             for (const context of selectedContexts) {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, FileText, Clock, Hash } from 'lucide-react';
 import { useState } from 'react';
 import { useProjectStore } from '@/store/use-project-store';
-import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +17,7 @@ interface StoryTimelineProps {
 export function StoryTimeline({ projectId, activeSceneWordCount }: StoryTimelineProps) {
     const { activeSceneId, setActiveSceneId } = useProjectStore();
     const [collapsed, setCollapsed] = useState(false);
-    const nodeRepo = useNodeRepository();
+    const { nodeRepository: nodeRepo } = useAppServices();
 
     const scenes = useLiveQuery(
         async () => {

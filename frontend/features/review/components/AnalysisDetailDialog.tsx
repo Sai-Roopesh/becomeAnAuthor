@@ -330,14 +330,14 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
     if (analysis.analysisType === 'synopsis') {
         return (
             <div className="space-y-8">
-                {data.plotPoints && Array.isArray(data.plotPoints) && (
+                {data['plotPoints'] && Array.isArray(data['plotPoints']) && (
                     <div className="space-y-4">
                         <h3 className="text-lg font-heading font-semibold flex items-center gap-2">
                             <Activity className="h-5 w-5 text-primary" />
                             Key Plot Points
                         </h3>
                         <div className="grid gap-4">
-                            {data.plotPoints.map((point: string, idx: number) => (
+                            {data['plotPoints'].map((point: string, idx: number) => (
                                 <Card key={idx} className="border-border/50 shadow-sm">
                                     <CardContent className="p-5 flex gap-4">
                                         <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
@@ -351,14 +351,14 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
                     </div>
                 )}
 
-                {data.themes && Array.isArray(data.themes) && (
+                {data['themes'] && Array.isArray(data['themes']) && (
                     <div className="space-y-4">
                         <h3 className="text-lg font-heading font-semibold flex items-center gap-2">
                             <Layers className="h-5 w-5 text-primary" />
                             Identified Themes
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                            {data.themes.map((theme: string, idx: number) => (
+                            {data['themes'].map((theme: string, idx: number) => (
                                 <Badge key={idx} variant="secondary" className="px-4 py-1.5 text-sm rounded-full bg-secondary/50 border border-border/50">
                                     {theme}
                                 </Badge>
@@ -371,10 +371,10 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
     }
 
     // Plot Threads Analysis
-    if (analysis.analysisType === 'plot-threads' && data.threads) {
+    if (analysis.analysisType === 'plot-threads' && data['threads']) {
         return (
             <div className="space-y-6">
-                {data.threads.map((thread: any, idx: number) => (
+                {data['threads'].map((thread: any, idx: number) => (
                     <Card key={idx} className="overflow-hidden border-border/50 shadow-sm">
                         <div className="h-1 bg-gradient-to-r from-primary/50 to-secondary/50" />
                         <CardHeader className="pb-3">
@@ -411,10 +411,10 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
     }
 
     // Character Arcs Analysis
-    if (analysis.analysisType === 'character-arcs' && data.characters) {
+    if (analysis.analysisType === 'character-arcs' && data['characters']) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {data.characters.map((char: any, idx: number) => (
+                {data['characters'].map((char: any, idx: number) => (
                     <Card key={idx} className="border-border/50 shadow-sm hover:shadow-md transition-all">
                         <CardHeader className="pb-3 bg-muted/20 border-b border-border/50">
                             <CardTitle className="text-lg font-heading flex items-center justify-between">

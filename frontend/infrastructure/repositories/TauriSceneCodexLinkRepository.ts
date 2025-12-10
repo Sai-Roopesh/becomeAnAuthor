@@ -9,7 +9,7 @@ import {
     listSceneCodexLinks,
     saveSceneCodexLink,
     deleteSceneCodexLink
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository {

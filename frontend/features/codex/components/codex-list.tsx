@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { EntityEditor } from '@/features/codex/components/entity-editor';
-import { TemplateSelector } from '@/features/codex/components/template-selector';
+import { EntityEditor } from './entity-editor';
+import { TemplateSelector } from './template-selector';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function CodexList({ projectId }: { projectId: string }) {

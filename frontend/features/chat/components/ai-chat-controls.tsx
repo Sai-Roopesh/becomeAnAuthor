@@ -3,8 +3,8 @@
 import { Button } from '@/components/ui/button';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { ContextSelector, type ContextItem } from '@/features/shared/components';
-import { PromptSelector } from '@/features/chat/components/prompt-selector';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { PromptSelector } from './prompt-selector';
+import { ModelCombobox } from '@/features/ai';
 
 interface AIChatControlsProps {
     projectId: string;

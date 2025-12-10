@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 export function useAnalysisDelete() {
     const { analysisRepository } = useAppServices();

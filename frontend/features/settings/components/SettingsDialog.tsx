@@ -189,7 +189,7 @@ export function SettingsDialog() {
                                                     max={24}
                                                     step={1}
                                                     value={[formatSettings.fontSize]}
-                                                    onValueChange={([value]) => formatSettings.updateSettings({ fontSize: value })}
+                                                    onValueChange={([value]) => value !== undefined && formatSettings.updateSettings({ fontSize: value })}
                                                 />
                                             </div>
 
@@ -203,7 +203,7 @@ export function SettingsDialog() {
                                                     max={2.5}
                                                     step={0.1}
                                                     value={[formatSettings.lineHeight]}
-                                                    onValueChange={([value]) => formatSettings.updateSettings({ lineHeight: value })}
+                                                    onValueChange={([value]) => value !== undefined && formatSettings.updateSettings({ lineHeight: value })}
                                                 />
                                             </div>
                                         </div>

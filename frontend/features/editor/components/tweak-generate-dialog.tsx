@@ -10,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Expand, Copy } from 'lucide-react';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { ModelCombobox } from '@/features/ai';
 import type { ChatContext } from '@/lib/config/types';
-import { storage } from '@/lib/safe-storage';
+import { storage } from '@/core/storage/safe-storage';
 import {
     useDialogState,
     tweakGenerateReducer,

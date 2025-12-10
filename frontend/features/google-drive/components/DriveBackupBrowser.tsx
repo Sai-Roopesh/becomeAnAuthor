@@ -7,7 +7,7 @@ import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
 import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useImportExport } from '@/hooks/use-import-export';
 import { DriveFile } from '@/lib/config/types';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 interface DriveBackupBrowserProps {
     onRestore: (fileId: string) => void;

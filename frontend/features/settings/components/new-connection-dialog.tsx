@@ -79,7 +79,7 @@ export function NewConnectionDialog({ open, onClose, onSave }: NewConnectionDial
                 name: connectionName,
                 provider: selectedProvider,
                 apiKey,
-                customEndpoint: selectedProvider === 'openai' ? customEndpoint : undefined,
+                ...(selectedProvider === 'openai' && customEndpoint && { customEndpoint }),
                 enabled: true,
                 models: [],
                 createdAt: Date.now(),

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 interface UseErrorHandlerOptions {
     showToast?: boolean;

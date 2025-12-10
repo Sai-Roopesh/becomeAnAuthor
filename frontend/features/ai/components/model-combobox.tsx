@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { storage } from '@/lib/safe-storage';
+import { storage } from '@/core/storage/safe-storage';
 
 interface Connection {
     name: string;

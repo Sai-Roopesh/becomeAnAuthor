@@ -8,18 +8,18 @@ import { useConfirmation } from '@/hooks/use-confirmation';
 import { usePrompt } from '@/hooks/use-prompt';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History } from 'lucide-react';
 import { useAI } from '@/hooks/use-ai';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { isScene, Scene } from '@/lib/config/types';
-import { extractTextFromTiptapJSON } from '@/lib/utils/editor';
+import { extractTextFromTiptapJSON } from '@/shared/utils/editor';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
-import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 interface SceneActionMenuProps {
     sceneId: string;
 }
 
 export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
-    const nodeRepo = useNodeRepository();
+    const { nodeRepository: nodeRepo } = useAppServices();
     const scene = useLiveQuery(() => nodeRepo.get(sceneId), [sceneId, nodeRepo]);
     const { confirm, ConfirmationDialog } = useConfirmation();
     const { prompt, PromptDialog } = usePrompt();

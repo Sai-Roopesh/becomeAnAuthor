@@ -7,6 +7,7 @@ export { ContinueWritingMenu } from './components/continue-writing-menu';
 export { TextSelectionMenu } from './components/text-selection-menu';
 export { RewriteMenu } from './components/rewrite-menu';
 export { EditorContainer } from './components/EditorContainer';
+export { SectionComponent } from './components/section-component';
 
 // Hooks
 export { useAutoLinkMentions } from './hooks/use-auto-link-mentions';

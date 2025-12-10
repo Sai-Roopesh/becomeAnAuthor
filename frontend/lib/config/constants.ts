@@ -39,8 +39,8 @@ export const FEATURE_FLAGS = {
  * Google OAuth 2.0 Configuration
  */
 export const GOOGLE_CONFIG = {
-    CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-    CLIENT_SECRET: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET || '',
+    CLIENT_ID: process.env['NEXT_PUBLIC_GOOGLE_CLIENT_ID'] || '',
+    CLIENT_SECRET: process.env['NEXT_PUBLIC_GOOGLE_CLIENT_SECRET'] || '',
     REDIRECT_URI: typeof window !== 'undefined'
         ? `${window.location.origin}/auth/callback`
         : 'http://localhost:3000/auth/callback',

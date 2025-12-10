@@ -1,9 +1,9 @@
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CodexList } from '@/features/codex/components/codex-list';
-import { AIChat } from '@/features/chat/components/AIChat';
-import { SettingsDialog } from '@/features/settings/components/SettingsDialog';
+import { CodexList } from '@/features/codex';
+import { AIChat } from '@/features/chat';
+import { SettingsDialog } from '@/features/settings';
 
 export function ProjectTools({ projectId }: { projectId: string }) {
     return (

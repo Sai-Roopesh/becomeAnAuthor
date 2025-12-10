@@ -14,7 +14,7 @@ import { MentionsTab } from './mentions-tab';
 import { TrackingTab } from './tracking-tab';
 import { TagManager } from './tag-manager';
 import { TemplateFieldRenderer } from './template-field-renderer';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 // Extracted sub-components
@@ -102,7 +102,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         });
 
         if (confirmed) {
-            await codexRepo.update(entityId, { templateId: undefined, customFields: {} });
+            await codexRepo.update(entityId, { customFields: {} });
             toast.success('Template cleared - you can now change the category');
         }
     };

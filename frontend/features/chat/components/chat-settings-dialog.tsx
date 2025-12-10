@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { ModelCombobox } from '@/features/ai';
 
 export interface ChatSettings {
     model: string;
@@ -65,7 +65,7 @@ export function ChatSettingsDialog({ open, onClose, settings, onSettingsChange }
                         </div>
                         <Slider
                             value={[settings.temperature]}
-                            onValueChange={([value]) => updateSetting('temperature', value)}
+                            onValueChange={([value]) => value !== undefined && updateSetting('temperature', value)}
                             min={0}
                             max={2}
                             step={0.1}
@@ -99,7 +99,7 @@ export function ChatSettingsDialog({ open, onClose, settings, onSettingsChange }
                         </div>
                         <Slider
                             value={[settings.topP]}
-                            onValueChange={([value]) => updateSetting('topP', value)}
+                            onValueChange={([value]) => value !== undefined && updateSetting('topP', value)}
                             min={0}
                             max={1}
                             step={0.05}
@@ -117,7 +117,7 @@ export function ChatSettingsDialog({ open, onClose, settings, onSettingsChange }
                         </div>
                         <Slider
                             value={[settings.frequencyPenalty]}
-                            onValueChange={([value]) => updateSetting('frequencyPenalty', value)}
+                            onValueChange={([value]) => value !== undefined && updateSetting('frequencyPenalty', value)}
                             min={0}
                             max={2}
                             step={0.1}
@@ -135,7 +135,7 @@ export function ChatSettingsDialog({ open, onClose, settings, onSettingsChange }
                         </div>
                         <Slider
                             value={[settings.presencePenalty]}
-                            onValueChange={([value]) => updateSetting('presencePenalty', value)}
+                            onValueChange={([value]) => value !== undefined && updateSetting('presencePenalty', value)}
                             min={0}
                             max={2}
                             step={0.1}

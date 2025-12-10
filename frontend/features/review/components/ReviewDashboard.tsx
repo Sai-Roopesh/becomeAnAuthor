@@ -136,10 +136,10 @@ function AnalysisOverview({ analyses, onSelectAnalysis }: { analyses: StoryAnaly
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold font-heading">
-                            {new Date(analyses[0].createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            {analyses[0] && new Date(analyses[0].createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            {analyses[0].scenesAnalyzedCount} scenes analyzed
+                            {analyses[0]?.scenesAnalyzedCount} scenes analyzed
                         </p>
                     </CardContent>
                 </Card>

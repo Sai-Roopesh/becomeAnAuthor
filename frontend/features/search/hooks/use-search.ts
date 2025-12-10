@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
 import { isScene, DocumentNode, CodexEntry } from '@/lib/config/types';
 import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
@@ -19,8 +18,7 @@ export function useSearch(projectId: string) {
     const [allNodes, setAllNodes] = useState<DocumentNode[]>([]);
     const [codexEntries, setCodexEntries] = useState<CodexEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const nodeRepo = useNodeRepository();
-    const codexRepo = useCodexRepository();
+    const { nodeRepository: nodeRepo, snippetRepository: snippetRepo, codexRepository: codexRepo } = useAppServices();
 
     // Fetch data on mount
     useEffect(() => {

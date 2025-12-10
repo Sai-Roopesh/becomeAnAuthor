@@ -4,9 +4,9 @@
  * Provides project-level backup and restore functionality.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
-import { ExportedProjectSchema } from '@/lib/schemas/import-schema';
+import { ExportedProjectSchema } from '@/shared/schemas/import-schema';
 
 export function useImportExport() {
 

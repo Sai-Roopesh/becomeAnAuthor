@@ -5,8 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Sparkles, Wand2, BookOpen, Settings2 } from 'lucide-react';
 import { TweakGenerateDialog, GenerateOptions } from './tweak-generate-dialog';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
-import { storage } from '@/lib/safe-storage';
+import { ModelCombobox } from '@/features/ai';
+import { storage } from '@/core/storage/safe-storage';
 import {
     useDialogState,
     continueWritingReducer,

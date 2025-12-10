@@ -1,6 +1,6 @@
 import { BookOpen, Sparkles } from 'lucide-react';
-import { CreateProjectDialog } from '@/features/project/components/CreateProjectDialog';
-import { RestoreProjectDialog } from '@/features/data-management/components/RestoreProjectDialog';
+import { CreateProjectDialog } from '@/features/project';
+import { RestoreProjectDialog } from '@/features/data-management';
 
 export function EmptyState() {
     return (

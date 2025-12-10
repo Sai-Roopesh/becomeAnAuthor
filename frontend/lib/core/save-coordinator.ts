@@ -7,8 +7,8 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
-import { toast } from '@/lib/toast-service';
-import { storage } from '@/lib/safe-storage';
+import { toast } from '@/shared/utils/toast-service';
+import { storage } from '@/core/storage/safe-storage';
 
 class SaveCoordinator {
     private saveQueue: Map<string, Promise<void>> = new Map();

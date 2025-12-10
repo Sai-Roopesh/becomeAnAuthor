@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { type ContextItem } from '@/features/shared/components';
-import { ChatSettingsDialog, ChatSettings } from '@/features/chat/components/chat-settings-dialog';
-import { getPromptTemplate } from '@/lib/prompt-templates';
+import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
+import { getPromptTemplate } from '@/shared/prompts/templates';
 import { useAI } from '@/hooks/use-ai';
 import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
 import { useContextAssembly } from '@/hooks/use-context-assembly';
@@ -11,7 +11,9 @@ import { ChatMessage } from '@/lib/config/types';
 import { useLiveQuery } from '@/hooks/use-live-query';
 
 // Extracted sub-components
-import { AIChatMessageList, AIChatControls, AIChatInput } from './ai-chat';
+import { AIChatMessageList } from './ai-chat-message-list';
+import { AIChatControls } from './ai-chat-controls';
+import { AIChatInput } from './ai-chat-input';
 
 /**
  * AIChat - Main Chat Component
@@ -74,7 +76,7 @@ export function AIChat({ projectId }: { projectId: string }) {
             const existingThreads = await chatRepo.getThreadsByProject(projectId);
             const activeThreads = existingThreads.filter(t => !t.archived);
 
-            if (activeThreads.length > 0) {
+            if (activeThreads.length > 0 && activeThreads[0]) {
                 activeThreads.sort((a, b) => b.updatedAt - a.updatedAt);
                 setCurrentThreadId(activeThreads[0].id);
             } else {

@@ -81,7 +81,7 @@ class SearchService {
     return results.map((result) => ({
       item: result.item,
       score: result.score || 0,
-      matches: result.matches,
+      matches: result.matches ?? [],
     }));
   }
 
@@ -98,7 +98,7 @@ class SearchService {
     return results.map((result) => ({
       item: result.item,
       score: result.score || 0,
-      matches: result.matches,
+      matches: result.matches ?? [],
     }));
   }
 

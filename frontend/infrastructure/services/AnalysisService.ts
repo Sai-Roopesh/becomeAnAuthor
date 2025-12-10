@@ -3,7 +3,7 @@ import type { IAnalysisRepository } from '@/domain/repositories/IAnalysisReposit
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { StoryAnalysis, Scene, DocumentNode } from '@/lib/config/types';
-import { generateText } from '@/lib/ai-service';
+import { generateText } from '@/core/api/ai-service';
 import {
     SYNOPSIS_PROMPT,
     PLOT_THREADS_PROMPT,
@@ -12,7 +12,7 @@ import {
     CONTRADICTIONS_PROMPT,
     ALPHA_READER_PROMPT,
     BETA_READER_PROMPT,
-} from '@/lib/prompts/analysis-prompts';
+} from '@/shared/prompts/analysis-prompts';
 
 /**
  * Service for running AI-powered story analyses
@@ -184,10 +184,15 @@ export class AnalysisService implements IAnalysisService {
             // Serialize metrics to ensure no Promises or functions
             const metrics = JSON.parse(JSON.stringify(parsed));
 
+            // Extract summary
+            const summary = this.extractSummary(type, parsed);
+
+            // With exactOptionalPropertyTypes: true, we must not assign undefined to optional properties
+            // Instead, conditionally include them only if they have values
             return {
-                summary: this.extractSummary(type, parsed),
+                ...(summary !== undefined && { summary }),
                 insights,
-                metrics,
+                ...(metrics && { metrics }),
             };
         } catch (error) {
             console.error('Failed to parse AI response:', error);

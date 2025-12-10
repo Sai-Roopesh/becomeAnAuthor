@@ -4,10 +4,9 @@ import { useLiveQuery } from '@/hooks/use-live-query';
 import { usePrompt } from '@/hooks/use-prompt';
 import { Button } from '@/components/ui/button';
 import { Plus, X, Link2 } from 'lucide-react';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
-import { useRepository } from '@/hooks/use-repository';
-import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 interface RelationsTabProps {
     entityId: string;
@@ -15,7 +14,7 @@ interface RelationsTabProps {
 
 export function RelationsTab({ entityId }: RelationsTabProps) {
     const codexRepo = useCodexRepository();
-    const relationRepo = useRepository<ICodexRelationRepository>('codexRelationRepository');
+    const { codexRelationRepository: relationRepo } = useAppServices();
 
     const relations = useLiveQuery(
         () => relationRepo.getByParent(entityId),

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X } from 'lucide-react';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 interface TagManagerProps {
     projectId: string;
@@ -170,5 +170,5 @@ function generateRandomColor(): string {
         '#ef4444', '#f59e0b', '#10b981', '#3b82f6',
         '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
     ];
-    return colors[Math.floor(Math.random() * colors.length)];
+    return colors[Math.floor(Math.random() * colors.length)] ?? '#3b82f6';
 }

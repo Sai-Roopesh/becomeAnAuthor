@@ -10,7 +10,7 @@ import { AIConnection, AIProvider, AI_VENDORS } from '@/lib/config/ai-vendors';
 import { fetchModelsForConnection } from '@/lib/core/ai-client';
 import { NewConnectionDialog } from './new-connection-dialog';
 import { useConfirmation } from '@/hooks/use-confirmation';
-import { storage } from '@/lib/safe-storage';
+import { storage } from '@/core/storage/safe-storage';
 
 export function AIConnectionsTab() {
     const [connections, setConnections] = useState<AIConnection[]>([]);
@@ -43,7 +43,7 @@ export function AIConnectionsTab() {
 
         if (parsed.length > 0) {
             setConnections(parsed);
-            if (!selectedId) {
+            if (!selectedId && parsed[0]) {
                 setSelectedId(parsed[0].id);
             }
         } else {
@@ -77,7 +77,7 @@ export function AIConnectionsTab() {
                     ...c,
                     name: connectionName,
                     apiKey,
-                    customEndpoint: c.provider === 'openai' ? customEndpoint : undefined,
+                    ...(c.provider === 'openai' && customEndpoint && { customEndpoint }),
                     models,
                     updatedAt: Date.now(),
                 }

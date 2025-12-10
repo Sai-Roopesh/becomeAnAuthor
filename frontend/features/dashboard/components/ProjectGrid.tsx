@@ -1,6 +1,6 @@
 import { Project } from '@/lib/config/types';
 import { ProjectCard } from './ProjectCard';
-import { CreateProjectDialog } from '@/features/project/components/CreateProjectDialog';
+import { CreateProjectDialog } from '@/features/project';
 import { Plus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 

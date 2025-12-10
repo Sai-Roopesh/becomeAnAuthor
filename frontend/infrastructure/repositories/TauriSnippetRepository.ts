@@ -9,7 +9,7 @@ import {
     listSnippets,
     saveSnippet,
     deleteSnippet
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 /**

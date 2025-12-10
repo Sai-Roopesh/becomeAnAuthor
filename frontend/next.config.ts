@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
 };
 
 // Add bundle analyzer if ANALYZE env variable is set
-if (process.env.ANALYZE === 'true') {
+if (process.env['ANALYZE'] === 'true') {
     const withBundleAnalyzer = require('@next/bundle-analyzer')({
         enabled: true,
     });

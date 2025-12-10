@@ -16,9 +16,7 @@ import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Sparkles, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useProjectRepository } from '@/hooks/use-project-repository';
-import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useSeriesRepository } from '@/hooks/use-series-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 const TITLES = [
     "The Last Starship", "Whispers in the Dark", "The Clockwork Heart", "Echoes of Eternity",
@@ -33,9 +31,7 @@ interface CreateProjectDialogProps {
 export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState(1);
-    const projectRepo = useProjectRepository();
-    const nodeRepo = useNodeRepository();
-    const seriesRepo = useSeriesRepository();
+    const { projectRepository: projectRepo, nodeRepository: nodeRepo, seriesRepository: seriesRepo } = useAppServices();
     const [formData, setFormData] = useState({
         title: '',
         author: '',
@@ -47,7 +43,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
 
     const handleChooseLocation = async () => {
         try {
-            const { showOpenDialog } = await import('@/lib/tauri/commands');
+            const { showOpenDialog } = await import('@/core/tauri/commands');
             const selected = await showOpenDialog({
                 directory: true,
                 title: 'Choose where to save your novel'
@@ -64,7 +60,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
 
     const handleSurpriseMe = () => {
         const randomTitle = TITLES[Math.floor(Math.random() * TITLES.length)];
-        setFormData(prev => ({ ...prev, title: randomTitle }));
+        setFormData(prev => ({ ...prev, ...(randomTitle && { title: randomTitle }) }));
     };
 
     const handleCreate = async () => {

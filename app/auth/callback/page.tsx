@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { googleAuthService } from '@/lib/services/google-auth-service';
-import { toast } from '@/lib/toast-service';
+import { googleAuthService } from '@/lib/integrations/google-auth-service';
+import { toast } from '@/shared/utils/toast-service';
 
 export default function AuthCallbackPage() {
     const router = useRouter();

@@ -1,4 +1,4 @@
-import { useRepository } from './use-repository';
+import { useRepository } from '@/hooks/use-repository';
 import type { IChatService } from '@/domain/services/IChatService';
 
 /**

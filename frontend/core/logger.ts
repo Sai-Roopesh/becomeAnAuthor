@@ -3,7 +3,7 @@
  * Provides consistent logging with persistence and export capabilities
  */
 
-import { storage } from '@/lib/safe-storage';
+import { storage } from '@/core/storage/safe-storage';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -73,7 +73,7 @@ class Logger {
             timestamp: Date.now(),
             level,
             message,
-            metadata,
+            ...(metadata !== undefined && { metadata }),
             url: typeof window !== 'undefined' ? window.location.href : '',
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
         };

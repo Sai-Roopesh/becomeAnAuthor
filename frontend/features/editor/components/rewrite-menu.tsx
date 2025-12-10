@@ -12,7 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { ModelCombobox } from '@/features/ai';
 import { TinkerMode } from './tinker-mode';
 
 export const RewriteMenu = memo(function RewriteMenu({ editor }: { editor: Editor | null }) {

@@ -19,7 +19,7 @@ export function DashboardHeader() {
         else if (hour < 18) setGreeting('Good afternoon');
         else setGreeting('Good evening');
 
-        setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
+        setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)] ?? '');
     }, []);
 
     return (

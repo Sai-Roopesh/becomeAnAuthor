@@ -2,8 +2,8 @@
 
 import { Button } from '@/components/ui/button';
 import { ContextSelector, type ContextItem } from '@/features/shared/components';
-import { PromptSelector } from '../prompt-selector';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { PromptSelector } from './prompt-selector';
+import { ModelCombobox } from '@/features/ai';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ChatControlsProps {

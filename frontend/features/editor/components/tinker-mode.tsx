@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { Editor } from '@tiptap/react';
 import { useAI } from '@/hooks/use-ai';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { ModelCombobox } from '@/features/ai';
 import { Loader2, X } from 'lucide-react';
 
 interface TinkerModeProps {

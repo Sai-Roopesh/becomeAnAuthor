@@ -44,7 +44,7 @@ export function EntityEditorInfoCard({
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
                             <Select
-                                value={formData.category}
+                                {...(formData.category && { value: formData.category })}
                                 onValueChange={v => onCategoryChange(v as CodexCategory)}
                                 disabled={hasTemplate}
                             >

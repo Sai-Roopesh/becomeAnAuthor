@@ -3,7 +3,7 @@
  * Prevents app crashes from localStorage quota exceeded, malformed JSON, or disabled storage
  */
 
-import { toast } from './toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 class SafeStorage {
     /**

@@ -8,9 +8,9 @@ import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
 import { useChatStore } from '@/store/use-chat-store';
 import { type ContextItem } from '@/features/shared/components';
 import type { ChatContext } from '@/lib/config/types';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
-import { storage } from '@/lib/safe-storage';
+import { storage } from '@/core/storage/safe-storage';
 
 // Import child components
 import { ChatHeader } from './chat-header';
@@ -112,7 +112,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             threadId,
             role: 'user' as const,
             content: message.trim(),
-            context: Object.keys(context).length > 0 ? context : undefined,
+            ...(Object.keys(context).length > 0 && { context }),
             timestamp: Date.now(),
         };
 
@@ -126,7 +126,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                 message: userMessage.content,
                 threadId,
                 projectId: thread?.projectId || '',
-                context: userMessage.context,
+                ...(userMessage.context && { context: userMessage.context }),
                 model: effectiveModel,
                 settings,
                 promptId: selectedPromptId,
@@ -181,7 +181,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                     message: lastUserMessage.content,
                     threadId,
                     projectId: thread?.projectId || '',
-                    context: lastUserMessage.context,
+                    ...(lastUserMessage.context && { context: lastUserMessage.context }),
                     model: effectiveModel,
                     settings,
                     promptId: selectedPromptId,

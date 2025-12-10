@@ -5,10 +5,10 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useAI } from '../use-ai';
+import { useAI } from './use-ai';
 
 // Mock the storage
-vi.mock('@/lib/safe-storage', () => ({
+vi.mock('@/core/storage/safe-storage', () => ({
     storage: {
         getItem: vi.fn(),
         setItem: vi.fn(),

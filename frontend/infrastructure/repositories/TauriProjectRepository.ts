@@ -4,7 +4,7 @@
  */
 
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
-import type { Project } from '@/lib/types';
+import type { Project } from '@/lib/config/types';
 import {
     listProjects,
     createProject,
@@ -12,7 +12,7 @@ import {
     updateProject as updateProjectCommand,
     archiveProject as archiveProjectCommand,
     type ProjectMeta
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { setCurrentProjectPath } from './TauriNodeRepository';
 
 /**
@@ -82,9 +82,9 @@ export class TauriProjectRepository implements IProjectRepository {
 
         if (project) {
             await updateProjectCommand(project.path, {
-                title: updates.title,
-                author: updates.author,
-                archived: updates.archived,
+                ...(updates.title !== undefined && { title: updates.title }),
+                ...(updates.author !== undefined && { author: updates.author }),
+                ...(updates.archived !== undefined && { archived: updates.archived }),
             });
         }
     }

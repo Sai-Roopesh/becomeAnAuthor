@@ -84,11 +84,11 @@ export function usePrompt() {
             setState({
                 isOpen: true,
                 title: nextItem.options.title,
-                description: nextItem.options.description,
-                placeholder: nextItem.options.placeholder,
+                ...(nextItem.options.description && { description: nextItem.options.description }),
+                ...(nextItem.options.placeholder && { placeholder: nextItem.options.placeholder }),
                 inputValue: nextItem.options.defaultValue || '',
                 errorMessage: null,
-                validate: nextItem.options.validate,
+                ...(nextItem.options.validate && { validate: nextItem.options.validate }),
                 allowEmpty: nextItem.options.allowEmpty ?? false,
                 preserveWhitespace: nextItem.options.preserveWhitespace ?? false,
             });
@@ -111,11 +111,11 @@ export function usePrompt() {
                 setState({
                     isOpen: true,
                     title: options.title,
-                    description: options.description,
-                    placeholder: options.placeholder,
+                    ...(options.description && { description: options.description }),
+                    ...(options.placeholder && { placeholder: options.placeholder }),
                     inputValue: options.defaultValue || '',
                     errorMessage: null,
-                    validate: options.validate,
+                    ...(options.validate && { validate: options.validate }),
                     allowEmpty: options.allowEmpty ?? false,
                     preserveWhitespace: options.preserveWhitespace ?? false,
                 });

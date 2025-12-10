@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Copy, History, Sparkles, Upload, Plus, Trash2 } from 'lucide-react';
 import { useAI } from '@/hooks/use-ai';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 
 interface DetailsTabProps {
     entity: Partial<CodexEntry>;

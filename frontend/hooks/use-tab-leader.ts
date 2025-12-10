@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { tabLeaderService } from '@/lib/services/tab-leader-service';
+import { tabLeaderService } from '@/lib/integrations/tab-leader-service';
 
 /**
  * Hook to check if current tab is the leader

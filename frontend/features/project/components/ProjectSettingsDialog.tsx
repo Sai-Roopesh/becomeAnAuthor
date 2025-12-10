@@ -17,13 +17,12 @@ import { Settings, Trash2, Archive, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useRouter } from 'next/navigation';
-import { useRepository } from '@/hooks/use-repository';
-import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
     const router = useRouter();
-    const projectRepo = useRepository<IProjectRepository>('projectRepository');
+    const { projectRepository: projectRepo } = useAppServices();
     const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
 
     const [formData, setFormData] = useState({

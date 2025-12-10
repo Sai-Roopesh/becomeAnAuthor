@@ -1,4 +1,4 @@
-import { useRepository } from './use-repository';
+import { useRepository } from '@/hooks/use-repository';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 
 /**

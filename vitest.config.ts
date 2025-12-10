@@ -7,13 +7,13 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'happy-dom',
-        setupFiles: './src/test/setup.ts',
+        setupFiles: './frontend/vitest.setup.ts',
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],
             exclude: [
                 'node_modules/',
-                'src/test/',
+                'frontend/test/',
                 '**/*.d.ts',
                 '**/*.config.*',
                 '**/mockData.ts',
@@ -22,7 +22,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@': path.resolve(__dirname, './src'),
+            '@': path.resolve(__dirname, './frontend'),
         },
     },
 });

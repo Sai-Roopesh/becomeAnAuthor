@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import { invalidateQueries } from '@/hooks/use-live-query';
 import { DocumentNode } from '@/lib/config/types';
 
@@ -19,7 +19,7 @@ interface CreateNodeDialogProps {
 
 export function CreateNodeDialog({ open, onOpenChange, projectId, parentId, type }: CreateNodeDialogProps) {
     const [title, setTitle] = useState('');
-    const nodeRepo = useNodeRepository();
+    const { nodeRepository: nodeRepo } = useAppServices();
 
     const handleCreate = async () => {
         if (!title.trim()) return;

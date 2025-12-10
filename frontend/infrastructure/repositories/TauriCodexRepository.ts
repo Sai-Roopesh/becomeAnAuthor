@@ -9,7 +9,7 @@ import {
     listCodexEntries,
     saveCodexEntry,
     deleteCodexEntry
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 /**

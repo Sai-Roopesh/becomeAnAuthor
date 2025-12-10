@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { Loader2, X } from 'lucide-react';
-import { ModelCombobox } from '@/features/ai/components/model-combobox';
+import { ModelCombobox } from '@/features/ai';
 import { useAI } from '@/hooks/use-ai';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import {

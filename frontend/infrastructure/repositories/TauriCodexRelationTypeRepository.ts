@@ -9,7 +9,7 @@ import {
     listCodexRelationTypes,
     saveCodexRelationType,
     deleteCodexRelationType
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepository {

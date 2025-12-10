@@ -8,7 +8,7 @@ import { MultiTabWarning } from '@/components/multi-tab-warning';
 import { SearchPalette } from '@/features/search/components/SearchPalette';
 import { useEffect, useState } from 'react';
 import { useProjectStore } from '@/store/use-project-store';
-import { getTabCoordinator } from '@/lib/tab-coordinator';
+import { getTabCoordinator } from '@/core/tab-coordinator';
 
 export function ProjectPageClient({ id }: { id: string }) {
     const { viewMode } = useProjectStore();

@@ -116,7 +116,7 @@ export function FormatMenu() {
                                 <Label>Font Size: {fontSize}px</Label>
                                 <Slider
                                     value={[fontSize]}
-                                    onValueChange={([v]) => updateSettings({ fontSize: v })}
+                                    onValueChange={([v]) => v !== undefined && updateSettings({ fontSize: v })}
                                     min={12}
                                     max={24}
                                     step={1}
@@ -128,7 +128,7 @@ export function FormatMenu() {
                                 <Label>Line Height: {lineHeight}</Label>
                                 <Slider
                                     value={[lineHeight]}
-                                    onValueChange={([v]) => updateSettings({ lineHeight: v })}
+                                    onValueChange={([v]) => v !== undefined && updateSettings({ lineHeight: v })}
                                     min={1.0}
                                     max={3.0}
                                     step={0.1}
@@ -158,7 +158,7 @@ export function FormatMenu() {
                                 <Label>Page Width: {pageWidth}px</Label>
                                 <Slider
                                     value={[pageWidth]}
-                                    onValueChange={([v]) => updateSettings({ pageWidth: v })}
+                                    onValueChange={([v]) => v !== undefined && updateSettings({ pageWidth: v })}
                                     min={400}
                                     max={1000}
                                     step={50}

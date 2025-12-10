@@ -18,8 +18,7 @@ import { AI_DEFAULTS } from '@/lib/config/constants';
 
 import Mention from '@tiptap/extension-mention';
 import { createCodexSuggestion } from './suggestion';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
-import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useContextAssembly } from '@/hooks/use-context-assembly';
 
 export function TiptapEditor({
@@ -38,8 +37,7 @@ export function TiptapEditor({
     const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
     const previousSceneIdRef = useRef<string | null>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
-    const codexRepo = useCodexRepository();
-    const nodeRepo = useNodeRepository();
+    const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
     const { assembleContext } = useContextAssembly(projectId);
 
     // Create suggestion configuration with projectId and repository
@@ -141,7 +139,7 @@ export function TiptapEditor({
                 // Step 2: Fetch FRESH content DIRECTLY from backend, bypassing ALL caches
                 console.log(`[SceneSwitch] Fetching fresh content for scene ${sceneId} from BACKEND`);
                 try {
-                    const { getStructure, loadScene } = await import('@/lib/tauri/commands');
+                    const { getStructure, loadScene } = await import('@/core/tauri/commands');
                     const { getCurrentProjectPath } = await import('@/infrastructure/repositories/TauriNodeRepository');
 
                     const projectPath = getCurrentProjectPath();

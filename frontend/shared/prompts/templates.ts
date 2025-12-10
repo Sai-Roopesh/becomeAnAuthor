@@ -119,7 +119,7 @@ Be firm but fair. Focus on the work, not the author.`,
 };
 
 export function getPromptTemplate(id: string): PromptTemplate {
-    return PROMPT_TEMPLATES[id] || PROMPT_TEMPLATES.general;
+    return PROMPT_TEMPLATES[id] ?? PROMPT_TEMPLATES['general']!;
 }
 
 export function getAllPromptTemplates(): PromptTemplate[] {

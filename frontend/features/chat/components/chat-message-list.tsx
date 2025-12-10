@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatMessage as ChatMessageComponent } from '../chat-message';
+import { ChatMessage as ChatMessageComponent } from './chat-message';
 import type { ChatMessage } from '@/lib/config/types';
 import { RefObject } from 'react';
 import { Sparkles, Lightbulb, BookOpen, Pencil, Users } from 'lucide-react';

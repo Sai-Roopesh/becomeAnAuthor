@@ -5,7 +5,7 @@ import { Download, FileText, Cloud } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
 import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useDocumentExport } from '@/hooks/use-document-export';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { useState } from 'react';
 
 interface ExportProjectButtonProps {

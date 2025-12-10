@@ -16,7 +16,7 @@ import {
     deleteScene,
     type StructureNode,
     type Scene as TauriScene
-} from '@/lib/tauri';
+} from '@/core/tauri';
 
 // Store for project paths (set when project is opened)
 let currentProjectPath: string | null = null;
@@ -138,7 +138,7 @@ export class TauriNodeRepository implements INodeRepository {
 
         if (parentId === null) {
             // Return root level nodes
-            return structure.map(n => structureNodeToDocumentNode(n, projectId, null));
+            return structure.map((n: StructureNode) => structureNodeToDocumentNode(n, projectId, null));
         }
 
         // Find parent and return its children
@@ -233,11 +233,11 @@ export class TauriNodeRepository implements INodeRepository {
         // Find and remove node
         const removeNode = (nodes: StructureNode[], targetId: string): StructureNode | null => {
             for (let i = 0; i < nodes.length; i++) {
-                if (nodes[i].id === targetId) {
+                if (nodes[i] && nodes[i]!.id === targetId) {
                     const removed = nodes.splice(i, 1)[0];
-                    return removed;
+                    return removed ?? null;
                 }
-                const found = removeNode(nodes[i].children || [], targetId);
+                const found = nodes[i] ? removeNode(nodes[i]!.children || [], targetId) : null;
                 if (found) return found;
             }
             return null;
@@ -272,10 +272,10 @@ export class TauriNodeRepository implements INodeRepository {
 
         const removeNode = (nodes: StructureNode[], targetId: string): StructureNode | null => {
             for (let i = 0; i < nodes.length; i++) {
-                if (nodes[i].id === targetId) {
-                    return nodes.splice(i, 1)[0];
+                if (nodes[i] && nodes[i]!.id === targetId) {
+                    return nodes.splice(i, 1)[0] ?? null;
                 }
-                const found = removeNode(nodes[i].children || [], targetId);
+                const found = nodes[i] ? removeNode(nodes[i]!.children || [], targetId) : null;
                 if (found) return found;
             }
             return null;

@@ -6,8 +6,8 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { generateText, generateTextStream } from '@/lib/core/ai-client';
-import { getValidatedModel, formatAIError, buildAIPrompt, persistModelSelection } from '@/lib/ai-utils';
-import { toast } from '@/lib/toast-service';
+import { getValidatedModel, formatAIError, buildAIPrompt, persistModelSelection } from '@/shared/utils/ai-utils';
+import { toast } from '@/shared/utils/toast-service';
 import { AI_DEFAULTS } from '@/lib/config/constants';
 
 export interface UseAIOptions {
@@ -112,8 +112,8 @@ export function useAI(options: UseAIOptions = {}) {
         try {
             // Build prompt with context
             const { system, prompt } = buildAIPrompt({
-                system: options.system,
-                context: genOptions.context,
+                ...(options.system && { system: options.system }),
+                ...(genOptions.context && { context: genOptions.context }),
                 prompt: genOptions.prompt,
             });
 
@@ -202,8 +202,8 @@ export function useAI(options: UseAIOptions = {}) {
 
         try {
             const { system, prompt } = buildAIPrompt({
-                system: options.system,
-                context: genOptions.context,
+                ...(options.system && { system: options.system }),
+                ...(genOptions.context && { context: genOptions.context }),
                 prompt: genOptions.prompt,
             });
 

@@ -12,7 +12,7 @@ import {
     listCodexEntryTags,
     saveCodexEntryTag,
     deleteCodexEntryTag
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 export class TauriCodexTagRepository implements ICodexTagRepository {

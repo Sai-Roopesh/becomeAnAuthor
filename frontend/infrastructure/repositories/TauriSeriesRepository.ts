@@ -3,7 +3,7 @@ import {
     createSeries,
     updateSeries,
     deleteSeries
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import type { ISeriesRepository } from '@/domain/repositories/ISeriesRepository';
 import type { Series } from '@/domain/entities/types';
 

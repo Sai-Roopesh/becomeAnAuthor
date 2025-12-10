@@ -14,7 +14,7 @@ import {
     getChatMessages,
     createChatMessage,
     deleteChatMessage
-} from '@/lib/tauri';
+} from '@/core/tauri';
 import { getCurrentProjectPath } from './TauriNodeRepository';
 
 /**
@@ -151,7 +151,7 @@ export class TauriChatRepository implements IChatRepository {
             threadId: message.threadId,
             role: message.role,
             content: message.content,
-            model: message.model || undefined,
+            ...(message.model !== undefined && { model: message.model }),
             timestamp: Date.now(),
         };
 

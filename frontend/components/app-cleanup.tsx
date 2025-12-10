@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { freeTokenCounters } from '@/lib/token-counter';
+import { freeTokenCounters } from '@/shared/utils/token-counter';
 
 /**
  * Cleanup Component

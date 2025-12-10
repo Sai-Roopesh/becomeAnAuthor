@@ -2,9 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useNodeRepository } from '@/hooks/use-node-repository';
-import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
-import { useSceneCodexLinkRepository } from '@/hooks/use-scene-codex-link-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useProjectStore } from '@/store/use-project-store';
 import type { DocumentNode, CodexEntry, CodexCategory, SceneCodexLink } from '@/lib/config/types';
 import { Button } from '@/components/ui/button';
@@ -67,8 +65,7 @@ type LaneCategory = 'character' | 'subplot' | 'location';
  */
 export function TimelineView({ projectId, nodes, searchQuery }: TimelineViewProps) {
     const { setActiveSceneId, setViewMode } = useProjectStore();
-    const codexRepo = useCodexRepository();
-    const linkRepo = useSceneCodexLinkRepository();
+    const { codexRepository: codexRepo, sceneCodexLinkRepository: linkRepo } = useAppServices();
 
     const [visibleCategories, setVisibleCategories] = useState<LaneCategory[]>(['character', 'subplot']);
     const [scrollPosition, setScrollPosition] = useState(0);
@@ -319,12 +316,12 @@ export function TimelineView({ projectId, nodes, searchQuery }: TimelineViewProp
                                 style={{ height: LANE_HEIGHT, width: totalWidth }}
                             >
                                 {/* Connection line */}
-                                {sceneIndices.length > 1 && (
+                                {sceneIndices.length > 1 && sceneIndices[0] !== undefined && sceneIndices[sceneIndices.length - 1] !== undefined && (
                                     <div
                                         className={`absolute top-1/2 h-0.5 ${config.color} opacity-30`}
                                         style={{
                                             left: sceneIndices[0] * (SCENE_WIDTH + SCENE_GAP) + SCENE_WIDTH / 2,
-                                            width: (sceneIndices[sceneIndices.length - 1] - sceneIndices[0]) * (SCENE_WIDTH + SCENE_GAP),
+                                            width: ((sceneIndices[sceneIndices.length - 1] ?? 0) - (sceneIndices[0] ?? 0)) * (SCENE_WIDTH + SCENE_GAP),
                                         }}
                                     />
                                 )}
@@ -332,6 +329,7 @@ export function TimelineView({ projectId, nodes, searchQuery }: TimelineViewProp
                                 {/* Scene nodes */}
                                 {sceneIndices.map(sceneIndex => {
                                     const scene = scenes[sceneIndex];
+                                    if (!scene) return null;
                                     const link = links?.find(l => l.sceneId === scene.id && l.codexId === lane.id);
                                     const isPov = link?.role === 'pov';
 

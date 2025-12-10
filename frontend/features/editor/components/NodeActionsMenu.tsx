@@ -7,11 +7,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { useAI } from '@/hooks/use-ai';
-import { toast } from '@/lib/toast-service';
+import { toast } from '@/shared/utils/toast-service';
 import { isScene, Scene } from '@/lib/config/types';
-import { extractTextFromTiptapJSON } from '@/lib/utils/editor';
+import { extractTextFromTiptapJSON } from '@/shared/utils/editor';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
-import { useNodeRepository } from '@/hooks/use-node-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 interface NodeActionsMenuProps {
     nodeId: string;
@@ -20,7 +20,7 @@ interface NodeActionsMenuProps {
 }
 
 export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuProps) {
-    const nodeRepo = useNodeRepository();
+    const { nodeRepository: nodeRepo } = useAppServices();
     const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const { generate, isGenerating } = useAI({
