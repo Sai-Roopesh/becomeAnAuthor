@@ -7,7 +7,7 @@
 **Protocol**: Tauri IPC (JSON-RPC-like)  
 **Transport**: Local process communication (no HTTP)  
 **Format**: JSON serialization (Serde)  
-**Total Commands**: 80+ IPC commands  
+**Total Commands**: 85+ IPC commands  
 
 ---
 
@@ -25,8 +25,10 @@
 | **Trash Management** | 5 | Soft delete, restore, list, permanent delete, empty trash |
 | **Search** | 1 | Full-text search across project |
 | **Series Management** | 4 | Multi-book series organization (list, create, update, delete) |
+| **Security** | 4 | **NEW** - API key storage in OS keychain |
+| **Migration** | 2 | **NEW** - Data migration and versioning |
 | **Utility** | 1 | App info |
-| **TOTAL** | **68** | **All Tauri IPC commands** |
+| **TOTAL** | **74** | **All Tauri IPC commands** |
 
 
 ---
