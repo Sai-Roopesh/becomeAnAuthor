@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useRef } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppServices } from '@/infrastructure/di/AppContext';

@@ -1,3 +1,4 @@
+"use client";
 /**
  * Custom hook for auto-saving editor content to the database
  * Handles debounced saves with error recovery and emergency backup

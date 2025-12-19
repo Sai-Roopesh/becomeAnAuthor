@@ -1,3 +1,4 @@
+"use client";
 import { useCallback } from 'react';
 import { toast } from '@/shared/utils/toast-service';
 

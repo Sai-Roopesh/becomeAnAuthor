@@ -1,3 +1,4 @@
+"use client";
 /**
  * Unified AI Hook
  * Single hook for all AI generation with streaming, cancellation, and state management

@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppServices } from '@/infrastructure/di/AppContext';

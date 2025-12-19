@@ -22,7 +22,7 @@ import { ProjectNavigation } from '../../../navigation/components/ProjectNavigat
 import { StoryTimeline } from '../story-timeline';
 import { FocusModeToggle } from '../FocusModeToggle';
 import type { DocumentNode, Snippet } from '@/lib/config/types';
-import type { SnippetRepository } from '@/domain/repositories';
+import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 
 interface DesktopLayoutProps {
     projectId: string;
@@ -33,7 +33,7 @@ interface DesktopLayoutProps {
     hasActiveScene: boolean;
     editorWordCount: number;
     pinnedSnippets: Snippet[] | undefined;
-    snippetRepo: SnippetRepository;
+    snippetRepo: ISnippetRepository;
     onToggleSidebar: () => void;
     onToggleTimeline: () => void;
     onWordCountChange: (count: number) => void;

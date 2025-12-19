@@ -1,3 +1,4 @@
+"use client";
 import { useState } from 'react';
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';

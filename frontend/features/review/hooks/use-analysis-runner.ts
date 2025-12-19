@@ -1,3 +1,4 @@
+"use client";
 import { useState } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { toast } from '@/shared/utils/toast-service';

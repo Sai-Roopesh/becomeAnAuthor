@@ -1,0 +1,2 @@
+2025-12-19T14:51:51.602833Z  INFO app_lib::utils::logger: src/utils/logger.rs:56: Structured logging initialized.
+2025-12-19T14:55:33.408258Z  INFO app_lib::utils::logger: src/utils/logger.rs:56: Structured logging initialized.

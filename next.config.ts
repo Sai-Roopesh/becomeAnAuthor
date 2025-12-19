@@ -17,6 +17,36 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
 
   turbopack: {}, // Empty config to silence warning
+
+  // Enable WebAssembly for tiktoken and suppress warnings
+  webpack: (config, { isServer }) => {
+    // Enable WebAssembly support
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+      layers: true,
+    };
+
+    // Suppress the WASM async/await warning for tiktoken
+    // This warning is harmless because:
+    // 1. tiktoken is only used client-side (server-side uses fallback)
+    // 2. Modern browsers support async/await with WASM
+    // 3. The code has proper error handling and fallbacks
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      {
+        module: /node_modules\/@dqbd\/tiktoken/,
+        message: /asyncWebAssembly/,
+      },
+    ];
+
+    // On client-side, configure WASM file handling
+    if (!isServer) {
+      config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm';
+    }
+
+    return config;
+  },
 };
 
 export default nextConfig;

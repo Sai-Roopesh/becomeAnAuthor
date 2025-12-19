@@ -88,8 +88,7 @@ export function ChatMessageList({
                     </div>
                 </div>
             )}
-            <div ref={messagesEndRef} className="h-4" />
-        </div>
+            <div ref={messagesEndRef as React.RefObject<HTMLDivElement>} className="h-4" /></div>
     );
 }
 

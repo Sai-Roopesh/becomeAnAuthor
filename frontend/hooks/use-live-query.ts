@@ -1,3 +1,4 @@
+"use client";
 /**
  * useLiveQuery Compatibility Shim
  * 

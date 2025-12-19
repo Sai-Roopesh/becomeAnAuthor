@@ -1,3 +1,4 @@
+"use client";
 /**
  * Centralized Context Assembly Hook
  * Eliminates code duplication between AIChat and tiptap-editor

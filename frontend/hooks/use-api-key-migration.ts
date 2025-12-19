@@ -2,6 +2,8 @@
  * Hook to run API key migration from localStorage to OS keychain
  * Runs once on app mount
  */
+"use client";
+
 
 import { useEffect, useState } from 'react';
 import { migrateAPIKeysFromLocalStorage } from '@/core/storage/api-keys';

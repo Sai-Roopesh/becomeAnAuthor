@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useState } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { StoryAnalysis } from '@/lib/config/types';

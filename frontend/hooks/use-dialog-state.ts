@@ -1,3 +1,4 @@
+"use client";
 import { useReducer, Reducer } from 'react';
 import type { ContextItem } from '@/features/shared';
 
