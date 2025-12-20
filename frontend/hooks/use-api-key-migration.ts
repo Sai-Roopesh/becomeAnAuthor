@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { migrateAPIKeysFromLocalStorage } from '@/core/storage/api-keys';
+import { logger } from '@/core/logger';
 
 export function useAPIKeyMigration() {
     const [migrated, setMigrated] = useState(false);
@@ -18,16 +19,16 @@ export function useAPIKeyMigration() {
 
         async function runMigration() {
             try {
-                console.log('🔐 Checking for API keys to migrate...');
+                logger.debug('🔐 Checking for API keys to migrate');
                 const count = await migrateAPIKeysFromLocalStorage();
                 setMigrationCount(count);
                 setMigrated(true);
 
                 if (count > 0) {
-                    console.log(`✅ Successfully migrated ${count} API key(s) to secure storage`);
+                    logger.info(`✅ Successfully migrated ${count} API key(s) to secure storage`);
                 }
             } catch (error) {
-                console.error('Failed to run API key migration:', error);
+                logger.error('Failed to run API key migration', error instanceof Error ? error : undefined);
                 setMigrated(true); // Mark as attempted even if failed
             }
         }

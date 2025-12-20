@@ -187,15 +187,11 @@ export class TauriNodeRepository implements INodeRepository {
             const node = allNodes.find(n => n.id === id) as Scene & { _tauriFile?: string } | undefined;
 
             if (node?._tauriFile) {
-                // Convert Tiptap JSON to text (simplified)
-                let textContent = '';
-                if (typeof data.content === 'object' && 'content' in data.content) {
-                    textContent = JSON.stringify(data.content);
-                }
-
-                await saveScene(currentProjectPath, node._tauriFile, textContent, data.title);
+                // saveScene expects TiptapContent object, not string
+                await saveScene(currentProjectPath, node._tauriFile, data.content, data.title);
             }
         }
+
 
         // Update structure if title changed
         if (data.title) {

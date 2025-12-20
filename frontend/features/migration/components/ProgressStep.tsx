@@ -19,7 +19,8 @@ export function ProgressStep({ progress, status, error }: ProgressStepProps) {
         { label: 'Finalizing...', threshold: 100 },
     ];
 
-    const currentStepLabel = steps.reverse().find(s => progress >= s.threshold)?.label || steps[0].label;
+    const currentStepLabel = steps.reverse().find(s => progress >= s.threshold)?.label || steps[0]?.label || 'Processing...';
+
 
     return (
         <div className="space-y-8 py-4">

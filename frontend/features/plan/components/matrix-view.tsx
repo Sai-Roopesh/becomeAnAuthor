@@ -2,7 +2,7 @@
 
 import { DocumentNode } from '@/lib/config/types';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table } from 'lucide-react';

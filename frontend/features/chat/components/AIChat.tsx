@@ -5,7 +5,7 @@ import { type ContextItem } from '@/features/shared/components';
 import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
 import { getPromptTemplate } from '@/shared/prompts/templates';
 import { useAI } from '@/hooks/use-ai';
-import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
+import { useChatRepository } from '@/hooks/use-chat-repository';
 import { useContextAssembly } from '@/hooks/use-context-assembly';
 import { ChatMessage } from '@/lib/config/types';
 import { useLiveQuery } from '@/hooks/use-live-query';

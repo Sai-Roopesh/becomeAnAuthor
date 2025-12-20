@@ -1,7 +1,23 @@
 import { ReactRenderer } from '@tiptap/react';
-import tippy from 'tippy.js';
-import { MentionList } from './mention-list';
+import tippy, { Instance as TippyInstance } from 'tippy.js';
+import { MentionList, MentionListRef } from './mention-list';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
+import type { Editor } from '@tiptap/core';
+
+// Type for Tiptap suggestion callback props
+interface SuggestionProps {
+    editor: Editor;
+    clientRect?: (() => DOMRect | null) | null;
+    items: Array<{ id: string; name: string; category: string }>;
+    command: (item: { id: string; label: string }) => void;
+    event?: KeyboardEvent;
+}
+
+// Type for onKeyDown specifically (Tiptap only passes event)
+interface SuggestionKeyDownProps {
+    event: KeyboardEvent;
+}
+
 
 /**
  * Creates a Tiptap suggestion configuration for codex mentions
@@ -24,11 +40,11 @@ export const createCodexSuggestion = (projectId: string, codexRepo: ICodexReposi
     },
 
     render: () => {
-        let component: ReactRenderer;
-        let popup: any;
+        let component: ReactRenderer<MentionListRef>;
+        let popup: TippyInstance[];
 
         return {
-            onStart: (props: any) => {
+            onStart: (props: SuggestionProps) => {
                 component = new ReactRenderer(MentionList, {
                     props,
                     editor: props.editor,
@@ -39,7 +55,10 @@ export const createCodexSuggestion = (projectId: string, codexRepo: ICodexReposi
                 }
 
                 popup = tippy('body', {
-                    getReferenceClientRect: props.clientRect,
+                    getReferenceClientRect: () => {
+                        const rect = props.clientRect?.();
+                        return rect || new DOMRect(0, 0, 0, 0);
+                    },
                     appendTo: () => document.body,
                     content: component.element,
                     showOnCreate: true,
@@ -49,32 +68,34 @@ export const createCodexSuggestion = (projectId: string, codexRepo: ICodexReposi
                 });
             },
 
-            onUpdate(props: any) {
+            onUpdate(props: SuggestionProps) {
                 component.updateProps(props);
 
                 if (!props.clientRect) {
                     return;
                 }
 
-                popup[0].setProps({
-                    getReferenceClientRect: props.clientRect,
+                popup?.[0]?.setProps({
+                    getReferenceClientRect: () => {
+                        const rect = props.clientRect?.();
+                        return rect || new DOMRect(0, 0, 0, 0);
+                    },
                 });
             },
 
-            onKeyDown(props: any) {
+            onKeyDown(props: SuggestionKeyDownProps) {
                 if (props.event.key === 'Escape') {
-                    popup[0].hide();
+                    popup?.[0]?.hide();
                     return true;
                 }
 
-                return (component.ref as any)?.onKeyDown(props);
+                return component.ref?.onKeyDown({ event: props.event }) ?? false;
             },
 
             onExit() {
-                popup[0].destroy();
+                popup?.[0]?.destroy();
                 component.destroy();
             },
         };
     },
 });
-

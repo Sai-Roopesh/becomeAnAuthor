@@ -3,7 +3,7 @@
  * Defines all supported AI vendors and their settings
  */
 
-export type AIProvider = 'openrouter' | 'google' | 'mistral' | 'openai' | 'kimi';
+export type AIProvider = 'openrouter' | 'google' | 'mistral' | 'openai' | 'kimi' | 'anthropic';
 
 export interface AIVendor {
     id: AIProvider;
@@ -116,6 +116,23 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         ],
         requiresAuth: true,
     },
+    anthropic: {
+        id: 'anthropic',
+        name: 'Anthropic',
+        description: 'Claude models (Opus, Sonnet, Haiku)',
+        apiEndpoint: 'https://api.anthropic.com/v1',
+        modelsEndpoint: 'https://api.anthropic.com/v1/models',
+        apiKeyFormat: 'sk-ant-...',
+        apiKeyPlaceholder: 'sk-ant-api03-...',
+        setupUrl: 'https://console.anthropic.com/settings/keys',
+        icon: '🧠',
+        defaultModels: [
+            'claude-3-5-sonnet-latest',
+            'claude-3-5-haiku-latest',
+            'claude-3-opus-latest',
+        ],
+        requiresAuth: true,
+    },
 };
 
 export interface AIConnection {
@@ -163,6 +180,8 @@ export function validateApiKey(provider: AIProvider, apiKey: string): boolean {
             return apiKey.length > 10; // Basic length check
         case 'openai':
             return true; // OpenAI compatible can have various formats
+        case 'anthropic':
+            return apiKey.startsWith('sk-ant-');
         default:
             return true;
     }

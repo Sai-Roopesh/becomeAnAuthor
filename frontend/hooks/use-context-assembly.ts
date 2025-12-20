@@ -6,7 +6,17 @@
 
 import { useCallback, useRef } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import { logger } from '@/core/logger';
 import type { ContextItem } from '@/features/shared/components';
+import type { Scene, Act, Chapter, BaseNode } from '@/domain/entities/types';
+
+// Union type for all node types
+type StoryNode = Scene | Act | Chapter | (BaseNode & { type: string });
+
+// Type guard for scene nodes
+function isSceneNode(node: StoryNode): node is Scene {
+    return node.type === 'scene';
+}
 
 /**
  * Hook for assembling context from selected items
@@ -31,7 +41,7 @@ export function useContextAssembly(projectId: string) {
                 .join('|');
 
             if (cacheRef.current.has(cacheKey)) {
-                console.log('[ContextAssembly] Cache hit:', cacheKey);
+                logger.debug('[ContextAssembly] Cache hit', { cacheKey });
                 return cacheRef.current.get(cacheKey)!;
             }
 
@@ -42,46 +52,46 @@ export function useContextAssembly(projectId: string) {
                 try {
                     if (context.type === 'novel') {
                         // Fetch all scenes and combine
-                        const scenes = await nodeRepo.getByProject(projectId);
-                        const sceneNodes = scenes.filter((n: any) => n.type === 'scene');
+                        const nodes = await nodeRepo.getByProject(projectId) as StoryNode[];
+                        const sceneNodes = nodes.filter(isSceneNode);
                         for (const scene of sceneNodes) {
-                            const sceneContext = contextAssembler.createSceneContext(scene as any);
+                            const sceneContext = contextAssembler.createSceneContext(scene);
                             contexts.push(sceneContext.content);
                         }
                     } else if (context.type === 'outline') {
                         // Fetch structure outline
-                        const nodes = await nodeRepo.getByProject(projectId);
+                        const nodes = await nodeRepo.getByProject(projectId) as StoryNode[];
                         const outline = nodes
-                            .map((n: any) => `${n.type.toUpperCase()}: ${n.title}`)
+                            .map((n) => `${n.type.toUpperCase()}: ${n.title}`)
                             .join('\\n');
                         contexts.push(`=== OUTLINE ===\\n${outline}`);
                     } else if (context.type === 'scene' && context.id) {
                         // Fetch specific scene
-                        const scene = await nodeRepo.get(context.id);
+                        const scene = await nodeRepo.get(context.id) as Scene | undefined;
                         if (scene) {
-                            const sceneContext = contextAssembler.createSceneContext(scene as any);
+                            const sceneContext = contextAssembler.createSceneContext(scene);
                             contexts.push(sceneContext.content);
                         }
                     } else if (context.type === 'act' && context.id) {
                         // Fetch all scenes in act
-                        const children = await nodeRepo.getChildren(context.id);
+                        const children = await nodeRepo.getChildren(context.id) as StoryNode[];
                         for (const child of children) {
-                            if (child.type === 'scene') {
-                                const sceneContext = contextAssembler.createSceneContext(child as any);
+                            if (isSceneNode(child)) {
+                                const sceneContext = contextAssembler.createSceneContext(child);
                                 contexts.push(sceneContext.content);
                             } else if (child.type === 'chapter') {
-                                const grandchildren = await nodeRepo.getChildren(child.id);
-                                for (const scene of grandchildren.filter((n: any) => n.type === 'scene')) {
-                                    const sceneContext = contextAssembler.createSceneContext(scene as any);
+                                const grandchildren = await nodeRepo.getChildren(child.id) as StoryNode[];
+                                for (const scene of grandchildren.filter(isSceneNode)) {
+                                    const sceneContext = contextAssembler.createSceneContext(scene);
                                     contexts.push(sceneContext.content);
                                 }
                             }
                         }
                     } else if (context.type === 'chapter' && context.id) {
                         // Fetch all scenes in chapter
-                        const children = await nodeRepo.getChildren(context.id);
-                        for (const scene of children.filter((n: any) => n.type === 'scene')) {
-                            const sceneContext = contextAssembler.createSceneContext(scene as any);
+                        const children = await nodeRepo.getChildren(context.id) as StoryNode[];
+                        for (const scene of children.filter(isSceneNode)) {
+                            const sceneContext = contextAssembler.createSceneContext(scene);
                             contexts.push(sceneContext.content);
                         }
                     } else if (context.type === 'codex' && context.id) {

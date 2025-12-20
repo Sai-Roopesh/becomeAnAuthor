@@ -253,7 +253,10 @@ pub fn import_project_backup(backup_json: String) -> Result<ProjectMeta, String>
                     obj.insert("projectId".to_string(), serde_json::Value::String(new_id.clone()));
                 }
                 let entry_path = project_dir.join("codex").join(category).join(format!("{}.json", id));
-                fs::create_dir_all(entry_path.parent().unwrap()).map_err(|e| e.to_string())?;
+                let parent_dir = entry_path.parent()
+                    .ok_or_else(|| format!("Invalid codex entry path: {:?}", entry_path))?;
+                fs::create_dir_all(parent_dir)
+                    .map_err(|e| format!("Failed to create codex directory: {}", e))?;
                 let json = serde_json::to_string_pretty(&entry_clone).map_err(|e| e.to_string())?;
                 fs::write(entry_path, json).map_err(|e| e.to_string())?;
             }

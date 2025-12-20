@@ -1,4 +1,4 @@
-import type { CodexEntry, CodexCategory } from '@/lib/config/types';
+import type { CodexEntry, CodexCategory } from '@/domain/entities/types';
 
 /**
  * Repository interface for Codex entries (worldbuilding)
@@ -45,3 +45,4 @@ export interface ICodexRepository {
      */
     bulkDelete(ids: string[]): Promise<void>;
 }
+

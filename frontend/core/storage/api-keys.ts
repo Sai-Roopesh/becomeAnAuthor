@@ -7,10 +7,12 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { AIProvider } from '@/lib/config/ai-vendors';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('APIKeys');
 import { storage } from './safe-storage';
 import { toast } from '@/shared/utils/toast-service';
-
-export type AIProvider = 'openai' | 'anthropic' | 'google' | 'openrouter';
 
 /**
  * Store an API key securely in OS keychain
@@ -18,7 +20,7 @@ export type AIProvider = 'openai' | 'anthropic' | 'google' | 'openrouter';
 export async function storeAPIKey(provider: AIProvider, apiKey: string): Promise<boolean> {
     try {
         await invoke('store_api_key', { provider, key: apiKey });
-        console.log(`Stored API key for ${provider} in OS keychain`);
+        log.debug(`Stored API key for ${provider} in OS keychain`);
         return true;
     } catch (error) {
         console.error(`Failed to store API key for ${provider}:`, error);
@@ -47,7 +49,7 @@ export async function getAPIKey(provider: AIProvider): Promise<string | null> {
 export async function deleteAPIKey(provider: AIProvider): Promise<boolean> {
     try {
         await invoke('delete_api_key', { provider });
-        console.log(`Deleted API key for ${provider}`);
+        log.debug(`Deleted API key for ${provider}`);
         return true;
     } catch (error) {
         console.error(`Failed to delete API key for ${provider}:`, error);
@@ -83,7 +85,7 @@ export async function migrateAPIKeysFromLocalStorage(): Promise<number> {
             const legacyKey = storage.getItem<string | null>(`ai-api-key-${provider}`, null);
 
             if (legacyKey) {
-                console.log(`Found legacy ${provider} API key in localStorage, migrating...`);
+                log.debug(`Found legacy ${provider} API key in localStorage, migrating...`);
 
                 // Store in OS keychain
                 const success = await storeAPIKey(provider, legacyKey);
@@ -92,7 +94,7 @@ export async function migrateAPIKeysFromLocalStorage(): Promise<number> {
                     // Remove from localStorage after successful migration
                     storage.removeItem(`ai-api-key-${provider}`);
                     migratedCount++;
-                    console.log(`✅ Migrated ${provider} API key to OS keychain`);
+                    log.debug(`✅ Migrated ${provider} API key to OS keychain`);
                 } else {
                     console.error(`❌ Failed to migrate ${provider} API key`);
                 }
@@ -100,7 +102,7 @@ export async function migrateAPIKeysFromLocalStorage(): Promise<number> {
         }
 
         if (migratedCount > 0) {
-            console.log(`🔐 Migrated ${migratedCount} API key(s) to secure storage`);
+            log.info(`🔐 Migrated ${migratedCount} API key(s) to secure storage`);
             toast.success(`Migrated ${migratedCount} API key(s) to secure storage`, {
                 duration: 5000,
             });

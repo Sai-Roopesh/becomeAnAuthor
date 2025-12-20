@@ -4,6 +4,10 @@
  */
 
 import { AIConnection, AI_VENDORS, AIProvider, getVendor } from '@/lib/config/ai-vendors';
+import { getAPIKey } from '@/core/storage/api-keys';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('AIClient');
 import { storage } from '@/core/storage/safe-storage';
 import { fetchWithTimeout } from '@/core/api/fetch-utils';
 import { withRetry } from '@/shared/utils/retry-utils';
@@ -821,7 +825,7 @@ async function streamWithGoogle(connection: AIConnection, options: GenerateStrea
     }
     parts.push({ text: options.prompt });
 
-    console.log('[streamWithGoogle] Calling endpoint:', endpoint);
+    log.debug('Calling Google AI endpoint', { endpoint });
 
     const response = await fetch(endpoint, {
         method: 'POST',
@@ -841,7 +845,7 @@ async function streamWithGoogle(connection: AIConnection, options: GenerateStrea
         ...(options.signal && { signal: options.signal }),
     });
 
-    console.log('[streamWithGoogle] Response status:', response.status, response.statusText);
+    log.debug('Response status', { status: response.status, statusText: response.statusText });
 
     if (!response.ok) {
         const error = await response.text();
@@ -852,12 +856,12 @@ async function streamWithGoogle(connection: AIConnection, options: GenerateStrea
     await parseSSEStream(
         response,
         (chunk: string) => {
-            console.log('[streamWithGoogle] Received chunk');
+            log.debug('Received chunk');
             fullText += chunk;
             options.onChunk(chunk);
         },
         () => {
-            console.log('[streamWithGoogle] Stream complete, total length:', fullText.length);
+            log.debug('Stream complete', { totalLength: fullText.length });
             options.onComplete?.(fullText);
         },
         options.signal

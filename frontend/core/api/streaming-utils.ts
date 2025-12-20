@@ -3,6 +3,8 @@
  * SSE parser and streaming helpers for AI responses
  */
 
+import { logger } from '@/core/logger';
+
 /**
  * Parse Server-Sent Events (SSE) stream
  * Used by OpenRouter, OpenAI, Mistral, Kimi
@@ -76,10 +78,22 @@ export async function parseSSEStream(
  * Extract content from SSE chunk
  * Handles different provider formats
  */
-function extractContent(data: any): string | null {
+interface SSEChunk {
+    choices?: Array<{
+        delta?: { content?: string };
+        text?: string;
+    }>;
+    candidates?: Array<{
+        content?: {
+            parts?: Array<{ text?: string }>;
+        };
+    }>;
+}
+
+function extractContent(data: SSEChunk): string | null {
     // Log the raw data structure to understand Gemini's format
     if (data.candidates) {
-        console.log('[SSE] Gemini format detected:', JSON.stringify(data, null, 2));
+        logger.debug('[SSE] Gemini format detected', { data });
     }
 
     // OpenRouter/OpenAI/Mistral format
@@ -94,7 +108,7 @@ function extractContent(data: any): string | null {
 
     // Google Gemini SSE format
     if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        console.log('[SSE] Extracting Gemini text:', data.candidates[0].content.parts[0].text.substring(0, 50));
+        logger.debug('[SSE] Extracting Gemini text', { preview: data.candidates[0].content.parts[0].text.substring(0, 50) });
         return data.candidates[0].content.parts[0].text;
     }
 
@@ -146,7 +160,7 @@ export async function parseGeminiStream(
                     if (braceCount === 0 && currentObject.trim()) {
                         try {
                             const data = JSON.parse(currentObject);
-                            console.log('[Gemini] Parsed object:', data);
+                            logger.debug('[Gemini] Parsed object', { data });
 
                             // Extract text from Gemini response structure
                             const candidates = data.candidates || [];
@@ -155,7 +169,7 @@ export async function parseGeminiStream(
                                 if (content && content.parts) {
                                     for (const part of content.parts) {
                                         if (part.text) {
-                                            console.log('[Gemini] Extracted text:', part.text.substring(0, 50) + '...');
+                                            logger.debug('[Gemini] Extracted text', { preview: part.text.substring(0, 50) });
                                             onChunk(part.text);
                                         }
                                     }

@@ -6,7 +6,7 @@ import { useFormatStore } from '@/store/use-format-store';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import { useSnippetRepository } from '@/features/snippets/hooks/use-snippet-repository';
+import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 import { useEditorState } from '../hooks/useEditorState';
 import { FocusModeLayout } from './editor-layout/FocusModeLayout';
 import { MobileLayout } from './editor-layout/MobileLayout';

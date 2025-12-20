@@ -23,6 +23,8 @@ import { StoryTimeline } from '../story-timeline';
 import { FocusModeToggle } from '../FocusModeToggle';
 import type { DocumentNode, Snippet } from '@/lib/config/types';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
+import { isElementNode } from '@/shared/types/tiptap';
+
 
 interface DesktopLayoutProps {
     projectId: string;
@@ -226,8 +228,14 @@ export function DesktopLayout({
                                                     </Button>
                                                 </div>
                                                 <div className="text-xs text-muted-foreground prose prose-sm dark:prose-invert max-w-none line-clamp-6 leading-relaxed">
-                                                    {snippet.content?.content?.[0]?.content?.[0]?.text ||
-                                                        'Empty snippet'}
+                                                    {(() => {
+                                                        const firstNode = snippet.content?.content?.[0];
+                                                        if (!firstNode || !isElementNode(firstNode)) return 'Empty snippet';
+                                                        // Now TypeScript knows firstNode has content property
+                                                        const firstContent = firstNode.content?.[0];
+                                                        if (!firstContent || !('text' in firstContent)) return 'Empty snippet';
+                                                        return firstContent.text;
+                                                    })()}
                                                 </div>
                                             </div>
                                         ))}

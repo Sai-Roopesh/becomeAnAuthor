@@ -5,13 +5,18 @@ import { SearchResultItem } from './SearchResultItem';
 import { SearchEmptyState } from './SearchEmptyState';
 import type { SearchResult, SearchableScene, SearchableCodex } from '@/lib/search-service';
 
+// Union type for search results with their type
+type SearchResultWithType =
+    | (SearchResult<SearchableScene> & { resultType: 'scene' })
+    | (SearchResult<SearchableCodex> & { resultType: 'codex' });
+
 interface SearchResultsProps {
     results: {
         scenes: SearchResult<SearchableScene>[];
         codex: SearchResult<SearchableCodex>[];
     };
     selectedIndex: number;
-    onSelect: (result: any) => void;
+    onSelect: (result: SearchResultWithType) => void;
     isLoading: boolean;
     query: string;
 }

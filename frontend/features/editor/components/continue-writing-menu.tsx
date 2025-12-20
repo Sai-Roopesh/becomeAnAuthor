@@ -34,12 +34,16 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onO
 
     useEffect(() => {
         // Load default model from AI connections with safe parsing
-        const connections = storage.getItem<any[]>('ai_connections', []);
+        interface AIConnection {
+            enabled: boolean;
+            models?: string[];
+        }
+        const connections = storage.getItem<AIConnection[]>('ai_connections', []);
         const allModels = connections
-            .filter((c: any) => c.enabled)
-            .flatMap((c: any) => c.models || []);
+            .filter((c) => c.enabled)
+            .flatMap((c) => c.models || []);
 
-        if (allModels.length > 0 && !state.model) {
+        if (allModels.length > 0 && !state.model && allModels[0]) {
             dispatch({ type: 'SET_MODEL', payload: allModels[0] });
         } else if (!state.model && allModels.length === 0) {
             // No AI connections configured - try last used
@@ -48,6 +52,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onO
                 dispatch({ type: 'SET_MODEL', payload: lastUsed });
             }
         }
+
     }, [state.model]);
 
     const handleModeSelect = (mode: GenerationMode) => {

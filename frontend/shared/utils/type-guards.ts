@@ -4,6 +4,8 @@
  */
 
 import type { DocumentNode } from '@/domain/entities/types';
+import type { TiptapContent } from '@/shared/types/tiptap';
+
 
 // ============================================================================
 // Type Predicates (Type Guards)
@@ -153,7 +155,7 @@ export function canHaveChildren(node: DocumentNode | null | undefined): boolean 
 /**
  * Safely get scene content, returns null if not a scene
  */
-export function getSceneContent(node: DocumentNode | null | undefined): string | null {
+export function getSceneContent(node: DocumentNode | null | undefined): TiptapContent | null {
     return isScene(node) ? node.content : null;
 }
 
@@ -168,7 +170,8 @@ export function getSceneContent(node: DocumentNode | null | undefined): string |
 /**
  * Safely get any content (scene only for DocumentNode), returns null if no content
  */
-export function getAnyContent(node: DocumentNode | null | undefined): string | null {
+export function getAnyContent(node: DocumentNode | null | undefined): TiptapContent | null {
     if (isScene(node)) return node.content;
     return null;
 }
+

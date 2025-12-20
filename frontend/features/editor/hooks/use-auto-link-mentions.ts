@@ -3,10 +3,18 @@
 import { useCallback } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { SceneCodexLinkRole } from '@/lib/config/types';
+import type { TiptapContent, TiptapNode } from '@/shared/types/tiptap';
 
 interface MentionData {
     id: string;
     name: string;
+    category?: string;
+}
+
+// Type for mention node attributes
+interface MentionAttrs {
+    id: string;
+    label?: string;
     category?: string;
 }
 
@@ -20,23 +28,26 @@ export function useAutoLinkMentions() {
     /**
      * Extract all mention nodes from Tiptap JSON content
      */
-    const extractMentions = useCallback((content: any): MentionData[] => {
+    const extractMentions = useCallback((content: TiptapContent | null | undefined): MentionData[] => {
         const mentions: MentionData[] = [];
 
-        const traverse = (node: any) => {
+        const traverse = (node: TiptapNode | TiptapContent | null | undefined): void => {
             if (!node) return;
 
             // Check if this is a mention node
-            if (node.type === 'mention' && node.attrs?.id) {
-                mentions.push({
-                    id: node.attrs.id,
-                    name: node.attrs.label || node.attrs.id,
-                    category: node.attrs.category,
-                });
+            if (node.type === 'mention') {
+                const attrs = node.attrs as MentionAttrs | undefined;
+                if (attrs?.id) {
+                    mentions.push({
+                        id: attrs.id,
+                        name: attrs.label || attrs.id,
+                        ...(attrs.category && { category: attrs.category }),
+                    });
+                }
             }
 
             // Recursively traverse content
-            if (Array.isArray(node.content)) {
+            if ('content' in node && Array.isArray(node.content)) {
                 node.content.forEach(traverse);
             }
         };
@@ -73,7 +84,7 @@ export function useAutoLinkMentions() {
     const syncMentions = useCallback(async (
         sceneId: string,
         projectId: string,
-        content: any
+        content: TiptapContent | null | undefined
     ): Promise<{ added: number; removed: number }> => {
         // Extract mentions from content
         const mentions = extractMentions(content);
@@ -126,7 +137,7 @@ export function useAutoLinkMentions() {
     /**
      * Check if content has any @mentions
      */
-    const hasMentions = useCallback((content: any): boolean => {
+    const hasMentions = useCallback((content: TiptapContent | null | undefined): boolean => {
         return extractMentions(content).length > 0;
     }, [extractMentions]);
 
@@ -136,3 +147,4 @@ export function useAutoLinkMentions() {
         hasMentions,
     };
 }
+

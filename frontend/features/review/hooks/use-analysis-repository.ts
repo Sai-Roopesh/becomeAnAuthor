@@ -1,4 +1,5 @@
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import type { StoryAnalysis } from '@/domain/entities/types';
 
 /**
  * Hook providing access to analysis repository
@@ -11,7 +12,7 @@ export function useAnalysisRepository() {
         getAll: (projectId: string) => analysisRepository.getByProject(projectId),
         getByType: (projectId: string, type: string) => analysisRepository.getByType(projectId, type),
         getLatest: (projectId: string) => analysisRepository.getLatest(projectId),
-        create: (analysis: any) => analysisRepository.create(analysis),
+        create: (analysis: Omit<StoryAnalysis, 'id'>) => analysisRepository.create(analysis),
         dismiss: (id: string) => analysisRepository.update(id, { dismissed: true }),
         resolve: (id: string) => analysisRepository.update(id, { resolved: true }),
         delete: (id: string) => analysisRepository.delete(id),

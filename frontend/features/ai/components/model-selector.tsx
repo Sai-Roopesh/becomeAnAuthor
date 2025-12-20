@@ -28,16 +28,22 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
 
     const loadModels = () => {
         // Load models from AI connections using safe-storage
-        const allConnections = storage.getItem<any[]>('ai_connections', []);
+        interface StoredAIConnection {
+            enabled: boolean;
+            name: string;
+            models?: string[];
+            provider: string;
+        }
+        const allConnections = storage.getItem<StoredAIConnection[]>('ai_connections', []);
 
         const enabledConnections = allConnections
-            .filter((c: any) => c.enabled)
-            .map((c: any) => ({
+            .filter((c) => c.enabled)
+            .map((c) => ({
                 name: c.name,
                 models: c.models || [],
                 provider: c.provider
             }))
-            .filter((c: any) => c.models.length > 0);
+            .filter((c) => c.models.length > 0);
 
         setConnections(enabledConnections);
     };

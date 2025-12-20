@@ -63,3 +63,26 @@ export const BACKUP_INTERVALS = {
     '1hour': 60 * 60 * 1000,
     'daily': 24 * 60 * 60 * 1000,
 } as const;
+
+/**
+ * Global timeout values (in milliseconds)
+ */
+export const TIMEOUTS = {
+    FETCH_DEFAULT_MS: 30000,
+    LEADER_ELECTION_MS: 10000,
+    TAB_HEARTBEAT_MS: 2000,
+    TAB_LEADER_TIMEOUT_MS: 5000,
+    TEST_WAIT_MS: 5000,
+    RETRY_INITIAL_MS: 1000,
+    RETRY_MAX_MS: 10000,
+} as const;
+
+/**
+ * API Endpoints
+ */
+export const API_ENDPOINTS = {
+    OPENROUTER_BASE: 'https://openrouter.ai/api/v1',
+    OPENROUTER_CHAT: 'https://openrouter.ai/api/v1/chat/completions',
+    OPENROUTER_MODELS: 'https://openrouter.ai/api/v1/models',
+} as const;
+

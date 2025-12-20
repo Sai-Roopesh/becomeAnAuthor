@@ -6,6 +6,9 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('EmergencyBackup');
 import { toast } from '@/shared/utils/toast-service';
 import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
 
@@ -37,7 +40,7 @@ export class EmergencyBackupService {
                 sceneId,
                 content: safeContent
             });
-            console.log(`📦 Emergency backup saved for scene ${sceneId}`);
+            log.debug(`Emergency backup saved for scene ${sceneId}`);
             return true;
         } catch (error) {
             console.error('Emergency backup failed:', error);
@@ -82,7 +85,7 @@ export class EmergencyBackupService {
 
         try {
             await invoke('delete_emergency_backup', { projectPath, sceneId });
-            console.log(`🗑️ Emergency backup deleted for scene ${sceneId}`);
+            log.debug(`Emergency backup deleted for scene ${sceneId}`);
         } catch (error) {
             console.error('Failed to delete backup:', error);
         }
@@ -98,7 +101,7 @@ export class EmergencyBackupService {
         try {
             const count = await invoke<number>('cleanup_emergency_backups', { projectPath });
             if (count > 0) {
-                console.log(`🧹 Cleaned up ${count} expired emergency backups`);
+                log.debug(`Cleaned up ${count} expired emergency backups`);
             }
             return count;
         } catch (error) {

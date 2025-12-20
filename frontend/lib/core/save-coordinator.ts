@@ -1,6 +1,6 @@
 /**
  * Save Coordinator - Prevents race conditions in concurrent save operations
- * 
+ *
  * This singleton ensures that only one save operation per scene executes at a time,
  * preventing conflicts between auto-save (debounced) and AI-generation (immediate) saves.
  */
@@ -9,16 +9,26 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
 import { toast } from '@/shared/utils/toast-service';
 import { storage } from '@/core/storage/safe-storage';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('SaveCoordinator');
 
 class SaveCoordinator {
     private saveQueue: Map<string, Promise<void>> = new Map();
+    private cancelledScenes: Set<string> = new Set();
 
     /**
      * Schedule a save operation for a scene
      * Ensures saves are serialized per scene to prevent race conditions
      */
     async scheduleSave(sceneId: string, getContent: () => any): Promise<void> {
-        console.log(`[SaveCoordinator] scheduleSave called for scene: ${sceneId}`);
+        // Check if this scene was cancelled (deleted)
+        if (this.cancelledScenes.has(sceneId)) {
+            log.debug(`Scene ${sceneId} was deleted, skipping save`);
+            return;
+        }
+
+        log.debug(`scheduleSave called for scene: ${sceneId}`);
 
         // If there's already a save in progress for this scene, wait for it
         const existingSave = this.saveQueue.get(sceneId);
@@ -27,11 +37,17 @@ class SaveCoordinator {
             // Wait for any existing save to complete first
             if (existingSave) {
                 try {
-                    console.log(`[SaveCoordinator] Waiting for existing save to complete: ${sceneId}`);
+                    log.debug(`Waiting for existing save to complete: ${sceneId}`);
                     await existingSave;
                 } catch {
                     // Ignore errors from previous save, we'll try again
                 }
+            }
+
+            // Check again if cancelled after waiting
+            if (this.cancelledScenes.has(sceneId)) {
+                log.debug(`Scene ${sceneId} was deleted during wait, skipping save`);
+                return;
             }
 
             // Now perform our save via Tauri
@@ -43,25 +59,33 @@ class SaveCoordinator {
 
             try {
                 const content = getContent();
-                console.log(`[SaveCoordinator] Got content for scene ${sceneId}, content type:`, typeof content);
-                console.log(`[SaveCoordinator] Content preview (first 100 chars):`, JSON.stringify(content).substring(0, 100));
+                log.debug(`Got content for scene ${sceneId}`, { contentType: typeof content, preview: JSON.stringify(content).substring(0, 100) });
 
                 // Serialize content to remove any Promises or non-serializable data
                 const cleanContent = JSON.parse(JSON.stringify(content));
 
-                console.log(`[SaveCoordinator] Calling save_scene_by_id for ${sceneId}`);
+                log.debug(`Calling save_scene_by_id for ${sceneId}`);
                 await invoke('save_scene_by_id', {
                     projectPath,
                     sceneId,
                     content: typeof cleanContent === 'string' ? cleanContent : JSON.stringify(cleanContent),
                 });
-                console.log(`[SaveCoordinator] ✅ Save successful for scene: ${sceneId}`);
+                log.debug(`✅ Save successful for scene: ${sceneId}`);
 
                 // CRITICAL: Invalidate useLiveQuery cache so scene reloads fresh data
                 const { invalidateQueries } = await import('@/hooks/use-live-query');
                 invalidateQueries();
-                console.log(`[SaveCoordinator] Invalidated query cache for scene: ${sceneId}`);
+                log.debug(`Invalidated query cache for scene: ${sceneId}`);
             } catch (error) {
+                const errorMessage = String(error);
+
+                // Handle deleted scene gracefully - don't show error or try backup
+                if (errorMessage.includes('Scene not found') || errorMessage.includes('not found in structure')) {
+                    log.debug(`Scene ${sceneId} was deleted, save cancelled gracefully`);
+                    this.cancelledScenes.add(sceneId);
+                    return;
+                }
+
                 console.error(`[SaveCoordinator] ❌ Save failed for scene ${sceneId}:`, error);
 
                 // Primary: Emergency backup via Tauri (filesystem)
@@ -106,11 +130,27 @@ class SaveCoordinator {
         saveOperation.finally(() => {
             if (this.saveQueue.get(sceneId) === saveOperation) {
                 this.saveQueue.delete(sceneId);
-                console.log(`[SaveCoordinator] Removed scene ${sceneId} from queue`);
+                log.debug(`Removed scene ${sceneId} from queue`);
             }
         });
 
         return saveOperation;
+    }
+
+    /**
+     * Cancel any pending saves for a scene (call when scene is deleted)
+     */
+    cancelPendingSaves(sceneId: string): void {
+        log.debug(`Cancelling pending saves for scene: ${sceneId}`);
+        this.cancelledScenes.add(sceneId);
+        this.saveQueue.delete(sceneId);
+    }
+
+    /**
+     * Clear a scene from the cancelled list (if it was recreated)
+     */
+    clearCancelledScene(sceneId: string): void {
+        this.cancelledScenes.delete(sceneId);
     }
 
     /**

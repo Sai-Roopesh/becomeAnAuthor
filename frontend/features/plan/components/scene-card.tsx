@@ -2,6 +2,7 @@
 
 import { DocumentNode } from '@/lib/config/types';
 import { useProjectStore } from '@/store/use-project-store';
+import { isElementNode } from '@/shared/types/tiptap';
 import { FileText, MoreVertical, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,8 +33,11 @@ export function SceneCard({ scene }: SceneCardProps) {
     const getTextPreview = (): string => {
         if (scene.type !== 'scene' || !('content' in scene)) return '';
         const content = scene.content;
-        if (!content?.content?.[0]?.content?.[0]?.text) return 'No summary yet...';
-        return content.content[0].content[0].text.slice(0, 150) + '...';
+        const firstNode = content?.content?.[0];
+        if (!firstNode || !isElementNode(firstNode)) return 'No summary yet...';
+        const firstContent = firstNode.content?.[0];
+        if (!firstContent || !('text' in firstContent)) return 'No summary yet...';
+        return firstContent.text.slice(0, 150) + '...';
     };
 
     const wordCount = scene.type === 'scene' && 'wordCount' in scene ? scene.wordCount : 0;

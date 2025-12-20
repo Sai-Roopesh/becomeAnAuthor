@@ -138,7 +138,7 @@ export function FormatMenu() {
                             {/* Alignment */}
                             <div className="space-y-2">
                                 <Label>Text Alignment</Label>
-                                <Select value={alignment} onValueChange={(v: any) => updateSettings({ alignment: v })}>
+                                <Select value={alignment} onValueChange={(v: 'left' | 'center' | 'right' | 'justify') => updateSettings({ alignment: v })}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>

@@ -5,12 +5,18 @@
 
 import { toast } from '@/shared/utils/toast-service';
 
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+
 class SafeStorage {
     /**
      * Safely get an item from localStorage with fallback
      * Handles both JSON-encoded values (new) and plain strings (legacy)
      */
     getItem<T>(key: string, fallback: T): T {
+        // Return fallback during SSR
+        if (!isBrowser) return fallback;
+
         try {
             const item = localStorage.getItem(key);
             if (item === null) return fallback;
@@ -29,11 +35,12 @@ class SafeStorage {
         }
     }
 
+
     /**
-     * Safely set an item in localStorage
-     * Returns false if storage quota exceeded or storage is disabled
+     * Safe wrapper for localStorage.setItem
      */
-    setItem(key: string, value: any): boolean {
+    setItem<T>(key: string, value: T): boolean {
+        if (!isBrowser || !this.isAvailable()) return false;
         try {
             const serialized = JSON.stringify(value);
             localStorage.setItem(key, serialized);
@@ -61,6 +68,7 @@ class SafeStorage {
      * Remove an item from localStorage
      */
     removeItem(key: string): void {
+        if (!isBrowser) return;
         try {
             localStorage.removeItem(key);
         } catch (error) {
@@ -72,6 +80,7 @@ class SafeStorage {
      * Clear non-essential cache items to free up space
      */
     private clearCache(): void {
+        if (!isBrowser) return;
         try {
             // Clear backup scenes (emergency only)
             const keys = Object.keys(localStorage);
@@ -90,6 +99,7 @@ class SafeStorage {
      * Check if localStorage is available
      */
     isAvailable(): boolean {
+        if (!isBrowser) return false;
         try {
             const test = '__storage_test__';
             localStorage.setItem(test, test);

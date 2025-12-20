@@ -6,7 +6,12 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { CodexEntry } from '@/domain/entities/types';
+import type {
+    CodexEntry,
+    CodexRelation,
+    CodexTag,
+    CodexEntryTag
+} from '@/domain/entities/types';
 
 // ============ Types ============
 
@@ -49,13 +54,15 @@ export interface Scene {
 // Note: For CodexEntry, use the type from @/domain/entities/types directly
 // The Rust backend serializes to match that interface
 
+import type { TiptapContent } from '@/shared/types/tiptap';
+
 export interface Snippet {
     id: string;
     title: string;
-    content: any;  // ✅ Changed to any for Tiptap JSON
+    content: TiptapContent;
     pinned: boolean;
-    created_at: number;  // ✅ Changed from string
-    updated_at: number;  // ✅ Changed from string
+    created_at: number;
+    updated_at: number;
 }
 
 export interface SearchResult {
@@ -139,9 +146,13 @@ export async function loadScene(projectPath: string, sceneFile: string): Promise
 export async function saveScene(
     projectPath: string,
     sceneFile: string,
-    content: string,
+    content: TiptapContent,
     title?: string
 ): Promise<SceneMeta> {
+    // Validate content structure before sending to Rust
+    if (!content || typeof content !== 'object' || !('type' in content)) {
+        throw new Error('Invalid Tiptap content structure');
+    }
     return invoke<SceneMeta>('save_scene', { projectPath, sceneFile, content, title });
 }
 
@@ -149,7 +160,9 @@ export async function deleteScene(projectPath: string, sceneFile: string): Promi
     return invoke('delete_scene', { projectPath, sceneFile });
 }
 
-// ============ Codex Commands ============
+// ==========================================
+// Codex Commands
+// ==========================================
 
 export async function listCodexEntries(
     projectPath: string,
@@ -170,15 +183,9 @@ export async function deleteCodexEntry(
     return invoke('delete_codex_entry', { projectPath, category, entryId });
 }
 
-// ============ Codex Relations ============
-
-export interface CodexRelation {
-    id: string;
-    source_entry_id: string;
-    target_entry_id: string;
-    relation_type: string;
-    description?: string;
-}
+// ==========================================
+// Codex Relations
+// ==========================================
 
 export async function listCodexRelations(projectPath: string): Promise<CodexRelation[]> {
     return invoke<CodexRelation[]>('list_codex_relations', { projectPath });
@@ -192,19 +199,9 @@ export async function deleteCodexRelation(projectPath: string, relationId: strin
     return invoke('delete_codex_relation', { projectPath, relationId });
 }
 
-// ============ Codex Tags ============
-
-export interface CodexTag {
-    id: string;
-    name: string;
-    color?: string;
-}
-
-export interface CodexEntryTag {
-    id: string;
-    entry_id: string;
-    tag_id: string;
-}
+// ==========================================
+// Codex Tags
+// ==========================================
 
 export async function listCodexTags(projectPath: string): Promise<CodexTag[]> {
     return invoke<CodexTag[]>('list_codex_tags', { projectPath });
@@ -368,10 +365,10 @@ export interface Analysis {
     projectId: string;
     analysisType: string;
     title: string;
-    content: any;
+    content: TiptapContent;
     scope: string;
     scopeIds: string[];
-    results: any;
+    results: unknown; // Results structure varies by analysis type
     manuscriptVersion: number;
     wordCountAtAnalysis: number;
     scenesAnalyzedCount: number;
@@ -380,8 +377,8 @@ export interface Analysis {
     dismissed: boolean;
     resolved: boolean;
     userNotes?: string;
-    createdAt: number;  // ✅ Changed from string
-    updatedAt: number;  // ✅ Changed from string
+    createdAt: number;
+    updatedAt: number;
 }
 
 export async function listAnalyses(projectPath: string): Promise<Analysis[]> {
@@ -402,9 +399,13 @@ export interface Series {
     id: string;
     title: string;
     description?: string;
+    author?: string;
+    genre?: string;
+    status?: 'planned' | 'in-progress' | 'completed' | 'hiatus';
     created_at: number;  // ✅ Changed from string
     updated_at: number;  // ✅ Changed from string
 }
+
 
 export async function listSeries(): Promise<Series[]> {
     return invoke<Series[]>('list_series');

@@ -9,7 +9,7 @@ export { TagManager } from './components/tag-manager';
 export { TemplateSelector } from './components/template-selector';
 
 // Hooks
-export { useCodexRepository } from './hooks/use-codex-repository';
-export { useCodexTagRepository } from './hooks/use-codex-tag-repository';
-export { useCodexTemplateRepository } from './hooks/use-codex-template-repository';
-export { useCodexRelationTypeRepository } from './hooks/use-codex-relation-type-repository';
+export { useCodexRepository } from '@/hooks/use-codex-repository';
+export { useCodexTagRepository } from '@/hooks/use-codex-tag-repository';
+export { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
+export { useCodexRelationTypeRepository } from '@/hooks/use-codex-relation-type-repository';

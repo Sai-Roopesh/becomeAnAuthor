@@ -45,9 +45,9 @@ export function CreateSeriesDialog({ open, onOpenChange, onCreated }: CreateSeri
             setTitle('');
             onOpenChange(false);
             onCreated?.(seriesId);
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Handle duplicate title error from backend
-            const message = err?.message || 'Failed to create series';
+            const message = err instanceof Error ? err.message : 'Failed to create series';
             if (message.toLowerCase().includes('already exists')) {
                 setError(`A series named "${trimmedTitle}" already exists`);
             } else {

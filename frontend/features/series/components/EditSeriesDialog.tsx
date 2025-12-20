@@ -40,7 +40,13 @@ const GENRE_OPTIONS = [
 export function EditSeriesDialog({ series, open, onOpenChange }: EditSeriesDialogProps) {
     const seriesRepo = useSeriesRepository();
     const [isSaving, setIsSaving] = React.useState(false);
-    const [formData, setFormData] = React.useState({
+    const [formData, setFormData] = React.useState<{
+        title: string;
+        description: string;
+        author: string;
+        genre: string;
+        status: NonNullable<Series['status']>;
+    }>({
         title: series.title,
         description: series.description || '',
         author: series.author || '',
@@ -68,7 +74,7 @@ export function EditSeriesDialog({ series, open, onOpenChange }: EditSeriesDialo
 
         setIsSaving(true);
         try {
-            const updates: any = { title: trimmedTitle };
+            const updates: Partial<Series> = { title: trimmedTitle };
             if (formData.description) updates.description = formData.description;
             if (formData.author) updates.author = formData.author;
             if (formData.genre) updates.genre = formData.genre;
@@ -78,8 +84,9 @@ export function EditSeriesDialog({ series, open, onOpenChange }: EditSeriesDialo
             toast.success('Series updated');
             invalidateQueries();
             onOpenChange(false);
-        } catch (err: any) {
-            toast.error(err?.message || 'Failed to update series');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to update series';
+            toast.error(message);
         } finally {
             setIsSaving(false);
         }
@@ -132,8 +139,9 @@ export function EditSeriesDialog({ series, open, onOpenChange }: EditSeriesDialo
                             <Label htmlFor="series-status">Status</Label>
                             <Select
                                 value={formData.status}
-                                onValueChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
+                                onValueChange={(val) => setFormData(prev => ({ ...prev, status: val as NonNullable<Series['status']> }))}
                             >
+
                                 <SelectTrigger id="series-status">
                                     <SelectValue />
                                 </SelectTrigger>

@@ -51,9 +51,10 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
             await seriesRepo.delete(series.id);
             toast.success(`Series "${series.title}" deleted`);
             invalidateQueries();
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Backend will reject if projects still reference it
-            toast.error(error?.message || 'Failed to delete series');
+            const message = error instanceof Error ? error.message : 'Failed to delete series';
+            toast.error(message);
         } finally {
             setIsDeleting(false);
             setShowDeleteDialog(false);

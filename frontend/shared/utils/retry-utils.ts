@@ -3,6 +3,8 @@
  * Implements exponential backoff with jitter for transient failures
  */
 
+import { logger } from '@/core/logger';
+
 export interface RetryOptions {
     maxRetries?: number;
     initialDelay?: number;
@@ -43,10 +45,9 @@ export async function withRetry<T>(
             const jitter = Math.random() * 1000; // Random 0-1000ms
             const delay = Math.min(exponentialDelay + jitter, maxDelay);
 
-            console.log(
-                `[Retry] Attempt ${attempt + 1}/${maxRetries} failed, retrying after ${Math.round(delay)}ms...`,
-                lastError.message
-            );
+            logger.debug(`[Retry] Attempt ${attempt + 1}/${maxRetries} failed, retrying after ${Math.round(delay)}ms`, {
+                error: lastError.message
+            });
 
             await sleep(delay);
         }

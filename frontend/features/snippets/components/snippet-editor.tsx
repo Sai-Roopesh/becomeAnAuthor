@@ -16,7 +16,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useConfirmation } from '@/hooks/use-confirmation';
-import { useSnippetRepository } from '@/features/snippets/hooks/use-snippet-repository';
+import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 
 export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClose?: () => void }) {
     const snippetRepo = useSnippetRepository();

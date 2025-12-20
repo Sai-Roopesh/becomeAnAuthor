@@ -1,13 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
 import { Toaster as HotToaster } from 'react-hot-toast';
 
 export function ClientToaster() {
-    useEffect(() => {
-        console.log('ClientToaster (react-hot-toast) mounted!');
-    }, []);
-
     return (
         <HotToaster
             position="bottom-right"

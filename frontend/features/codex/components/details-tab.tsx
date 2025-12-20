@@ -11,8 +11,9 @@ import { toast } from '@/shared/utils/toast-service';
 
 interface DetailsTabProps {
     entity: Partial<CodexEntry>;
-    onChange: (field: keyof CodexEntry, value: any) => void;
+    onChange: (field: keyof CodexEntry, value: CodexEntry[keyof CodexEntry]) => void;
 }
+
 
 export function DetailsTab({ entity, onChange }: DetailsTabProps) {
     const [newAttrKey, setNewAttrKey] = useState('');

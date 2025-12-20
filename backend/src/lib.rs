@@ -116,6 +116,9 @@ pub fn run() {
             security::get_api_key,
             security::delete_api_key,
             security::list_api_key_providers,
+            // Mention tracking commands
+            find_mentions,
+            count_mentions,
             // App info
             get_app_info,
         ])

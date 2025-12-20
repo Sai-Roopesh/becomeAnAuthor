@@ -12,6 +12,7 @@ pub mod trash;
 pub mod series;
 pub mod seed;
 pub mod security;
+pub mod mention;
 
 // Re-export all commands for easy access in lib.rs
 pub use project::*;
@@ -25,3 +26,4 @@ pub use search::*;
 pub use trash::*;
 pub use series::*;
 pub use seed::*;
+pub use mention::*;

@@ -182,7 +182,11 @@ async function generateWithGoogle(
     const modelPath = options.model.includes('/') ? options.model : `models/${options.model}`;
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${connection.apiKey}`;
 
-    const parts: any[] = [];
+    // Gemini content part type
+    interface GeminiPart {
+        text: string;
+    }
+    const parts: GeminiPart[] = [];
     if (options.system) {
         parts.push({ text: options.system + '\n\n' });
     }
@@ -382,8 +386,10 @@ async function fetchOpenRouterModels(connection: AIConnection): Promise<string[]
 
     if (!response.ok) throw new Error('Failed to fetch OpenRouter models');
 
-    const data = await response.json();
-    return data.data?.map((m: any) => m.id) || [];
+    interface OpenRouterModel { id: string; }
+    interface ModelListResponse { data?: OpenRouterModel[]; }
+    const data = await response.json() as ModelListResponse;
+    return data.data?.map((m) => m.id) || [];
 }
 
 async function fetchGoogleModels(connection: AIConnection): Promise<string[]> {
@@ -393,10 +399,12 @@ async function fetchGoogleModels(connection: AIConnection): Promise<string[]> {
 
     if (!response.ok) throw new Error('Failed to fetch Google models');
 
-    const data = await response.json();
+    interface GoogleModel { name: string; supportedGenerationMethods?: string[]; }
+    interface GoogleModelListResponse { models?: GoogleModel[]; }
+    const data = await response.json() as GoogleModelListResponse;
     return data.models
-        ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-        ?.map((m: any) => m.name.replace('models/', '')) || [];
+        ?.filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        ?.map((m) => m.name.replace('models/', '')) || [];
 }
 
 async function fetchMistralModels(connection: AIConnection): Promise<string[]> {
@@ -408,8 +416,10 @@ async function fetchMistralModels(connection: AIConnection): Promise<string[]> {
 
     if (!response.ok) throw new Error('Failed to fetch Mistral models');
 
-    const data = await response.json();
-    return data.data?.map((m: any) => m.id) || [];
+    interface MistralModel { id: string; }
+    interface MistralModelListResponse { data?: MistralModel[]; }
+    const data = await response.json() as MistralModelListResponse;
+    return data.data?.map((m) => m.id) || [];
 }
 
 async function fetchKimiModels(connection: AIConnection): Promise<string[]> {
@@ -421,6 +431,8 @@ async function fetchKimiModels(connection: AIConnection): Promise<string[]> {
 
     if (!response.ok) throw new Error('Failed to fetch Kimi models');
 
-    const data = await response.json();
-    return data.data?.map((m: any) => m.id) || [];
+    interface KimiModel { id: string; }
+    interface KimiModelListResponse { data?: KimiModel[]; }
+    const data = await response.json() as KimiModelListResponse;
+    return data.data?.map((m) => m.id) || [];
 }

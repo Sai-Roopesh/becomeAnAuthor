@@ -1,8 +1,9 @@
 'use client';
 
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useCodexRepository } from '@/features/codex/hooks/use-codex-repository';
-import { useCodexTemplateRepository } from '@/features/codex/hooks/use-codex-template-repository';
+import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
+import { useMentions } from '@/hooks/use-mentions';
 import { CodexEntry, CodexCategory } from '@/lib/config/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEffect, useState } from 'react';
@@ -60,11 +61,13 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         }
     }, [debouncedData, entityId, codexRepo]);
 
-    const handleChange = (field: keyof CodexEntry, value: any) => {
+    const handleChange = (field: keyof CodexEntry, value: CodexEntry[keyof CodexEntry]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleTemplateFieldChange = (fieldId: string, value: any) => {
+    // Template field values can be string, number, boolean, or string[]
+    type TemplateFieldValue = string | number | boolean | string[];
+    const handleTemplateFieldChange = (fieldId: string, value: TemplateFieldValue) => {
         setFormData(prev => ({
             ...prev,
             customFields: { ...prev.customFields, [fieldId]: value }
@@ -107,9 +110,10 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         }
     };
 
-    if (!entity) return <div className="p-4">Loading...</div>;
+    // Use real mention count from useMentions hook
+    const { count: mentionCount } = useMentions(entityId);
 
-    const mentionCount = 0; // TODO: Calculate based on actual mentions
+    if (!entity) return <div className="p-4">Loading...</div>;
 
     return (
         <div className="h-full flex flex-col bg-background">
@@ -167,11 +171,12 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                         <TabsContent value="template" className="p-6 m-0">
                             <TemplateFieldRenderer
                                 template={template}
-                                values={formData.customFields || {}}
+                                values={(formData.customFields || {}) as Record<string, TemplateFieldValue>}
                                 onChange={handleTemplateFieldChange}
                             />
                         </TabsContent>
                     )}
+
 
                     <TabsContent value="tags" className="p-6 m-0">
                         {entity && <TagManager projectId={entity.projectId} entryId={entityId} />}

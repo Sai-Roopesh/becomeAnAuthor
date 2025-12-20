@@ -102,8 +102,8 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
 
         const entryTag = {
             id: crypto.randomUUID(),
-            entry_id: entryId,
-            tag_id: tagId,
+            entryId: entryId,
+            tagId: tagId,
         };
 
         try {
@@ -120,7 +120,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
 
         try {
             const entryTags = await listCodexEntryTags(projectPath);
-            const toDelete = entryTags.find(et => et.entry_id === entryId && et.tag_id === tagId);
+            const toDelete = entryTags.find(et => et.entryId === entryId && et.tagId === tagId);
             if (toDelete) {
                 await deleteCodexEntryTag(projectPath, toDelete.id);
             }
@@ -136,7 +136,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
 
         try {
             const entryTags = await listCodexEntryTags(projectPath);
-            return entryTags.filter(et => et.tag_id === tagId).map(et => et.entry_id);
+            return entryTags.filter(et => et.tagId === tagId).map(et => et.entryId);
         } catch (error) {
             console.error('Failed to get entries by tag:', error);
             return [];
@@ -150,11 +150,12 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         try {
             const allTags = await this.getByProject('current');
             const entryTags = await listCodexEntryTags(projectPath);
-            const tagIds = entryTags.filter(et => et.entry_id === entryId).map(et => et.tag_id);
+            const tagIds = entryTags.filter(et => et.entryId === entryId).map(et => et.tagId);
             return allTags.filter(t => tagIds.includes(t.id));
         } catch (error) {
             console.error('Failed to get tags by entry:', error);
             return [];
         }
     }
+
 }

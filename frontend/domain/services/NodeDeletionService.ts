@@ -1,6 +1,7 @@
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { toast } from '@/shared/utils/toast-service';
+import { saveCoordinator } from '@/lib/core/save-coordinator';
 
 /**
  * Centralized Node Deletion Service
@@ -42,6 +43,9 @@ export class NodeDeletionService {
         }
 
         try {
+            // Cancel any pending saves for this node (prevents race conditions)
+            saveCoordinator.cancelPendingSaves(nodeId);
+
             // Use repository's cascade delete
             await this.nodeRepository.deleteCascade(nodeId, nodeType);
             toast.success(messages.successMessage);
@@ -52,6 +56,7 @@ export class NodeDeletionService {
             return false;
         }
     }
+
 
     /**
      * Delete multiple nodes with confirmation

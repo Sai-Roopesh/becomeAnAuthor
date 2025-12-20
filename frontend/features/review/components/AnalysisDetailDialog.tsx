@@ -28,6 +28,27 @@ interface AnalysisDetailDialogProps {
     onClose: () => void;
 }
 
+// Types for analysis data structures
+interface PlotThread {
+    name: string;
+    status: string;
+    description: string;
+    development?: ThreadDevelopment[];
+}
+
+interface ThreadDevelopment {
+    sceneIndex: number;
+    note: string;
+}
+
+interface CharacterData {
+    name: string;
+    role?: string;
+    arcStatus: string;
+    confidence?: string;
+    arcDescription: string;
+}
+
 export function AnalysisDetailDialog({ analysis, open, onClose }: AnalysisDetailDialogProps) {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const { deleteAnalysis } = useAnalysisDelete();
@@ -374,7 +395,7 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
     if (analysis.analysisType === 'plot-threads' && data['threads']) {
         return (
             <div className="space-y-6">
-                {data['threads'].map((thread: any, idx: number) => (
+                {(data['threads'] as PlotThread[]).map((thread, idx) => (
                     <Card key={idx} className="overflow-hidden border-border/50 shadow-sm">
                         <div className="h-1 bg-gradient-to-r from-primary/50 to-secondary/50" />
                         <CardHeader className="pb-3">
@@ -391,7 +412,7 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
                                 <div className="space-y-3 bg-muted/30 p-4 rounded-xl">
                                     <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Development Arc</h4>
                                     <div className="pl-4 border-l-2 border-primary/20 space-y-4">
-                                        {thread.development.map((dev: any, i: number) => (
+                                        {thread.development.map((dev, i) => (
                                             <div key={i} className="relative">
                                                 <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
                                                 <span className="font-medium text-xs text-primary block mb-1">
@@ -414,7 +435,7 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
     if (analysis.analysisType === 'character-arcs' && data['characters']) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {data['characters'].map((char: any, idx: number) => (
+                {(data['characters'] as CharacterData[]).map((char, idx) => (
                     <Card key={idx} className="border-border/50 shadow-sm hover:shadow-md transition-all">
                         <CardHeader className="pb-3 bg-muted/20 border-b border-border/50">
                             <CardTitle className="text-lg font-heading flex items-center justify-between">

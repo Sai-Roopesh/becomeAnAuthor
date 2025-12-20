@@ -82,7 +82,7 @@ class GoogleAuthService {
                 throw new Error('Missing code verifier');
             }
 
-            // Exchange code for tokens
+            // Exchange code for tokens (Google requires client_secret even with PKCE for web apps)
             const response = await fetch(GOOGLE_CONFIG.TOKEN_ENDPOINT, {
                 method: 'POST',
                 headers: {
@@ -97,6 +97,7 @@ class GoogleAuthService {
                     redirect_uri: GOOGLE_CONFIG.REDIRECT_URI,
                 }),
             });
+
 
             if (!response.ok) {
                 const error = await response.json();
@@ -212,6 +213,7 @@ class GoogleAuthService {
      */
     private async refreshAccessToken(refreshToken: string): Promise<void> {
         try {
+            // Refresh token request (Google requires client_secret for web apps)
             const response = await fetch(GOOGLE_CONFIG.TOKEN_ENDPOINT, {
                 method: 'POST',
                 headers: {
@@ -225,6 +227,7 @@ class GoogleAuthService {
                 }),
             });
 
+
             if (!response.ok) {
                 throw new Error('Token refresh failed');
             }
@@ -232,7 +235,6 @@ class GoogleAuthService {
             const data = await response.json();
 
             // Update stored tokens
-            const existingTokens = storage.getItem<GoogleTokens | null>(STORAGE_KEYS.GOOGLE_TOKENS, null);
             const newTokens: GoogleTokens = {
                 accessToken: data.access_token,
                 refreshToken: refreshToken, // Keep existing refresh token
@@ -268,3 +270,4 @@ class GoogleAuthService {
 
 // Export singleton instance
 export const googleAuthService = new GoogleAuthService();
+

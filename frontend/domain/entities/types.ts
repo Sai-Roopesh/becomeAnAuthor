@@ -1,3 +1,5 @@
+import type { TiptapContent } from '@/shared/types/tiptap';
+
 export interface BaseNode {
     id: string;
     projectId: string;
@@ -23,13 +25,25 @@ export interface Beat {
     isCompleted: boolean;
 }
 
+// Mention tracking for codex entries
+export interface Mention {
+    id: string;
+    codexEntryId: string;
+    sourceType: 'scene' | 'codex' | 'snippet' | 'chat';
+    sourceId: string;
+    sourceTitle: string;
+    position: number;      // Character position in source
+    context: string;       // Surrounding text snippet
+    createdAt: number;
+}
+
 export interface Scene extends BaseNode {
     type: 'scene';
     pov?: string; // Point of view character
     subtitle?: string; // Scene subtitle (e.g., time skip, location)
     labels?: string[]; // Tags/labels for tracking (e.g., "edited", "draft")
     excludeFromAI?: boolean; // Exclude from AI context
-    content: any; // Tiptap JSON
+    content: TiptapContent; // Tiptap JSON
     summary: string;
     status: 'draft' | 'revised' | 'final';
     wordCount: number;
@@ -42,6 +56,45 @@ export type CodexCategory = 'character' | 'location' | 'item' | 'lore' | 'subplo
 
 export type AIContext = 'always' | 'detected' | 'exclude' | 'never';
 
+// Arc Point types for character evolution tracking
+export interface KnowledgeState {
+    knows: string[];
+    doesNotKnow: string[];
+    believes: string[];
+    misconceptions: string[];
+}
+
+export interface EmotionalState {
+    primaryEmotion: string;
+    intensity?: number; // 1-10
+    mentalState?: string[];
+    internalConflict?: string;
+    trauma?: string[];
+}
+
+export interface GoalsAndMotivations {
+    primaryGoal?: string;
+    secondaryGoals?: string[];
+    fears?: string[];
+    desires?: string[];
+    obstacles?: string[];
+}
+
+export interface ArcPoint {
+    id: string;
+    bookId: string;
+    eventLabel: string;
+    description: string;
+    timestamp: number;
+    age?: number;
+    status?: string;
+    location?: string;
+    relationships: Record<string, string>;
+    knowledgeState?: KnowledgeState;
+    emotionalState?: EmotionalState;
+    goalsAndMotivations?: GoalsAndMotivations;
+}
+
 export interface CodexEntry {
     id: string;
     projectId: string;
@@ -49,12 +102,14 @@ export interface CodexEntry {
     aliases: string[];
     category: CodexCategory;
     description: string;
+    coreDescription?: string; // Concise core description for AI context
+    arcPoints?: ArcPoint[]; // Character arc evolution points
     attributes: Record<string, string>;
     tags: string[];
     references: string[];
     image?: string;
     thumbnail?: string; // Base64 image for entry thumbnail
-    customDetails?: Record<string, any>; // User-defined fields
+    customDetails?: Record<string, unknown>; // User-defined fields
     aiContext?: AIContext; // AI inclusion setting
     trackMentions?: boolean; // Track mentions in manuscript
     notes?: string; // Research notes (not seen by AI)
@@ -69,7 +124,7 @@ export interface CodexEntry {
     };
     // NEW: Phase 1 enhancements
     templateId?: string; // which template was used
-    customFields?: Record<string, any>; // template field values
+    customFields?: Record<string, unknown>; // template field values
     gallery?: string[]; // multiple images (Base64 or URLs)
     completeness?: number; // % of template filled (0-100)
     createdAt: number;
@@ -104,6 +159,10 @@ export interface Project {
 export interface Series {
     id: string;
     title: string;
+    description?: string;
+    author?: string;
+    genre?: string;
+    status?: 'planned' | 'in-progress' | 'completed' | 'hiatus';
     createdAt: number;
     updatedAt: number;
 }
@@ -112,7 +171,7 @@ export interface Snippet {
     id: string;
     projectId: string;
     title: string;
-    content: any; // Tiptap JSON
+    content: TiptapContent; // Tiptap JSON
     pinned: boolean;
     createdAt: number;
     updatedAt: number;
@@ -131,7 +190,7 @@ export interface Section {
     id: string;
     sceneId: string;
     title: string;
-    content: any; // Tiptap JSON
+    content: TiptapContent; // Tiptap JSON
     color: string; // hex color
     excludeFromAI: boolean;
     position: number; // Character position in scene

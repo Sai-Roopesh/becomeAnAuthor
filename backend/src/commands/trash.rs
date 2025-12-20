@@ -37,12 +37,16 @@ pub fn move_to_trash(project_path: String, item_id: String, item_type: String, t
     let trash_item_dir = trash_dir.join(&item_id);
     fs::create_dir_all(&trash_item_dir).map_err(|e| e.to_string())?;
     
-    let dest_path = trash_item_dir.join(source_path.file_name().unwrap());
+    let file_name = source_path.file_name()
+        .ok_or_else(|| format!("Invalid source path: {:?}", source_path))?;
+    let dest_path = trash_item_dir.join(file_name);
     fs::copy(&source_path, &dest_path).map_err(|e| e.to_string())?;
     
     let meta_path = trash_item_dir.join("meta.json");
-    fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap())
-        .map_err(|e| e.to_string())?;
+    let meta_json = serde_json::to_string_pretty(&meta)
+        .map_err(|e| format!("Failed to serialize trash metadata: {}", e))?;
+    fs::write(&meta_path, meta_json)
+        .map_err(|e| format!("Failed to write trash metadata: {}", e))?;
     
     fs::remove_file(&source_path).map_err(|e| e.to_string())?;
     

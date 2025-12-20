@@ -13,15 +13,13 @@ export function useAIConnections() {
     const [selectedId, setSelectedId] = useState<string>('');
 
     const initializeDefaultConnection = () => {
-        // Migrate old OpenRouter key if exists
-        const oldKey = storage.getItem<string>('openrouter_api_key', '');
         const defaultConnection: AIConnection = {
-            id: 'openrouter-default',
-            name: 'OpenRouter',
-            provider: 'openrouter',
-            apiKey: oldKey || '',
+            id: 'google-default',
+            name: 'Google Gemini',
+            provider: 'google',
+            apiKey: '',
             enabled: true,
-            models: [],
+            models: ['gemini-flash-latest'],
             createdAt: Date.now(),
             updatedAt: Date.now(),
         };
@@ -48,25 +46,6 @@ export function useAIConnections() {
         loadConnections();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const initializeDefaultConnection = () => {
-        // Migrate old OpenRouter key if exists
-        const oldKey = storage.getItem<string>('openrouter_api_key', '');
-        const defaultConnection: AIConnection = {
-            id: 'openrouter-default',
-            name: 'OpenRouter',
-            provider: 'openrouter',
-            apiKey: oldKey || '',
-            enabled: true,
-            models: [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-        };
-        const newConnections = [defaultConnection];
-        setConnections(newConnections);
-        setSelectedId(defaultConnection.id);
-        storage.setItem('ai_connections', newConnections);
-    };
 
     const saveConnection = (
         id: string,

@@ -29,13 +29,15 @@ pub fn create_series(title: String) -> Result<Series, String> {
     };
     
     let mut all_series = list_series()?;
-    all_series.push(new_series.clone());
+    // Clone before pushing since we need to return the value
+    let result = new_series.clone();
+    all_series.push(new_series);
     
     let series_path = get_series_path()?;
     let json = serde_json::to_string_pretty(&all_series).map_err(|e| e.to_string())?;
     fs::write(&series_path, json).map_err(|e| e.to_string())?;
     
-    Ok(new_series)
+    Ok(result)
 }
 
 #[tauri::command]

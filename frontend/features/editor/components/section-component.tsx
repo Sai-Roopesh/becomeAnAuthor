@@ -1,6 +1,6 @@
 'use client';
 
-import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { NodeViewWrapper, NodeViewContent, NodeViewProps } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -8,9 +8,18 @@ import { ChevronDown, ChevronRight, MoreVertical, Palette, EyeOff, Copy, Trash2 
 import { useState } from 'react';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
 
-export function SectionComponent({ node, updateAttributes, deleteNode }: any) {
+// Section node attributes
+interface SectionAttrs {
+    title: string;
+    color: string;
+    excludeFromAI: boolean;
+    collapsed: boolean;
+}
+
+export function SectionComponent({ node, updateAttributes, deleteNode }: NodeViewProps) {
     const [isEditing, setIsEditing] = useState(false);
-    const { title, color, excludeFromAI, collapsed } = node.attrs;
+    const attrs = node.attrs as SectionAttrs;
+    const { title, color, excludeFromAI, collapsed } = attrs;
 
     const colors = [
         { name: 'Blue', value: '#3b82f6' },

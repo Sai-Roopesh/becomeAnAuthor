@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface TrackingTabProps {
     entity: Partial<CodexEntry>;
-    onChange: (field: keyof CodexEntry, value: any) => void;
+    onChange: (field: keyof CodexEntry, value: CodexEntry[keyof CodexEntry]) => void;
 }
 
 export function TrackingTab({ entity, onChange }: TrackingTabProps) {

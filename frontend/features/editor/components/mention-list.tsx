@@ -3,7 +3,23 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { cn } from '@/lib/utils';
 
-export const MentionList = forwardRef((props: any, ref) => {
+// Types for mention suggestion items
+interface MentionItem {
+    id: string;
+    name: string;
+    category?: string;
+}
+
+interface MentionListProps {
+    items: MentionItem[];
+    command: (item: { id: string; label: string }) => void;
+}
+
+export interface MentionListRef {
+    onKeyDown: (props: { event: KeyboardEvent }) => boolean;
+}
+
+export const MentionList = forwardRef<MentionListRef, MentionListProps>((props, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
 
     const selectItem = (index: number) => {
@@ -53,7 +69,7 @@ export const MentionList = forwardRef((props: any, ref) => {
     return (
         <div className="bg-popover text-popover-foreground border rounded-md shadow-md overflow-hidden p-1 min-w-[150px]">
             {props.items.length ? (
-                props.items.map((item: any, index: number) => (
+                props.items.map((item, index) => (
                     <button
                         className={cn(
                             'flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none',
@@ -73,3 +89,4 @@ export const MentionList = forwardRef((props: any, ref) => {
 });
 
 MentionList.displayName = 'MentionList';
+

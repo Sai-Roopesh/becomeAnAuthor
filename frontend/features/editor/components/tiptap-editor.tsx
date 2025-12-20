@@ -1,4 +1,6 @@
-'use client';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TiptapEditor');
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -20,6 +22,26 @@ import Mention from '@tiptap/extension-mention';
 import { createCodexSuggestion } from './suggestion';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useContextAssembly } from '@/hooks/use-context-assembly';
+import type { TiptapContent } from '@/shared/types/tiptap';
+import type { EditorView } from '@tiptap/pm/view';
+import type { ContextItem } from '@/features/shared/components';
+
+// Structure node from Tauri backend
+interface StructureNode {
+    id: string;
+    type: string;
+    file?: string;
+    children?: StructureNode[];
+}
+
+// Generation options passed from ContinueWritingMenu
+interface GenerateOptions {
+    wordCount?: number;
+    mode?: string;
+    instructions?: string;
+    selectedContexts?: ContextItem[];
+}
+
 
 export function TiptapEditor({
     sceneId,
@@ -29,7 +51,7 @@ export function TiptapEditor({
 }: {
     sceneId: string,
     projectId: string,
-    content: any,
+    content: TiptapContent | null | undefined,
     onWordCountChange?: (count: number) => void
 }) {
     const formatSettings = useFormatStore();
@@ -47,7 +69,7 @@ export function TiptapEditor({
     );
 
     // Get cursor position in the editor
-    const getCursorPosition = useCallback((view: any) => {
+    const getCursorPosition = useCallback((view: EditorView) => {
         const { state } = view;
         const { selection } = state;
 
@@ -115,7 +137,7 @@ export function TiptapEditor({
         // When scene changes, save previous scene and load new scene
         const handleSceneSwitch = async () => {
             if (previousSceneIdRef.current !== sceneId) {
-                console.log(`[SceneSwitch] Switching from ${previousSceneIdRef.current} to ${sceneId}`);
+                log.debug(`Switching from ${previousSceneIdRef.current} to ${sceneId}`);
 
                 // Step 1: Save the previous scene's content before switching
                 if (previousSceneIdRef.current !== null && editor && !editor.isDestroyed) {
@@ -123,21 +145,21 @@ export function TiptapEditor({
                         const oldSceneContent = editor.getJSON();
                         const oldSceneId = previousSceneIdRef.current;
 
-                        console.log(`[SceneSwitch] Captured content for scene ${oldSceneId}, has ${oldSceneContent.content?.length || 0} nodes`);
+                        log.debug(`Captured content for scene ${oldSceneId}`, { nodeCount: oldSceneContent.content?.length || 0 });
 
                         const { saveCoordinator } = await import('@/lib/core/save-coordinator');
                         await saveCoordinator.scheduleSave(
                             oldSceneId,
                             () => oldSceneContent
                         );
-                        console.log(`[SceneSwitch] Save completed for ${oldSceneId}`);
+                        log.debug(`Save completed for ${oldSceneId}`);
                     } catch (error) {
                         console.error('[SceneSwitch] Failed to save scene before switch:', error);
                     }
                 }
 
                 // Step 2: Fetch FRESH content DIRECTLY from backend, bypassing ALL caches
-                console.log(`[SceneSwitch] Fetching fresh content for scene ${sceneId} from BACKEND`);
+                log.debug(`Fetching fresh content for scene ${sceneId} from BACKEND`);
                 try {
                     const { getStructure, loadScene } = await import('@/core/tauri/commands');
                     const { getCurrentProjectPath } = await import('@/infrastructure/repositories/TauriNodeRepository');
@@ -149,8 +171,8 @@ export function TiptapEditor({
                     const structure = await getStructure(projectPath);
 
                     // Flatten and find the scene
-                    const flattenStructure = (nodes: any[]): any[] => {
-                        const result: any[] = [];
+                    const flattenStructure = (nodes: StructureNode[]): StructureNode[] => {
+                        const result: StructureNode[] = [];
                         for (const node of nodes) {
                             result.push(node);
                             if (node.children?.length) {
@@ -177,8 +199,7 @@ export function TiptapEditor({
                             parsedContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: scene.content }] }] };
                         }
 
-                        console.log(`[SceneSwitch] Loaded FRESH content from file, has ${parsedContent.content?.length || 0} nodes`);
-                        console.log(`[SceneSwitch] Content preview:`, JSON.stringify(parsedContent).substring(0, 150));
+                        log.debug(`Loaded FRESH content from file`, { nodeCount: parsedContent.content?.length || 0, preview: JSON.stringify(parsedContent).substring(0, 150) });
                         editor.commands.setContent(parsedContent);
                     } else {
                         console.warn(`[SceneSwitch] Scene ${sceneId} has no file, using empty`);
@@ -258,7 +279,7 @@ When continuing a story, extend the narrative naturally while honoring the estab
         operationName: 'Generate',
     });
 
-    const generate = async (options: any) => {
+    const generate = async (options: GenerateOptions) => {
         if (!editor) return;
 
         const currentText = editor.getText();
@@ -306,10 +327,10 @@ YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
         await generateStream(
             {
                 prompt,
-                // ✅ Use EXACT word count from UI (200/400/600 buttons)
+                // Use word count from UI with fallback
                 maxTokens: (await import('@/lib/config/model-specs')).calculateMaxTokens(
                     model,
-                    options.wordCount  // No fallback - UI always provides this
+                    options.wordCount || 400
                 ),
                 temperature: AI_DEFAULTS.TEMPERATURE,
             },

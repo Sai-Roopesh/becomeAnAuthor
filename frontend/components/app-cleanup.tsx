@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { freeTokenCounters } from '@/shared/utils/token-counter';
+import { logger } from '@/core/logger';
 
 /**
  * Cleanup Component
@@ -11,7 +12,7 @@ export function AppCleanup() {
     useEffect(() => {
         // Cleanup on unmount
         return () => {
-            console.log('[AppCleanup] Freeing token counters...');
+            logger.debug('[AppCleanup] Freeing token counters');
             freeTokenCounters();
         };
     }, []);

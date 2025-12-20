@@ -9,7 +9,7 @@ import { usePrompt } from '@/hooks/use-prompt';
 
 interface ResearchTabProps {
     entity: Partial<CodexEntry>;
-    onChange: (field: keyof CodexEntry, value: any) => void;
+    onChange: (field: keyof CodexEntry, value: CodexEntry[keyof CodexEntry]) => void;
 }
 
 export function ResearchTab({ entity, onChange }: ResearchTabProps) {

@@ -6,6 +6,9 @@
  * 
  * This prevents the critical issue of multiple tabs overwriting each other's changes.
  */
+
+import { logger } from '@/core/logger';
+
 export class TabLeaderService {
     private channel: BroadcastChannel;
     private tabId: string;
@@ -78,7 +81,7 @@ export class TabLeaderService {
         });
         this.startHeartbeat();
         this.notifyListeners();
-        console.log(`🏆 This tab (${this.tabId}) is now the leader`);
+        logger.debug(`[TabLeaderService] This tab (${this.tabId}) is now the leader`);
     }
 
     private stepDown(): void {
@@ -88,7 +91,7 @@ export class TabLeaderService {
             this.heartbeatInterval = null;
         }
         this.notifyListeners();
-        console.log(`📋 This tab (${this.tabId}) stepped down from leader`);
+        logger.debug(`[TabLeaderService] This tab (${this.tabId}) stepped down from leader`);
     }
 
     private startHeartbeat(): void {

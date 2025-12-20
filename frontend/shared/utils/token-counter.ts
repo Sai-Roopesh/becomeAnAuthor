@@ -37,9 +37,47 @@ export function countTokens(text: string, model: string): number {
         return Math.ceil(text.length / 4);
     }
 
-    // For now, use estimation (will be accurate once tiktoken loads)
-    // TODO: Make this async for true accuracy
+    // Sync estimation for UI responsiveness - use countTokensAsync for accuracy
     return Math.ceil(text.length / 4);
+}
+
+/**
+ * Async token counting with true accuracy using tiktoken WASM
+ * Use this when accuracy matters more than immediate response
+ */
+export async function countTokensAsync(text: string, model: string): Promise<number> {
+    // Only use tiktoken on client-side
+    if (typeof window === 'undefined') {
+        return Math.ceil(text.length / 4);
+    }
+
+    try {
+        const getEncoding = await loadTiktoken();
+        if (!getEncoding) {
+            return Math.ceil(text.length / 4);
+        }
+
+        const normalizedModel = normalizeModelName(model);
+
+        // Check cache
+        if (!encoderCache.has(normalizedModel)) {
+            try {
+                const enc = getEncoding(normalizedModel);
+                encoderCache.set(normalizedModel, enc);
+            } catch {
+                // Model not supported, use gpt-4 as fallback
+                if (!encoderCache.has('gpt-4')) {
+                    encoderCache.set('gpt-4', getEncoding('gpt-4'));
+                }
+                return encoderCache.get('gpt-4')!.encode(text).length;
+            }
+        }
+
+        return encoderCache.get(normalizedModel)!.encode(text).length;
+    } catch (error) {
+        console.warn('tiktoken failed, using estimation:', error);
+        return Math.ceil(text.length / 4);
+    }
 }
 
 /**
@@ -96,7 +134,7 @@ export function freeTokenCounters() {
 
 /**
  * Get token count for messages format (chat completion)
- * Includes overhead for message formatting
+ * Includes overhead for message formatting (sync version)
  */
 export function countMessagesTokens(
     messages: Array<{ role: string; content: string }>,
@@ -114,3 +152,24 @@ export function countMessagesTokens(
 
     return tokens;
 }
+
+/**
+ * Async version of countMessagesTokens for accurate counting
+ */
+export async function countMessagesTokensAsync(
+    messages: Array<{ role: string; content: string }>,
+    model: string
+): Promise<number> {
+    let tokens = 0;
+
+    // Count tokens for each message + formatting overhead
+    for (const message of messages) {
+        tokens += await countTokensAsync(message.content, model);
+        tokens += 4; // Overhead per message (role, formatting, etc.)
+    }
+
+    tokens += 2; // Overhead for message array
+
+    return tokens;
+}
+

@@ -218,7 +218,7 @@ function getAnalysisIcon(type: string) {
     }
 }
 
-function UsersIcon(props: any) {
+function UsersIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
         <svg
             {...props}

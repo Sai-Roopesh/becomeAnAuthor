@@ -7,10 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 
+// Template field values can be string, number, boolean, or string[]
+type TemplateFieldValue = string | number | boolean | string[];
+
 interface TemplateFieldRendererProps {
     template: CodexTemplate;
-    values: Record<string, any>;
-    onChange: (fieldId: string, value: any) => void;
+    values: Record<string, TemplateFieldValue>;
+    onChange: (fieldId: string, value: TemplateFieldValue) => void;
 }
 
 /**
@@ -87,7 +90,7 @@ export function TemplateFieldRenderer({
                     <div className="space-y-2">
                         <Slider
                             value={[value as number || field.min || 0]}
-                            onValueChange={([v]) => onChange(field.id, v)}
+                            onValueChange={([v]) => onChange(field.id, v ?? 0)}
                             min={field.min || 0}
                             max={field.max || 100}
                             step={1}
@@ -97,6 +100,7 @@ export function TemplateFieldRenderer({
                         </p>
                     </div>
                 );
+
 
             default:
                 return (
