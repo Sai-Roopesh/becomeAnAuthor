@@ -80,10 +80,12 @@ export function useAutoLinkMentions() {
     /**
      * Sync mentions in content with SceneCodexLinks
      * Creates new links for new mentions, marks existing as auto-detected
+     * Series-first: requires seriesId for codex lookups
      */
     const syncMentions = useCallback(async (
         sceneId: string,
         projectId: string,
+        seriesId: string,
         content: TiptapContent | null | undefined
     ): Promise<{ added: number; removed: number }> => {
         // Extract mentions from content
@@ -109,8 +111,8 @@ export function useAutoLinkMentions() {
         let added = 0;
         for (const mention of mentions) {
             if (newMentionIds.includes(mention.id)) {
-                // Verify the codex entry still exists
-                const entry = await codexRepo.get(mention.id);
+                // Verify the codex entry still exists (using seriesId)
+                const entry = await codexRepo.get(seriesId, mention.id);
                 if (entry) {
                     await linkRepo.create({
                         sceneId,

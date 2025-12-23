@@ -21,7 +21,12 @@ import {
 import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
-export function CodexList({ projectId }: { projectId: string }) {
+interface CodexListProps {
+    projectId: string;
+    seriesId: string;  // Required - series-first architecture
+}
+
+export function CodexList({ projectId, seriesId }: CodexListProps) {
     const codexRepo = useCodexRepository();
     const templateRepo = useCodexTemplateRepository();
     const [search, setSearch] = useState('');
@@ -29,9 +34,10 @@ export function CodexList({ projectId }: { projectId: string }) {
     const [showTemplateSelector, setShowTemplateSelector] = useState(false);
     const [pendingCategory, setPendingCategory] = useState<CodexCategory>('character');
 
+    // Use seriesId for fetching codex entries (series-level codex)
     const entries = useLiveQuery(
-        () => codexRepo.getByProject(projectId),
-        [projectId]
+        () => codexRepo.getBySeries(seriesId),
+        [seriesId]
     );
 
     const filteredEntries = entries?.filter(e =>
@@ -45,11 +51,10 @@ export function CodexList({ projectId }: { projectId: string }) {
     };
 
     const handleTemplateSelected = async (template: CodexTemplate) => {
-        // Create entry from template
+        // Create entry from template using seriesId
         const newEntry = await templateRepo.get(template.id).then(t => {
             if (!t) throw new Error('Template not found');
-            return codexRepo.create({
-                projectId,
+            return codexRepo.create(seriesId, {
                 name: 'New ' + t.category.charAt(0).toUpperCase() + t.category.slice(1),
                 category: t.category,
                 templateId: t.id,
@@ -61,9 +66,8 @@ export function CodexList({ projectId }: { projectId: string }) {
     };
 
     const handleSkipTemplate = async () => {
-        // Create blank entry without template
-        const newEntry = await codexRepo.create({
-            projectId,
+        // Create blank entry without template using seriesId
+        const newEntry = await codexRepo.create(seriesId, {
             name: 'New Entity',
             category: pendingCategory,
         });
@@ -73,7 +77,7 @@ export function CodexList({ projectId }: { projectId: string }) {
 
     const { confirm, ConfirmationDialog } = useConfirmation();
 
-    const handleDeleteClick = async (id: string, e: React.MouseEvent) => {
+    const handleDeleteClick = async (entry: CodexEntry, e: React.MouseEvent) => {
         e.stopPropagation();
         const confirmed = await confirm({
             title: 'Delete Entity',
@@ -84,10 +88,10 @@ export function CodexList({ projectId }: { projectId: string }) {
 
         if (confirmed) {
             try {
-                await codexRepo.delete(id);
+                await codexRepo.delete(seriesId, entry.id, entry.category);
                 invalidateQueries(); // Refresh the entry list
                 toast.success('Entity deleted');
-                if (selectedEntityId === id) {
+                if (selectedEntityId === entry.id) {
                     setSelectedEntityId(null);
                 }
             } catch (error) {
@@ -97,7 +101,7 @@ export function CodexList({ projectId }: { projectId: string }) {
     };
 
     if (selectedEntityId) {
-        return <EntityEditor entityId={selectedEntityId} onBack={() => setSelectedEntityId(null)} />;
+        return <EntityEditor entityId={selectedEntityId} seriesId={seriesId} onBack={() => setSelectedEntityId(null)} />;
     }
 
     return (
@@ -163,7 +167,7 @@ export function CodexList({ projectId }: { projectId: string }) {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={(e) => handleDeleteClick(entry.id, e)} className="text-destructive">
+                                <DropdownMenuItem onClick={(e) => handleDeleteClick(entry, e)} className="text-destructive">
                                     <Trash2 className="h-4 w-4 mr-2" /> Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>

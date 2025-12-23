@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{Scene, SceneMeta, YamlSceneMeta};
-use crate::utils::{project_dir, validate_file_size, count_words, MAX_SCENE_SIZE};
+use crate::utils::{project_dir, validate_file_size, count_words, MAX_SCENE_SIZE, timestamp};
 
 #[tauri::command]
 pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, String> {
@@ -34,6 +34,14 @@ pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, Str
     let yaml_meta: YamlSceneMeta = serde_yaml::from_str(yaml_str)
         .map_err(|e| format!("Failed to parse scene YAML: {}", e))?;
     
+    // Convert string timestamps to i64
+    let created_at = chrono::DateTime::parse_from_rfc3339(&yaml_meta.created_at)
+        .map(|dt| dt.timestamp_millis())
+        .unwrap_or_else(|_| timestamp::now_millis());
+    let updated_at = chrono::DateTime::parse_from_rfc3339(&yaml_meta.updated_at)
+        .map(|dt| dt.timestamp_millis())
+        .unwrap_or_else(|_| timestamp::now_millis());
+    
     let meta = SceneMeta {
         id: yaml_meta.id,
         title: yaml_meta.title,
@@ -41,8 +49,8 @@ pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, Str
         status: yaml_meta.status,
         word_count: count_words(body),
         pov_character: yaml_meta.pov_character,
-        created_at: yaml_meta.created_at,
-        updated_at: yaml_meta.updated_at,
+        created_at,
+        updated_at,
     };
     
     Ok(Scene {
@@ -57,7 +65,7 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
     
     // Load existing scene to preserve metadata
     let existing = fs::read_to_string(&file_path).ok();
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = timestamp::now_millis();
     
     let mut meta = if let Some(existing_content) = existing {
         let parts: Vec<&str> = existing_content.splitn(3, "---").collect();
@@ -71,8 +79,8 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
                 status: "draft".to_string(),
                 word_count: 0,
                 pov_character: None,
-                created_at: now.clone(),
-                updated_at: now.clone(),
+                created_at: now,
+                updated_at: now,
             };
             for line in yaml_str.lines() {
                 let parts: Vec<&str> = line.splitn(2, ':').collect();
@@ -85,7 +93,11 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
                         "order" => m.order = value.parse().unwrap_or(0),
                         "status" => m.status = value.to_string(),
                         "povCharacter" => m.pov_character = Some(value.to_string()),
-                        "createdAt" => m.created_at = value.to_string(),
+                        "createdAt" => {
+                            m.created_at = chrono::DateTime::parse_from_rfc3339(value)
+                                .map(|dt| dt.timestamp_millis())
+                                .unwrap_or(now);
+                        }
                         _ => {}
                     }
                 }
@@ -99,8 +111,8 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
                 status: "draft".to_string(),
                 word_count: 0,
                 pov_character: None,
-                created_at: now.clone(),
-                updated_at: now.clone(),
+                created_at: now,
+                updated_at: now,
             }
         }
     } else {
@@ -111,8 +123,8 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
             status: "draft".to_string(),
             word_count: 0,
             pov_character: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
         }
     };
     
@@ -122,9 +134,13 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
         meta.title = t;
     }
     
+    // Convert timestamps to RFC3339 strings for YAML frontmatter
+    let created_at_str = timestamp::to_rfc3339(meta.created_at);
+    let updated_at_str = timestamp::to_rfc3339(meta.updated_at);
+    
     let frontmatter = format!(
         "---\nid: {}\ntitle: \"{}\"\norder: {}\nstatus: {}\nwordCount: {}\ncreatedAt: {}\nupdatedAt: {}\n---\n\n",
-        meta.id, meta.title, meta.order, meta.status, meta.word_count, meta.created_at, meta.updated_at
+        meta.id, meta.title, meta.order, meta.status, meta.word_count, created_at_str, updated_at_str
     );
     
     let full_content = frontmatter + &content;

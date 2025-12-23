@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useStorageQuota } from './use-storage-quota';
 
 // Mock the storage quota service
-vi.mock('@/lib/services/storage-quota-service', () => ({
+vi.mock('@/infrastructure/services/storage-quota-service', () => ({
     storageQuotaService: {
         getQuota: vi.fn().mockResolvedValue({
             used: 1024 * 1024 * 50, // 50MB

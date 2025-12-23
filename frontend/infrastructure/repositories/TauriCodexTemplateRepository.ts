@@ -10,11 +10,11 @@ import {
     saveCodexTemplate,
     deleteCodexTemplate
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     async get(id: string): Promise<CodexTemplate | undefined> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return undefined;
 
         try {
@@ -27,7 +27,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     }
 
     async getByCategory(category: CodexCategory): Promise<CodexTemplate[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -40,7 +40,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     }
 
     async getBuiltInTemplates(): Promise<CodexTemplate[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -53,7 +53,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     }
 
     async getCustomTemplates(projectId: string): Promise<CodexTemplate[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -66,7 +66,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     }
 
     async create(template: Omit<CodexTemplate, 'id' | 'createdAt'>): Promise<CodexTemplate> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
         const newTemplate: CodexTemplate = {
@@ -85,7 +85,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     }
 
     async update(id: string, data: Partial<CodexTemplate>): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         const existing = await this.get(id);
@@ -101,7 +101,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     }
 
     async delete(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {

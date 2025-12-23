@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { storageQuotaService, StorageQuota } from '@/lib/integrations/storage-quota-service';
+import { storageQuotaService, StorageQuota } from '@/infrastructure/services/storage-quota-service';
 
 /**
  * Hook to monitor storage quota

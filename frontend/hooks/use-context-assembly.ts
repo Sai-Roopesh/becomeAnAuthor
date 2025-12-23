@@ -21,10 +21,19 @@ function isSceneNode(node: StoryNode): node is Scene {
 /**
  * Hook for assembling context from selected items
  * Provides caching to avoid re-fetching same nodes
+ * Series-first: requires seriesId for codex lookups
  */
-export function useContextAssembly(projectId: string) {
-    const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
+export function useContextAssembly(projectId: string, seriesId?: string) {
+    const { nodeRepository: nodeRepo, codexRepository: codexRepo, projectRepository: projectRepo } = useAppServices();
     const cacheRef = useRef(new Map<string, string>());
+
+    // We may need to fetch the project to get seriesId if not provided
+    const resolvedSeriesIdRef = useRef<string | undefined>(seriesId);
+
+    // Update the ref when seriesId changes
+    if (seriesId) {
+        resolvedSeriesIdRef.current = seriesId;
+    }
 
     /**
      * Assemble context from selected context items
@@ -43,6 +52,13 @@ export function useContextAssembly(projectId: string) {
             if (cacheRef.current.has(cacheKey)) {
                 logger.debug('[ContextAssembly] Cache hit', { cacheKey });
                 return cacheRef.current.get(cacheKey)!;
+            }
+
+            // Resolve seriesId if not provided (fallback for backward compatibility)
+            let effectiveSeriesId = resolvedSeriesIdRef.current;
+            if (!effectiveSeriesId) {
+                const project = await projectRepo.get(projectId);
+                effectiveSeriesId = project?.seriesId;
             }
 
             const { contextAssembler } = await import('@/shared/utils/context-assembler');
@@ -94,9 +110,9 @@ export function useContextAssembly(projectId: string) {
                             const sceneContext = contextAssembler.createSceneContext(scene);
                             contexts.push(sceneContext.content);
                         }
-                    } else if (context.type === 'codex' && context.id) {
-                        // Fetch codex entry
-                        const entry = await codexRepo.get(context.id);
+                    } else if (context.type === 'codex' && context.id && effectiveSeriesId) {
+                        // Fetch codex entry - series-first: use seriesId
+                        const entry = await codexRepo.get(effectiveSeriesId, context.id);
                         if (entry) {
                             const codexContext = contextAssembler.createCodexContext(entry as any);
                             contexts.push(codexContext.content);
@@ -123,7 +139,7 @@ export function useContextAssembly(projectId: string) {
 
             return result;
         },
-        [projectId, nodeRepo, codexRepo]
+        [projectId, nodeRepo, codexRepo, projectRepo]
     );
 
     /**

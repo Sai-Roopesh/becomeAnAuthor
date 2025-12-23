@@ -175,7 +175,7 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                 </TabsContent>
 
                 <TabsContent value="codex" className="flex-1 overflow-hidden m-0">
-                    <CodexList projectId={projectId} />
+                    <CodexList projectId={projectId} seriesId={project.seriesId} />
                 </TabsContent>
 
                 <TabsContent value="snippets" className="flex-1 overflow-hidden m-0">

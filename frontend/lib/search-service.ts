@@ -1,5 +1,6 @@
 import Fuse from 'fuse.js';
 import type { FuseResultMatch } from 'fuse.js';
+import type { TiptapContent } from '@/shared/types/tiptap';
 
 /**
  * Search Service using Fuse.js for fuzzy searching
@@ -9,7 +10,7 @@ import type { FuseResultMatch } from 'fuse.js';
 export interface SearchableScene {
   id: string;
   title: string;
-  content?: any;
+  content?: TiptapContent | null;
   summary?: string;
   type: 'scene';
 }

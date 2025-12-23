@@ -92,12 +92,4 @@ export function calculateChapterBoundaries(
     return boundaries;
 }
 
-/**
- * Timeline layout constants.
- */
-export const TIMELINE_LAYOUT = {
-    SCENE_WIDTH: 100,
-    SCENE_GAP: 8,
-    LANE_HEIGHT: 48,
-    HEADER_WIDTH: 180,
-} as const;
+

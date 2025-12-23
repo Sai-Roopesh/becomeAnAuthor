@@ -9,6 +9,7 @@ import type { DocumentNode } from '@/lib/config/types';
 interface FocusModeLayoutProps {
     activeScene: DocumentNode;
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     editorWordCount: number;
     onWordCountChange: (count: number) => void;
     onExitFocusMode: () => void;
@@ -16,10 +17,12 @@ interface FocusModeLayoutProps {
 
 /**
  * Focus Mode Layout - Full-screen distraction-free writing.
+ * Series-first: requires seriesId for editor features
  */
 export function FocusModeLayout({
     activeScene,
     projectId,
+    seriesId,
     editorWordCount,
     onWordCountChange,
     onExitFocusMode,
@@ -47,6 +50,7 @@ export function FocusModeLayout({
                     <TiptapEditor
                         sceneId={activeScene.id}
                         projectId={projectId}
+                        seriesId={seriesId}
                         content={'content' in activeScene ? activeScene.content : { type: 'doc', content: [] }}
                         onWordCountChange={onWordCountChange}
                     />

@@ -14,10 +14,21 @@ import type { Project } from '@/lib/config/types';
 
 interface ProjectCardProps {
     project: Project;
+    seriesName?: string | undefined;  // Optional series name for display
     onDelete: (e: React.MouseEvent, projectId: string) => void;
 }
 
-export function ProjectCard({ project, onDelete }: ProjectCardProps) {
+export function ProjectCard({ project, seriesName, onDelete }: ProjectCardProps) {
+    // Format the series label: "{Series Name} Book 1" or just "Book 1" or "Novel"
+    const getSeriesLabel = () => {
+        if (!project.seriesIndex) return 'Novel';
+        // seriesIndex is already "Book 1", "Book 2" etc.
+        if (seriesName) {
+            return `${seriesName} ${project.seriesIndex}`;
+        }
+        return project.seriesIndex;
+    };
+
     return (
         <Link href={`/project?id=${project.id}`} className="group block h-full">
             <Card className="h-full flex flex-col overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-primary/30 group-hover:ring-1 group-hover:ring-primary/20">
@@ -45,7 +56,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
                 <CardContent className="p-5 relative flex-grow">
                     <div className="mb-1 flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-wider">
-                        {project.seriesIndex ? `Book ${project.seriesIndex}` : 'Novel'}
+                        {getSeriesLabel()}
                     </div>
                     <h2 className="font-heading font-bold text-xl leading-tight mb-2 group-hover:text-primary transition-colors line-clamp-2">
                         {project.title}

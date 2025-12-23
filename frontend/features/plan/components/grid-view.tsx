@@ -9,11 +9,12 @@ import { CreateNodeDialog } from '@/features/shared/components';
 
 interface GridViewProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     nodes: DocumentNode[];
     searchQuery: string;
 }
 
-export function GridView({ projectId, nodes, searchQuery }: GridViewProps) {
+export function GridView({ projectId, seriesId, nodes, searchQuery }: GridViewProps) {
     const [collapsedActs, setCollapsedActs] = useState<Set<string>>(new Set());
     const [dialogState, setDialogState] = useState<{
         open: boolean;
@@ -49,23 +50,32 @@ export function GridView({ projectId, nodes, searchQuery }: GridViewProps) {
 
     if (acts.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
-                <div className="relative">
-                    <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
-                    <div className="relative bg-background p-6 rounded-full shadow-xl border border-border/50">
-                        <LayoutGrid className="h-12 w-12 text-primary" />
+            <>
+                <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
+                        <div className="relative bg-background p-6 rounded-full shadow-xl border border-border/50">
+                            <LayoutGrid className="h-12 w-12 text-primary" />
+                        </div>
                     </div>
+                    <div className="space-y-2">
+                        <h3 className="text-2xl font-heading font-bold">Start Planning</h3>
+                        <p className="text-muted-foreground max-w-sm">
+                            Create your first Act to begin structuring your masterpiece.
+                        </p>
+                    </div>
+                    <Button onClick={() => openCreateDialog(null, 'act')} size="lg" className="shadow-lg shadow-primary/20">
+                        <Plus className="h-5 w-5 mr-2" /> Create First Act
+                    </Button>
                 </div>
-                <div className="space-y-2">
-                    <h3 className="text-2xl font-heading font-bold">Start Planning</h3>
-                    <p className="text-muted-foreground max-w-sm">
-                        Create your first Act to begin structuring your masterpiece.
-                    </p>
-                </div>
-                <Button onClick={() => openCreateDialog(null, 'act')} size="lg" className="shadow-lg shadow-primary/20">
-                    <Plus className="h-5 w-5 mr-2" /> Create First Act
-                </Button>
-            </div>
+                <CreateNodeDialog
+                    open={dialogState.open}
+                    onOpenChange={(open) => setDialogState(prev => ({ ...prev, open }))}
+                    projectId={projectId}
+                    parentId={dialogState.parentId}
+                    type={dialogState.type}
+                />
+            </>
         );
     }
 
@@ -144,7 +154,7 @@ export function GridView({ projectId, nodes, searchQuery }: GridViewProps) {
                                             <div className="p-3 space-y-2 flex-1 min-h-[100px]">
                                                 {scenes.filter(filterNodes).map(scene => (
                                                     <div key={scene.id} className="transform transition-transform hover:-translate-y-0.5">
-                                                        <SceneCard scene={scene} />
+                                                        <SceneCard scene={scene} seriesId={seriesId} />
                                                     </div>
                                                 ))}
 

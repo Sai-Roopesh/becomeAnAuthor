@@ -19,6 +19,7 @@ export default defineConfig({
                 '**/mockData.ts',
             ],
         },
+        exclude: ['node_modules', 'e2e/**'],
     },
     resolve: {
         alias: {

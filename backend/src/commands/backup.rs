@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, EmergencyBackup, StructureNode};
-use crate::utils::{get_app_dir, get_projects_dir, slugify};
+use crate::utils::{get_app_dir, get_projects_dir, slugify, timestamp};
 use crate::commands::seed::seed_built_in_data;
 
 // Emergency Backup Commands
@@ -130,6 +130,134 @@ pub fn export_manuscript_text(project_path: String) -> Result<String, String> {
     Ok(output)
 }
 
+/// Extract plain text from Tiptap JSON content
+fn extract_text_from_tiptap(content: &serde_json::Value) -> String {
+    let mut result = String::new();
+    
+    if let Some(content_array) = content.get("content").and_then(|c| c.as_array()) {
+        for node in content_array {
+            extract_text_recursive(node, &mut result);
+        }
+    }
+    
+    result
+}
+
+fn extract_text_recursive(node: &serde_json::Value, result: &mut String) {
+    // Handle text nodes
+    if let Some(text) = node.get("text").and_then(|t| t.as_str()) {
+        result.push_str(text);
+    }
+    
+    // Handle paragraph nodes - add newline after
+    if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+        if node_type == "paragraph" {
+            // Process children first
+            if let Some(content) = node.get("content").and_then(|c| c.as_array()) {
+                for child in content {
+                    extract_text_recursive(child, result);
+                }
+            }
+            result.push_str("\n\n");
+            return;
+        }
+    }
+    
+    // Recurse into children
+    if let Some(content) = node.get("content").and_then(|c| c.as_array()) {
+        for child in content {
+            extract_text_recursive(child, result);
+        }
+    }
+}
+
+/// Export manuscript as DOCX document
+#[tauri::command]
+pub fn export_manuscript_docx(project_path: String, output_path: String) -> Result<String, String> {
+    use docx_rs::*;
+    
+    let structure = crate::commands::project::get_structure(project_path.clone())?;
+    let mut docx = Docx::new();
+    
+    fn add_node_to_docx(node: &StructureNode, docx: &mut Docx, project_path: &str) {
+        match node.node_type.as_str() {
+            "act" => {
+                // Act title as Heading 1
+                *docx = std::mem::take(docx).add_paragraph(
+                    Paragraph::new()
+                        .add_run(Run::new().add_text(&node.title).bold())
+                        .style("Heading1")
+                );
+            }
+            "chapter" => {
+                // Chapter title as Heading 2
+                *docx = std::mem::take(docx).add_paragraph(
+                    Paragraph::new()
+                        .add_run(Run::new().add_text(&node.title).bold())
+                        .style("Heading2")
+                );
+            }
+            "scene" => {
+                // Scene title as Heading 3
+                *docx = std::mem::take(docx).add_paragraph(
+                    Paragraph::new()
+                        .add_run(Run::new().add_text(&node.title).bold())
+                        .style("Heading3")
+                );
+                
+                // Read scene content
+                if let Some(file) = &node.file {
+                    let file_path = PathBuf::from(project_path).join("manuscript").join(file);
+                    if let Ok(content) = fs::read_to_string(&file_path) {
+                        // Parse YAML frontmatter + content
+                        let parts: Vec<&str> = content.splitn(3, "---").collect();
+                        if parts.len() >= 3 {
+                            let body = parts[2].trim();
+                            
+                            // Try to parse as Tiptap JSON
+                            if let Ok(tiptap) = serde_json::from_str::<serde_json::Value>(body) {
+                                let text = extract_text_from_tiptap(&tiptap);
+                                for para in text.split("\n\n").filter(|s| !s.trim().is_empty()) {
+                                    *docx = std::mem::take(docx).add_paragraph(
+                                        Paragraph::new().add_run(Run::new().add_text(para.trim()))
+                                    );
+                                }
+                            } else {
+                                // Plain text fallback
+                                for para in body.split("\n\n").filter(|s| !s.trim().is_empty()) {
+                                    *docx = std::mem::take(docx).add_paragraph(
+                                        Paragraph::new().add_run(Run::new().add_text(para.trim()))
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        
+        // Process children
+        for child in &node.children {
+            add_node_to_docx(child, docx, project_path);
+        }
+    }
+    
+    for node in &structure {
+        add_node_to_docx(node, &mut docx, &project_path);
+    }
+    
+    // Build and pack the DOCX to a file
+    let file = fs::File::create(&output_path)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+    
+    docx.build().pack(file)
+        .map_err(|e| format!("Failed to build DOCX: {}", e))?;
+    
+    Ok(output_path)
+}
+
+
 #[tauri::command]
 pub fn export_project_backup(project_path: String, output_path: Option<String>) -> Result<String, String> {
     let project_dir = PathBuf::from(&project_path);
@@ -173,8 +301,44 @@ pub fn export_project_backup(project_path: String, output_path: Option<String>) 
     Ok(final_path.to_string_lossy().to_string())
 }
 
+/// Export project as JSON string (for cloud backup services like Google Drive)
 #[tauri::command]
-pub fn import_project_backup(backup_json: String) -> Result<ProjectMeta, String> {
+pub fn export_project_as_json(project_path: String) -> Result<String, String> {
+    let project_dir = PathBuf::from(&project_path);
+    let meta_path = project_dir.join(".meta/project.json");
+    
+    if !meta_path.exists() {
+        return Err("Project not found".to_string());
+    }
+    
+    let project: ProjectMeta = {
+        let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    };
+    
+    let structure = crate::commands::project::get_structure(project_path.clone())?;
+    let codex = crate::commands::codex::list_codex_entries(project_path.clone())?;
+    let snippets = crate::commands::snippet::list_snippets(project_path.clone())?;
+    
+    let backup = serde_json::json!({
+        "version": 1,
+        "exportedAt": chrono::Utc::now().to_rfc3339(),
+        "project": project,
+        "nodes": structure,
+        "codex": codex,
+        "snippets": snippets
+    });
+    
+    serde_json::to_string(&backup).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn import_project_backup(backup_json: String, series_id: String, series_index: String) -> Result<ProjectMeta, String> {
+    // Validate series_id
+    if series_id.is_empty() {
+        return Err("Series ID is required. All projects must belong to a series.".to_string());
+    }
+    
     let backup: serde_json::Value = serde_json::from_str(&backup_json)
         .map_err(|e| format!("Invalid backup JSON: {}", e))?;
     
@@ -194,24 +358,19 @@ pub fn import_project_backup(backup_json: String) -> Result<ProjectMeta, String>
         .unwrap_or("");
     
     let projects_dir = get_projects_dir()?;
-    let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
-    let slug = format!("{}_{}", slugify(title), timestamp);
+    let timestamp_str = chrono::Utc::now().format("%Y%m%d%H%M%S");
+    let slug = format!("{}_{}", slugify(title), timestamp_str);
     let project_dir = projects_dir.join(&slug);
     
-    // Create directory structure
+    // Create directory structure (NO codex folder - codex is at series level)
     fs::create_dir_all(project_dir.join(".meta/chat/messages")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("manuscript")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(project_dir.join("codex/characters")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(project_dir.join("codex/locations")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(project_dir.join("codex/items")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(project_dir.join("codex/lore")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(project_dir.join("codex/subplots")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("snippets")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("analyses")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("exports")).map_err(|e| e.to_string())?;
     
     let new_id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = timestamp::now_millis();
     
     let project = ProjectMeta {
         id: new_id.clone(),
@@ -219,8 +378,10 @@ pub fn import_project_backup(backup_json: String) -> Result<ProjectMeta, String>
         author: author.to_string(),
         description: description.to_string(),
         archived: false,
+        series_id: series_id.clone(),
+        series_index,
         path: project_dir.to_string_lossy().to_string(),
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     };
     
@@ -241,7 +402,7 @@ pub fn import_project_backup(backup_json: String) -> Result<ProjectMeta, String>
         fs::write(project_dir.join(".meta/structure.json"), "[]").map_err(|e| e.to_string())?;
     }
     
-    // Import codex
+    // Import codex entries to SERIES storage (not project-local)
     if let Some(codex) = backup.get("codex").and_then(|v| v.as_array()) {
         for entry in codex {
             if let (Some(id), Some(category)) = (
@@ -250,9 +411,12 @@ pub fn import_project_backup(backup_json: String) -> Result<ProjectMeta, String>
             ) {
                 let mut entry_clone = entry.clone();
                 if let Some(obj) = entry_clone.as_object_mut() {
+                    // Update projectId to the new project ID
                     obj.insert("projectId".to_string(), serde_json::Value::String(new_id.clone()));
                 }
-                let entry_path = project_dir.join("codex").join(category).join(format!("{}.json", id));
+                // Save to series codex location
+                let series_codex_dir = crate::utils::get_series_codex_path(&series_id)?;
+                let entry_path = series_codex_dir.join(category).join(format!("{}.json", id));
                 let parent_dir = entry_path.parent()
                     .ok_or_else(|| format!("Invalid codex entry path: {:?}", entry_path))?;
                 fs::create_dir_all(parent_dir)
@@ -278,7 +442,7 @@ pub fn import_project_backup(backup_json: String) -> Result<ProjectMeta, String>
         }
     }
     
-    seed_built_in_data(&project_dir)?;
+    // Note: Templates are seeded at series level, not project level
     
     Ok(project)
 }

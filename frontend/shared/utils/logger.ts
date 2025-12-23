@@ -14,6 +14,7 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+// Note: LogContext uses 'any' intentionally - log metadata is inherently dynamic
 interface LogContext {
     [key: string]: any;
 }

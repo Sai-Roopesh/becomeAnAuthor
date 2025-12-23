@@ -1,6 +1,7 @@
 // Project-related models
 
 use serde::{Deserialize, Serialize};
+use crate::utils::timestamp;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProjectMeta {
@@ -11,8 +12,20 @@ pub struct ProjectMeta {
     pub path: String,
     #[serde(default)]
     pub archived: bool,
-    pub created_at: String,
-    pub updated_at: String,
+    /// Series this project belongs to (REQUIRED)
+    pub series_id: String,
+    /// Position in series (e.g., "Book 1", "Book 2")
+    pub series_index: String,
+    #[serde(
+        serialize_with = "timestamp::serialize_as_rfc3339",
+        deserialize_with = "timestamp::deserialize_from_rfc3339"
+    )]
+    pub created_at: i64,
+    #[serde(
+        serialize_with = "timestamp::serialize_as_rfc3339",
+        deserialize_with = "timestamp::deserialize_from_rfc3339"
+    )]
+    pub updated_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

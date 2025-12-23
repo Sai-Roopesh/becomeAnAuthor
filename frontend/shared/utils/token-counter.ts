@@ -4,11 +4,12 @@
  */
 
 // Lazy import to avoid Next.js SSR issues with WASM
-type Tiktoken = any;
-let encoding_for_model: any = null;
+// Note: Using unknown because tiktoken types are loaded dynamically
+type Encoding = { encode: (text: string) => number[]; free: () => void };
+let encoding_for_model: ((model: string) => Encoding) | null = null;
 
 // Cache encoders to avoid re-initialization overhead
-const encoderCache = new Map<string, Tiktoken>();
+const encoderCache = new Map<string, Encoding>();
 
 /**
  * Lazy load tiktoken (client-side only)
@@ -18,7 +19,8 @@ async function loadTiktoken() {
 
     try {
         const tiktoken = await import('@dqbd/tiktoken');
-        encoding_for_model = tiktoken.encoding_for_model;
+        // Cast to unknown first, then to our Encoding type - tiktoken's types are complex
+        encoding_for_model = tiktoken.encoding_for_model as unknown as (model: string) => Encoding;
         return encoding_for_model;
     } catch (error) {
         console.warn('Failed to load tiktoken:', error);

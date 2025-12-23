@@ -2,7 +2,8 @@ import {
     listSeries,
     createSeries,
     updateSeries,
-    deleteSeries
+    deleteSeries,
+    deleteSeriesCascade
 } from '@/core/tauri';
 import type { ISeriesRepository } from '@/domain/repositories/ISeriesRepository';
 import type { Series } from '@/domain/entities/types';
@@ -61,6 +62,15 @@ export class TauriSeriesRepository implements ISeriesRepository {
             await deleteSeries(id);
         } catch (error) {
             console.error('Failed to delete series:', error);
+            throw error;
+        }
+    }
+
+    async deleteCascade(id: string): Promise<number> {
+        try {
+            return await deleteSeriesCascade(id);
+        } catch (error) {
+            console.error('Failed to cascade delete series:', error);
             throw error;
         }
     }

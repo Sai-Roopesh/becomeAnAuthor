@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { googleDriveService } from '@/lib/integrations/google-drive-service';
+import { googleDriveService } from '@/infrastructure/services/google-drive-service';
 import { DriveFile, DriveQuota } from '@/lib/config/types';
 import { useGoogleAuth } from './use-google-auth';
 

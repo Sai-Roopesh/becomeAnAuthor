@@ -11,6 +11,7 @@ import type { DocumentNode } from '@/lib/config/types';
 
 interface MobileLayoutProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     activeScene: DocumentNode | undefined;
     activeSnippetId: string | null;
     showSidebar: boolean;
@@ -25,9 +26,11 @@ interface MobileLayoutProps {
 
 /**
  * Mobile Layout using Sheets for sidebars.
+ * Series-first: requires seriesId for editor features
  */
 export function MobileLayout({
     projectId,
+    seriesId,
     activeScene,
     activeSnippetId,
     showSidebar,
@@ -62,6 +65,7 @@ export function MobileLayout({
                     <TiptapEditor
                         sceneId={activeScene.id}
                         projectId={projectId}
+                        seriesId={seriesId}
                         content={'content' in activeScene ? activeScene.content : { type: 'doc', content: [] }}
                         onWordCountChange={onWordCountChange}
                     />
@@ -75,14 +79,14 @@ export function MobileLayout({
 
             {/* Left Sidebar Sheet */}
             <Sheet open={showSidebar} onOpenChange={onSetShowSidebar}>
-                <SheetContent side="left" className="p-0 w-[85vw] sm:w-[350px]">
+                <SheetContent side="left" className="p-0 w-[85vw] max-w-[350px]">
                     <ProjectNavigation projectId={projectId} onSelectSnippet={onSnippetSelect} />
                 </SheetContent>
             </Sheet>
 
             {/* Right Timeline Sheet */}
             <Sheet open={showTimeline} onOpenChange={onSetShowTimeline}>
-                <SheetContent side="right" className="p-0 w-[85vw] sm:w-[350px]">
+                <SheetContent side="right" className="p-0 w-[85vw] max-w-[350px]">
                     <StoryTimeline projectId={projectId} activeSceneWordCount={editorWordCount} />
                 </SheetContent>
             </Sheet>

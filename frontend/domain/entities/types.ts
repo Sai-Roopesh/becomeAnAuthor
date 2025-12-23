@@ -83,12 +83,17 @@ export interface GoalsAndMotivations {
 export interface ArcPoint {
     id: string;
     bookId: string;
+    sceneId?: string;
+    eventType: 'book' | 'scene' | 'flashback' | 'offscreen';
     eventLabel: string;
     description: string;
     timestamp: number;
     age?: number;
     status?: string;
     location?: string;
+    stats?: Record<string, number>;
+    notes?: string;
+    significance?: string;
     relationships: Record<string, string>;
     knowledgeState?: KnowledgeState;
     emotionalState?: EmotionalState;
@@ -147,8 +152,8 @@ export interface Project {
     id: string;
     title: string;
     author?: string;
-    seriesId?: string;
-    seriesIndex?: string; // e.g. "Book 1"
+    seriesId: string;      // REQUIRED - all projects must belong to a series
+    seriesIndex: string;   // REQUIRED - e.g., "Book 1"
     language?: string;
     coverImage?: string; // Base64 or URL
     archived?: boolean;
@@ -458,3 +463,52 @@ export interface SceneCodexLink {
     createdAt: number;
     updatedAt: number;
 }
+
+// ============================================
+// P2P Collaboration Types
+// ============================================
+
+/**
+ * Represents a collaboration room for a scene
+ */
+export interface CollaborationRoom {
+    id: string;             // Unique room ID (sceneId-based)
+    sceneId: string;        // Scene being edited
+    projectId: string;      // Parent project
+    createdAt: number;
+    lastSyncedAt: number;
+}
+
+/**
+ * Yjs state snapshot for persistence
+ */
+export interface YjsStateSnapshot {
+    sceneId: string;
+    projectId: string;
+    stateVector: Uint8Array;  // Yjs state vector for sync
+    update: Uint8Array;       // Yjs document update
+    savedAt: number;
+}
+
+/**
+ * Connected peer in a collaboration session
+ */
+export interface CollaborationPeer {
+    id: string;             // Peer's unique ID
+    name: string;           // Display name
+    color: string;          // Cursor color
+    cursor?: {              // Cursor position
+        anchor: number;
+        head: number;
+    };
+    lastSeen: number;
+}
+
+/**
+ * Collaboration session status
+ */
+export type CollaborationStatus =
+    | 'disconnected'       // Not connected to any peers
+    | 'connecting'         // Attempting to connect
+    | 'syncing'            // Connected, syncing data
+    | 'synced';            // Fully synced with peers

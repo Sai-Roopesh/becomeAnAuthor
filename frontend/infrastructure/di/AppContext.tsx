@@ -115,8 +115,9 @@ export function AppProvider({ children, services: customServices }: AppProviderP
 
         // All repositories use Tauri (filesystem-based) storage
         // IndexedDB fallback has been removed - this is now a desktop-only app
+        // IMPORTANT: Use singleton for TauriNodeRepository so projectPath is consistent
         const nodeRepo = customServices?.nodeRepository ??
-            createLazy(() => new TauriNodeRepository());
+            TauriNodeRepository.getInstance();
         const codexRepo = customServices?.codexRepository ??
             createLazy(() => new TauriCodexRepository());
         const chatRepo = customServices?.chatRepository ??
@@ -146,7 +147,8 @@ export function AppProvider({ children, services: customServices }: AppProviderP
         const chatSvc = customServices?.chatService ?? new ChatService(
             nodeRepo,
             codexRepo,
-            chatRepo
+            chatRepo,
+            projectRepo  // Series-first: needed for seriesId lookup
         );
 
         const exportSvc = customServices?.exportService ?? new DocumentExportService(
@@ -156,7 +158,8 @@ export function AppProvider({ children, services: customServices }: AppProviderP
         const analysisSvc = customServices?.analysisService ?? new AnalysisService(
             nodeRepo,
             codexRepo,
-            analysisRepo
+            analysisRepo,
+            projectRepo  // Series-first: needed for seriesId lookup
         );
 
         return {

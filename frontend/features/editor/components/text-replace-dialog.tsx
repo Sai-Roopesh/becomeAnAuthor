@@ -27,9 +27,10 @@ interface TextReplaceDialogProps {
     editor: Editor;
     onClose: () => void;
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
 }
 
-export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId }: TextReplaceDialogProps) {
+export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId, seriesId }: TextReplaceDialogProps) {
     // Replace 7 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         initialTextReplaceState,
@@ -226,7 +227,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                                 value={state.instruction}
                                 onChange={(e) => dispatch({ type: 'SET_INSTRUCTION', payload: e.target.value })}
                                 placeholder="e.g., describe the setting"
-                                className="min-h-[80px] mt-2"
+                                className="min-h-[80px] max-h-[20vh] mt-2"
                             />
                         </div>
 
@@ -235,6 +236,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                             <Label className="text-sm font-medium mb-2 block">Context</Label>
                             <ContextSelector
                                 projectId={projectId}
+                                seriesId={seriesId}
                                 selectedContexts={state.selectedContexts}
                                 onContextsChange={(contexts) => dispatch({ type: 'SET_SELECTED_CONTEXTS', payload: contexts })}
                             />
@@ -243,7 +245,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                         {/* Original Text Preview */}
                         <div>
                             <Label className="text-sm font-medium">Original Text</Label>
-                            <div className="mt-2 p-3 bg-muted rounded-md max-h-[120px] overflow-y-auto">
+                            <div className="mt-2 p-3 bg-muted rounded-md max-h-[25vh] overflow-y-auto">
                                 <p className="text-sm whitespace-pre-wrap">{selectedText}</p>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
@@ -272,7 +274,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                     <TabsContent value="preview" className="flex-1 overflow-y-auto px-6 py-4 space-y-4 mt-0">
                         <div>
                             <Label className="text-sm font-medium">Before</Label>
-                            <div className="mt-2 p-3 bg-muted rounded-md max-h-[150px] overflow-y-auto">
+                            <div className="mt-2 p-3 bg-muted rounded-md max-h-[25vh] overflow-y-auto">
                                 <p className="text-sm whitespace-pre-wrap">{selectedText}</p>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">

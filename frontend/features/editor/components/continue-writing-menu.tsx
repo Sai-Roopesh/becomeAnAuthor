@@ -20,12 +20,13 @@ interface ContinueWritingMenuProps {
     onOpenChange: (open: boolean) => void;
     onGenerate: (options: GenerateOptions & { mode: GenerationMode }) => void;
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     isGenerating?: boolean;
     onCancel?: () => void;
     position?: { x: number; y: number } | null; // NEW: cursor position
 }
 
-export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId, isGenerating, onCancel, position }: ContinueWritingMenuProps) {
+export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onOpenChange, onGenerate, projectId, seriesId, isGenerating, onCancel, position }: ContinueWritingMenuProps) {
     // Replace 4 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         initialContinueWritingState,
@@ -246,6 +247,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onO
                     defaultWordCount={parseInt(state.wordCount)}
                     mode={state.selectedMode}
                     projectId={projectId}
+                    seriesId={seriesId}
                 />
             )}
         </>

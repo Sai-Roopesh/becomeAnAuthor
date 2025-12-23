@@ -10,11 +10,11 @@ import {
     saveCodexRelation,
     deleteCodexRelation
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriCodexRelationRepository implements ICodexRelationRepository {
     async getByParent(parentId: string): Promise<CodexRelation[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -27,7 +27,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
     }
 
     async create(relation: Partial<CodexRelation> & { parentId: string; childId: string }): Promise<CodexRelation> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
         const now = Date.now();
@@ -53,7 +53,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
     }
 
     async delete(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {

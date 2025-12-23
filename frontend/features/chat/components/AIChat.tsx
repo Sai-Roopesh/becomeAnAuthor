@@ -23,9 +23,14 @@ import { AIChatInput } from './ai-chat-input';
  * - AIChatControls: Context, prompt, and model selection
  * - AIChatInput: Text input with send/cancel
  * 
- * Reduced from 335 lines to ~170 lines via component decomposition.
+ * Series-first: requires seriesId for context selection
  */
-export function AIChat({ projectId }: { projectId: string }) {
+interface AIChatProps {
+    projectId: string;
+    seriesId: string;  // Required - series-first architecture
+}
+
+export function AIChat({ projectId, seriesId }: AIChatProps) {
     const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
     const [input, setInput] = useState('');
     const chatRepo = useChatRepository();
@@ -178,6 +183,7 @@ export function AIChat({ projectId }: { projectId: string }) {
                     {showControls && (
                         <AIChatControls
                             projectId={projectId}
+                            seriesId={seriesId}
                             selectedContexts={selectedContexts}
                             onContextsChange={setSelectedContexts}
                             selectedPromptId={selectedPromptId}

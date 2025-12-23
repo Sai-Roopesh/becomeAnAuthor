@@ -66,7 +66,12 @@ export class NodeDeletionService {
      */
     async bulkDeleteWithConfirmation(
         nodeIds: string[],
-        confirmFn: (options: any) => Promise<boolean>
+        confirmFn: (options: {
+            title: string;
+            description: string;
+            confirmText: string;
+            variant: 'destructive' | 'default';
+        }) => Promise<boolean>
     ): Promise<boolean> {
         const confirmed = await confirmFn({
             title: 'Delete Selected Items',

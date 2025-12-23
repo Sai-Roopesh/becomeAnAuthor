@@ -123,8 +123,9 @@ export function NewConnectionDialog({ open, onClose, onSave }: NewConnectionDial
                         <p className="text-sm text-muted-foreground mb-4">
                             Select an AI vendor to add to your connections
                         </p>
-                        <ScrollArea className="h-[400px]">
-                            <div className="grid gap-3">
+
+                        <ScrollArea className="max-h-[80dvh]">
+                            <div className="grid gap-3 p-1">
                                 {vendors.map((vendor) => (
                                     <button
                                         key={vendor.id}

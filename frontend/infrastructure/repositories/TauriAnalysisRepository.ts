@@ -10,11 +10,11 @@ import {
     saveAnalysis,
     deleteAnalysis
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriAnalysisRepository implements IAnalysisRepository {
     private async getAllAnalyses(): Promise<StoryAnalysis[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -46,7 +46,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
     }
 
     async create(analysis: Omit<StoryAnalysis, 'id' | 'createdAt'>): Promise<StoryAnalysis> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
         const newAnalysis: StoryAnalysis = {
@@ -65,7 +65,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
     }
 
     async update(id: string, data: Partial<StoryAnalysis>): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         const existing = await this.get(id);
@@ -100,7 +100,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
     }
 
     async delete(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {
@@ -112,7 +112,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
     }
 
     async deleteByProject(projectId: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {

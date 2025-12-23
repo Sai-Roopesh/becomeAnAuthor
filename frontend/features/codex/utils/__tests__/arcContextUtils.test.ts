@@ -3,6 +3,7 @@
  * Tests for series-aware arc point selection
  */
 
+import { describe, it, expect } from 'vitest';
 import { findMostRecentArcPoint } from '../arcContextUtils';
 import type { ArcPoint, Project } from '@/domain/entities/types';
 
@@ -17,14 +18,17 @@ const createArcPoint = (bookId: string, timestamp: number): ArcPoint => ({
 });
 
 // Helper to create mock project
-const createProject = (id: string, seriesId?: string, seriesIndex?: string): Project => ({
-    id,
-    title: `Project ${id}`,
-    seriesId,
-    seriesIndex,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-});
+const createProject = (id: string, seriesId?: string, seriesIndex?: string): Project => {
+    const project: Project = {
+        id,
+        title: `Project ${id}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+    };
+    if (seriesId !== undefined) project.seriesId = seriesId;
+    if (seriesIndex !== undefined) project.seriesIndex = seriesIndex;
+    return project;
+};
 
 describe('arcContextUtils', () => {
     describe('findMostRecentArcPoint', () => {

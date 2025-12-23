@@ -155,10 +155,8 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
                                 id="contradictions"
                                 label="Contradiction Detection"
                                 icon={<AlertCircle className="h-4 w-4" />}
-                                badge="Coming Soon"
                                 checked={analysisTypes.contradictions}
                                 onCheckedChange={() => toggleAnalysisType('contradictions')}
-                                disabled
                             />
                             <AnalysisTypeCheckbox
                                 id="foreshadowing"

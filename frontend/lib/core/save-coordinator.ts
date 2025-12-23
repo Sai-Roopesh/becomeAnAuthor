@@ -6,7 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
+import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 import { toast } from '@/shared/utils/toast-service';
 import { storage } from '@/core/storage/safe-storage';
 import { logger } from '@/shared/utils/logger';
@@ -51,7 +51,7 @@ class SaveCoordinator {
             }
 
             // Now perform our save via Tauri
-            const projectPath = getCurrentProjectPath();
+            const projectPath = TauriNodeRepository.getInstance().getProjectPath();
             if (!projectPath) {
                 console.warn('[SaveCoordinator] No project path set, cannot save');
                 return;
@@ -65,6 +65,7 @@ class SaveCoordinator {
                 const cleanContent = JSON.parse(JSON.stringify(content));
 
                 log.debug(`Calling save_scene_by_id for ${sceneId}`);
+                // Tauri auto-converts Rust snake_case to JS camelCase
                 await invoke('save_scene_by_id', {
                     projectPath,
                     sceneId,
@@ -93,11 +94,15 @@ class SaveCoordinator {
                     const content = getContent();
                     const cleanContent = JSON.parse(JSON.stringify(content));
 
+                    // save_emergency_backup takes a struct with camelCase fields (serde rename)
                     await invoke('save_emergency_backup', {
-                        projectPath,
-                        sceneId,
-                        content: JSON.stringify(cleanContent),
-                        timestamp: Date.now()
+                        backup: {
+                            id: `backup_${sceneId}_${Date.now()}`,
+                            sceneId,
+                            content: JSON.stringify(cleanContent),
+                            timestamp: Date.now(),
+                            expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+                        }
                     });
 
                     toast.error('Save failed. Emergency backup created.');

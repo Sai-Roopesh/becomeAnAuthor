@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CodexFilterBarProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     /** Currently selected codex entry IDs */
     selectedIds: string[];
     /** Callback when selection changes */
@@ -38,9 +39,11 @@ const CATEGORIES: { id: CodexCategory; label: string; icon: typeof User; color: 
 /**
  * Filter bar for selecting codex entries to filter scenes by
  * Shows category pills and selected entry chips
+ * Series-first: uses seriesId for codex lookups
  */
 export function CodexFilterBar({
     projectId,
+    seriesId,
     selectedIds,
     onSelectionChange,
     categoryFilter,
@@ -50,10 +53,10 @@ export function CodexFilterBar({
     const [popoverOpen, setPopoverOpen] = useState(false);
     const codexRepo = useCodexRepository();
 
-    // Get all codex entries for the project
+    // Get all codex entries for the series (series-first architecture)
     const entries = useLiveQuery(
-        () => codexRepo.getByProject(projectId),
-        [projectId, codexRepo]
+        () => codexRepo.getBySeries(seriesId),
+        [seriesId, codexRepo]
     );
 
     // Filter entries by category and search

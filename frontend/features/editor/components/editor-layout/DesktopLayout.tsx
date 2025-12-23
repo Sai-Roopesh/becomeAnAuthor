@@ -28,6 +28,7 @@ import { isElementNode } from '@/shared/types/tiptap';
 
 interface DesktopLayoutProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     activeScene: DocumentNode | undefined;
     activeSnippetId: string | null;
     showSidebar: boolean;
@@ -45,9 +46,11 @@ interface DesktopLayoutProps {
 
 /**
  * Desktop Layout using ResizablePanels for multi-column layout.
+ * Series-first: requires seriesId for editor features
  */
 export function DesktopLayout({
     projectId,
+    seriesId,
     activeScene,
     activeSnippetId,
     showSidebar,
@@ -147,6 +150,7 @@ export function DesktopLayout({
                                                 <TiptapEditor
                                                     sceneId={activeScene.id}
                                                     projectId={projectId}
+                                                    seriesId={seriesId}
                                                     content={
                                                         'content' in activeScene
                                                             ? activeScene.content
@@ -211,7 +215,7 @@ export function DesktopLayout({
                                         {pinnedSnippets.map((snippet) => (
                                             <div
                                                 key={snippet.id}
-                                                className="border border-border/50 rounded-xl p-3 bg-card/50 hover:bg-card hover:shadow-sm transition-all max-h-[300px] overflow-hidden group"
+                                                className="border border-border/50 rounded-xl p-3 bg-card/50 hover:bg-card hover:shadow-sm transition-all max-h-[30vh] overflow-hidden group"
                                             >
                                                 <div className="font-medium text-sm mb-2 flex items-center justify-between">
                                                     <span className="truncate text-foreground">{snippet.title}</span>

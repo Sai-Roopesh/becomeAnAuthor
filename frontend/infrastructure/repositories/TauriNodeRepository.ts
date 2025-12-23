@@ -17,17 +17,9 @@ import {
     type StructureNode,
     type Scene as TauriScene
 } from '@/core/tauri';
+import { logger } from '@/shared/utils/logger';
 
-// Store for project paths (set when project is opened)
-let currentProjectPath: string | null = null;
-
-export function setCurrentProjectPath(path: string | null) {
-    currentProjectPath = path;
-}
-
-export function getCurrentProjectPath(): string | null {
-    return currentProjectPath;
-}
+const log = logger.scope('TauriNodeRepository');
 
 /**
  * Convert Tauri structure to app's node format
@@ -82,12 +74,41 @@ function flattenStructure(nodes: StructureNode[], projectId: string, parentId: s
 /**
  * Tauri-based Node Repository
  * Only used when running in Tauri desktop app
+ * 
+ * Note: Uses instance-level project path to avoid global mutable state.
+ * Access via singleton getInstance() or create with specific path.
  */
 export class TauriNodeRepository implements INodeRepository {
-    async get(id: string): Promise<DocumentNode | Scene | undefined> {
-        if (!currentProjectPath) return undefined;
+    private projectPath: string | null = null;
 
-        const structure = await getStructure(currentProjectPath);
+    // Singleton instance for default usage
+    private static instance: TauriNodeRepository | null = null;
+
+    static getInstance(): TauriNodeRepository {
+        if (!TauriNodeRepository.instance) {
+            TauriNodeRepository.instance = new TauriNodeRepository();
+        }
+        return TauriNodeRepository.instance;
+    }
+
+    /**
+     * Set the project path for this repository instance
+     */
+    setProjectPath(path: string | null): void {
+        this.projectPath = path;
+    }
+
+    /**
+     * Get the current project path
+     */
+    getProjectPath(): string | null {
+        return this.projectPath;
+    }
+
+    async get(id: string): Promise<DocumentNode | Scene | undefined> {
+        if (!this.projectPath) return undefined;
+
+        const structure = await getStructure(this.projectPath);
         const allNodes = flattenStructure(structure, 'current');
         const node = allNodes.find(n => n.id === id);
 
@@ -96,7 +117,7 @@ export class TauriNodeRepository implements INodeRepository {
             const tauriNode = node as Scene & { _tauriFile?: string };
             if (tauriNode._tauriFile) {
                 try {
-                    const scene = await loadScene(currentProjectPath, tauriNode._tauriFile);
+                    const scene = await loadScene(this.projectPath, tauriNode._tauriFile);
 
                     // CRITICAL FIX: Parse content as JSON - backend saves it as stringified JSON
                     let parsedContent;
@@ -125,16 +146,16 @@ export class TauriNodeRepository implements INodeRepository {
     }
 
     async getByProject(projectId: string): Promise<(DocumentNode | Scene)[]> {
-        if (!currentProjectPath) return [];
+        if (!this.projectPath) return [];
 
-        const structure = await getStructure(currentProjectPath);
+        const structure = await getStructure(this.projectPath);
         return flattenStructure(structure, projectId);
     }
 
     async getByParent(projectId: string, parentId: string | null): Promise<(DocumentNode | Scene)[]> {
-        if (!currentProjectPath) return [];
+        if (!this.projectPath) return [];
 
-        const structure = await getStructure(currentProjectPath);
+        const structure = await getStructure(this.projectPath);
 
         if (parentId === null) {
             // Return root level nodes
@@ -162,13 +183,13 @@ export class TauriNodeRepository implements INodeRepository {
     }
 
     async create(node: Partial<DocumentNode | Scene> & { projectId: string; type: 'act' | 'chapter' | 'scene' }): Promise<DocumentNode | Scene> {
-        if (!currentProjectPath) {
+        if (!this.projectPath) {
             throw new Error('No project path set');
         }
 
         const parentId = (node as any).parentId || null;
         const createdNode = await createNode(
-            currentProjectPath,
+            this.projectPath,
             parentId,
             node.type,
             node.title || 'Untitled'
@@ -178,28 +199,38 @@ export class TauriNodeRepository implements INodeRepository {
     }
 
     async update(id: string, data: Partial<DocumentNode | Scene>): Promise<void> {
-        if (!currentProjectPath) return;
+        log.debug('update called', { id, data, projectPath: this.projectPath });
+
+        if (!this.projectPath) {
+            log.warn('No project path set - returning early');
+            return;
+        }
 
         // If updating scene content, save to file
         if ('content' in data && data.content) {
-            const structure = await getStructure(currentProjectPath);
+            log.debug('Updating scene content');
+            const structure = await getStructure(this.projectPath);
             const allNodes = flattenStructure(structure, 'current');
             const node = allNodes.find(n => n.id === id) as Scene & { _tauriFile?: string } | undefined;
 
             if (node?._tauriFile) {
                 // saveScene expects TiptapContent object, not string
-                await saveScene(currentProjectPath, node._tauriFile, data.content, data.title);
+                await saveScene(this.projectPath, node._tauriFile, data.content, data.title);
+                log.debug('Scene content saved');
             }
         }
 
 
         // Update structure if title changed
         if (data.title) {
-            const structure = await getStructure(currentProjectPath);
+            log.debug('Updating title', { newTitle: data.title });
+            const structure = await getStructure(this.projectPath);
+            log.debug('Got structure, updating...');
 
             const updateNodeTitle = (nodes: StructureNode[]): boolean => {
                 for (const node of nodes) {
                     if (node.id === id) {
+                        log.debug('Found node, updating title', { from: node.title, to: data.title });
                         node.title = data.title!;
                         return true;
                     }
@@ -208,10 +239,19 @@ export class TauriNodeRepository implements INodeRepository {
                 return false;
             };
 
-            if (updateNodeTitle(structure)) {
-                await saveStructure(currentProjectPath, structure);
+            const updated = updateNodeTitle(structure);
+            log.debug('Title update result', { updated });
+
+            if (updated) {
+                log.debug('Saving structure...');
+                await saveStructure(this.projectPath, structure);
+                log.debug('Structure saved successfully');
+            } else {
+                log.warn('Node not found in structure!');
             }
         }
+
+        log.debug('Update complete');
     }
 
     async updateMetadata(id: string, metadata: Partial<Scene>): Promise<void> {
@@ -222,9 +262,9 @@ export class TauriNodeRepository implements INodeRepository {
     }
 
     async delete(id: string): Promise<void> {
-        if (!currentProjectPath) return;
+        if (!this.projectPath) return;
 
-        const structure = await getStructure(currentProjectPath);
+        const structure = await getStructure(this.projectPath);
 
         // Find and remove node
         const removeNode = (nodes: StructureNode[], targetId: string): StructureNode | null => {
@@ -244,17 +284,17 @@ export class TauriNodeRepository implements INodeRepository {
         if (removed) {
             // If scene, delete the file
             if (removed.file) {
-                await deleteScene(currentProjectPath, removed.file);
+                await deleteScene(this.projectPath, removed.file);
             }
 
-            await saveStructure(currentProjectPath, structure);
+            await saveStructure(this.projectPath, structure);
         }
     }
 
     async deleteCascade(id: string, type: 'act' | 'chapter' | 'scene'): Promise<void> {
-        if (!currentProjectPath) return;
+        if (!this.projectPath) return;
 
-        const structure = await getStructure(currentProjectPath);
+        const structure = await getStructure(this.projectPath);
 
         // Collect all scene files to delete
         const collectSceneFiles = (nodes: StructureNode[]): string[] => {
@@ -287,10 +327,10 @@ export class TauriNodeRepository implements INodeRepository {
             ];
 
             for (const file of sceneFiles) {
-                await deleteScene(currentProjectPath, file);
+                await deleteScene(this.projectPath, file);
             }
 
-            await saveStructure(currentProjectPath, structure);
+            await saveStructure(this.projectPath, structure);
         }
     }
 

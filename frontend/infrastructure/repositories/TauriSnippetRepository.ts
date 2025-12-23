@@ -10,7 +10,7 @@ import {
     saveSnippet,
     deleteSnippet
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 /**
  * Tauri-based Snippet Repository
@@ -18,7 +18,7 @@ import { getCurrentProjectPath } from './TauriNodeRepository';
  */
 export class TauriSnippetRepository implements ISnippetRepository {
     async get(id: string): Promise<Snippet | undefined> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return undefined;
 
         const snippets = await this.getByProject('current');
@@ -26,7 +26,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
     }
 
     async getByProject(projectId: string): Promise<Snippet[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -43,7 +43,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
     }
 
     async create(snippet: Partial<Snippet> & { projectId: string; title: string }): Promise<Snippet> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) {
             throw new Error('No project path set');
         }
@@ -69,7 +69,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
     }
 
     async update(id: string, data: Partial<Snippet>): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         const existing = await this.get(id);
@@ -97,7 +97,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
     }
 
     async delete(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {

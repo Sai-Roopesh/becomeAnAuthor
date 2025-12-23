@@ -6,6 +6,14 @@
 import { storage } from '@/core/storage/safe-storage';
 import { STORAGE_KEYS, AI_DEFAULTS } from '@/lib/config/constants';
 
+/** AI Connection configuration stored in settings */
+interface AIConnection {
+    enabled: boolean;
+    models?: string[];
+    apiKey?: string;
+    provider?: string;
+}
+
 /**
  * Validate and retrieve AI model
  * Replaces duplicated model validation in 5+ components
@@ -28,12 +36,12 @@ export function getValidatedModel(
     }
 
     // 3. Load from AI connections
-    const connections = storage.getItem<any[]>('ai_connections', []);
-    const enabled = connections.filter((c: any) => c.enabled);
-    const allModels = enabled.flatMap((c: any) => c.models || []);
+    const connections = storage.getItem<AIConnection[]>('ai_connections', []);
+    const enabled = connections.filter((c) => c.enabled);
+    const allModels = enabled.flatMap((c) => c.models || []);
 
     if (allModels.length > 0) {
-        const model = allModels[0];
+        const model = allModels[0] as string;
         storage.setItem(STORAGE_KEYS.LAST_USED_MODEL, model);
         return { model, isValid: true };
     }

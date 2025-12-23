@@ -20,6 +20,7 @@ import { toast } from '@/shared/utils/toast-service';
 interface SceneLinkPanelProps {
     sceneId: string;
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     /** Trigger element (optional if using controlled mode) */
     children?: React.ReactNode;
     /** Controlled open state */
@@ -48,10 +49,12 @@ const ROLE_OPTIONS: { value: SceneCodexLinkRole; label: string }[] = [
 /**
  * Side panel for linking codex entries to a scene
  * Allows adding/removing links with role specification
+ * Series-first: uses seriesId for codex lookups
  */
 export function SceneLinkPanel({
     sceneId,
     projectId,
+    seriesId,
     children,
     open: controlledOpen,
     onOpenChange: controlledOnOpenChange
@@ -66,10 +69,10 @@ export function SceneLinkPanel({
 
     const { sceneCodexLinkRepository: linkRepo, codexRepository: codexRepo } = useAppServices();
 
-    // Get all codex entries
+    // Get all codex entries (series-level)
     const entries = useLiveQuery(
-        () => codexRepo.getByProject(projectId),
-        [projectId, codexRepo]
+        () => codexRepo.getBySeries(seriesId),
+        [seriesId, codexRepo]
     );
 
     // Get existing links for this scene

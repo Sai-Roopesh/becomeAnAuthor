@@ -1,38 +1,40 @@
 import type { Scene, CodexEntry } from '@/lib/config/types';
+import type { TiptapNode } from '@/shared/types/tiptap';
+import { isElementNode } from '@/shared/types/tiptap';
 
 /**
  * AI Prompt Templates for Story Analysis
  */
 
 export interface AnalysisContext {
-    scenes: Scene[];
-    codex: CodexEntry[];
-    projectTitle?: string;
+  scenes: Scene[];
+  codex: CodexEntry[];
+  projectTitle?: string;
 }
 
 // Helper to format scene content
 function formatSceneContent(scene: Scene): string {
-    // Extract plain text from Tiptap JSON
-    const content = scene.content?.content || [];
-    const text = content
-        .map((node: any) => {
-            if (node.type === 'paragraph') {
-                return node.content?.map((c: any) => c.text || '').join('') || '';
-            }
-            return '';
-        })
-        .join('\n');
+  // Extract plain text from Tiptap JSON
+  const content = scene.content?.content || [];
+  const text = content
+    .map((node: TiptapNode) => {
+      if (node.type === 'paragraph' && isElementNode(node)) {
+        return node.content?.map((c: TiptapNode) => (c.type === 'text' ? c.text : '') || '').join('') || '';
+      }
+      return '';
+    })
+    .join('\n');
 
-    return `## ${scene.title}\n${text.substring(0, 2000)}\n`;
+  return `## ${scene.title}\n${text.substring(0, 2000)}\n`;
 }
 
 /**
  * Synopsis Generation Prompt
  */
 export const SYNOPSIS_PROMPT = (context: AnalysisContext) => {
-    const sceneSummaries = context.scenes.map(formatSceneContent).join('\n\n');
+  const sceneSummaries = context.scenes.map(formatSceneContent).join('\n\n');
 
-    return `Generate a comprehensive synopsis for this manuscript.
+  return `Generate a comprehensive synopsis for this manuscript.
 
 Provide:
 1. A 2-3 sentence high-level summary
@@ -54,11 +56,11 @@ Return as JSON:
  * Plot Thread Tracking Prompt
  */
 export const PLOT_THREADS_PROMPT = (context: AnalysisContext) => {
-    const sceneSummaries = context.scenes.map((s, idx) =>
-        `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
-    ).join('\n\n');
+  const sceneSummaries = context.scenes.map((s, idx) =>
+    `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
+  ).join('\n\n');
 
-    return `Analyze this manuscript for plot threads and storylines.
+  return `Analyze this manuscript for plot threads and storylines.
 
 For EACH plot thread you identify:
 1. Name the thread clearly
@@ -94,16 +96,16 @@ IMPORTANT: Return ONLY valid JSON, no additional text.`;
  * Character Arc Analysis Prompt
  */
 export const CHARACTER_ARCS_PROMPT = (context: AnalysisContext) => {
-    const sceneSummaries = context.scenes.map((s, idx) =>
-        `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
-    ).join('\n\n');
+  const sceneSummaries = context.scenes.map((s, idx) =>
+    `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
+  ).join('\n\n');
 
-    const codexCharacters = context.codex
-        .filter(c => c.category === 'character')
-        .map(c => `- ${c.name}: ${c.description}`)
-        .join('\n');
+  const codexCharacters = context.codex
+    .filter(c => c.category === 'character')
+    .map(c => `- ${c.name}: ${c.description}`)
+    .join('\n');
 
-    return `Analyze character arcs throughout this manuscript.
+  return `Analyze character arcs throughout this manuscript.
 
 For EACH major character:
 1. Identify the character
@@ -141,11 +143,11 @@ IMPORTANT: Return ONLY valid JSON, no additional text.`;
  * Timeline Analysis Prompt
  */
 export const TIMELINE_PROMPT = (context: AnalysisContext) => {
-    const sceneSummaries = context.scenes.map((s, idx) =>
-        `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
-    ).join('\n\n');
+  const sceneSummaries = context.scenes.map((s, idx) =>
+    `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
+  ).join('\n\n');
 
-    return `Analyze the timeline of this manuscript.
+  return `Analyze the timeline of this manuscript.
 
 Look for:
 1. Temporal markers (dates, times, "three days later", etc.)
@@ -183,15 +185,15 @@ IMPORTANT: Return ONLY valid JSON, no additional text.`;
  * Contradiction Detection Prompt
  */
 export const CONTRADICTIONS_PROMPT = (context: AnalysisContext) => {
-    const sceneSummaries = context.scenes.map((s, idx) =>
-        `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
-    ).join('\n\n');
+  const sceneSummaries = context.scenes.map((s, idx) =>
+    `Scene ${idx + 1}: ${s.title}\n${formatSceneContent(s)}`
+  ).join('\n\n');
 
-    const codexSummary = context.codex
-        .map(c => `${c.name} (${c.category}): ${c.description}`)
-        .join('\n');
+  const codexSummary = context.codex
+    .map(c => `${c.name} (${c.category}): ${c.description}`)
+    .join('\n');
 
-    return `Find contradictions and inconsistencies in this manuscript.
+  return `Find contradictions and inconsistencies in this manuscript.
 
 Look for:
 1. Character description conflicts (eye color, age, background)
@@ -225,9 +227,9 @@ IMPORTANT: Return ONLY valid JSON, no additional text.`;
  * Alpha Reader Prompt (Big Picture Feedback)
  */
 export const ALPHA_READER_PROMPT = (context: AnalysisContext) => {
-    const sceneSummaries = context.scenes.map(formatSceneContent).join('\n\n');
+  const sceneSummaries = context.scenes.map(formatSceneContent).join('\n\n');
 
-    return `Act as an alpha reader providing early-stage developmental feedback.
+  return `Act as an alpha reader providing early-stage developmental feedback.
 
 Focus on BIG PICTURE elements:
 1. Does the premise make sense?
@@ -262,9 +264,9 @@ IMPORTANT: Return ONLY valid JSON, no additional text.`;
  * Beta Reader Prompt (Reader Experience)
  */
 export const BETA_READER_PROMPT = (context: AnalysisContext) => {
-    const sceneSummaries = context.scenes.map(formatSceneContent).join('\n\n');
+  const sceneSummaries = context.scenes.map(formatSceneContent).join('\n\n');
 
-    return `Act as a beta reader from the target audience perspective.
+  return `Act as a beta reader from the target audience perspective.
 
 Evaluate:
 1. Overall enjoyment and emotional impact

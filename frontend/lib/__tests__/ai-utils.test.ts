@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getValidatedModel, formatAIError, buildAIPrompt, persistModelSelection } from '@/lib/ai-utils';
-import { storage } from '@/lib/safe-storage';
+import { getValidatedModel, formatAIError, buildAIPrompt, persistModelSelection } from '@/shared/utils/ai-utils';
+import { storage } from '@/core/storage/safe-storage';
 import { STORAGE_KEYS } from '@/lib/config/constants';
 
 // Mock storage
-vi.mock('@/lib/safe-storage', () => ({
+vi.mock('@/core/storage/safe-storage', () => ({
     storage: {
         getItem: vi.fn(),
         setItem: vi.fn(),

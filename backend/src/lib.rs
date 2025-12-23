@@ -25,7 +25,14 @@ fn get_app_info() -> serde_json::Value {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                // Silence noisy windowing library trace logs
+                .level_for("tao", log::LevelFilter::Warn)
+                .level_for("wry", log::LevelFilter::Warn)
+                .build(),
+        )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -34,6 +41,10 @@ pub fn run() {
             // Project commands
             get_projects_path,
             list_projects,
+            list_recent_projects,
+            add_to_recent,
+            remove_from_recent,
+            open_project,
             create_project,
             delete_project,
             update_project,
@@ -103,7 +114,9 @@ pub fn run() {
             empty_trash,
             // Export commands
             export_manuscript_text,
+            export_manuscript_docx,
             export_project_backup,
+            export_project_as_json,
             // Import command
             import_project_backup,
             // Series commands
@@ -111,6 +124,16 @@ pub fn run() {
             create_series,
             update_series,
             delete_series,
+            delete_series_cascade,
+            // Series Codex commands
+            list_series_codex_entries,
+            get_series_codex_entry,
+            save_series_codex_entry,
+            delete_series_codex_entry,
+            list_series_codex_relations,
+            save_series_codex_relation,
+            delete_series_codex_relation,
+            migrate_codex_to_series,
             // Security commands
             security::store_api_key,
             security::get_api_key,
@@ -119,6 +142,11 @@ pub fn run() {
             // Mention tracking commands
             find_mentions,
             count_mentions,
+            // Collaboration commands (Yjs state persistence)
+            save_yjs_state,
+            load_yjs_state,
+            has_yjs_state,
+            delete_yjs_state,
             // App info
             get_app_info,
         ])

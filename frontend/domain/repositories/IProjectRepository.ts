@@ -34,4 +34,9 @@ export interface IProjectRepository {
      * Delete project and all associated data
      */
     delete(id: string): Promise<void>;
+
+    /**
+     * Get all projects in a series
+     */
+    getBySeries(seriesId: string): Promise<Project[]>;
 }

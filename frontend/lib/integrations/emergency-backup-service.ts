@@ -10,7 +10,9 @@ import { logger } from '@/shared/utils/logger';
 
 const log = logger.scope('EmergencyBackup');
 import { toast } from '@/shared/utils/toast-service';
-import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
+import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
+
+const getCurrentProjectPath = () => TauriNodeRepository.getInstance().getProjectPath();
 
 interface EmergencyBackup {
     id: string;

@@ -1,6 +1,7 @@
 // Scene-related models
 
 use serde::{Deserialize, Serialize};
+use crate::utils::timestamp;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SceneMeta {
@@ -11,8 +12,16 @@ pub struct SceneMeta {
     pub word_count: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pov_character: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    #[serde(
+        serialize_with = "timestamp::serialize_as_rfc3339",
+        deserialize_with = "timestamp::deserialize_from_rfc3339"
+    )]
+    pub created_at: i64,
+    #[serde(
+        serialize_with = "timestamp::serialize_as_rfc3339",
+        deserialize_with = "timestamp::deserialize_from_rfc3339"
+    )]
+    pub updated_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

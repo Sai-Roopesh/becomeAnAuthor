@@ -15,7 +15,7 @@ import {
     createChatMessage,
     deleteChatMessage
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 /**
  * Tauri-based Chat Repository
@@ -25,7 +25,7 @@ export class TauriChatRepository implements IChatRepository {
     // ============ Thread Operations ============
 
     async getThread(id: string): Promise<ChatThread | undefined> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return undefined;
 
         try {
@@ -38,7 +38,7 @@ export class TauriChatRepository implements IChatRepository {
     }
 
     async getThreadsByProject(projectId: string): Promise<ChatThread[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -57,7 +57,7 @@ export class TauriChatRepository implements IChatRepository {
     }
 
     async createThread(thread: Partial<ChatThread> & { projectId: string; name: string }): Promise<ChatThread> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) {
             throw new Error('No project path set');
         }
@@ -84,7 +84,7 @@ export class TauriChatRepository implements IChatRepository {
     }
 
     async updateThread(id: string, data: Partial<ChatThread>): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         // Backend expects full ChatThread object, so fetch current thread and merge
@@ -99,7 +99,7 @@ export class TauriChatRepository implements IChatRepository {
         };
 
         try {
-            await updateChatThread(projectPath, id, updatedThread as any);
+            await updateChatThread(projectPath, updatedThread as any);
         } catch (error) {
             console.error('Failed to update chat thread:', error);
             throw error;
@@ -107,7 +107,7 @@ export class TauriChatRepository implements IChatRepository {
     }
 
     async deleteThread(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {
@@ -128,7 +128,7 @@ export class TauriChatRepository implements IChatRepository {
     }
 
     async getMessagesByThread(threadId: string): Promise<ChatMessage[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -140,7 +140,7 @@ export class TauriChatRepository implements IChatRepository {
     }
 
     async createMessage(message: Partial<ChatMessage> & { threadId: string; role: 'user' | 'assistant'; content: string }): Promise<ChatMessage> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) {
             throw new Error('No project path set');
         }
@@ -163,9 +163,10 @@ export class TauriChatRepository implements IChatRepository {
         }
     }
 
-    async updateMessage(id: string, data: Partial<ChatMessage>): Promise<void> {
-        // Message updates are not commonly needed in this app
-        console.warn('TauriChatRepository.updateMessage: Not implemented');
+    async updateMessage(_id: string, _data: Partial<ChatMessage>): Promise<void> {
+        // Message editing is not supported in the current UI.
+        // Messages are immutable once created.
+        // If editing is needed in the future, add a Rust command: update_chat_message
     }
 
     async deleteMessage(id: string): Promise<void> {
@@ -175,7 +176,7 @@ export class TauriChatRepository implements IChatRepository {
 
     // Helper for when we know the thread ID
     async deleteMessageFromThread(threadId: string, messageId: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {

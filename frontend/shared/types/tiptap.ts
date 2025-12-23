@@ -5,6 +5,7 @@
 
 /**
  * Represents a mark (inline formatting) in Tiptap content
+ * Note: attrs uses `any` for compatibility with Tiptap's JSONContent type
  */
 export interface TiptapMark {
     type: string;
@@ -22,6 +23,7 @@ export interface TiptapTextNode {
 
 /**
  * Represents an element node (block or inline) in Tiptap content
+ * Note: attrs uses `any` for compatibility with Tiptap's JSONContent type
  */
 export interface TiptapElementNode {
     type: string;

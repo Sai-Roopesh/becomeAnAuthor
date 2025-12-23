@@ -18,9 +18,10 @@ import { useState } from 'react';
 
 interface SceneCardProps {
     scene: DocumentNode;
+    seriesId: string;  // Required - series-first architecture
 }
 
-export function SceneCard({ scene }: SceneCardProps) {
+export function SceneCard({ scene, seriesId }: SceneCardProps) {
     const { setActiveSceneId, setViewMode } = useProjectStore();
     const [linkPanelOpen, setLinkPanelOpen] = useState(false);
 
@@ -49,6 +50,7 @@ export function SceneCard({ scene }: SceneCardProps) {
                 <SceneCodexBadges
                     sceneId={scene.id}
                     projectId={scene.projectId}
+                    seriesId={seriesId}
                     maxBadges={4}
                     size="sm"
                 />
@@ -106,6 +108,7 @@ export function SceneCard({ scene }: SceneCardProps) {
             <SceneLinkPanel
                 sceneId={scene.id}
                 projectId={scene.projectId}
+                seriesId={seriesId}
                 open={linkPanelOpen}
                 onOpenChange={setLinkPanelOpen}
             />

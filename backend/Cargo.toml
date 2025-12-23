@@ -39,3 +39,6 @@ log = "0.4"
 # Markdown parsing
 gray_matter = "0.2"
 serde_yaml = "0.9"
+
+# Document generation
+docx-rs = "0.4"

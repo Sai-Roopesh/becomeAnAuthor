@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
+import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 import type { CodexEntry, Scene } from '@/lib/config/types';
+import type { TiptapContent } from '@/shared/types/tiptap';
 
 // Helper to yield to main thread to prevent blocking UI
 const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -43,7 +44,7 @@ export async function assembleContext(sceneId: string | null, query: string): Pr
     let context = '';
     let relevantEntities: CodexEntry[] = [];
 
-    const projectPath = getCurrentProjectPath();
+    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
     if (!projectPath) return context;
 
     // 1. Get Active Scene Content
@@ -81,7 +82,8 @@ export async function assembleContext(sceneId: string | null, query: string): Pr
 }
 
 // ✅ SAFE: Async recursive function with yielding AND depth limit
-async function extractTextFromTiptap(content: any, depth: number = 0): Promise<string> {
+// Note: Uses 'unknown' with runtime checks for flexible JSON parsing
+async function extractTextFromTiptap(content: unknown, depth: number = 0): Promise<string> {
     const MAX_DEPTH = 100;
 
     // Prevent stack overflow from malicious deeply nested structures
@@ -96,12 +98,16 @@ async function extractTextFromTiptap(content: any, depth: number = 0): Promise<s
     // Yield every now and then if processing large arrays
     if (Array.isArray(content)) {
         if (content.length > 50) await yieldToMain();
-        const parts = await Promise.all(content.map(item => extractTextFromTiptap(item, depth + 1)));
+        const parts = await Promise.all(content.map((item: unknown) => extractTextFromTiptap(item, depth + 1)));
         return parts.join(' ');
     }
 
-    if (content.text) return content.text;
-    if (content.content) return extractTextFromTiptap(content.content, depth + 1);
+    // Handle object with text or content properties
+    if (typeof content === 'object' && content !== null) {
+        const obj = content as Record<string, unknown>;
+        if (typeof obj['text'] === 'string') return obj['text'];
+        if (obj['content']) return extractTextFromTiptap(obj['content'], depth + 1);
+    }
 
     return '';
 }

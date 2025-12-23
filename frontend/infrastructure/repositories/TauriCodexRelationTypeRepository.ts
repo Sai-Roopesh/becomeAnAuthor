@@ -10,11 +10,11 @@ import {
     saveCodexRelationType,
     deleteCodexRelationType
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepository {
     async get(id: string): Promise<CodexRelationType | undefined> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return undefined;
 
         try {
@@ -27,7 +27,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
     }
 
     async getAll(): Promise<CodexRelationType[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -49,7 +49,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
     }
 
     async create(type: Omit<CodexRelationType, 'id'>): Promise<CodexRelationType> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
         const newType: CodexRelationType = {
@@ -67,7 +67,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
     }
 
     async update(id: string, data: Partial<CodexRelationType>): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         const existing = await this.get(id);
@@ -83,7 +83,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
     }
 
     async delete(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {

@@ -10,9 +10,10 @@ import { useAppServices } from '@/infrastructure/di/AppContext';
 
 interface RelationsTabProps {
     entityId: string;
+    seriesId: string;  // Required - series-first architecture
 }
 
-export function RelationsTab({ entityId }: RelationsTabProps) {
+export function RelationsTab({ entityId, seriesId }: RelationsTabProps) {
     const codexRepo = useCodexRepository();
     const { codexRelationRepository: relationRepo } = useAppServices();
 
@@ -22,14 +23,14 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
     );
 
     const relatedEntries = useLiveQuery(async () => {
-        if (!relations) return [];
+        if (!relations || !seriesId) return [];
         const entries = [];
         for (const relation of relations) {
-            const entry = await codexRepo.get(relation.childId);
+            const entry = await codexRepo.get(seriesId, relation.childId);
             if (entry) entries.push(entry);
         }
         return entries;
-    }, [relations, codexRepo]);
+    }, [relations, seriesId, codexRepo]);
 
     const { prompt, PromptDialog } = usePrompt();
 
@@ -42,7 +43,8 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
 
         if (!name) return;
 
-        const entries = await codexRepo.getByProject(''); // This needs projectId - using workaround
+        // Use series-level codex search
+        const entries = await codexRepo.getBySeries(seriesId);
         const entry = entries.find(e => e.name.toLowerCase() === name.toLowerCase());
 
         if (entry) {
@@ -110,3 +112,4 @@ export function RelationsTab({ entityId }: RelationsTabProps) {
         </div>
     );
 }
+

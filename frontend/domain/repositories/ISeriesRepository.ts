@@ -33,4 +33,11 @@ export interface ISeriesRepository {
      * Delete a series
      */
     delete(id: string): Promise<void>;
+
+    /**
+     * Delete a series and cascade delete all books belonging to it.
+     * All books are moved to Trash before the series is deleted.
+     * @returns number of books deleted
+     */
+    deleteCascade(id: string): Promise<number>;
 }

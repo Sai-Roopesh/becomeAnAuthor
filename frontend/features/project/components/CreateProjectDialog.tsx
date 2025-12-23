@@ -12,11 +12,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { Sparkles, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Plus, BookOpen, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import { useSeriesRepository } from '@/hooks/use-series-repository';
+import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
+import { toast } from 'sonner';
+import type { Series } from '@/domain/entities/types';
 
 const TITLES = [
     "The Last Starship", "Whispers in the Dark", "The Clockwork Heart", "Echoes of Eternity",
@@ -28,18 +31,48 @@ interface CreateProjectDialogProps {
     trigger?: React.ReactNode;
 }
 
+/**
+ * CreateProjectDialog - Series-First Architecture
+ * 
+ * CRITICAL: Every project MUST belong to a series. This is a core architectural requirement.
+ * Users must either:
+ * 1. Select an existing series, OR
+ * 2. Create a new series inline
+ * 
+ * The "Create Novel" button is DISABLED until a series is selected.
+ */
 export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
     const [open, setOpen] = useState(false);
-    const [step, setStep] = useState(1);
-    const { projectRepository: projectRepo, nodeRepository: nodeRepo, seriesRepository: seriesRepo } = useAppServices();
+    const { projectRepository: projectRepo, nodeRepository: nodeRepo } = useAppServices();
+    const seriesRepo = useSeriesRepository();
+
+    // Fetch existing series for the dropdown
+    const existingSeries = useLiveQuery(
+        () => seriesRepo.list(),
+        [seriesRepo]
+    );
+
     const [formData, setFormData] = useState({
         title: '',
         author: '',
         language: 'English (US)',
-        seriesName: '',
-        seriesIndex: '',
-        savePath: '' // REQUIRED - user must choose
+        seriesId: '',           // REQUIRED - must select a series
+        seriesIndex: 'Book 1',  // REQUIRED - default to "Book 1"
+        savePath: ''            // REQUIRED - user must choose location
     });
+
+    // State for inline series creation
+    const [isCreatingNewSeries, setIsCreatingNewSeries] = useState(false);
+    const [newSeriesName, setNewSeriesName] = useState('');
+
+    // Auto-suggest next book number when series is selected
+    useEffect(() => {
+        if (formData.seriesId && existingSeries) {
+            // Count existing projects in this series to suggest next book number
+            // For now, just default to "Book 1" - in production, query project count
+            // This could be enhanced to auto-calculate
+        }
+    }, [formData.seriesId, existingSeries]);
 
     const handleChooseLocation = async () => {
         try {
@@ -54,7 +87,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
             }
         } catch (error) {
             console.error('Failed to open directory picker:', error);
-            alert('Failed to open directory picker');
+            toast.error('Failed to open directory picker');
         }
     };
 
@@ -63,38 +96,67 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
         setFormData(prev => ({ ...prev, ...(randomTitle && { title: randomTitle }) }));
     };
 
-    const handleCreate = async () => {
-        // Validate required location
-        if (!formData.savePath) {
-            alert('Please choose a save location for your project');
+    const handleCreateNewSeries = async () => {
+        if (!newSeriesName.trim()) {
+            toast.error('Please enter a series name');
             return;
         }
 
         try {
-            // ✅ Handle series - create or find existing
-            let seriesId: string | undefined = undefined;
-
-            if (formData.seriesName.trim()) {
-                // Check if series already exists
-                const existingSeries = await seriesRepo.getByName(formData.seriesName.trim());
-
-                if (existingSeries) {
-                    seriesId = existingSeries.id;
-                } else {
-                    // Create new series
-                    seriesId = await seriesRepo.create({
-                        title: formData.seriesName.trim()
-                    });
-                }
+            // Check if series already exists
+            const existing = await seriesRepo.getByName(newSeriesName.trim());
+            if (existing) {
+                setFormData(prev => ({ ...prev, seriesId: existing.id }));
+                setIsCreatingNewSeries(false);
+                setNewSeriesName('');
+                return;
             }
 
-            // ✅ Use repository with REQUIRED custom path
+            // Create new series
+            const newSeriesId = await seriesRepo.create({
+                title: newSeriesName.trim()
+            });
+
+            // Invalidate queries to refresh series list
+            invalidateQueries();
+
+            // Select the new series
+            setFormData(prev => ({ ...prev, seriesId: newSeriesId }));
+            setIsCreatingNewSeries(false);
+            setNewSeriesName('');
+        } catch (error) {
+            console.error('Failed to create series:', error);
+            toast.error('Failed to create series');
+        }
+    };
+
+    const handleCreate = async () => {
+        // Validate all required fields
+        if (!formData.seriesId) {
+            toast.error('Please select a series. Every book must belong to a series.');
+            return;
+        }
+        if (!formData.seriesIndex.trim()) {
+            toast.error('Please enter the book number (e.g., "Book 1")');
+            return;
+        }
+        if (!formData.savePath) {
+            toast.error('Please choose a save location for your project');
+            return;
+        }
+        if (!formData.title.trim()) {
+            toast.error('Please enter a title for your novel');
+            return;
+        }
+
+        try {
+            // ✅ Create project with REQUIRED seriesId and seriesIndex
             const projectId = await projectRepo.create({
                 title: formData.title,
                 author: formData.author,
                 language: formData.language,
-                seriesId,
-                seriesIndex: formData.seriesIndex,
+                seriesId: formData.seriesId,       // REQUIRED
+                seriesIndex: formData.seriesIndex, // REQUIRED
                 customPath: formData.savePath,
             } as any); // Type assertion needed since customPath not in base Project type
 
@@ -131,22 +193,27 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
             });
 
             // Invalidate project list cache so new project appears
-            const { invalidateQueries } = await import('@/hooks/use-live-query');
             invalidateQueries();
+
+            toast.success(`Created "${formData.title}"`);
 
             // Navigate to the new project
             window.location.href = `/project?id=${projectId}`;
 
             setOpen(false);
-            setStep(1);
-            setFormData({ title: '', author: '', language: 'English (US)', seriesName: '', seriesIndex: '', savePath: '' });
+            setFormData({ title: '', author: '', language: 'English (US)', seriesId: '', seriesIndex: 'Book 1', savePath: '' });
         } catch (error) {
             console.error('Failed to create project:', error);
-            // ✅ Show user-friendly error
             const message = error instanceof Error ? error.message : 'Unknown error occurred';
-            alert(`Failed to create project: ${message}`);
+            toast.error(`Failed to create project: ${message}`);
         }
     };
+
+    // Form validation - all required fields must be filled
+    const isFormValid = formData.title.trim() && formData.seriesId && formData.seriesIndex.trim() && formData.savePath;
+
+    // Get selected series name for display
+    const selectedSeries = existingSeries?.find(s => s.id === formData.seriesId);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -166,8 +233,97 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
+                    {/* SERIES SELECTION - REQUIRED */}
+                    <div className="space-y-2 p-3 rounded-lg border-2 border-primary/20 bg-primary/5">
+                        <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-primary" />
+                            <Label className="font-semibold">Series *</Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                            Every book belongs to a series. Choose an existing series or create a new one.
+                        </p>
+
+                        {!isCreatingNewSeries ? (
+                            <div className="space-y-2">
+                                <Select
+                                    value={formData.seriesId}
+                                    onValueChange={val => setFormData({ ...formData, seriesId: val })}
+                                >
+                                    <SelectTrigger className={!formData.seriesId ? 'border-destructive/50' : ''}>
+                                        <SelectValue placeholder="Select a series..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {existingSeries?.map(series => (
+                                            <SelectItem key={series.id} value={series.id}>
+                                                {series.title}
+                                            </SelectItem>
+                                        ))}
+                                        {(!existingSeries || existingSeries.length === 0) && (
+                                            <SelectItem value="_none" disabled>
+                                                No series yet - create one below
+                                            </SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => setIsCreatingNewSeries(true)}
+                                >
+                                    <Plus className="mr-2 h-3 w-3" /> Create New Series
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={newSeriesName}
+                                        onChange={e => setNewSeriesName(e.target.value)}
+                                        placeholder="Enter series name..."
+                                        autoFocus
+                                    />
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={handleCreateNewSeries}
+                                        disabled={!newSeriesName.trim()}
+                                    >
+                                        Create
+                                    </Button>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setIsCreatingNewSeries(false);
+                                        setNewSeriesName('');
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Book Number */}
                     <div className="space-y-2">
-                        <Label>Title</Label>
+                        <Label>Book Number *</Label>
+                        <Input
+                            value={formData.seriesIndex}
+                            onChange={e => setFormData({ ...formData, seriesIndex: e.target.value })}
+                            placeholder="e.g. Book 1, Book 2"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Position in the series (e.g., "Book 1", "Book 2", "Prequel")
+                        </p>
+                    </div>
+
+                    {/* Title */}
+                    <div className="space-y-2">
+                        <Label>Title *</Label>
                         <div className="flex gap-2">
                             <Input
                                 value={formData.title}
@@ -180,6 +336,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                         </div>
                     </div>
 
+                    {/* Author */}
                     <div className="space-y-2">
                         <Label>Author / Pen Name</Label>
                         <Input
@@ -189,25 +346,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Series (Optional)</Label>
-                            <Input
-                                value={formData.seriesName}
-                                onChange={e => setFormData({ ...formData, seriesName: e.target.value })}
-                                placeholder="Series Name"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Series Index</Label>
-                            <Input
-                                value={formData.seriesIndex}
-                                onChange={e => setFormData({ ...formData, seriesIndex: e.target.value })}
-                                placeholder="e.g. Book 1"
-                            />
-                        </div>
-                    </div>
-
+                    {/* Save Location */}
                     <div className="space-y-2">
                         <Label>Save Location *</Label>
                         <div className="flex gap-2">
@@ -231,6 +370,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                         </p>
                     </div>
 
+                    {/* Language */}
                     <div className="space-y-2">
                         <Label>Language</Label>
                         <Select value={formData.language} onValueChange={val => setFormData({ ...formData, language: val })}>
@@ -247,12 +387,20 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                         </Select>
                         <p className="text-xs text-muted-foreground">Used for AI generation and spellcheck.</p>
                     </div>
+
+                    {/* Validation Warning */}
+                    {!formData.seriesId && (
+                        <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 text-destructive text-sm">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>Please select or create a series to continue</span>
+                        </div>
+                    )}
                 </div>
 
                 <DialogFooter>
                     <Button
                         onClick={handleCreate}
-                        disabled={!formData.title || !formData.savePath}
+                        disabled={!isFormValid}
                     >
                         Create Novel
                     </Button>

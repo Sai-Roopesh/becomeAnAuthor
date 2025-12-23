@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ChatControlsProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     selectedContexts: ContextItem[];
     onContextChange: (contexts: ContextItem[]) => void;
     selectedPromptId: string;
@@ -21,9 +22,11 @@ interface ChatControlsProps {
 /**
  * Chat Controls Component
  * Handles context selection, prompt selection, and model configuration
+ * Series-first: requires seriesId for context selection
  */
 export function ChatControls({
     projectId,
+    seriesId,
     selectedContexts,
     onContextChange,
     selectedPromptId,
@@ -60,6 +63,7 @@ export function ChatControls({
                         </label>
                         <ContextSelector
                             projectId={projectId}
+                            seriesId={seriesId}
                             selectedContexts={selectedContexts}
                             onContextsChange={onContextChange}
                         />

@@ -13,6 +13,7 @@ import {
 interface SceneCodexBadgesProps {
     sceneId: string;
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     /** Maximum number of badges to show before "+N more" */
     maxBadges?: number;
     /** Size variant */
@@ -31,10 +32,12 @@ const CATEGORY_CONFIG: Record<CodexCategory, { icon: typeof User; color: string;
 /**
  * Displays codex entry badges (characters, locations, plots) for a scene
  * Used in scene cards to show which codex entries appear in the scene
+ * Series-first: uses seriesId for codex lookups
  */
 export function SceneCodexBadges({
     sceneId,
     projectId,
+    seriesId,
     maxBadges = 4,
     size = 'sm'
 }: SceneCodexBadgesProps) {
@@ -46,15 +49,15 @@ export function SceneCodexBadges({
         [sceneId, linkRepo]
     );
 
-    // Get codex entries for the linked IDs
+    // Get codex entries for the linked IDs (series-level)
     const entries = useLiveQuery(
         async () => {
             if (!links || links.length === 0) return [];
             const codexIds = links.map(l => l.codexId);
-            const allEntries = await codexRepo.getByProject(projectId);
+            const allEntries = await codexRepo.getBySeries(seriesId);
             return allEntries.filter(e => codexIds.includes(e.id));
         },
-        [links, projectId, codexRepo]
+        [links, seriesId, codexRepo]
     );
 
     if (!entries || entries.length === 0) {

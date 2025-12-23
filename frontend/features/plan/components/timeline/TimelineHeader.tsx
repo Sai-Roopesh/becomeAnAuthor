@@ -1,7 +1,7 @@
 'use client';
 
 import type { CodexEntry } from '@/lib/config/types';
-import { CATEGORY_CONFIG, TIMELINE_LAYOUT } from '../../utils/timeline-utils';
+import { CATEGORY_CONFIG } from '../../utils/timeline-utils';
 
 interface TimelineHeaderProps {
     lanes: CodexEntry[];
@@ -13,20 +13,14 @@ interface TimelineHeaderProps {
  */
 export function TimelineHeader({ lanes, getScenesForLane }: TimelineHeaderProps) {
     return (
-        <div
-            className="absolute left-0 top-0 bottom-0 z-10 bg-background border-r"
-            style={{ width: TIMELINE_LAYOUT.HEADER_WIDTH }}
-        >
+        <div className="absolute left-0 top-0 bottom-0 z-10 bg-background border-r w-48 flex flex-col">
             {/* Chapter header row */}
-            <div
-                className="h-10 border-b bg-muted/50 flex items-center px-3"
-                style={{ width: TIMELINE_LAYOUT.HEADER_WIDTH }}
-            >
+            <div className="h-10 border-b bg-muted/50 flex items-center px-3 flex-shrink-0">
                 <span className="text-xs font-medium text-muted-foreground">Codex Entry</span>
             </div>
 
             {/* Lane headers */}
-            <div className="overflow-hidden">
+            <div className="flex-1 overflow-hidden">
                 {lanes.map((lane) => {
                     const config = CATEGORY_CONFIG[lane.category];
                     const Icon = config.icon;
@@ -35,8 +29,7 @@ export function TimelineHeader({ lanes, getScenesForLane }: TimelineHeaderProps)
                     return (
                         <div
                             key={lane.id}
-                            className={`flex items-center gap-2 px-3 border-b ${config.bgColor}`}
-                            style={{ height: TIMELINE_LAYOUT.LANE_HEIGHT }}
+                            className={`flex items-center gap-2 px-3 border-b ${config.bgColor} h-12`}
                         >
                             <div
                                 className={`h-6 w-6 rounded-full ${config.bgColor} ${config.color} flex items-center justify-center flex-shrink-0 ring-1 ${config.borderColor}`}

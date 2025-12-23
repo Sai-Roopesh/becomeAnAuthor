@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Next.js 16 frontend.**  
-> Last updated: 2025-01-20
+> Last updated: 2025-12-23
 
 ---
 
@@ -275,7 +275,7 @@ features/[feature-name]/
 | **Act** | Top-level structure | Extends `BaseNode` |
 | **Chapter** | Mid-level structure | Extends `BaseNode` |
 | **Scene** | Editable content unit | `content (Tiptap JSON)`, `wordCount`, `status`, `beats` |
-| **Project** | Novel project | `title`, `author`, `seriesId`, `archived` |
+| **Project** | Novel project | `title`, `author`, `seriesId` **(REQUIRED)**, `seriesIndex` **(REQUIRED)**, `archived` |
 | **Series** | Multi-book series | `title`, `createdAt` |
 | **CodexEntry** | World-building entry | `category`, `name`, `aliases`, `attributes`, `tags`, `customFields`, `gallery` |
 | **CodexRelation** | Entry connections | `parentId`, `childId`, `typeId`, `strength` |
@@ -305,9 +305,9 @@ export interface IRepository<T> {
 ```
 
 **12 Repository Interfaces**:
-1. `IProjectRepository` — Project CRUD
+1. `IProjectRepository` — Project CRUD (requires `seriesId`, `seriesIndex`)
 2. `INodeRepository` — Acts/Chapters/Scenes
-3. `ICodexRepository` — Codex entries
+3. `ICodexRepository` — Codex entries **(series-scoped via `seriesId`)**
 4. `ICodexTagRepository` — Tags
 5. `ICodexTemplateRepository` — Templates
 6. `ICodexRelationRepository` — Relations
@@ -581,11 +581,11 @@ export function useCodexRepository(): ICodexRepository {
 **Usage in components**:
 
 ```typescript
-function CodexList() {
+function CodexList({ seriesId }: { seriesId: string }) {
     const repo = useCodexRepository();
     const { data: entries } = useLiveQuery(
-        () => repo.getByProject(projectId),
-        [projectId]
+        () => repo.getBySeries(seriesId),  // Series-first architecture
+        [seriesId]
     );
 }
 ```
@@ -1214,13 +1214,13 @@ The frontend architecture is a **well-structured, scalable system** built on mod
 - ✅ AI context assembly handles token limits
 
 **Weaknesses**:
-- ⚠️ Duplicate folders (`lib/services` vs `lib/integrations`)
+- ~~⚠️ Duplicate folders (`lib/services` vs `lib/integrations`)~~ ✅ Resolved - Consolidated to `infrastructure/services/`
 - ⚠️ Insufficient test coverage
 - ⚠️ No E2E tests
 - ⚠️ Some technical debt in legacy code
 
 **Recommended Next Steps**:
-1. **Consolidate** `lib/services` and `lib/integrations`
+1. ~~**Consolidate** `lib/services` and `lib/integrations`~~ ✅ Done
 2. **Add** integration tests for repositories
 3. **Write** E2E tests for critical user flows
 4. **Document** public APIs for each feature
@@ -1228,7 +1228,7 @@ The frontend architecture is a **well-structured, scalable system** built on mod
 ---
 
 **Document Status**: ✅ Complete  
-**Last Updated**: 2025-01-20  
+**Last Updated**: 2025-12-21  
 **Total Features Documented**: 17/17  
 **Total Hooks Documented**: 39/39  
 **Total Stores Documented**: 4/4

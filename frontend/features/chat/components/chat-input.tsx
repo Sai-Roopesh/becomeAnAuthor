@@ -47,7 +47,7 @@ export function ChatInput({
                         onKeyDown={handleKeyDown}
                         placeholder={placeholder}
                         disabled={disabled}
-                        className="min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-2 text-base"
+                        className="min-h-[60px] max-h-[25vh] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-2 text-base"
                     />
 
                     <div className="flex justify-between items-center px-2 pb-1">

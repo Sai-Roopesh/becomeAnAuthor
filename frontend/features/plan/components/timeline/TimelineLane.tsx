@@ -2,7 +2,7 @@
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { DocumentNode, CodexEntry, SceneCodexLink } from '@/lib/config/types';
-import { CATEGORY_CONFIG, TIMELINE_LAYOUT } from '../../utils/timeline-utils';
+import { CATEGORY_CONFIG } from '../../utils/timeline-utils';
 
 interface TimelineLaneProps {
     lane: CodexEntry;
@@ -16,6 +16,11 @@ interface TimelineLaneProps {
 /**
  * Individual timeline lane showing node appearances for a codex entry.
  */
+
+/**
+ * Individual timeline lane showing node appearances for a codex entry.
+ * Uses CSS Grid for precise alignment without fragile pixel math.
+ */
 export function TimelineLane({
     lane,
     scenes,
@@ -25,28 +30,47 @@ export function TimelineLane({
     onOpenScene,
 }: TimelineLaneProps) {
     const config = CATEGORY_CONFIG[lane.category];
-    const { SCENE_WIDTH, SCENE_GAP, LANE_HEIGHT } = TIMELINE_LAYOUT;
+
+    // Calculate grid range for the connection line
+    const startCol = sceneIndices.length > 0 ? (sceneIndices[0] ?? 0) + 1 : 0;
+    const endCol = sceneIndices.length > 0 ? (sceneIndices[sceneIndices.length - 1] ?? 0) + 1 : 0;
 
     return (
         <div
             key={lane.id}
-            className={`relative border-b ${config.bgColor}`}
-            style={{ height: LANE_HEIGHT, width: totalWidth }}
+            className={`relative border-b ${config.bgColor} h-12 grid items-center px-4`}
+            style={{
+                // Define grid columns based on scene count, each scene gets one column unit
+                gridTemplateColumns: `repeat(${scenes.length}, minmax(120px, 1fr))`,
+                gap: '0.5rem',
+                minWidth: 'max-content' // Ensure lane expands to fit all columns
+            }}
         >
-            {/* Connection line */}
-            {sceneIndices.length > 1 &&
-                sceneIndices[0] !== undefined &&
-                sceneIndices[sceneIndices.length - 1] !== undefined && (
-                    <div
-                        className={`absolute top-1/2 h-0.5 ${config.color} opacity-30`}
-                        style={{
-                            left: sceneIndices[0] * (SCENE_WIDTH + SCENE_GAP) + SCENE_WIDTH / 2,
-                            width:
-                                ((sceneIndices[sceneIndices.length - 1] ?? 0) - (sceneIndices[0] ?? 0)) *
-                                (SCENE_WIDTH + SCENE_GAP),
-                        }}
-                    />
-                )}
+            {/* Connection line - spans from first to last scene occurrence */}
+            {sceneIndices.length > 1 && (
+                <div
+                    className={`absolute top-1/2 h-0.5 ${config.color} opacity-30 z-0`}
+                    style={{
+                        gridColumnStart: startCol,
+                        gridColumnEnd: endCol + 1, // +1 because generic end line is exclusive, but we want to span fully
+                        left: '50%', // adjustment to center within the start/end cells?
+                        // Actually, purely grid approach:
+                        // If we place it in grid, it takes up space. We want it absolute BEHIND the buttons.
+                        // Better approach: Calculate percentage-based positions or just let CSS Grid handle a container layer?
+                        // Let's stick to the plan: CSS Grid for general layout.
+                        // For the line, strictly speaking, grid-column works if the parent is grid.
+                        // But the parent IS grid.
+                        // So we can place a div that spans columns.
+                        gridColumn: `${startCol} / ${endCol + 1}`,
+                        width: 'auto',
+                        position: 'relative', // It's a grid item now
+                        height: '2px',
+                        placeSelf: 'center stretch',
+                        zIndex: 0,
+                        margin: '0 3rem' // Visual offset to not touch the edges of the first/last cell
+                    }}
+                />
+            )}
 
             {/* Scene nodes */}
             {sceneIndices.map((sceneIndex) => {
@@ -61,17 +85,17 @@ export function TimelineLane({
                             <button
                                 onClick={() => onOpenScene(scene.id)}
                                 className={`
-                  absolute top-1/2 -translate-y-1/2
+                  relative z-10
                   h-8 rounded-md border-2 ${config.borderColor}
                   bg-background hover:bg-accent
                   flex items-center justify-center
                   text-xs font-medium truncate px-2
                   transition-all hover:scale-105 hover:shadow-md
+                  w-full
                   ${isPov ? 'ring-2 ring-primary ring-offset-1' : ''}
                 `}
                                 style={{
-                                    left: sceneIndex * (SCENE_WIDTH + SCENE_GAP),
-                                    width: SCENE_WIDTH - SCENE_GAP,
+                                    gridColumn: sceneIndex + 1, // 1-based index for grid
                                 }}
                             >
                                 <span className="truncate">{scene.title}</span>

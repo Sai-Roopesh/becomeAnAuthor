@@ -10,11 +10,11 @@ import {
     saveSceneCodexLink,
     deleteSceneCodexLink
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository {
     private async getAllLinks(): Promise<SceneCodexLink[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -50,7 +50,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
     }
 
     async create(link: Omit<SceneCodexLink, 'id' | 'createdAt' | 'updatedAt'>): Promise<SceneCodexLink> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
         const now = Date.now();
@@ -80,7 +80,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
     }
 
     async update(id: string, updates: Partial<Pick<SceneCodexLink, 'role'>>): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         const links = await this.getAllLinks();
@@ -102,7 +102,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
     }
 
     async delete(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {
@@ -114,7 +114,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
     }
 
     async deleteByScene(sceneId: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {
@@ -129,7 +129,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
     }
 
     async deleteByCodex(codexId: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {
@@ -144,7 +144,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
     }
 
     async deleteAutoDetected(sceneId: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {

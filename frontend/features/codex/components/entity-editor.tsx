@@ -22,6 +22,12 @@ import { useConfirmation } from '@/hooks/use-confirmation';
 import { EntityEditorHeader } from './entity-editor/EntityEditorHeader';
 import { EntityEditorInfoCard } from './entity-editor/EntityEditorInfoCard';
 
+interface EntityEditorProps {
+    entityId: string;
+    seriesId: string;  // Required - series-first architecture
+    onBack: () => void;
+}
+
 /**
  * EntityEditor - Main Codex Entity Editor
  * 
@@ -30,12 +36,12 @@ import { EntityEditorInfoCard } from './entity-editor/EntityEditorInfoCard';
  * - EntityEditorInfoCard: Entity info display
  * - Tab components for different aspects (Details, Research, Relations, etc.)
  * 
- * Reduced from 282 lines to ~210 lines via component decomposition.
+ * Series-first: uses seriesId for all codex operations.
  */
-export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: () => void }) {
+export function EntityEditor({ entityId, seriesId, onBack }: EntityEditorProps) {
     const codexRepo = useCodexRepository();
     const templateRepo = useCodexTemplateRepository();
-    const entity = useLiveQuery(() => codexRepo.get(entityId), [entityId]);
+    const entity = useLiveQuery(() => codexRepo.get(seriesId, entityId), [seriesId, entityId]);
 
     // Load template if entity has one
     const template = useLiveQuery(
@@ -57,9 +63,9 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
 
     useEffect(() => {
         if (debouncedData && debouncedData.id === entityId && Object.keys(debouncedData).length > 0) {
-            codexRepo.update(entityId, debouncedData);
+            codexRepo.update(seriesId, entityId, debouncedData);
         }
-    }, [debouncedData, entityId, codexRepo]);
+    }, [debouncedData, entityId, seriesId, codexRepo]);
 
     const handleChange = (field: keyof CodexEntry, value: CodexEntry[keyof CodexEntry]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -76,7 +82,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
 
     const handleSave = async () => {
         if (formData.id) {
-            await codexRepo.update(entityId, formData);
+            await codexRepo.update(seriesId, entityId, formData);
             toast.success('Entity saved');
         }
     };
@@ -90,7 +96,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         });
 
         if (confirmed && entity) {
-            await codexRepo.delete(entityId);
+            await codexRepo.delete(seriesId, entityId, entity.category);
             toast.success('Entity deleted');
             onBack();
         }
@@ -105,7 +111,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
         });
 
         if (confirmed) {
-            await codexRepo.update(entityId, { customFields: {} });
+            await codexRepo.update(seriesId, entityId, { customFields: {} });
             toast.success('Template cleared - you can now change the category');
         }
     };
@@ -187,7 +193,7 @@ export function EntityEditor({ entityId, onBack }: { entityId: string, onBack: (
                     </TabsContent>
 
                     <TabsContent value="relations" className="p-6 m-0">
-                        <RelationsTab entityId={entityId} />
+                        <RelationsTab entityId={entityId} seriesId={seriesId} />
                     </TabsContent>
 
                     <TabsContent value="mentions" className="p-6 m-0">

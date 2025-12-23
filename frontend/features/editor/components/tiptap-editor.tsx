@@ -7,13 +7,16 @@ import StarterKit from '@tiptap/starter-kit';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
+import Collaboration from '@tiptap/extension-collaboration';
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAutoSave } from '@/hooks/use-auto-save';
 import { useAI } from '@/hooks/use-ai';
+import { useCollaboration } from '@/hooks/use-collaboration';
 import { EditorToolbar } from './editor-toolbar';
 import { TextSelectionMenu } from './text-selection-menu';
 import { ContinueWritingMenu } from './continue-writing-menu';
+import { CollaborationPanel } from '@/features/collaboration';
 import { useFormatStore } from '@/store/use-format-store';
 import { Section } from '@/lib/tiptap-extensions/section-node';
 import { AI_DEFAULTS } from '@/lib/config/constants';
@@ -46,11 +49,13 @@ interface GenerateOptions {
 export function TiptapEditor({
     sceneId,
     projectId,
+    seriesId,  // Required - series-first architecture
     content,
     onWordCountChange
 }: {
     sceneId: string,
     projectId: string,
+    seriesId: string,  // Required - series-first architecture
     content: TiptapContent | null | undefined,
     onWordCountChange?: (count: number) => void
 }) {
@@ -62,10 +67,19 @@ export function TiptapEditor({
     const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
     const { assembleContext } = useContextAssembly(projectId);
 
-    // Create suggestion configuration with projectId and repository
+    // Collaboration state
+    const [enableP2P, setEnableP2P] = useState(false);
+    const { ydoc, status: collabStatus, peers, roomId } = useCollaboration({
+        sceneId,
+        projectId,
+        enabled: true,
+        enableP2P,
+    });
+
+    // Create suggestion configuration with seriesId and repository (series-first)
     const suggestion = useMemo(
-        () => createCodexSuggestion(projectId, codexRepo),
-        [projectId, codexRepo]
+        () => createCodexSuggestion(seriesId, codexRepo),
+        [seriesId, codexRepo]
     );
 
     // Get cursor position in the editor
@@ -88,10 +102,12 @@ export function TiptapEditor({
         ? content
         : { type: 'doc', content: [{ type: 'paragraph' }] };
 
-    const editor = useEditor({
-        immediatelyRender: false,
-        extensions: [
-            StarterKit,
+    // Build extensions array - add Collaboration only when ydoc is ready
+    const extensions = useMemo(() => {
+        // Use AnyExtension to avoid type narrowing issues with mixed extension types
+        const base: Parameters<typeof useEditor>[0]['extensions'] = [
+            // When collaborating, use StarterKit without undo/redo (Yjs handles it)
+            ydoc ? StarterKit.configure({ undoRedo: false }) : StarterKit,
             Typography,
             CharacterCount,
             Section,
@@ -104,7 +120,23 @@ export function TiptapEditor({
                 },
                 suggestion,
             }),
-        ],
+        ];
+
+        // Add Collaboration extension when ydoc is available
+        if (ydoc && base) {
+            base.push(
+                Collaboration.configure({
+                    document: ydoc,
+                })
+            );
+        }
+
+        return base;
+    }, [suggestion, ydoc]);
+
+    const editor = useEditor({
+        immediatelyRender: false,
+        extensions,
         content: validatedContent,
         onUpdate: ({ editor }) => {
             if (onWordCountChange) {
@@ -162,9 +194,9 @@ export function TiptapEditor({
                 log.debug(`Fetching fresh content for scene ${sceneId} from BACKEND`);
                 try {
                     const { getStructure, loadScene } = await import('@/core/tauri/commands');
-                    const { getCurrentProjectPath } = await import('@/infrastructure/repositories/TauriNodeRepository');
+                    const { TauriNodeRepository } = await import('@/infrastructure/repositories/TauriNodeRepository');
 
-                    const projectPath = getCurrentProjectPath();
+                    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
                     if (!projectPath) throw new Error('No project path');
 
                     // Get structure to find the scene file
@@ -392,17 +424,29 @@ YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
 
     return (
         <div className="w-full h-full flex flex-col">
-            <EditorToolbar
-                editor={editor}
-                isGenerating={isGenerating}
-                onInsertSection={handleInsertSection}
-            />
-            <TextSelectionMenu editor={editor} projectId={projectId} />
+            <div className="flex items-center justify-between border-b">
+                <EditorToolbar
+                    editor={editor}
+                    isGenerating={isGenerating}
+                    onInsertSection={handleInsertSection}
+                />
+                <div className="pr-2">
+                    <CollaborationPanel
+                        status={collabStatus}
+                        peers={peers}
+                        roomId={roomId}
+                        enabled={enableP2P}
+                        onToggle={setEnableP2P}
+                    />
+                </div>
+            </div>
+            <TextSelectionMenu editor={editor} projectId={projectId} seriesId={seriesId} />
             <ContinueWritingMenu
                 open={showContinueMenu}
                 onOpenChange={handleMenuClose}
                 onGenerate={generate}
                 projectId={projectId}
+                seriesId={seriesId}
                 isGenerating={isGenerating}
                 onCancel={cancel}
                 position={menuPosition}

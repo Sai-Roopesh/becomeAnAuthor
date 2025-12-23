@@ -3,9 +3,17 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Card } from '@/components/ui/card';
 
+/** A slash command menu item */
+interface SlashCommandItem {
+    title: string;
+    description: string;
+    icon: string;
+    command: (context: { editor: unknown; range: unknown }) => void;
+}
+
 interface SlashCommandsListProps {
-    items: any[];
-    command: any;
+    items: SlashCommandItem[];
+    command: (item: SlashCommandItem) => void;
 }
 
 export const SlashCommandsList = forwardRef((props: SlashCommandsListProps, ref) => {

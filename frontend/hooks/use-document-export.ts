@@ -1,41 +1,53 @@
 /**
  * Document Export Hook (Tauri Version)
  * 
- * Uses Tauri's export_manuscript_text command for exporting manuscripts.
- * 
- * TODO: Implement full DOCX export with formatting using Tauri
+ * Uses Tauri's export_manuscript_docx command for exporting manuscripts
+ * with native file save dialog.
  */
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from '@/shared/utils/toast-service';
-import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
+import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
+import { showSaveDialog } from '@/core/tauri/commands';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('DocumentExport');
 
 export function useDocumentExport() {
 
     const exportProjectAsDocx = async (projectId: string) => {
         try {
-            const projectPath = getCurrentProjectPath();
+            const projectPath = TauriNodeRepository.getInstance().getProjectPath();
             if (!projectPath) throw new Error('No project selected');
 
-            // Use Tauri's built-in text export (DOCX support coming later)
-            const textContent = await invoke<string>('export_manuscript_text', {
-                projectPath
+            // Show native save dialog first
+            const defaultName = `manuscript-${new Date().toISOString().split('T')[0]}.docx`;
+            const savePath = await showSaveDialog({
+                defaultPath: defaultName,
+                filters: [{ name: 'Word Document', extensions: ['docx'] }],
+                title: 'Export Manuscript'
             });
 
-            // Download as plain text for now
-            const blob = new Blob([textContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `manuscript-${new Date().toISOString().split('T')[0]}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
+            if (!savePath) {
+                toast.info('Export cancelled');
+                return;
+            }
 
-            toast.success('Manuscript exported as text. DOCX export coming soon.');
+            toast.info('Generating DOCX...');
+
+            // Call Rust command which writes directly to file
+            await invoke<string>('export_manuscript_docx', {
+                projectPath,
+                outputPath: savePath
+            });
+
+            toast.success('Manuscript exported as DOCX');
+            log.debug('DOCX exported', { path: savePath });
         } catch (error) {
-            console.error('Export failed:', error);
+            log.error('DOCX export failed', error);
             toast.error('Failed to export manuscript');
         }
     };
 
     return { exportProjectAsDocx };
 }
+

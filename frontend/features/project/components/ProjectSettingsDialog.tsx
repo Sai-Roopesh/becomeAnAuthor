@@ -18,18 +18,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useRouter } from 'next/navigation';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import { useSeriesRepository } from '@/hooks/use-series-repository';
 
 export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
     const router = useRouter();
     const { projectRepository: projectRepo } = useAppServices();
+    const seriesRepo = useSeriesRepository();
     const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
+    const allSeries = useLiveQuery(() => seriesRepo.list(), [seriesRepo]);
 
     const [formData, setFormData] = useState({
         title: '',
         author: '',
         language: 'English (US)',
-        coverImage: ''
+        coverImage: '',
+        seriesId: '',
+        seriesIndex: ''
     });
 
     useEffect(() => {
@@ -38,7 +43,9 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
                 title: project.title,
                 author: project.author || '',
                 language: project.language || 'English (US)',
-                coverImage: project.coverImage || ''
+                coverImage: project.coverImage || '',
+                seriesId: project.seriesId || '',
+                seriesIndex: project.seriesIndex || ''
             });
         }
     }, [project, open]);
@@ -50,6 +57,8 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
             author: formData.author,
             language: formData.language,
             coverImage: formData.coverImage,
+            seriesId: formData.seriesId,
+            seriesIndex: formData.seriesIndex,
         });
         setOpen(false);
     };
@@ -140,6 +149,27 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
                                         <SelectItem value="German">German</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Series</Label>
+                                <Select value={formData.seriesId} onValueChange={val => setFormData({ ...formData, seriesId: val })}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select series" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allSeries?.map(s => (
+                                            <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Book Number</Label>
+                                <Input
+                                    value={formData.seriesIndex}
+                                    onChange={e => setFormData({ ...formData, seriesIndex: e.target.value })}
+                                    placeholder="e.g., Book 1"
+                                />
                             </div>
                         </div>
 

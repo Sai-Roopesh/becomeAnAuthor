@@ -54,8 +54,7 @@ describe('useErrorHandler', () => {
     });
 
     it('should log to console when enabled', () => {
-        const originalEnv = process.env['NODE_ENV'];
-        Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
+        vi.stubEnv('NODE_ENV', 'development');
 
         const { result } = renderHook(() =>
             useErrorHandler({ logToConsole: true })
@@ -71,7 +70,7 @@ describe('useErrorHandler', () => {
             testError
         );
 
-        Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, writable: true });
+        vi.unstubAllEnvs();
     });
 
     it('should not show toast when disabled', () => {
@@ -113,10 +112,9 @@ describe('useErrorHandler', () => {
     });
 
     it('should handle errors with context string', () => {
-        const originalEnv = process.env['NODE_ENV'];
-        Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
+        vi.stubEnv('NODE_ENV', 'development');
 
-        const { result } = renderHook(() => useErrorHandler());
+        const { result } = renderHook(() => useErrorHandler({ logToConsole: true }));
         const testError = new Error('Context test');
 
         act(() => {
@@ -128,7 +126,7 @@ describe('useErrorHandler', () => {
             testError
         );
 
-        Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, writable: true });
+        vi.unstubAllEnvs();
     });
 
     it('should be memoized with useCallback', () => {

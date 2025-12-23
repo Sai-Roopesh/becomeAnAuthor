@@ -11,12 +11,13 @@ import { useRouter } from 'next/navigation';
 
 interface SearchPaletteProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
 
-export function SearchPalette({ projectId, open, onOpenChange }: SearchPaletteProps) {
-    const { query, setQuery, results, isLoading } = useSearch(projectId);
+export function SearchPalette({ projectId, seriesId, open, onOpenChange }: SearchPaletteProps) {
+    const { query, setQuery, results, isLoading } = useSearch(projectId, seriesId);
     const { setActiveSceneId, setViewMode } = useProjectStore();
     const router = useRouter();
     const [selectedIndex, setSelectedIndex] = useState(0);

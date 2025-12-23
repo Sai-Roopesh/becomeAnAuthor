@@ -15,7 +15,7 @@ import { DesktopLayout } from './editor-layout/DesktopLayout';
 /**
  * EditorContainer - Refactored
  * Main orchestrator for the editor with responsive layout switching.
- * Reduced from 338 lines to ~110 lines.
+ * Series-first: fetches project to get seriesId for editor features
  */
 export function EditorContainer({ projectId }: { projectId: string }) {
     const {
@@ -31,11 +31,17 @@ export function EditorContainer({ projectId }: { projectId: string }) {
     const [activeSnippetId, setActiveSnippetId] = useState<string | null>(null);
     const isMobile = useIsMobile();
 
-    const { nodeRepository: nodeRepo } = useAppServices();
+    const { nodeRepository: nodeRepo, projectRepository: projectRepo } = useAppServices();
     const snippetRepo = useSnippetRepository();
 
     // Editor state management
     const { editorWordCount, handleWordCountUpdate } = useEditorState(activeSceneId);
+
+    // Fetch project to get seriesId
+    const project = useLiveQuery(
+        () => projectRepo.get(projectId),
+        [projectId, projectRepo]
+    );
 
     const activeScene = useLiveQuery(
         async () => (activeSceneId ? await nodeRepo.get(activeSceneId) : undefined),
@@ -78,12 +84,22 @@ export function EditorContainer({ projectId }: { projectId: string }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [focusMode, toggleFocusMode, hasActiveScene]);
 
+    // Wait for project to load
+    if (!project) {
+        return (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+                Loading project...
+            </div>
+        );
+    }
+
     // Focus Mode Overlay - Full Screen Distraction-Free Writing
     if (focusMode && activeScene && activeScene.type === 'scene') {
         return (
             <FocusModeLayout
                 activeScene={activeScene}
                 projectId={projectId}
+                seriesId={project.seriesId}
                 editorWordCount={editorWordCount}
                 onWordCountChange={handleWordCountUpdate}
                 onExitFocusMode={toggleFocusMode}
@@ -96,6 +112,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
         return (
             <MobileLayout
                 projectId={projectId}
+                seriesId={project.seriesId}
                 activeScene={activeScene}
                 activeSnippetId={activeSnippetId}
                 showSidebar={showSidebar}
@@ -114,6 +131,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
     return (
         <DesktopLayout
             projectId={projectId}
+            seriesId={project.seriesId}
             activeScene={activeScene}
             activeSnippetId={activeSnippetId}
             showSidebar={showSidebar}

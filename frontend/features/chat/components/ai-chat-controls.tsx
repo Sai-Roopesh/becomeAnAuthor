@@ -8,6 +8,7 @@ import { ModelCombobox } from '@/features/ai';
 
 interface AIChatControlsProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     selectedContexts: ContextItem[];
     onContextsChange: (contexts: ContextItem[]) => void;
     selectedPromptId: string;
@@ -20,9 +21,11 @@ interface AIChatControlsProps {
 /**
  * Controls panel for AI Chat - context, prompt, and model selection.
  * Extracted from AIChat for better maintainability.
+ * Series-first: requires seriesId for context selection
  */
 export function AIChatControls({
     projectId,
+    seriesId,
     selectedContexts,
     onContextsChange,
     selectedPromptId,
@@ -36,6 +39,7 @@ export function AIChatControls({
             {/* Context Selector */}
             <ContextSelector
                 projectId={projectId}
+                seriesId={seriesId}
                 selectedContexts={selectedContexts}
                 onContextsChange={onContextsChange}
             />

@@ -5,6 +5,8 @@
  */
 
 import { countTokens } from './token-counter';
+import type { TiptapContent, TiptapNode, TiptapElementNode } from '@/shared/types/tiptap';
+import { isElementNode } from '@/shared/types/tiptap';
 
 export interface ContextItem {
     type: 'scene' | 'codex' | 'system';
@@ -138,7 +140,7 @@ export class ContextAssembler {
     createSceneContext(scene: {
         id: string;
         title: string;
-        content: any;
+        content: TiptapContent | null | undefined;
     }, priority: number = 5): ContextItem {
         // Extract text from Tiptap JSON
         const text = this.extractTextFromTiptap(scene.content);
@@ -176,17 +178,17 @@ export class ContextAssembler {
     /**
      * Extract plain text from Tiptap JSON content
      */
-    private extractTextFromTiptap(content: any): string {
+    private extractTextFromTiptap(content: TiptapContent | null | undefined): string {
         if (!content || !content.content) {
             return '';
         }
 
         let text = '';
 
-        const processNode = (node: any): void => {
+        const processNode = (node: TiptapNode): void => {
             if (node.type === 'text') {
                 text += node.text || '';
-            } else if (node.content && Array.isArray(node.content)) {
+            } else if (isElementNode(node) && node.content && Array.isArray(node.content)) {
                 for (const child of node.content) {
                     processNode(child);
                 }

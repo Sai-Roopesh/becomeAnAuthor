@@ -14,21 +14,24 @@ import type {
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
 import { generateText } from '@/lib/core/ai-client';
 import { getPromptTemplate } from '@/shared/prompts/templates';
 import { extractTextFromContent } from '@/shared/utils/editor';
-import { aiRateLimiter } from '@/lib/integrations/ai-rate-limiter';
+import { aiRateLimiter } from '@/infrastructure/services/ai-rate-limiter';
 import { toast } from '@/shared/utils/toast-service';
 
 /**
  * Chat Service with AI Rate Limiting
  * Handles AI interactions using repositories
+ * Series-first: uses projectRepo to get seriesId for codex lookups
  */
 export class ChatService implements IChatService {
     constructor(
         private nodeRepository: INodeRepository,
         private codexRepository: ICodexRepository,
-        private chatRepository: IChatRepository
+        private chatRepository: IChatRepository,
+        private projectRepository: IProjectRepository
     ) {
         // Set up rate limiter callbacks
         aiRateLimiter.setWarningCallback((usage, limit, period) => {
@@ -106,6 +109,7 @@ export class ChatService implements IChatService {
 
     /**
      * Build context text from novel/codex selections
+     * Series-first: fetches project to get seriesId for codex lookups
      */
     async buildContextText(
         context: ChatContext,
@@ -191,19 +195,24 @@ export class ChatService implements IChatService {
             }
         }
 
-        // 6. Codex Entries
+        // 6. Codex Entries - series-first: fetch project to get seriesId
         if (context.codexEntries && context.codexEntries.length > 0) {
-            const entries = await Promise.all(
-                context.codexEntries.map(id => this.codexRepository.get(id))
-            );
-            const validEntries = entries.filter(e => e !== undefined) as CodexEntry[];
+            const project = await this.projectRepository.get(projectId);
+            const seriesId = project?.seriesId;
 
-            const codexText = validEntries.map(e =>
-                `[Codex: ${e.name} (${e.category})]\n${e.description}\n${e.notes ? `Notes: ${e.notes}` : ''}`
-            ).join('\n\n');
+            if (seriesId) {
+                const entries = await Promise.all(
+                    context.codexEntries.map(id => this.codexRepository.get(seriesId, id))
+                );
+                const validEntries = entries.filter(e => e !== undefined) as CodexEntry[];
 
-            if (codexText) {
-                parts.push(`=== CODEX ENTRIES ===\n${codexText}`);
+                const codexText = validEntries.map(e =>
+                    `[Codex: ${e.name} (${e.category})]\n${e.description}\n${e.notes ? `Notes: ${e.notes}` : ''}`
+                ).join('\n\n');
+
+                if (codexText) {
+                    parts.push(`=== CODEX ENTRIES ===\n${codexText}`);
+                }
             }
         }
 

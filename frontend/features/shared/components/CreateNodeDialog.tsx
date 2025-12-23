@@ -24,31 +24,40 @@ export function CreateNodeDialog({ open, onOpenChange, projectId, parentId, type
     const handleCreate = async () => {
         if (!title.trim()) return;
 
-        // Use repository to get siblings
-        const siblings = await nodeRepo.getByParent(projectId, parentId);
-        const maxOrder = siblings.reduce((max, n) => Math.max(max, n.order), 0);
-        const newOrder = maxOrder + 100;
 
-        // Use repository create method
-        await nodeRepo.create({
-            projectId,
-            parentId,
-            title,
-            order: newOrder,
-            type,
-            ...(type === 'scene' ? {
-                content: { type: 'doc', content: [] },
-                summary: '',
-                status: 'draft',
-                wordCount: 0,
-            } : {})
-        });
+        try {
+            // Use repository to get siblings
+            const siblings = await nodeRepo.getByParent(projectId, parentId);
 
-        // Trigger all useLiveQuery hooks to refetch
-        invalidateQueries();
+            const maxOrder = siblings.reduce((max, n) => Math.max(max, n.order), 0);
+            const newOrder = maxOrder + 100;
 
-        setTitle('');
-        onOpenChange(false);
+            // Use repository create method
+            await nodeRepo.create({
+                projectId,
+                parentId,
+                title,
+                order: newOrder,
+                type,
+                ...(type === 'scene' ? {
+                    content: { type: 'doc', content: [] },
+                    summary: '',
+                    status: 'draft',
+                    wordCount: 0,
+                } : {})
+            });
+
+            // Trigger all useLiveQuery hooks to refetch
+            invalidateQueries();
+
+            setTitle('');
+            onOpenChange(false);
+        } catch (error) {
+            console.error('[CreateNodeDialog] Failed to create node:', error);
+            // Replace with logger once I confirm logger import, for now keeping minimally invasive change
+            // User requested removing console.LOG statements specifically, keeping error for safety unless logger is available
+            alert(`Failed to create ${type}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     };
 
     return (

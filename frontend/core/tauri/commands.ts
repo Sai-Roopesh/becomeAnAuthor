@@ -22,8 +22,16 @@ export interface ProjectMeta {
     description: string;
     path: string;
     archived: boolean;
-    created_at: number;  // ✅ Changed from string
-    updated_at: number;  // ✅ Changed from string
+    series_id: string;   // Required - all projects must belong to a series
+    series_index: string; // e.g., "Book 1", "Book 2"
+    created_at: number;
+    updated_at: number;
+}
+
+export interface RecentProject {
+    path: string;
+    title: string;
+    lastOpened: number;
 }
 
 export interface StructureNode {
@@ -90,12 +98,67 @@ export async function listProjects(): Promise<ProjectMeta[]> {
     return invoke<ProjectMeta[]>('list_projects');
 }
 
-export async function createProject(title: string, author: string, customPath: string): Promise<ProjectMeta> {
-    return invoke<ProjectMeta>('create_project', { title, author, customPath });
+export async function createProject(
+    title: string,
+    author: string,
+    customPath: string,
+    seriesId: string,
+    seriesIndex: string
+): Promise<ProjectMeta> {
+    return invoke<ProjectMeta>('create_project', {
+        title,
+        author,
+        customPath,
+        seriesId,
+        seriesIndex
+    });
 }
 
 export async function deleteProject(projectPath: string): Promise<void> {
     return invoke('delete_project', { projectPath });
+}
+
+// ============ Recent Projects Commands ============
+
+/**
+ * List recently opened projects (auto-prunes old/invalid entries)
+ */
+export async function listRecentProjects(): Promise<RecentProject[]> {
+    return invoke<RecentProject[]>('list_recent_projects');
+}
+
+/**
+ * Add a project to the recent list
+ */
+export async function addToRecent(projectPath: string, title: string): Promise<void> {
+    return invoke('add_to_recent', { projectPath, title });
+}
+
+/**
+ * Remove a project from the recent list
+ */
+export async function removeFromRecent(projectPath: string): Promise<void> {
+    return invoke('remove_from_recent', { projectPath });
+}
+
+/**
+ * Open a project by path (validates and adds to recent)
+ */
+export async function openProject(projectPath: string): Promise<ProjectMeta> {
+    return invoke<ProjectMeta>('open_project', { projectPath });
+}
+
+/**
+ * Show file picker dialog to select a project folder
+ */
+export async function showOpenProjectDialog(): Promise<string | null> {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const selected = await open({
+        directory: true,
+        multiple: false,
+        title: 'Open Your Novel',
+    });
+    return selected as string | null;
 }
 
 export interface ProjectUpdates {
@@ -109,8 +172,8 @@ export async function updateProject(projectPath: string, updates: ProjectUpdates
     return invoke<ProjectMeta>('update_project', { projectPath, updates });
 }
 
-export async function archiveProject(projectPath: string, archived: boolean): Promise<ProjectMeta> {
-    return invoke<ProjectMeta>('archive_project', { projectPath, archived });
+export async function archiveProject(projectPath: string): Promise<ProjectMeta> {
+    return invoke<ProjectMeta>('archive_project', { projectPath });
 }
 
 // ============ Structure Commands ============
@@ -338,8 +401,8 @@ export async function createChatThread(projectPath: string, thread: Omit<ChatThr
     return invoke<ChatThread>('create_chat_thread', { projectPath, thread });
 }
 
-export async function updateChatThread(projectPath: string, threadId: string, updates: Partial<ChatThread>): Promise<void> {
-    return invoke('update_chat_thread', { projectPath, threadId, updates });
+export async function updateChatThread(projectPath: string, thread: ChatThread): Promise<void> {
+    return invoke('update_chat_thread', { projectPath, thread });
 }
 
 export async function deleteChatThread(projectPath: string, threadId: string): Promise<void> {
@@ -412,7 +475,7 @@ export async function listSeries(): Promise<Series[]> {
 }
 
 export async function createSeries(series: Omit<Series, 'id' | 'created_at' | 'updated_at'>): Promise<Series> {
-    return invoke<Series>('create_series', { series });
+    return invoke<Series>('create_series', { title: series.title });
 }
 
 export async function updateSeries(seriesId: string, updates: Partial<Series>): Promise<void> {
@@ -421,6 +484,104 @@ export async function updateSeries(seriesId: string, updates: Partial<Series>): 
 
 export async function deleteSeries(seriesId: string): Promise<void> {
     return invoke('delete_series', { seriesId });
+}
+
+/**
+ * Delete a series and cascade delete all projects belonging to it.
+ * All projects are moved to Trash before the series is deleted.
+ * @returns number of projects deleted
+ */
+export async function deleteSeriesCascade(seriesId: string): Promise<number> {
+    return invoke<number>('delete_series_cascade', { seriesId });
+}
+
+
+// ============ Series Codex Commands ============
+
+/**
+ * List all codex entries for a series
+ */
+export async function listSeriesCodexEntries(
+    seriesId: string,
+    category?: string
+): Promise<CodexEntry[]> {
+    return invoke<CodexEntry[]>('list_series_codex_entries', { seriesId, category });
+}
+
+/**
+ * Get a single codex entry by ID
+ */
+export async function getSeriesCodexEntry(
+    seriesId: string,
+    entryId: string
+): Promise<CodexEntry | null> {
+    return invoke<CodexEntry | null>('get_series_codex_entry', { seriesId, entryId });
+}
+
+/**
+ * Save a codex entry to series storage
+ */
+export async function saveSeriesCodexEntry(
+    seriesId: string,
+    entry: CodexEntry
+): Promise<void> {
+    return invoke('save_series_codex_entry', { seriesId, entry });
+}
+
+/**
+ * Delete a codex entry from series storage
+ */
+export async function deleteSeriesCodexEntry(
+    seriesId: string,
+    entryId: string,
+    category: string
+): Promise<void> {
+    return invoke('delete_series_codex_entry', { seriesId, entryId, category });
+}
+
+/**
+ * List all codex relations for a series
+ */
+export async function listSeriesCodexRelations(seriesId: string): Promise<CodexRelation[]> {
+    return invoke<CodexRelation[]>('list_series_codex_relations', { seriesId });
+}
+
+/**
+ * Save a codex relation to series storage
+ */
+export async function saveSeriesCodexRelation(
+    seriesId: string,
+    relation: CodexRelation
+): Promise<void> {
+    return invoke('save_series_codex_relation', { seriesId, relation });
+}
+
+/**
+ * Delete a codex relation from series storage
+ */
+export async function deleteSeriesCodexRelation(
+    seriesId: string,
+    relationId: string
+): Promise<void> {
+    return invoke('delete_series_codex_relation', { seriesId, relationId });
+}
+
+/**
+ * Migration result type
+ */
+export interface MigrationResult {
+    total_projects: number;
+    migrated_entries: number;
+    skipped_entries: number;
+    series_affected: string[];
+    errors: string[];
+}
+
+/**
+ * Migrate codex entries from project-level to series-level storage
+ */
+export async function migrateCodexToSeries(): Promise<MigrationResult> {
+    return invoke<MigrationResult>('migrate_codex_to_series');
 }
 
 // ============ Snippet Commands ============
@@ -464,6 +625,13 @@ export async function exportManuscriptText(projectPath: string): Promise<string>
  */
 export async function exportProjectBackup(projectPath: string, outputPath: string): Promise<void> {
     return invoke('export_project_backup', { projectPath, outputPath });
+}
+
+/**
+ * Export project as JSON string (for cloud backup services like Google Drive)
+ */
+export async function exportProjectAsJson(projectPath: string): Promise<string> {
+    return invoke<string>('export_project_as_json', { projectPath });
 }
 
 /**

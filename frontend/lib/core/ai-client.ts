@@ -41,6 +41,37 @@ export interface GenerateStreamOptions extends GenerateOptions {
     onError?: (error: Error) => void;
 }
 
+// API Response interfaces for type safety
+interface ChatCompletionChoice {
+    message?: { content?: string };
+    delta?: { content?: string };
+}
+
+interface ChatCompletionResponse {
+    choices?: ChatCompletionChoice[];
+}
+
+interface GeminiTextPart {
+    text: string;
+}
+
+interface OpenRouterModel {
+    id: string;
+}
+
+interface GoogleModel {
+    name: string;
+    supportedGenerationMethods?: string[];
+}
+
+interface MistralModel {
+    id: string;
+}
+
+interface KimiModel {
+    id: string;
+}
+
 /**
  * Get all enabled AI connections from localStorage
  * ✅ SAFE: Uses safe-storage wrapper to prevent crashes
@@ -255,7 +286,7 @@ export async function generateTextStream(options: GenerateStreamOptions): Promis
 }
 
 // ✅ VALIDATION HELPERS: Ensure API responses have expected structure
-function validateOpenRouterResponse(data: any): string {
+function validateOpenRouterResponse(data: ChatCompletionResponse): string {
     if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
         throw new Error('OpenRouter returned invalid response: missing choices array');
     }
@@ -266,7 +297,7 @@ function validateOpenRouterResponse(data: any): string {
     return content;
 }
 
-function validateMistralResponse(data: any): string {
+function validateMistralResponse(data: ChatCompletionResponse): string {
     if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
         throw new Error('Mistral returned invalid response: missing choices array');
     }
@@ -277,7 +308,7 @@ function validateMistralResponse(data: any): string {
     return content;
 }
 
-function validateOpenAIResponse(data: any): string {
+function validateOpenAIResponse(data: ChatCompletionResponse): string {
     if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
         throw new Error('OpenAI returned invalid response: missing choices array');
     }
@@ -288,7 +319,7 @@ function validateOpenAIResponse(data: any): string {
     return content;
 }
 
-function validateKimiResponse(data: any): string {
+function validateKimiResponse(data: ChatCompletionResponse): string {
     if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
         throw new Error('Kimi returned invalid response: missing choices array');
     }
@@ -398,7 +429,7 @@ async function generateWithGoogle(
         // ✅ SECURITY FIX: API key in header instead of URL to prevent exposure in logs/history
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent`;
 
-        const parts: any[] = [];
+        const parts: GeminiTextPart[] = [];
         if (options.system) {
             parts.push({ text: options.system + '\n\n' });
         }
@@ -626,7 +657,7 @@ async function fetchOpenRouterModels(connection: AIConnection): Promise<string[]
     if (!response.ok) throw new Error('Failed to fetch OpenRouter models');
 
     const data = await response.json();
-    return data.data?.map((m: any) => m.id) || [];
+    return data.data?.map((m: OpenRouterModel) => m.id) || [];
 }
 
 async function fetchGoogleModels(connection: AIConnection): Promise<string[]> {
@@ -646,8 +677,8 @@ async function fetchGoogleModels(connection: AIConnection): Promise<string[]> {
 
     const data = await response.json();
     return data.models
-        ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-        ?.map((m: any) => m.name.replace('models/', '')) || [];
+        ?.filter((m: GoogleModel) => m.supportedGenerationMethods?.includes('generateContent'))
+        ?.map((m: GoogleModel) => m.name.replace('models/', '')) || [];
 }
 
 async function fetchMistralModels(connection: AIConnection): Promise<string[]> {
@@ -660,7 +691,7 @@ async function fetchMistralModels(connection: AIConnection): Promise<string[]> {
     if (!response.ok) throw new Error('Failed to fetch Mistral models');
 
     const data = await response.json();
-    return data.data?.map((m: any) => m.id) || [];
+    return data.data?.map((m: MistralModel) => m.id) || [];
 }
 
 async function fetchKimiModels(connection: AIConnection): Promise<string[]> {
@@ -673,7 +704,7 @@ async function fetchKimiModels(connection: AIConnection): Promise<string[]> {
     if (!response.ok) throw new Error('Failed to fetch Kimi models');
 
     const data = await response.json();
-    return data.data?.map((m: any) => m.id) || [];
+    return data.data?.map((m: KimiModel) => m.id) || [];
 }
 
 // ===== STREAMING PROVIDER IMPLEMENTATIONS =====
@@ -728,7 +759,7 @@ async function streamWithOpenRouter(connection: AIConnection, options: GenerateS
  */
 async function streamWithOpenAI(connection: AIConnection, options: GenerateStreamOptions): Promise<void> {
     let fullText = '';
-    const endpoint = (connection as any).baseUrl || 'https://api.openai.com/v1';
+    const endpoint = connection.customEndpoint || 'https://api.openai.com/v1';
 
     const response = await fetch(`${endpoint}/chat/completions`, {
         method: 'POST',
@@ -819,7 +850,7 @@ async function streamWithGoogle(connection: AIConnection, options: GenerateStrea
     // CRITICAL: Gemini streaming requires ?alt=sse query parameter!
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${baseModel}:streamGenerateContent?alt=sse`;
 
-    const parts: any[] = [];
+    const parts: GeminiTextPart[] = [];
     if (options.system) {
         parts.push({ text: `${options.system}\n\n` });
     }

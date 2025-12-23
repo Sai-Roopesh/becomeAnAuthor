@@ -10,11 +10,17 @@ import { ReviewDashboard } from '@/features/review/components/ReviewDashboard';
 import { MultiTabWarning } from '@/components/multi-tab-warning';
 import { SearchPalette } from '@/features/search/components/SearchPalette';
 import { TopNavigation } from '@/features/navigation/components/TopNavigation';
+import { useLiveQuery } from '@/hooks/use-live-query';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 export function ProjectPageClient({ id }: { id: string }) {
     const { viewMode } = useProjectStore();
     const [multiTabCount, setMultiTabCount] = useState(0);
     const [searchOpen, setSearchOpen] = useState(false);
+    const { projectRepository: projectRepo } = useAppServices();
+
+    // Fetch project to get seriesId
+    const project = useLiveQuery(() => projectRepo.get(id), [id, projectRepo]);
 
     useEffect(() => {
         const coordinator = getTabCoordinator();
@@ -48,6 +54,15 @@ export function ProjectPageClient({ id }: { id: string }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    // Wait for project to load
+    if (!project) {
+        return (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+                Loading project...
+            </div>
+        );
+    }
+
     return (
         <div className="h-full overflow-hidden flex flex-col">
             <TopNavigation projectId={id} />
@@ -64,6 +79,7 @@ export function ProjectPageClient({ id }: { id: string }) {
             {/* Search Palette (Cmd+K) */}
             <SearchPalette
                 projectId={id}
+                seriesId={project.seriesId}
                 open={searchOpen}
                 onOpenChange={setSearchOpen}
             />

@@ -9,11 +9,38 @@ import { SearchPalette } from '@/features/search/components/SearchPalette';
 import { useEffect, useState } from 'react';
 import { useProjectStore } from '@/store/use-project-store';
 import { getTabCoordinator } from '@/core/tab-coordinator';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 export function ProjectPageClient({ id }: { id: string }) {
     const { viewMode } = useProjectStore();
     const [multiTabCount, setMultiTabCount] = useState(0);
     const [searchOpen, setSearchOpen] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const { projectRepository } = useAppServices();
+
+    // Initialize project path when page loads
+    // This ensures TauriNodeRepository has the project path before any operations
+    useEffect(() => {
+        const initProject = async () => {
+            console.log('[ProjectPageClient] Initializing project:', id);
+            try {
+                // This call sets the project path in TauriNodeRepository
+                const project = await projectRepository.get(id);
+                console.log('[ProjectPageClient] Project loaded:', project?.title);
+
+                // Verify projectPath was set
+                const { TauriNodeRepository } = await import('@/infrastructure/repositories/TauriNodeRepository');
+                const path = TauriNodeRepository.getInstance().getProjectPath();
+                console.log('[ProjectPageClient] ProjectPath is now:', path);
+
+                setIsInitialized(true);
+            } catch (error) {
+                console.error('[ProjectPageClient] Failed to initialize project:', error);
+                setIsInitialized(true); // Allow rendering even on error
+            }
+        };
+        initProject();
+    }, [id, projectRepository]);
 
     useEffect(() => {
         const coordinator = getTabCoordinator();
@@ -46,6 +73,15 @@ export function ProjectPageClient({ id }: { id: string }) {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
+
+    // Show loading until project is initialized
+    if (!isInitialized) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="text-muted-foreground">Loading project...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full overflow-hidden flex flex-col">

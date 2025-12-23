@@ -5,7 +5,12 @@ import { CodexList } from '@/features/codex';
 import { AIChat } from '@/features/chat';
 import { SettingsDialog } from '@/features/settings';
 
-export function ProjectTools({ projectId }: { projectId: string }) {
+interface ProjectToolsProps {
+    projectId: string;
+    seriesId: string;  // Required - series-first architecture
+}
+
+export function ProjectTools({ projectId, seriesId }: ProjectToolsProps) {
     return (
         <div className="h-full flex flex-col">
             <div className="p-2 border-b flex justify-end">
@@ -19,10 +24,10 @@ export function ProjectTools({ projectId }: { projectId: string }) {
                     </TabsList>
                 </div>
                 <TabsContent value="codex" className="flex-1 p-0 overflow-hidden">
-                    <CodexList projectId={projectId} />
+                    <CodexList projectId={projectId} seriesId={seriesId} />
                 </TabsContent>
                 <TabsContent value="chat" className="flex-1 p-0 overflow-hidden">
-                    <AIChat projectId={projectId} />
+                    <AIChat projectId={projectId} seriesId={seriesId} />
                 </TabsContent>
             </Tabs>
         </div>

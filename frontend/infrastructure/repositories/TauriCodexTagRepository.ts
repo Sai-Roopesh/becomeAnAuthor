@@ -13,11 +13,11 @@ import {
     saveCodexEntryTag,
     deleteCodexEntryTag
 } from '@/core/tauri';
-import { getCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriCodexTagRepository implements ICodexTagRepository {
     async get(id: string): Promise<CodexTag | undefined> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return undefined;
 
         try {
@@ -30,7 +30,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
 
     async getByProject(projectId: string): Promise<CodexTag[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -47,7 +47,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
 
     async create(tag: Omit<CodexTag, 'id' | 'createdAt' | 'updatedAt'>): Promise<CodexTag> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) throw new Error('No project path set');
 
         const now = Date.now();
@@ -68,7 +68,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
 
     async update(id: string, data: Partial<CodexTag>): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         const existing = await this.get(id);
@@ -84,7 +84,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
 
     async delete(id: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {
@@ -97,7 +97,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
 
     // Entry-Tag associations using codex_entry_tags.json
     async addTagToEntry(entryId: string, tagId: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         const entryTag = {
@@ -115,7 +115,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
 
     async removeTagFromEntry(entryId: string, tagId: string): Promise<void> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
         try {
@@ -131,7 +131,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
 
     async getEntriesByTag(tagId: string): Promise<string[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
@@ -144,7 +144,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
 
     async getTagsByEntry(entryId: string): Promise<CodexTag[]> {
-        const projectPath = getCurrentProjectPath();
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {

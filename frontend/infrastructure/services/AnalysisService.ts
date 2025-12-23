@@ -2,7 +2,23 @@ import type { IAnalysisService } from '@/domain/services/IAnalysisService';
 import type { IAnalysisRepository } from '@/domain/repositories/IAnalysisRepository';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
-import type { StoryAnalysis, Scene, DocumentNode } from '@/lib/config/types';
+import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
+import type { StoryAnalysis, Scene, DocumentNode, CodexEntry, AnalysisInsight } from '@/lib/config/types';
+import type {
+    PlotThreadResponse,
+    CharacterArcResponse,
+    TimelineResponse,
+    ContradictionResponse,
+    AlphaReaderResponse,
+    BetaReaderResponse,
+    SynopsisResponse,
+    ParsedAnalysisResult,
+    PlotThread,
+    CharacterArc,
+    TimelineInconsistency,
+    Contradiction,
+    ReaderConcern,
+} from '@/domain/entities/analysis-types';
 import { generateText } from '@/core/api/ai-service';
 import {
     SYNOPSIS_PROMPT,
@@ -17,12 +33,14 @@ import {
 /**
  * Service for running AI-powered story analyses
  * Dependencies injected via constructor
+ * Series-first: uses projectRepo to get seriesId for codex lookups
  */
 export class AnalysisService implements IAnalysisService {
     constructor(
         private nodeRepo: INodeRepository,
         private codexRepo: ICodexRepository,
-        private analysisRepo: IAnalysisRepository
+        private analysisRepo: IAnalysisRepository,
+        private projectRepo: IProjectRepository
     ) { }
 
     async runAnalysis(
@@ -36,7 +54,13 @@ export class AnalysisService implements IAnalysisService {
         // Gather context
         const allNodes = await this.nodeRepo.getByProject(projectId);
         const scenes = this.filterScenesByScope(allNodes, scope);
-        const codexEntries = await this.codexRepo.getByProject(projectId);
+
+        // Series-first: fetch project to get seriesId for codex lookup
+        const project = await this.projectRepo.get(projectId);
+        const seriesId = project?.seriesId;
+        const codexEntries = seriesId
+            ? await this.codexRepo.getBySeries(seriesId)
+            : [];
 
         const manuscriptVersion = await this.getManuscriptVersion(projectId);
         const wordCount = scenes.reduce((sum, s) => sum + (s.wordCount || 0), 0);
@@ -130,7 +154,7 @@ export class AnalysisService implements IAnalysisService {
         return scenes;
     }
 
-    private getPromptForType(type: string, scenes: Scene[], codex: any[]): string {
+    private getPromptForType(type: string, scenes: Scene[], codex: CodexEntry[]): string {
         const context = { scenes, codex };
 
         switch (type) {
@@ -153,7 +177,7 @@ export class AnalysisService implements IAnalysisService {
         }
     }
 
-    private parseResponse(type: string, responseText: string): { summary?: string; insights: any[]; metrics?: any } {
+    private parseResponse(type: string, responseText: string): ParsedAnalysisResult {
         try {
             // Try to extract JSON from response (handle cases where AI adds extra text)
             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -206,33 +230,43 @@ export class AnalysisService implements IAnalysisService {
         }
     }
 
-    private extractSummary(type: string, parsed: any): string | undefined {
+    private extractSummary(type: string, parsed: Record<string, unknown>): string | undefined {
         switch (type) {
             case 'synopsis':
-                return parsed.summary;
-            case 'plot-threads':
-                return `Found ${parsed.threads?.length || 0} plot threads`;
-            case 'character-arcs':
-                return `Analyzed ${parsed.characters?.length || 0} characters`;
-            case 'timeline':
-                return `${parsed.events?.length || 0} temporal markers found, ${parsed.inconsistencies?.length || 0} issues detected`;
-            case 'contradictions':
-                return `${parsed.contradictions?.length || 0} contradictions found`;
+                return parsed['summary'] as string | undefined;
+            case 'plot-threads': {
+                const threads = parsed['threads'] as PlotThread[] | undefined;
+                return `Found ${threads?.length || 0} plot threads`;
+            }
+            case 'character-arcs': {
+                const characters = parsed['characters'] as CharacterArc[] | undefined;
+                return `Analyzed ${characters?.length || 0} characters`;
+            }
+            case 'timeline': {
+                const events = parsed['events'] as unknown[] | undefined;
+                const inconsistencies = parsed['inconsistencies'] as TimelineInconsistency[] | undefined;
+                return `${events?.length || 0} temporal markers found, ${inconsistencies?.length || 0} issues detected`;
+            }
+            case 'contradictions': {
+                const contradictions = parsed['contradictions'] as Contradiction[] | undefined;
+                return `${contradictions?.length || 0} contradictions found`;
+            }
             case 'alpha-reader':
-                return parsed.overallImpression;
+                return parsed['overallImpression'] as string | undefined;
             case 'beta-reader':
-                return `Rating: ${parsed.rating}/5 - ${parsed.enjoyment}`;
+                return `Rating: ${parsed['rating']}/5 - ${parsed['enjoyment']}`;
             default:
                 return undefined;
         }
     }
 
-    private convertToInsights(type: string, parsed: any): any[] {
-        const insights: any[] = [];
+    private convertToInsights(type: string, parsed: Record<string, unknown>): AnalysisInsight[] {
+        const insights: AnalysisInsight[] = [];
 
         switch (type) {
-            case 'plot-threads':
-                parsed.threads?.forEach((thread: any) => {
+            case 'plot-threads': {
+                const threads = parsed['threads'] as PlotThread[] | undefined;
+                threads?.forEach((thread) => {
                     if (thread.status === 'unresolved') {
                         insights.push({
                             id: crypto.randomUUID(),
@@ -240,7 +274,7 @@ export class AnalysisService implements IAnalysisService {
                             category: 'plot',
                             message: `Unresolved plot thread: "${thread.name}"`,
                             severity: thread.severity || 2,
-                            sceneReferences: thread.development?.map((d: any) => ({
+                            sceneReferences: thread.development?.map((d) => ({
                                 sceneId: '', // Will be populated later
                                 sceneTitle: `Scene ${d.sceneIndex + 1}`,
                                 excerpt: d.note,
@@ -251,9 +285,11 @@ export class AnalysisService implements IAnalysisService {
                     }
                 });
                 break;
+            }
 
-            case 'character-arcs':
-                parsed.characters?.forEach((char: any) => {
+            case 'character-arcs': {
+                const characters = parsed['characters'] as CharacterArc[] | undefined;
+                characters?.forEach((char) => {
                     if (char.arcStatus === 'incomplete') {
                         insights.push({
                             id: crypto.randomUUID(),
@@ -261,7 +297,7 @@ export class AnalysisService implements IAnalysisService {
                             category: 'character',
                             message: `Incomplete character arc for "${char.name}": ${char.arcDescription}`,
                             severity: 2,
-                            sceneReferences: char.keyMoments?.slice(0, 3).map((m: any) => ({
+                            sceneReferences: char.keyMoments?.slice(0, 3).map((m) => ({
                                 sceneId: '',
                                 sceneTitle: `Scene ${m.sceneIndex + 1}`,
                                 excerpt: m.moment,
@@ -272,9 +308,11 @@ export class AnalysisService implements IAnalysisService {
                     }
                 });
                 break;
+            }
 
-            case 'timeline':
-                parsed.inconsistencies?.forEach((issue: any) => {
+            case 'timeline': {
+                const inconsistencies = parsed['inconsistencies'] as TimelineInconsistency[] | undefined;
+                inconsistencies?.forEach((issue) => {
                     insights.push({
                         id: crypto.randomUUID(),
                         type: 'error',
@@ -290,16 +328,18 @@ export class AnalysisService implements IAnalysisService {
                     });
                 });
                 break;
+            }
 
-            case 'contradictions':
-                parsed.contradictions?.forEach((contradiction: any) => {
+            case 'contradictions': {
+                const contradictions = parsed['contradictions'] as Contradiction[] | undefined;
+                contradictions?.forEach((contradiction) => {
                     insights.push({
                         id: crypto.randomUUID(),
                         type: 'error',
-                        category: contradiction.type || 'plot',
+                        category: (contradiction.type === 'logic' ? 'plot' : contradiction.type) || 'plot',
                         message: contradiction.description,
                         severity: contradiction.severity || 2,
-                        autoSuggest: contradiction.suggestion,
+                        ...(contradiction.suggestion && { autoSuggest: contradiction.suggestion }),
                         sceneReferences: contradiction.sceneIndices?.map((idx: number) => ({
                             sceneId: '',
                             sceneTitle: `Scene ${idx + 1}`,
@@ -309,16 +349,18 @@ export class AnalysisService implements IAnalysisService {
                     });
                 });
                 break;
+            }
 
-            case 'alpha-reader':
-                parsed.concerns?.forEach((concern: any) => {
+            case 'alpha-reader': {
+                const concerns = parsed['concerns'] as ReaderConcern[] | undefined;
+                concerns?.forEach((concern) => {
                     insights.push({
                         id: crypto.randomUUID(),
                         type: 'warning',
                         category: 'plot',
                         message: concern.issue,
                         severity: 2,
-                        autoSuggest: concern.suggestion,
+                        ...(concern.suggestion && { autoSuggest: concern.suggestion }),
                         sceneReferences: concern.sceneIndices?.map((idx: number) => ({
                             sceneId: '',
                             sceneTitle: `Scene ${idx + 1}`,
@@ -328,20 +370,23 @@ export class AnalysisService implements IAnalysisService {
                     });
                 });
                 break;
+            }
 
-            case 'beta-reader':
-                if (parsed.rating < 3) {
+            case 'beta-reader': {
+                const rating = parsed['rating'] as number | undefined;
+                if (rating !== undefined && rating < 3) {
                     insights.push({
                         id: crypto.randomUUID(),
                         type: 'warning',
                         category: 'plot',
-                        message: `Overall rating: ${parsed.rating}/5. Consider addressing reader feedback.`,
+                        message: `Overall rating: ${rating}/5. Consider addressing reader feedback.`,
                         severity: 2,
                         dismissed: false,
                         resolved: false,
                     });
                 }
                 break;
+            }
         }
 
         return insights;

@@ -11,7 +11,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { toast } from '@/shared/utils/toast-service';
 import { Editor } from '@tiptap/react';
 import { saveCoordinator } from '@/lib/core/save-coordinator';
-import { emergencyBackupService } from '@/lib/integrations/emergency-backup-service';
+import { emergencyBackupService } from '@/infrastructure/services/emergency-backup-service';
 
 export function useAutoSave(sceneId: string, editor: Editor | null) {
     // Keep track of the latest editor instance and sceneId for cleanup

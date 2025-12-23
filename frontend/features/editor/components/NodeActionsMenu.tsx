@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
@@ -12,6 +13,9 @@ import { isScene, Scene } from '@/lib/config/types';
 import { extractTextFromTiptapJSON } from '@/shared/utils/editor';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('NodeActionsMenu');
 
 interface NodeActionsMenuProps {
     nodeId: string;
@@ -23,6 +27,8 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     const { nodeRepository: nodeRepo } = useAppServices();
     const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+    const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+    const [renameValue, setRenameValue] = useState('');
     const { generate, isGenerating } = useAI({
         system: `You are an expert story analyst specializing in scene summarization.
 
@@ -49,26 +55,22 @@ EXAMPLE:
     // Scene-specific actions
     const handleSetPOV = async () => {
         if (!isScene(node)) return;
-        const pov = prompt('Enter POV character name:');
-        if (pov) {
-            await nodeRepo.updateMetadata(nodeId, { pov });
-            toast.success('POV updated');
-        }
+        // TODO: Replace with proper dialog (prompt doesn't work in Tauri)
+        toast.info('POV customization coming soon! Use the scene properties panel.');
     };
 
     const handleAddSubtitle = async () => {
         if (!isScene(node)) return;
-        const subtitle = prompt('Enter scene subtitle:');
-        if (subtitle) {
-            await nodeRepo.updateMetadata(nodeId, { subtitle });
-            toast.success('Subtitle updated');
-        }
+        // TODO: Replace with proper dialog (prompt doesn't work in Tauri)
+        toast.info('Subtitle customization coming soon! Use the scene properties panel.');
     };
 
     const handleToggleAIExclusion = async () => {
         if (!isScene(node)) return;
         const current = node.excludeFromAI || false;
         await nodeRepo.updateMetadata(nodeId, { excludeFromAI: !current });
+        const { invalidateQueries } = await import('@/hooks/use-live-query');
+        invalidateQueries();
         toast.success(current ? 'Included in AI context' : 'Excluded from AI context');
     };
 
@@ -92,6 +94,8 @@ SUMMARY (2-3 sentences, present tense):`,
 
         if (result) {
             await nodeRepo.updateMetadata(nodeId, { summary: result });
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
         }
     };
 
@@ -104,6 +108,8 @@ SUMMARY (2-3 sentences, present tense):`,
             type: 'scene',
             projectId: node.projectId,
         });
+        const { invalidateQueries } = await import('@/hooks/use-live-query');
+        invalidateQueries();
         toast.success('Scene duplicated');
     };
 
@@ -135,15 +141,40 @@ SUMMARY (2-3 sentences, present tense):`,
 
     const executeArchive = async () => {
         await nodeRepo.update(nodeId, { archived: true } as any);
+        const { invalidateQueries } = await import('@/hooks/use-live-query');
+        invalidateQueries();
         toast.success('Scene archived');
         setIsArchiveDialogOpen(false);
     };
 
-    const handleRename = async () => {
-        const newTitle = prompt(`Enter new ${nodeType} title:`, node.title);
-        if (newTitle && newTitle !== node.title) {
-            await nodeRepo.update(nodeId, { title: newTitle });
-            toast.success(`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`);
+    const handleRename = () => {
+        log.debug('Opening rename dialog', { nodeId, nodeType });
+        setRenameValue(node.title);
+        setIsRenameDialogOpen(true);
+    };
+
+    const executeRename = async () => {
+        try {
+            log.debug('executeRename called', { renameValue });
+
+            if (renameValue && renameValue !== node.title) {
+                log.debug('Calling nodeRepo.update');
+                await nodeRepo.update(nodeId, { title: renameValue });
+                log.debug('Update completed, invalidating queries');
+
+                // Refresh UI to show the new title
+                const { invalidateQueries } = await import('@/hooks/use-live-query');
+                invalidateQueries();
+                log.debug('Queries invalidated');
+
+                toast.success(`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`);
+                setIsRenameDialogOpen(false);
+            } else {
+                log.debug('Rename cancelled or same title');
+            }
+        } catch (error) {
+            log.error('Rename failed', error);
+            toast.error(`Failed to rename ${nodeType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
@@ -252,6 +283,36 @@ SUMMARY (2-3 sentences, present tense):`,
                         </Button>
                         <Button onClick={executeArchive}>
                             Archive
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rename {nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}</DialogTitle>
+                        <DialogDescription>
+                            Enter a new name for this {nodeType}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                executeRename();
+                            }
+                        }}
+                        placeholder={`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} name`}
+                        autoFocus
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={executeRename}>
+                            Rename
                         </Button>
                     </DialogFooter>
                 </DialogContent>

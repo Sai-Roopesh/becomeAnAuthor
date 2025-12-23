@@ -11,6 +11,7 @@ import type { ChatContext } from '@/lib/config/types';
 import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { storage } from '@/core/storage/safe-storage';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 // Import child components
 import { ChatHeader } from './chat-header';
@@ -25,13 +26,14 @@ interface ChatThreadProps {
 /**
  * Chat Thread  - Main Coordinator Component
  * Orchestrates child components and manages state
- * Reduced from 410 lines to ~150 lines via component decomposition
+ * Series-first: fetches project to get seriesId for context selection
  */
 export function ChatThread({ threadId }: ChatThreadProps) {
     const chatRepo = useChatRepository();
     const chatService = useChatService();
     const { setActiveThreadId } = useChatStore();
     const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
+    const { projectRepository: projectRepo } = useAppServices();
 
     // State
     const [message, setMessage] = useState('');
@@ -57,6 +59,12 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     const messages = useLiveQuery(
         () => chatRepo.getMessagesByThread(threadId),
         [threadId]
+    );
+
+    // Fetch project to get seriesId
+    const project = useLiveQuery(
+        () => thread?.projectId ? projectRepo.get(thread.projectId) : Promise.resolve(undefined),
+        [thread?.projectId, projectRepo]
     );
 
     // Effects
@@ -264,20 +272,23 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             />
 
             {/* Controls Component */}
-            <ChatControls
-                projectId={thread.projectId}
-                selectedContexts={selectedContexts}
-                onContextChange={setSelectedContexts}
-                selectedPromptId={selectedPromptId}
-                onPromptChange={setSelectedPromptId}
-                selectedModel={selectedModel}
-                onModelChange={(model) => {
-                    setSelectedModel(model);
-                    setSettings(prev => ({ ...prev, model }));
-                }}
-                showControls={showControls}
-                onToggleControls={() => setShowControls(!showControls)}
-            />
+            {project && (
+                <ChatControls
+                    projectId={thread.projectId}
+                    seriesId={project.seriesId}
+                    selectedContexts={selectedContexts}
+                    onContextChange={setSelectedContexts}
+                    selectedPromptId={selectedPromptId}
+                    onPromptChange={setSelectedPromptId}
+                    selectedModel={selectedModel}
+                    onModelChange={(model) => {
+                        setSelectedModel(model);
+                        setSettings(prev => ({ ...prev, model }));
+                    }}
+                    showControls={showControls}
+                    onToggleControls={() => setShowControls(!showControls)}
+                />
+            )}
 
             {/* Message List Component */}
             <ChatMessageList

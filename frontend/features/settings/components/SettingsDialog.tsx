@@ -27,21 +27,91 @@ export function SettingsDialog() {
                 <Zap className="h-5 w-5" />
             </Button>
 
+
             <DialogContent
-                className="max-w-5xl h-[700px] p-0 bg-background fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2"
+                className="w-[95vw] md:max-w-5xl h-[85dvh] max-h-[85dvh] p-0 bg-background fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 flex flex-col overflow-hidden"
                 aria-describedby={undefined}
             >
                 <VisuallyHidden>
                     <DialogTitle>Settings</DialogTitle>
                 </VisuallyHidden>
-                <div className="flex h-full bg-background">
-                    {/* Sidebar Navigation */}
-                    <div className="w-64 border-r bg-secondary/30 flex flex-col">
+                <div className="flex flex-col md:flex-row h-full bg-background overflow-hidden">
+                    {/* Mobile: Horizontal Scrolling Navigation */}
+                    <div className="md:hidden flex-shrink-0 border-b bg-secondary/30 overflow-x-auto">
+                        <div className="flex p-2 gap-2 min-w-max">
+                            <Button
+                                variant={activeTab === 'ai-connections' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setActiveTab('ai-connections')}
+                                className="whitespace-nowrap"
+                            >
+                                <Zap className="h-4 w-4 mr-2" />
+                                AI Connections
+                            </Button>
+                            <Button
+                                variant={activeTab === 'general' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setActiveTab('general')}
+                                className="whitespace-nowrap"
+                            >
+                                <Settings className="h-4 w-4 mr-2" />
+                                General
+                            </Button>
+                            <Button
+                                variant={activeTab === 'backup' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setActiveTab('backup')}
+                                className="whitespace-nowrap"
+                            >
+                                <Cloud className="h-4 w-4 mr-2" />
+                                Backup
+                            </Button>
+                            <Button
+                                variant={activeTab === 'teams' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setActiveTab('teams')}
+                                className="whitespace-nowrap"
+                            >
+                                <Users className="h-4 w-4 mr-2" />
+                                Teams
+                            </Button>
+                            <Button
+                                variant={activeTab === 'shared' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setActiveTab('shared')}
+                                className="whitespace-nowrap"
+                            >
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Shared
+                            </Button>
+                            <Button
+                                variant={activeTab === 'account' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setActiveTab('account')}
+                                className="whitespace-nowrap"
+                            >
+                                <Lock className="h-4 w-4 mr-2" />
+                                Account
+                            </Button>
+                            <Button
+                                variant={activeTab === 'subscription' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setActiveTab('subscription')}
+                                className="whitespace-nowrap"
+                            >
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Subscription
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Desktop: Sidebar Navigation */}
+                    <div className="hidden md:flex w-64 border-r bg-secondary/30 flex-col flex-shrink-0">
                         <div className="p-4 border-b bg-background">
                             <h2 className="text-lg font-semibold">Settings</h2>
                         </div>
 
-                        <div className="flex-1 p-2 space-y-1 bg-secondary/30">
+                        <div className="flex-1 p-2 space-y-1 bg-secondary/30 overflow-y-auto">
                             <button
                                 onClick={() => setActiveTab('ai-connections')}
                                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${activeTab === 'ai-connections' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
@@ -118,7 +188,7 @@ export function SettingsDialog() {
                         </div>
 
                         {/* Theme Toggle */}
-                        <div className="p-4 border-t bg-background">
+                        <div className="p-4 border-t bg-background mt-auto">
                             <div className="text-xs text-muted-foreground mb-2">Theme:</div>
                             <div className="flex gap-2">
                                 <Button
@@ -143,16 +213,18 @@ export function SettingsDialog() {
                         </div>
                     </div>
 
+
                     {/* Content Area */}
-                    <div className="flex-1 flex flex-col bg-background overflow-hidden">
+                    <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
+
                         {activeTab === 'ai-connections' && (
-                            <div className="flex-1 flex flex-col bg-background overflow-hidden">
+                            <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
                                 <AIConnectionsTab />
                             </div>
                         )}
 
                         {activeTab === 'general' && (
-                            <div className="p-6 bg-background h-full overflow-y-auto">
+                            <div className="p-6 bg-background flex-1 overflow-y-auto min-h-0">
                                 <h3 className="text-lg font-semibold mb-6">General Settings</h3>
 
                                 <div className="space-y-8">
@@ -258,7 +330,7 @@ export function SettingsDialog() {
                         )}
 
                         {activeTab === 'backup' && (
-                            <div className="p-6 bg-background h-full overflow-y-auto">
+                            <div className="p-6 bg-background flex-1 overflow-y-auto min-h-0">
                                 <h3 className="text-lg font-semibold mb-2">Backup & Restore</h3>
                                 <p className="text-sm text-muted-foreground mb-6">
                                     Securely back up your novels to Google Drive. Your data stays in your control.
@@ -268,17 +340,51 @@ export function SettingsDialog() {
                         )}
 
                         {activeTab === 'teams' && (
-                            <div className="flex flex-col items-center justify-center h-full p-6 bg-background">
-                                <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">Teams</h3>
-                                <p className="text-sm text-muted-foreground text-center max-w-md">
-                                    Team collaboration features coming soon. Work together on your stories with other writers.
+                            <div className="p-6 bg-background flex-1 overflow-y-auto min-h-0">
+                                <h3 className="text-lg font-semibold mb-2">Team Collaboration</h3>
+                                <p className="text-sm text-muted-foreground mb-6">
+                                    Work together on your stories with other writers using P2P collaboration.
                                 </p>
+
+                                <div className="space-y-6">
+                                    {/* Feature Status */}
+                                    <div className="p-4 border rounded-lg bg-muted/30">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                                            <span className="font-medium">P2P Sync Ready</span>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            Yjs-based CRDT synchronization is enabled. Open the same scene in multiple
+                                            windows or share the Room ID with collaborators to edit together in real-time.
+                                        </p>
+                                    </div>
+
+                                    {/* How to Use */}
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium">How to Collaborate</h4>
+                                        <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                                            <li>Open a scene in the editor</li>
+                                            <li>Click the collaboration icon in the toolbar</li>
+                                            <li>Enable P2P Sync</li>
+                                            <li>Share the Room ID with your collaborators</li>
+                                            <li>Collaborators paste the Room ID to join</li>
+                                        </ol>
+                                    </div>
+
+                                    {/* Privacy Note */}
+                                    <div className="p-3 border rounded-lg bg-yellow-500/10 border-yellow-500/30">
+                                        <p className="text-sm text-muted-foreground">
+                                            <strong>Privacy:</strong> P2P sync connects you directly to collaborators.
+                                            No central server stores your content—it stays between connected peers.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
+
                         {activeTab === 'shared' && (
-                            <div className="flex flex-col items-center justify-center h-full p-6 bg-background">
+                            <div className="flex flex-col items-center justify-center flex-1 p-6 bg-background min-h-0">
                                 <Share2 className="h-12 w-12 text-muted-foreground mb-4" />
                                 <h3 className="text-lg font-semibold mb-2">Shared with me</h3>
                                 <p className="text-sm text-muted-foreground text-center max-w-md">
@@ -288,7 +394,7 @@ export function SettingsDialog() {
                         )}
 
                         {activeTab === 'account' && (
-                            <div className="flex flex-col items-center justify-center h-full p-6 bg-background">
+                            <div className="flex flex-col items-center justify-center flex-1 p-6 bg-background min-h-0">
                                 <Lock className="h-12 w-12 text-muted-foreground mb-4" />
                                 <h3 className="text-lg font-semibold mb-2">Account & Security</h3>
                                 <p className="text-sm text-muted-foreground text-center max-w-md">
@@ -298,7 +404,7 @@ export function SettingsDialog() {
                         )}
 
                         {activeTab === 'subscription' && (
-                            <div className="flex flex-col items-center justify-center h-full p-6 bg-background">
+                            <div className="flex flex-col items-center justify-center flex-1 p-6 bg-background min-h-0">
                                 <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
                                 <h3 className="text-lg font-semibold mb-2">Manage Subscription</h3>
                                 <p className="text-sm text-muted-foreground text-center max-w-md">

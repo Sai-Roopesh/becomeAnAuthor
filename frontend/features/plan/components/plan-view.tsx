@@ -11,7 +11,7 @@ import { GridView } from './grid-view';
 import { OutlineView } from './outline-view';
 import { MatrixView } from './matrix-view';
 import { TimelineView } from './timeline-view';
-import { CodexFilterBar } from './codex-filter-bar';
+import { CodexFilterBar } from '@/features/plan/components/codex-filter-bar';
 
 type PlanViewType = 'grid' | 'outline' | 'matrix' | 'timeline';
 
@@ -130,6 +130,7 @@ export function PlanView({ projectId }: { projectId: string }) {
                     <div className="px-4 pb-4 border-t pt-3 bg-muted/30">
                         <CodexFilterBar
                             projectId={projectId}
+                            seriesId={project.seriesId}
                             selectedIds={selectedCodexIds}
                             onSelectionChange={setSelectedCodexIds}
                             categoryFilter={categoryFilter}
@@ -141,10 +142,10 @@ export function PlanView({ projectId }: { projectId: string }) {
 
             {/* Main View */}
             <div className={`flex-1 overflow-auto ${viewType === 'timeline' ? '' : 'p-6'}`}>
-                {viewType === 'grid' && <GridView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
-                {viewType === 'outline' && <OutlineView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
-                {viewType === 'matrix' && <MatrixView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
-                {viewType === 'timeline' && <TimelineView projectId={projectId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'grid' && <GridView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'outline' && <OutlineView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'matrix' && <MatrixView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'timeline' && <TimelineView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
             </div>
         </div>
     );

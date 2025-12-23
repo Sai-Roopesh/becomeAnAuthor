@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
 import { isScene, DocumentNode, CodexEntry } from '@/lib/config/types';
-import { getCurrentProjectPath } from '@/infrastructure/repositories/TauriNodeRepository';
+import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 
 interface RustSearchResult {
     id: string;
@@ -14,7 +14,11 @@ interface RustSearchResult {
     score: number;
 }
 
-export function useSearch(projectId: string) {
+/**
+ * Search hook for project content and codex entries
+ * Series-first: requires seriesId for codex lookups
+ */
+export function useSearch(projectId: string, seriesId: string) {
     const [query, setQuery] = useState('');
     const [allNodes, setAllNodes] = useState<DocumentNode[]>([]);
     const [codexEntries, setCodexEntries] = useState<CodexEntry[]>([]);
@@ -29,7 +33,7 @@ export function useSearch(projectId: string) {
             try {
                 const [nodes, codex] = await Promise.all([
                     nodeRepo.getByProject(projectId),
-                    codexRepo.getByProject(projectId)
+                    codexRepo.getBySeries(seriesId)
                 ]);
 
                 if (mounted) {
@@ -45,7 +49,7 @@ export function useSearch(projectId: string) {
 
         fetchData();
         return () => { mounted = false; };
-    }, [projectId, nodeRepo, codexRepo]);
+    }, [projectId, seriesId, nodeRepo, codexRepo]);
 
     // Filter to just scenes
     const scenes = useMemo(() => {
@@ -95,7 +99,7 @@ export function useSearch(projectId: string) {
         if (!searchQuery.trim()) return [];
 
         try {
-            const projectPath = getCurrentProjectPath();
+            const projectPath = TauriNodeRepository.getInstance().getProjectPath();
             if (!projectPath) return [];
 
             return await invoke<RustSearchResult[]>('search_project', {

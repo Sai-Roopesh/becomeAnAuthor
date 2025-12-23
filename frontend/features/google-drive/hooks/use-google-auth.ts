@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { googleAuthService } from '@/lib/integrations/google-auth-service';
+import { googleAuthService } from '@/infrastructure/services/google-auth-service';
 import { GoogleUser } from '@/lib/config/types';
 
 export function useGoogleAuth() {

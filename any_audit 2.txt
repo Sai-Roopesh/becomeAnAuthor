@@ -1,0 +1,104 @@
+frontend/core/tauri/commands.ts:    content: any;  // ✅ Changed to any for Tiptap JSON
+frontend/core/tauri/commands.ts:    content: any;
+frontend/core/tauri/commands.ts:    results: any;
+frontend/core/storage/safe-storage.ts:    setItem(key: string, value: any): boolean {
+frontend/core/api/streaming-utils.ts:function extractContent(data: any): string | null {
+frontend/core/api/ai-service.ts:    const parts: any[] = [];
+frontend/core/api/ai-service.ts:    return data.data?.map((m: any) => m.id) || [];
+frontend/core/api/ai-service.ts:        ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+frontend/core/api/ai-service.ts:        ?.map((m: any) => m.name.replace('models/', '')) || [];
+frontend/core/api/ai-service.ts:    return data.data?.map((m: any) => m.id) || [];
+frontend/core/api/ai-service.ts:    return data.data?.map((m: any) => m.id) || [];
+frontend/features/series/components/EditSeriesDialog.tsx:            const updates: any = { title: trimmedTitle };
+frontend/features/series/components/EditSeriesDialog.tsx:        } catch (err: any) {
+frontend/features/series/components/SeriesCard.tsx:        } catch (error: any) {
+frontend/features/series/components/CreateSeriesDialog.tsx:        } catch (err: any) {
+frontend/features/codex/components/research-tab.tsx:    onChange: (field: keyof CodexEntry, value: any) => void;
+frontend/features/codex/components/entity-editor.tsx:    const handleChange = (field: keyof CodexEntry, value: any) => {
+frontend/features/codex/components/entity-editor.tsx:    const handleTemplateFieldChange = (fieldId: string, value: any) => {
+frontend/features/codex/components/details-tab.tsx:    onChange: (field: keyof CodexEntry, value: any) => void;
+frontend/features/codex/components/tracking-tab.tsx:    onChange: (field: keyof CodexEntry, value: any) => void;
+frontend/features/codex/components/template-field-renderer.tsx:    onChange: (fieldId: string, value: any) => void;
+frontend/features/search/components/SearchResults.tsx:    onSelect: (result: any) => void;
+frontend/features/ai/components/model-combobox.tsx:            .filter((c: any) => c.enabled)
+frontend/features/ai/components/model-combobox.tsx:            .map((c: any) => ({
+frontend/features/ai/components/model-combobox.tsx:            .filter((c: any) => c.models.length > 0);
+frontend/features/ai/components/model-selector.tsx:            .filter((c: any) => c.enabled)
+frontend/features/ai/components/model-selector.tsx:            .map((c: any) => ({
+frontend/features/ai/components/model-selector.tsx:            .filter((c: any) => c.models.length > 0);
+frontend/features/review/components/ReviewDashboard.tsx:function UsersIcon(props: any) {
+frontend/features/review/components/AnalysisDetailDialog.tsx:                {data['threads'].map((thread: any, idx: number) => (
+frontend/features/review/components/AnalysisDetailDialog.tsx:                                        {thread.development.map((dev: any, i: number) => (
+frontend/features/review/components/AnalysisDetailDialog.tsx:                {data['characters'].map((char: any, idx: number) => (
+frontend/features/review/hooks/use-analysis-repository.ts:        create: (analysis: any) => analysisRepository.create(analysis),
+frontend/features/migration/hooks/use-migration.ts:        } catch (err: any) {
+frontend/features/editor/components/section-component.tsx:export function SectionComponent({ node, updateAttributes, deleteNode }: any) {
+frontend/features/editor/components/mention-list.tsx:export const MentionList = forwardRef((props: any, ref) => {
+frontend/features/editor/components/mention-list.tsx:                props.items.map((item: any, index: number) => (
+frontend/features/editor/components/format-menu.tsx:                                <Select value={alignment} onValueChange={(v: any) => updateSettings({ alignment: v })}>
+frontend/features/editor/components/tiptap-editor.tsx:    content: any,
+frontend/features/editor/components/tiptap-editor.tsx:    const getCursorPosition = useCallback((view: any) => {
+frontend/features/editor/components/tiptap-editor.tsx:                    const flattenStructure = (nodes: any[]): any[] => {
+frontend/features/editor/components/tiptap-editor.tsx:                        const result: any[] = [];
+frontend/features/editor/components/tiptap-editor.tsx:    const generate = async (options: any) => {
+frontend/features/editor/components/suggestion.ts:        let popup: any;
+frontend/features/editor/components/suggestion.ts:            onStart: (props: any) => {
+frontend/features/editor/components/suggestion.ts:            onUpdate(props: any) {
+frontend/features/editor/components/suggestion.ts:            onKeyDown(props: any) {
+frontend/features/editor/components/tweak-generate-dialog.tsx:            .filter((c: any) => c.enabled)
+frontend/features/editor/components/tweak-generate-dialog.tsx:            .flatMap((c: any) => c.models || []);
+frontend/features/editor/components/continue-writing-menu.tsx:            .filter((c: any) => c.enabled)
+frontend/features/editor/components/continue-writing-menu.tsx:            .flatMap((c: any) => c.models || []);
+frontend/features/editor/hooks/use-auto-link-mentions.ts:    const extractMentions = useCallback((content: any): MentionData[] => {
+frontend/features/editor/hooks/use-auto-link-mentions.ts:        const traverse = (node: any) => {
+frontend/features/editor/hooks/use-auto-link-mentions.ts:        content: any
+frontend/features/editor/hooks/use-auto-link-mentions.ts:    const hasMentions = useCallback((content: any): boolean => {
+frontend/shared/utils/context-assembler.ts:        content: any;
+frontend/shared/utils/context-assembler.ts:    private extractTextFromTiptap(content: any): string {
+frontend/shared/utils/context-assembler.ts:        const processNode = (node: any): void => {
+frontend/shared/utils/ai-utils.ts:    const enabled = connections.filter((c: any) => c.enabled);
+frontend/shared/utils/ai-utils.ts:    const allModels = enabled.flatMap((c: any) => c.models || []);
+frontend/shared/utils/context-engine.ts:async function extractTextFromTiptap(content: any, depth: number = 0): Promise<string> {
+frontend/shared/utils/logger.ts:    [key: string]: any;
+frontend/shared/utils/token-counter.ts:let encoding_for_model: any = null;
+frontend/shared/prompts/analysis-prompts.ts:        .map((node: any) => {
+frontend/shared/prompts/analysis-prompts.ts:                return node.content?.map((c: any) => c.text || '').join('') || '';
+frontend/hooks/use-context-assembly.ts:                        const sceneNodes = scenes.filter((n: any) => n.type === 'scene');
+frontend/hooks/use-context-assembly.ts:                            .map((n: any) => `${n.type.toUpperCase()}: ${n.title}`)
+frontend/hooks/use-context-assembly.ts:                                for (const scene of grandchildren.filter((n: any) => n.type === 'scene')) {
+frontend/hooks/use-context-assembly.ts:                        for (const scene of children.filter((n: any) => n.type === 'scene')) {
+frontend/lib/core/ai-client.ts:function validateOpenRouterResponse(data: any): string {
+frontend/lib/core/ai-client.ts:function validateMistralResponse(data: any): string {
+frontend/lib/core/ai-client.ts:function validateOpenAIResponse(data: any): string {
+frontend/lib/core/ai-client.ts:function validateKimiResponse(data: any): string {
+frontend/lib/core/ai-client.ts:        const parts: any[] = [];
+frontend/lib/core/ai-client.ts:    return data.data?.map((m: any) => m.id) || [];
+frontend/lib/core/ai-client.ts:        ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+frontend/lib/core/ai-client.ts:        ?.map((m: any) => m.name.replace('models/', '')) || [];
+frontend/lib/core/ai-client.ts:    return data.data?.map((m: any) => m.id) || [];
+frontend/lib/core/ai-client.ts:    return data.data?.map((m: any) => m.id) || [];
+frontend/lib/core/ai-client.ts:    const parts: any[] = [];
+frontend/lib/search-service.ts:  content?: any;
+frontend/lib/tiptap-extensions/slash-commands-list.tsx:    items: any[];
+frontend/lib/tiptap-extensions/slash-commands-list.tsx:    command: any;
+frontend/lib/tiptap-extensions/slash-commands.ts:                command: ({ editor, range, props }: any) => {
+frontend/lib/tiptap-extensions/slash-commands.ts:            command: ({ editor, range }: any) => {
+frontend/lib/tiptap-extensions/slash-commands.ts:            command: ({ editor, range }: any) => {
+frontend/lib/tiptap-extensions/slash-commands.ts:            command: ({ editor, range }: any) => {
+frontend/lib/tiptap-extensions/slash-commands.ts:            command: ({ editor, range }: any) => {
+frontend/lib/integrations/emergency-backup-service.ts:    content: any;
+frontend/lib/integrations/emergency-backup-service.ts:    async saveBackup(sceneId: string, content: any): Promise<boolean> {
+frontend/lib/integrations/google-drive-service.ts:        return (data.files || []).map((file: any) => ({
+frontend/infrastructure/services/AnalysisService.ts:    private getPromptForType(type: string, scenes: Scene[], codex: any[]): string {
+frontend/infrastructure/services/AnalysisService.ts:    private parseResponse(type: string, responseText: string): { summary?: string; insights: any[]; metrics?: any } {
+frontend/infrastructure/services/AnalysisService.ts:    private extractSummary(type: string, parsed: any): string | undefined {
+frontend/infrastructure/services/AnalysisService.ts:    private convertToInsights(type: string, parsed: any): any[] {
+frontend/infrastructure/services/AnalysisService.ts:        const insights: any[] = [];
+frontend/infrastructure/services/AnalysisService.ts:                parsed.threads?.forEach((thread: any) => {
+frontend/infrastructure/services/AnalysisService.ts:                            sceneReferences: thread.development?.map((d: any) => ({
+frontend/infrastructure/services/AnalysisService.ts:                parsed.characters?.forEach((char: any) => {
+frontend/infrastructure/services/AnalysisService.ts:                            sceneReferences: char.keyMoments?.slice(0, 3).map((m: any) => ({
+frontend/infrastructure/services/AnalysisService.ts:                parsed.inconsistencies?.forEach((issue: any) => {
+frontend/infrastructure/services/AnalysisService.ts:                parsed.contradictions?.forEach((contradiction: any) => {
+frontend/infrastructure/services/AnalysisService.ts:                parsed.concerns?.forEach((concern: any) => {
+frontend/domain/services/NodeDeletionService.ts:        confirmFn: (options: any) => Promise<boolean>

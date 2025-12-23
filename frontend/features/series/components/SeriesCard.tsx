@@ -48,11 +48,14 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
-            await seriesRepo.delete(series.id);
-            toast.success(`Series "${series.title}" deleted`);
+            const deletedCount = await seriesRepo.deleteCascade(series.id);
+            if (deletedCount > 0) {
+                toast.success(`Deleted "${series.title}" and ${deletedCount} book(s)`);
+            } else {
+                toast.success(`Deleted "${series.title}"`);
+            }
             invalidateQueries();
         } catch (error: unknown) {
-            // Backend will reject if projects still reference it
             const message = error instanceof Error ? error.message : 'Failed to delete series';
             toast.error(message);
         } finally {
@@ -153,11 +156,11 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete "{series.title}"?</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogDescription asChild>
                             {projectCount > 0 ? (
                                 <div className="space-y-3">
-                                    <p>
-                                        This series contains <strong>{projectCount} book(s)</strong>:
+                                    <p className="text-destructive font-medium">
+                                        ⚠️ This will PERMANENTLY DELETE {projectCount} book(s):
                                     </p>
                                     <ul className="list-disc pl-5 text-sm">
                                         {projects.slice(0, 5).map(p => (
@@ -167,8 +170,8 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                                             <li className="italic">...and {projects.length - 5} more</li>
                                         )}
                                     </ul>
-                                    <p className="font-medium text-destructive">
-                                        You must remove all books from this series before deleting it.
+                                    <p className="text-sm">
+                                        All books will be moved to Trash. This cannot be undone.
                                     </p>
                                 </div>
                             ) : (
@@ -178,15 +181,15 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        {projectCount === 0 && (
-                            <AlertDialogAction
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                                {isDeleting ? 'Deleting...' : 'Delete Series'}
-                            </AlertDialogAction>
-                        )}
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Deleting...' : projectCount > 0
+                                ? `Delete Series & ${projectCount} Books`
+                                : 'Delete Series'}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

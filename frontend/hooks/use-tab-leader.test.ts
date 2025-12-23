@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { useTabLeader } from './use-tab-leader';
 
 // Mock the tab leader service
-vi.mock('@/lib/services/tab-leader-service', () => ({
+vi.mock('@/infrastructure/services/tab-leader-service', () => ({
     tabLeaderService: {
         getIsLeader: vi.fn().mockReturnValue(true),
         getTabId: vi.fn().mockReturnValue('test-tab-123'),

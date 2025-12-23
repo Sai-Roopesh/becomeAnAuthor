@@ -61,7 +61,7 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
                 </SelectValue>
             </SelectTrigger>
             <SelectContent>
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className="max-h-[80dvh]">
                     {connections.length > 0 ? (
                         connections.map((conn) => (
                             <SelectGroup key={conn.name}>

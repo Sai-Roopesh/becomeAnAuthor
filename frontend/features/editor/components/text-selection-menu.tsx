@@ -14,11 +14,12 @@ import {
 interface TextSelectionMenuProps {
     editor: Editor;
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
 }
 
 type ReplaceAction = 'expand' | 'rephrase' | 'shorten' | null;
 
-export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, projectId }: TextSelectionMenuProps) {
+export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, projectId, seriesId }: TextSelectionMenuProps) {
     // Replace 4 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         initialTextSelectionState,
@@ -148,6 +149,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, proje
                     editor={editor}
                     onClose={handleClose}
                     projectId={projectId}
+                    seriesId={seriesId}
                 />
             )}
         </>

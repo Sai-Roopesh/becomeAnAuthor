@@ -46,7 +46,7 @@ export function MultiTabWarning({ projectId, tabCount, onDismiss }: MultiTabWarn
     if (isLeader) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-card border border-border rounded-lg shadow-2xl max-w-md w-full p-6 text-center">
                 <div className="flex justify-center mb-4">
                     <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">

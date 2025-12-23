@@ -21,11 +21,12 @@ interface SuggestionKeyDownProps {
 
 /**
  * Creates a Tiptap suggestion configuration for codex mentions
- * Factory function to allow dependency injection of projectId and repository
+ * Factory function to allow dependency injection of seriesId and repository
+ * Series-first: uses seriesId for codex lookups
  */
-export const createCodexSuggestion = (projectId: string, codexRepo: ICodexRepository) => ({
+export const createCodexSuggestion = (seriesId: string, codexRepo: ICodexRepository) => ({
     items: async ({ query }: { query: string }) => {
-        const entries = await codexRepo.getByProject(projectId);
+        const entries = await codexRepo.getBySeries(seriesId);
 
         if (!query) {
             return entries

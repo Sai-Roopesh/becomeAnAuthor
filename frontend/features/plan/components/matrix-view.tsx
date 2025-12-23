@@ -16,16 +16,17 @@ import {
 
 interface MatrixViewProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     nodes: DocumentNode[];
     searchQuery: string;
 }
 
 type MatrixMode = 'codex' | 'pov' | 'labels';
 
-export function MatrixView({ projectId, nodes, searchQuery }: MatrixViewProps) {
+export function MatrixView({ projectId, seriesId, nodes, searchQuery }: MatrixViewProps) {
     const [mode, setMode] = useState<MatrixMode>('codex');
     const codexRepo = useCodexRepository();
-    const codexEntries = useLiveQuery(() => codexRepo.getByProject(projectId), [projectId, codexRepo]);
+    const codexEntries = useLiveQuery(() => codexRepo.getBySeries(seriesId), [seriesId, codexRepo]);
 
     const acts = nodes.filter(n => n.type === 'act');
     const getChildren = (parentId: string) => nodes.filter(n => n.parentId === parentId);

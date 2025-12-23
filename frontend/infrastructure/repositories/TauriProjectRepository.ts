@@ -1,6 +1,6 @@
 /**
  * Tauri Project Repository
- * Implements IProjectRepository using file system through Tauri commands
+ * Series-first architecture: all projects must belong to a series
  */
 
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
@@ -13,7 +13,7 @@ import {
     archiveProject as archiveProjectCommand,
     type ProjectMeta
 } from '@/core/tauri';
-import { setCurrentProjectPath } from './TauriNodeRepository';
+import { TauriNodeRepository } from './TauriNodeRepository';
 
 /**
  * Convert Tauri ProjectMeta to app's Project type
@@ -27,6 +27,8 @@ function projectMetaToProject(meta: ProjectMeta): Project & { _tauriPath?: strin
         updatedAt: new Date(meta.updated_at).getTime(),
         language: 'en',
         archived: meta.archived || false,
+        seriesId: meta.series_id,
+        seriesIndex: meta.series_index,
         // Store path for later use
         _tauriPath: meta.path,
     };
@@ -35,6 +37,7 @@ function projectMetaToProject(meta: ProjectMeta): Project & { _tauriPath?: strin
 /**
  * Tauri-based Project Repository
  * Manages projects as folders in ~/BecomeAnAuthor/Projects/
+ * All projects must belong to a series
  */
 export class TauriProjectRepository implements IProjectRepository {
     async get(id: string): Promise<Project | undefined> {
@@ -45,7 +48,7 @@ export class TauriProjectRepository implements IProjectRepository {
             // Set the current project path for other repos to use
             const tauriProject = project as Project & { _tauriPath?: string };
             if (tauriProject._tauriPath) {
-                setCurrentProjectPath(tauriProject._tauriPath);
+                TauriNodeRepository.getInstance().setProjectPath(tauriProject._tauriPath);
             }
         }
 
@@ -66,13 +69,26 @@ export class TauriProjectRepository implements IProjectRepository {
         title: string;
         author: string;
         language?: string;
-        seriesId?: string;
-        seriesIndex?: string;
+        seriesId: string;      // REQUIRED - all projects must belong to a series
+        seriesIndex: string;   // REQUIRED - e.g., "Book 1"
         customPath: string;
     }): Promise<string> {
-        const created = await createProject(params.title, params.author || 'Unknown', params.customPath);
+        if (!params.seriesId) {
+            throw new Error('Series ID is required. All projects must belong to a series.');
+        }
+        if (!params.seriesIndex) {
+            throw new Error('Series index is required (e.g., "Book 1").');
+        }
+
+        const created = await createProject(
+            params.title,
+            params.author || 'Unknown',
+            params.customPath,
+            params.seriesId,
+            params.seriesIndex
+        );
         // Set the current project path so TauriNodeRepository can create nodes
-        setCurrentProjectPath(created.path);
+        TauriNodeRepository.getInstance().setProjectPath(created.path);
         return created.id;
     }
 
@@ -85,7 +101,13 @@ export class TauriProjectRepository implements IProjectRepository {
                 ...(updates.title !== undefined && { title: updates.title }),
                 ...(updates.author !== undefined && { author: updates.author }),
                 ...(updates.archived !== undefined && { archived: updates.archived }),
+                ...(updates.seriesId !== undefined && { series_id: updates.seriesId }),
+                ...(updates.seriesIndex !== undefined && { series_index: updates.seriesIndex }),
             });
+
+            // Invalidate cache so UI updates
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
         }
     }
 
@@ -94,7 +116,7 @@ export class TauriProjectRepository implements IProjectRepository {
         const project = projects.find(p => p.id === id);
 
         if (project) {
-            await archiveProjectCommand(project.path, true);
+            await archiveProjectCommand(project.path);
         }
     }
 
@@ -112,4 +134,11 @@ export class TauriProjectRepository implements IProjectRepository {
             invalidateQueries();
         }
     }
+
+    async getBySeries(seriesId: string): Promise<Project[]> {
+        // Get all projects and filter by seriesId
+        const allProjects = await this.getAll();
+        return allProjects.filter(project => project.seriesId === seriesId);
+    }
 }
+

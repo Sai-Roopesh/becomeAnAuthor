@@ -26,22 +26,24 @@ export interface ContextItem {
 
 interface ContextSelectorProps {
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
     selectedContexts: ContextItem[];
     onContextsChange: (contexts: ContextItem[]) => void;
 }
 
-export function ContextSelector({ projectId, selectedContexts, onContextsChange }: ContextSelectorProps) {
+export function ContextSelector({ projectId, seriesId, selectedContexts, onContextsChange }: ContextSelectorProps) {
     const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
 
-    // Fetch all nodes and codex entries for the project
+    // Fetch all nodes and codex entries
     const nodes = useLiveQuery(
         () => nodeRepo.getByProject(projectId),
         [projectId, nodeRepo]
     );
 
+    // Fetch codex entries at series level
     const codexEntries = useLiveQuery(
-        () => codexRepo.getByProject(projectId),
-        [projectId, codexRepo]
+        () => codexRepo.getBySeries(seriesId),
+        [seriesId, codexRepo]
     );
 
     // Process nodes into hierarchy

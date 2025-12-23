@@ -12,14 +12,20 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useProjectStore } from '@/store/use-project-store';
 import { getTabCoordinator } from '@/core/tab-coordinator';
+import { useLiveQuery } from '@/hooks/use-live-query';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 
 function ProjectContent() {
     const searchParams = useSearchParams();
     const projectId = searchParams.get('id') || '';
+    const { projectRepository: projectRepo } = useAppServices();
 
     const { viewMode } = useProjectStore();
     const [multiTabCount, setMultiTabCount] = useState(0);
     const [searchOpen, setSearchOpen] = useState(false);
+
+    // Fetch project to get seriesId
+    const project = useLiveQuery(() => projectId ? projectRepo.get(projectId) : Promise.resolve(undefined), [projectId, projectRepo]);
 
     useEffect(() => {
         if (!projectId) return;
@@ -61,6 +67,14 @@ function ProjectContent() {
         );
     }
 
+    if (!project) {
+        return (
+            <div className="flex items-center justify-center h-screen text-muted-foreground">
+                Loading project...
+            </div>
+        );
+    }
+
     return (
         <div className="h-screen overflow-hidden flex flex-col">
             {/* Top Navigation Bar */}
@@ -77,6 +91,7 @@ function ProjectContent() {
 
             <SearchPalette
                 projectId={projectId}
+                seriesId={project.seriesId}
                 open={searchOpen}
                 onOpenChange={setSearchOpen}
             />

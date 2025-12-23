@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAI } from './use-ai';
 
 // Mock the storage
@@ -18,6 +18,14 @@ vi.mock('@/core/storage/safe-storage', () => ({
 // Mock the invoke function
 vi.mock('@tauri-apps/api/core', () => ({
     invoke: vi.fn(),
+}));
+
+// Mock ai-utils to provide getValidatedModel
+vi.mock('@/shared/utils/ai-utils', () => ({
+    getValidatedModel: vi.fn().mockReturnValue({ model: '', isValid: false }),
+    formatAIError: vi.fn().mockReturnValue(''),
+    buildAIPrompt: vi.fn().mockReturnValue({ system: '', prompt: '' }),
+    persistModelSelection: vi.fn(),
 }));
 
 describe('useAI', () => {
@@ -40,7 +48,9 @@ describe('useAI', () => {
             persistModel: false,
         }));
 
-        result.current.setModel('gpt-4');
+        act(() => {
+            result.current.setModel('gpt-4');
+        });
 
         expect(result.current.model).toBe('gpt-4');
     });

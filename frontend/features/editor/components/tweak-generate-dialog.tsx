@@ -30,6 +30,7 @@ interface TweakGenerateDialogProps {
     defaultWordCount?: number;
     mode?: GenerationMode;
     projectId: string;
+    seriesId: string;  // Required - series-first architecture
 }
 
 export interface GenerateOptions {
@@ -40,7 +41,7 @@ export interface GenerateOptions {
     selectedContexts?: ContextItem[];
 }
 
-export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, mode, projectId }: TweakGenerateDialogProps) {
+export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, mode, projectId, seriesId }: TweakGenerateDialogProps) {
     // Replace 6 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         createInitialTweakGenerateState(defaultWordCount),
@@ -183,6 +184,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
                             </p>
                             <ContextSelector
                                 projectId={projectId}
+                                seriesId={seriesId}
                                 selectedContexts={state.selectedContexts}
                                 onContextsChange={(contexts) => dispatch({ type: 'SET_SELECTED_CONTEXTS', payload: contexts })}
                             />

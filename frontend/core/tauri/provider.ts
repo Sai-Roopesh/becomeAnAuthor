@@ -4,6 +4,8 @@
  * This provider acts as a bridge between the existing repository pattern
  * and the Tauri file system backend. It allows the app to work in both
  * browser (IndexedDB) and desktop (Tauri) modes.
+ * 
+ * Series-first architecture: all projects must belong to a series.
  */
 
 import { isTauri, listProjects, createProject, deleteProject as deleteProjectTauri } from './commands';
@@ -27,6 +29,8 @@ export function projectMetaToProject(meta: ProjectMeta): {
     title: string;
     author: string;
     description: string;
+    seriesId: string;
+    seriesIndex: string;
     createdAt: Date;
     updatedAt: Date;
     path?: string;
@@ -36,6 +40,8 @@ export function projectMetaToProject(meta: ProjectMeta): {
         title: meta.title,
         author: meta.author,
         description: meta.description,
+        seriesId: meta.series_id,
+        seriesIndex: meta.series_index,
         createdAt: new Date(meta.created_at),
         updatedAt: new Date(meta.updated_at),
         path: meta.path,
@@ -44,6 +50,7 @@ export function projectMetaToProject(meta: ProjectMeta): {
 
 /**
  * Project operations for Tauri mode
+ * Series-first: create requires seriesId and seriesIndex
  */
 export const tauriProjectOps = {
     async getAll() {
@@ -51,8 +58,17 @@ export const tauriProjectOps = {
         return projects.map(projectMetaToProject);
     },
 
-    async create(title: string, author: string, customPath: string) {
-        const project = await createProject(title, author, customPath);
+    async create(
+        title: string,
+        author: string,
+        customPath: string,
+        seriesId: string,
+        seriesIndex: string
+    ) {
+        if (!seriesId) {
+            throw new Error('Series ID is required. All projects must belong to a series.');
+        }
+        const project = await createProject(title, author, customPath, seriesId, seriesIndex);
         return projectMetaToProject(project);
     },
 
@@ -60,3 +76,4 @@ export const tauriProjectOps = {
         await deleteProjectTauri(projectPath);
     }
 };
+
