@@ -16,6 +16,7 @@ export function ProjectPageClient({ id }: { id: string }) {
     const [multiTabCount, setMultiTabCount] = useState(0);
     const [searchOpen, setSearchOpen] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [seriesId, setSeriesId] = useState('');
     const { projectRepository } = useAppServices();
 
     // Initialize project path when page loads
@@ -27,6 +28,10 @@ export function ProjectPageClient({ id }: { id: string }) {
                 // This call sets the project path in TauriNodeRepository
                 const project = await projectRepository.get(id);
                 console.log('[ProjectPageClient] Project loaded:', project?.title);
+
+                if (project?.seriesId) {
+                    setSeriesId(project.seriesId);
+                }
 
                 // Verify projectPath was set
                 const { TauriNodeRepository } = await import('@/infrastructure/repositories/TauriNodeRepository');
@@ -97,6 +102,7 @@ export function ProjectPageClient({ id }: { id: string }) {
             {/* Search Palette (Cmd+K) */}
             <SearchPalette
                 projectId={id}
+                seriesId={seriesId}
                 open={searchOpen}
                 onOpenChange={setSearchOpen}
             />
