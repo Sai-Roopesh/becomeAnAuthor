@@ -6,8 +6,8 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CodexEntry {
     pub id: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "projectId")]
+    pub project_id: Option<String>,  // Optional - series-first architecture uses seriesId
     pub name: String,
     pub category: String,  // "character", "location", "item", "lore", "subplot"
     #[serde(default)]
@@ -78,8 +78,8 @@ pub struct CodexRelation {
     pub parent_id: String,
     #[serde(rename = "childId")]
     pub child_id: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "projectId")]
+    pub project_id: Option<String>,  // Optional - series-first architecture
     #[serde(skip_serializing_if = "Option::is_none", rename = "typeId")]
     pub type_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -97,8 +97,8 @@ pub struct CodexTag {
     pub id: String,
     pub name: String,
     pub color: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "projectId")]
+    pub project_id: Option<String>,  // Optional - series-first architecture
     #[serde(rename = "createdAt")]
     pub created_at: i64,
     #[serde(rename = "updatedAt")]

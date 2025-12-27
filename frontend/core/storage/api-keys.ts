@@ -70,50 +70,6 @@ export async function listStoredProviders(): Promise<AIProvider[]> {
     }
 }
 
-/**
- * Migrate API keys from localStorage to OS keychain
- * Called automatically on app startup
- * Returns number of keys migrated
- */
-export async function migrateAPIKeysFromLocalStorage(): Promise<number> {
-    try {
-        const providers: AIProvider[] = ['openai', 'anthropic', 'google', 'openrouter'];
-        let migratedCount = 0;
-
-        for (const provider of providers) {
-            // Check if key exists in localStorage (legacy storage)
-            const legacyKey = storage.getItem<string | null>(`ai-api-key-${provider}`, null);
-
-            if (legacyKey) {
-                log.debug(`Found legacy ${provider} API key in localStorage, migrating...`);
-
-                // Store in OS keychain
-                const success = await storeAPIKey(provider, legacyKey);
-
-                if (success) {
-                    // Remove from localStorage after successful migration
-                    storage.removeItem(`ai-api-key-${provider}`);
-                    migratedCount++;
-                    log.debug(`✅ Migrated ${provider} API key to OS keychain`);
-                } else {
-                    console.error(`❌ Failed to migrate ${provider} API key`);
-                }
-            }
-        }
-
-        if (migratedCount > 0) {
-            log.info(`🔐 Migrated ${migratedCount} API key(s) to secure storage`);
-            toast.success(`Migrated ${migratedCount} API key(s) to secure storage`, {
-                duration: 5000,
-            });
-        }
-
-        return migratedCount;
-    } catch (error) {
-        console.error('Migration failed:', error);
-        return 0;
-    }
-}
 
 /**
  * Check if an API key exists for a provider (without retrieving it)

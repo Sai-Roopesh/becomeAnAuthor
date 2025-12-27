@@ -4,7 +4,7 @@ import { useLiveQuery } from '@/hooks/use-live-query';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
 import { useMentions } from '@/hooks/use-mentions';
-import { CodexEntry, CodexCategory } from '@/lib/config/types';
+import { CodexEntry, CodexCategory } from '@/domain/entities/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEffect, useState } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -185,7 +185,7 @@ export function EntityEditor({ entityId, seriesId, onBack }: EntityEditorProps) 
 
 
                     <TabsContent value="tags" className="p-6 m-0">
-                        {entity && <TagManager projectId={entity.projectId} entryId={entityId} />}
+                        {entity && <TagManager seriesId={seriesId} entryId={entityId} />}
                     </TabsContent>
 
                     <TabsContent value="research" className="p-6 m-0">

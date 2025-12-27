@@ -1,6 +1,6 @@
 'use client';
 
-import type { CodexTemplate, TemplateField } from '@/lib/config/types';
+import type { CodexTemplate, TemplateField } from '@/domain/entities/types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';

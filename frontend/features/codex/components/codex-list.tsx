@@ -3,7 +3,7 @@
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
-import { CodexEntry, CodexCategory, CodexTemplate } from '@/lib/config/types';
+import { CodexEntry, CodexCategory, CodexTemplate } from '@/domain/entities/types';
 import { Button } from '@/components/ui/button';
 import { Plus, User, MapPin, Book, Box, FileText, MoreVertical, Trash2, ChevronDown } from 'lucide-react';
 import { useState } from 'react';

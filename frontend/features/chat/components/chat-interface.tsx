@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
-import { useChatRepository } from '@/hooks/use-chat-repository';
+import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,6 +13,7 @@ import { useConfirmation } from '@/hooks/use-confirmation';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ChatInterfaceProps {
     projectId: string;
@@ -185,18 +186,17 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 {activeThreadId ? (
                     <ChatThread threadId={activeThreadId} />
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground animate-in fade-in zoom-in duration-500 p-4">
-                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 shadow-sm">
-                            <Sparkles className="h-10 w-10 text-primary" />
-                        </div>
-                        <h2 className="text-2xl font-heading font-bold text-foreground mb-2 text-center">AI Assistant</h2>
-                        <p className="text-sm max-w-sm text-center leading-relaxed">
-                            Select a chat from the sidebar or start a new conversation to brainstorm, outline, or write with AI.
-                        </p>
-                        <Button onClick={createNewThread} className="mt-6" variant="outline">
-                            Start New Chat
-                        </Button>
-                    </div>
+                    <EmptyState
+                        variant="hero"
+                        icon={<Sparkles className="h-10 w-10" />}
+                        title="AI Assistant"
+                        description="Select a chat from the sidebar or start a new conversation to brainstorm, outline, or write with AI."
+                        action={{
+                            label: 'Start New Chat',
+                            onClick: createNewThread,
+                            variant: 'outline'
+                        }}
+                    />
                 )}
             </div>
 

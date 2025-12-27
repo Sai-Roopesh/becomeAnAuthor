@@ -1,6 +1,6 @@
 'use client';
 
-import { CodexEntry } from '@/lib/config/types';
+import { CodexEntry } from '@/domain/entities/types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';

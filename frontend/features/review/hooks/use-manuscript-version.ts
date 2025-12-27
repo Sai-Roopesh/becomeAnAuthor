@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import type { StoryAnalysis } from '@/lib/config/types';
+import type { StoryAnalysis } from '@/domain/entities/types';
 
 /**
  * Track how many scenes have been edited since analysis

@@ -2,7 +2,7 @@
 
 Best practices and conventions for the Become An Author codebase.
 
-> **Last Updated**: December 21, 2025
+> **Last Updated**: December 25, 2025
 
 ---
 

@@ -5,7 +5,7 @@
  */
 
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
-import type { DocumentNode, Scene } from '@/lib/config/types';
+import type { DocumentNode, Scene } from '@/domain/entities/types';
 import {
     isTauri,
     getStructure,

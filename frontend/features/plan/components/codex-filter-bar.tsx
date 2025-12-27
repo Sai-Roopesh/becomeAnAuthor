@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
-import type { CodexCategory, CodexEntry } from '@/lib/config/types';
+import type { CodexCategory, CodexEntry } from '@/domain/entities/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { User, MapPin, Scroll, BookOpen, Sparkles, X, Filter } from 'lucide-react';

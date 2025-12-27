@@ -1,7 +1,7 @@
 'use client';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { DocumentNode, CodexEntry, SceneCodexLink } from '@/lib/config/types';
+import type { DocumentNode, CodexEntry, SceneCodexLink } from '@/domain/entities/types';
 import { CATEGORY_CONFIG } from '../../utils/timeline-utils';
 
 interface TimelineLaneProps {

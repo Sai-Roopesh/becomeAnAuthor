@@ -2,18 +2,20 @@
 
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import type { CodexCategory } from '@/lib/config/types';
+import type { CodexCategory } from '@/domain/entities/types';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LayoutGrid, List, Table, Search, Settings, ChevronDown, ChevronUp, Layers } from 'lucide-react';
+import { LayoutGrid, List, Table, Search, Settings, ChevronDown, ChevronUp, Layers, Map as MapIcon, Calendar } from 'lucide-react';
 import { GridView } from './grid-view';
 import { OutlineView } from './outline-view';
 import { MatrixView } from './matrix-view';
 import { TimelineView } from './timeline-view';
+import { MapView } from './map-view';
+import { WorldTimelineView } from './world-timeline-view';
 import { CodexFilterBar } from '@/features/plan/components/codex-filter-bar';
 
-type PlanViewType = 'grid' | 'outline' | 'matrix' | 'timeline';
+type PlanViewType = 'grid' | 'outline' | 'matrix' | 'timeline' | 'map' | 'world';
 
 export function PlanView({ projectId }: { projectId: string }) {
     const { nodeRepository: nodeRepo, projectRepository: projectRepo, sceneCodexLinkRepository: linkRepo } = useAppServices();
@@ -71,8 +73,8 @@ export function PlanView({ projectId }: { projectId: string }) {
             <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
                 <div className="p-4 flex flex-col sm:flex-row items-center gap-4">
                     {/* View Switcher - Segmented Control */}
-                    <div className="flex p-1 bg-muted/50 rounded-lg border border-border/50 shadow-inner">
-                        {(['grid', 'outline', 'matrix', 'timeline'] as const).map((type) => (
+                    <div className="flex p-1 bg-muted/50 rounded-lg border border-border/50 shadow-inner overflow-x-auto whitespace-nowrap">
+                        {(['grid', 'outline', 'matrix', 'timeline', 'map', 'world'] as const).map((type) => (
                             <button
                                 key={type}
                                 onClick={() => setViewType(type)}
@@ -87,6 +89,8 @@ export function PlanView({ projectId }: { projectId: string }) {
                                 {type === 'outline' && <List className="h-4 w-4" />}
                                 {type === 'matrix' && <Table className="h-4 w-4" />}
                                 {type === 'timeline' && <Layers className="h-4 w-4" />}
+                                {type === 'map' && <MapIcon className="h-4 w-4" />}
+                                {type === 'world' && <Calendar className="h-4 w-4" />}
                                 <span className="capitalize">{type}</span>
                             </button>
                         ))}
@@ -141,11 +145,13 @@ export function PlanView({ projectId }: { projectId: string }) {
             </div>
 
             {/* Main View */}
-            <div className={`flex-1 overflow-auto ${viewType === 'timeline' ? '' : 'p-6'}`}>
+            <div className={`flex-1 overflow-auto ${['timeline', 'map', 'world'].includes(viewType) ? '' : 'p-6'}`}>
                 {viewType === 'grid' && <GridView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
                 {viewType === 'outline' && <OutlineView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
                 {viewType === 'matrix' && <MatrixView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
                 {viewType === 'timeline' && <TimelineView projectId={projectId} seriesId={project.seriesId} nodes={filteredNodes} searchQuery={search} />}
+                {viewType === 'map' && <MapView projectId={projectId} seriesId={project.seriesId} />}
+                {viewType === 'world' && <WorldTimelineView projectId={projectId} seriesId={project.seriesId} />}
             </div>
         </div>
     );

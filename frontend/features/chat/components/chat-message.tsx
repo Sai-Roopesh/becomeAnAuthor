@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { MoreVertical, Copy, Save, RefreshCw, Trash2, Pencil, Sparkles, User } from 'lucide-react';
-import type { ChatMessage as ChatMessageType } from '@/lib/config/types';
+import type { ChatMessage as ChatMessageType } from '@/domain/entities/types';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
-import { useChatRepository } from '@/hooks/use-chat-repository';
+import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
 import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {

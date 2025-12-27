@@ -1,4 +1,4 @@
-import type { Scene, CodexEntry } from '@/lib/config/types';
+import type { Scene, CodexEntry } from '@/domain/entities/types';
 import type { TiptapNode } from '@/shared/types/tiptap';
 import { isElementNode } from '@/shared/types/tiptap';
 

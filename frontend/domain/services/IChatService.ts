@@ -1,4 +1,4 @@
-import type { ChatContext, ChatMessage } from '@/lib/config/types';
+import type { ChatContext, ChatMessage } from '@/domain/entities/types';
 
 /**
  * Chat Settings for AI generation

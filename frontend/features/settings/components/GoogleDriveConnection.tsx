@@ -12,7 +12,7 @@ import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
 import { Cloud } from 'lucide-react';
 import { toast } from '@/shared/utils/toast-service';
-import { DriveQuota } from '@/lib/config/types';
+import { DriveQuota } from '@/domain/entities/types';
 
 export function GoogleDriveConnection() {
     const { isAuthenticated, user, isLoading, signIn, signOut } = useGoogleAuth();

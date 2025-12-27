@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { X } from 'lucide-react';
 import { TiptapEditor } from '../tiptap-editor';
-import type { DocumentNode } from '@/lib/config/types';
+import type { DocumentNode } from '@/domain/entities/types';
 
 interface FocusModeLayoutProps {
     activeScene: DocumentNode;

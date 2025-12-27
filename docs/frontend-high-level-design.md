@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Next.js 16 frontend.**  
-> Last updated: 2025-12-23
+> Last updated: 2025-12-25
 
 ---
 
@@ -191,25 +191,16 @@ frontend/
 │   └── ... (27 more hooks)
 │
 ├── lib/                      # Shared libraries
+│   ├── ai/                   # ✅ AI module (consolidated)
+│   │   ├── client.ts         # AI SDK wrapper (Google, OpenAI, etc.)
+│   │   ├── token-calculator.ts # Token budget calculations
+│   │   └── index.ts          # Public API exports
 │   ├── config/               # Configuration
 │   │   ├── ai-vendors.ts     # AI provider configurations
 │   │   ├── model-specs.ts    # Model capabilities
-│   │   ├── constants.ts      # App constants
-│   │   └── types.ts          # Shared types
+│   │   └── constants.ts      # App constants
 │   ├── core/
-│   │   ├── ai-client.ts      # AI SDK wrapper
 │   │   └── save-coordinator.ts  # Save queue manager
-│   ├── integrations/
-│   │   ├── ai-rate-limiter.ts
-│   │   ├── emergency-backup-service.ts
-│   │   ├── google-auth-service.ts
-│   │   ├── google-drive-service.ts
-│   │   ├── storage-quota-service.ts
-│   │   ├── tab-leader-service.ts
-│   │   └── trash-service.ts
-│   ├── prompts/
-│   │   └── analysis-prompts.ts  # AI system prompts
-│   ├── services/             # (Duplicate of integrations)
 │   ├── tiptap-extensions/
 │   │   ├── section-node.ts   # Custom Tiptap node
 │   │   ├── slash-commands.ts # Slash command handler
@@ -1228,7 +1219,7 @@ The frontend architecture is a **well-structured, scalable system** built on mod
 ---
 
 **Document Status**: ✅ Complete  
-**Last Updated**: 2025-12-21  
+**Last Updated**: 2025-12-25  
 **Total Features Documented**: 17/17  
 **Total Hooks Documented**: 39/39  
 **Total Stores Documented**: 4/4

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AIConnection } from '@/lib/config/ai-vendors';
-import { fetchModelsForConnection } from '@/lib/core/ai-client';
+import { fetchModelsForConnection } from '@/lib/ai';
 
 /**
  * Hook for validating AI connections and fetching models.

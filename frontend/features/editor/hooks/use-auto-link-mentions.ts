@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import type { SceneCodexLinkRole } from '@/lib/config/types';
+import type { SceneCodexLinkRole } from '@/domain/entities/types';
 import type { TiptapContent, TiptapNode } from '@/shared/types/tiptap';
 
 interface MentionData {

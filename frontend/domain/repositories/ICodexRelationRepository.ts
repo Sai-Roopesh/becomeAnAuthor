@@ -1,4 +1,4 @@
-import type { CodexRelation } from '@/lib/config/types';
+import type { CodexRelation } from '@/domain/entities/types';
 
 /**
  * Repository interface for Codex Relations

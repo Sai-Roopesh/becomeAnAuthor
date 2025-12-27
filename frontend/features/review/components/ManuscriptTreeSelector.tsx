@@ -4,7 +4,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Book, Folder, FileText, ChevronRight, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import type { DocumentNode, Scene } from '@/lib/config/types';
+import type { DocumentNode, Scene } from '@/domain/entities/types';
 import { useManuscriptNodes } from '../hooks/use-manuscript-nodes';
 
 interface ManuscriptTreeSelectorProps {

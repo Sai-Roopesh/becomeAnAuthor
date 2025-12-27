@@ -13,13 +13,9 @@ import { Loader2, X } from 'lucide-react';
 import { ModelCombobox } from '@/features/ai';
 import { useAI } from '@/hooks/use-ai';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import {
-    useDialogState,
-    textReplaceReducer,
-    initialTextReplaceState
-} from '@/hooks/use-dialog-state';
-
+import { useDialogState, textReplaceReducer, initialTextReplaceState } from '@/hooks/use-dialog-state';
 import { ContextSelector, type ContextItem } from '@/features/shared/components';
+import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
 interface TextReplaceDialogProps {
     action: 'expand' | 'rephrase' | 'shorten';
@@ -28,9 +24,11 @@ interface TextReplaceDialogProps {
     onClose: () => void;
     projectId: string;
     seriesId: string;  // Required - series-first architecture
+    sceneId: string;  // Required for save tracking
+    editorStateManager: EditorStateManager | null;  // Required for immediate save
 }
 
-export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId, seriesId }: TextReplaceDialogProps) {
+export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId, seriesId, sceneId, editorStateManager }: TextReplaceDialogProps) {
     // Replace 7 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         initialTextReplaceState,
@@ -129,10 +127,16 @@ Provide only the transformed text. No explanations, no preamble.`,
         dispatch({ type: 'RESET' });
     };
 
-    const handleApply = () => {
+    const handleApply = async () => {
         if (state.result) {
             const { from, to } = editor.state.selection;
             editor.chain().focus().insertContentAt({ from, to }, state.result).run();
+
+            // ✅ NEW: Immediate save after AI operation
+            if (editorStateManager) {
+                await editorStateManager.saveImmediate();
+            }
+
             onClose();
         }
     };

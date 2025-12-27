@@ -1,6 +1,6 @@
 import type { IExportService, ExportOptions } from '@/domain/services/IExportService';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
-import type { Scene } from '@/lib/config/types';
+import type { Scene } from '@/domain/entities/types';
 import { extractTextFromContent } from '@/shared/utils/editor';
 import {
     Document,
@@ -345,5 +345,272 @@ ${htmlContent}
         });
 
         return parts.join('\n');
+    }
+
+    // ===== NEW: Template-Based Export Methods =====
+
+    /**
+     * Export with a preset template configuration
+     */
+    async exportWithPreset(
+        projectId: string,
+        preset: import('@/domain/types/export-types').ExportPreset,
+        customConfig?: Partial<import('@/domain/types/export-types').ExportConfig>
+    ): Promise<Blob> {
+        const config = { ...preset.config, ...customConfig };
+
+        switch (preset.defaultFormat) {
+            case 'docx':
+                return this.exportToDOCXWithConfig(projectId, config);
+            case 'pdf':
+                return this.exportToPDFWithConfig(projectId, config);
+            case 'epub':
+                return this.exportToEpub(projectId, config);
+            case 'markdown':
+                const markdown = await this.exportToMarkdownWithConfig(projectId, config);
+                return new Blob([markdown], { type: 'text/markdown' });
+            default:
+                throw new Error(`Unsupported format: ${preset.defaultFormat}`);
+        }
+    }
+
+    /**
+     * Export to ePub format (via Tauri backend)
+     * NOTE: Currently not fully implemented - uses basic export
+     * TODO: Add support for custom CSS themes and advanced front/back matter
+     */
+    async exportToEpub(
+        projectId: string,
+        config: import('@/domain/types/export-types').ExportConfig
+    ): Promise<Blob> {
+        // For now, just return a simple text file
+        // Full ePub export with templates will be implemented in Phase 5 UI
+        const options: ExportOptions = {};
+        if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
+        if (config.epubMetadata?.title !== undefined) options.title = config.epubMetadata.title;
+        if (config.epubMetadata?.author !== undefined) options.author = config.epubMetadata.author;
+
+        const markdown = await this.exportToMarkdown(projectId, options);
+
+        return new Blob([markdown], { type: 'text/plain' });
+
+        // TODO: Implement via Tauri command when UI is ready
+        // const { invoke } = await import('@tauri-apps/api/core');
+        // const { TauriNodeRepository } = await import('@/infrastructure/repositories/TauriNodeRepository');
+        // const projectPath = TauriNodeRepository.getInstance().getProjectPath();
+        // if (!projectPath) throw new Error('No project selected');
+        // 
+        // const outputPath = await invoke<string>('export_manuscript_epub', {
+        //     projectPath,
+        //     outputPath: '/tmp/output.epub',
+        //     title: config.epubMetadata?.title,
+        //     author: config.epubMetadata?.author,
+        //     language: config.epubMetadata?.language,
+        // });
+        // 
+        // // Read the file and return as blob
+        // const fs = await import('@tauri-apps/plugin-fs');
+        // const buffer = await fs.readFile(outputPath);
+        // return new Blob([buffer], { type: 'application/epub+zip' });
+    }
+
+    /**
+     * Generate preview pages for live preview
+     */
+    async generatePreview(
+        projectId: string,
+        preset: import('@/domain/types/export-types').ExportPreset,
+        customConfig?: Partial<import('@/domain/types/export-types').ExportConfig>
+    ): Promise<import('@/domain/types/export-types').PreviewPage[]> {
+        const config = { ...preset.config, ...customConfig };
+        const nodes = await this.nodeRepository.getByProject(projectId);
+        const scenes = nodes.filter(n => n.type === 'scene') as Scene[];
+
+        // Generate HTML preview pages
+        return this.buildPreviewPages(nodes, scenes, config);
+    }
+
+    /**
+     * Get available built-in export presets
+     */
+    getPresets(): import('@/domain/types/export-types').ExportPreset[] {
+        const { BUILT_IN_PRESETS } = require('@/features/export/utils/export-presets');
+        return BUILT_IN_PRESETS;
+    }
+
+    // ===== Helper Methods for New Exports =====
+
+    /**
+     * Export to DOCX with custom configuration
+     */
+    private async exportToDOCXWithConfig(
+        projectId: string,
+        config: import('@/domain/types/export-types').ExportConfig
+    ): Promise<Blob> {
+        // Use existing exportToDOCX logic but apply config settings
+        // For now, delegate to existing method
+        // TODO: Enhance to use config.fontFamily, config.margins, etc.
+        const options: ExportOptions = {};
+        if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
+        if (config.epubMetadata?.title !== undefined) options.title = config.epubMetadata.title;
+        if (config.epubMetadata?.author !== undefined) options.author = config.epubMetadata.author;
+        return this.exportToDOCX(projectId, options);
+    }
+
+    /**
+     * Export to PDF with custom configuration
+     */
+    private async exportToPDFWithConfig(
+        projectId: string,
+        config: import('@/domain/types/export-types').ExportConfig
+    ): Promise<Blob> {
+        // Use existing exportToPDF logic but apply config settings
+        // TODO: Enhance to use config.pageSize, config.margins, config.trimSize, etc.
+        const options: ExportOptions = {};
+        if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
+        if (config.epubMetadata?.title !== undefined) options.title = config.epubMetadata.title;
+        if (config.epubMetadata?.author !== undefined) options.author = config.epubMetadata.author;
+        return this.exportToPDF(projectId, options);
+    }
+
+    /**
+     * Export to Markdown with custom configuration
+     */
+    private async exportToMarkdownWithConfig(
+        projectId: string,
+        config: import('@/domain/types/export-types').ExportConfig
+    ): Promise<string> {
+        const options: ExportOptions = { includeStats: true };
+        if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
+        if (config.epubMetadata?.title !== undefined) options.title = config.epubMetadata.title;
+        if (config.epubMetadata?.author !== undefined) options.author = config.epubMetadata.author;
+        return this.exportToMarkdown(projectId, options);
+    }
+
+    /**
+     * Build chapters array for ePub
+     * NOTE: Currently unused - will be used when Tauri ePub export is fully integrated
+     */
+    private buildEpubChapters(
+        nodes: any[],
+        scenes: Scene[],
+        config: import('@/domain/types/export-types').ExportConfig
+    ): any[] {
+        const chapters: any[] = [];
+
+        // Add front matter
+        if (config.frontMatter?.titlePage) {
+            chapters.push({
+                title: 'Title Page',
+                data: `<h1 style="text-align: center; margin-top: 30%;">${config.epubMetadata?.title || 'Untitled'}</h1>
+                       <p style="text-align: center;">by ${config.epubMetadata?.author || 'Unknown'}</p>`,
+            });
+        }
+
+        if (config.frontMatter?.copyright) {
+            const copyright = this.processTemplateVariables(config.frontMatter.copyright, config);
+            chapters.push({
+                title: 'Copyright',
+                data: `<p>${copyright.replace(/\n/g, '<br>')}</p>`,
+            });
+        }
+
+        if (config.frontMatter?.dedication) {
+            chapters.push({
+                title: 'Dedication',
+                data: `<p style="font-style: italic;">${config.frontMatter.dedication}</p>`,
+            });
+        }
+
+        // Add main content
+        const acts = nodes.filter(n => n.type === 'act');
+        acts.forEach(act => {
+            const chapters_in_act = nodes.filter(n => n.parentId === act.id && n.type === 'chapter');
+            chapters_in_act.forEach(chapter => {
+                const chapterScenes = scenes.filter(n => n.parentId === chapter.id);
+                const chapterContent = chapterScenes.map(scene => {
+                    const text = extractTextFromContent(scene.content);
+                    const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+                    return paragraphs.map(p => `<p>${p}</p>`).join('\n');
+                }).join(`\n<p class="scene-break">***</p>\n`);
+
+                chapters.push({
+                    title: chapter.title,
+                    data: chapterContent,
+                });
+            });
+        });
+
+        // Add back matter
+        if (config.backMatter?.authorBio) {
+            chapters.push({
+                title: 'About the Author',
+                data: `<p>${config.backMatter.authorBio}</p>`,
+            });
+        }
+
+        if (config.backMatter?.acknowledgments) {
+            chapters.push({
+                title: 'Acknowledgments',
+                data: `<p>${config.backMatter.acknowledgments}</p>`,
+            });
+        }
+
+        return chapters;
+    }
+
+    /**
+     * Build preview pages for live preview
+     */
+    private buildPreviewPages(
+        nodes: any[],
+        scenes: Scene[],
+        config: import('@/domain/types/export-types').ExportConfig
+    ): import('@/domain/types/export-types').PreviewPage[] {
+        const pages: import('@/domain/types/export-types').PreviewPage[] = [];
+        let pageNumber = 1;
+
+        // Generate simple HTML preview
+        // For now, create one preview page per chapter
+        const acts = nodes.filter(n => n.type === 'act');
+        acts.forEach(act => {
+            const chapters = nodes.filter(n => n.parentId === act.id && n.type === 'chapter');
+            chapters.forEach(chapter => {
+                const chapterScenes = scenes.filter(n => n.parentId === chapter.id);
+                const content = `
+                    <div style="font-family: ${config.fontFamily || 'Georgia'}; font-size: ${config.fontSize || 12}pt; line-height: ${config.lineHeight || 1.6};">
+                        <h2>${chapter.title}</h2>
+                        ${chapterScenes.map(scene => {
+                    const text = extractTextFromContent(scene.content);
+                    return `<div>${text.split('\n\n').map(p => `<p>${p}</p>`).join('')}</div>`;
+                }).join('<hr>')}
+                    </div>
+                `;
+
+                const page: import('@/domain/types/export-types').PreviewPage = {
+                    pageNumber: pageNumber++,
+                    content,
+                };
+                if (config.pageSize?.width !== undefined) page.width = config.pageSize.width;
+                if (config.pageSize?.height !== undefined) page.height = config.pageSize.height;
+                pages.push(page);
+            });
+        });
+
+        return pages;
+    }
+
+    /**
+     * Process template variables in text
+     */
+    private processTemplateVariables(
+        text: string,
+        config: import('@/domain/types/export-types').ExportConfig
+    ): string {
+        return text
+            .replace(/\{\{title\}\}/g, config.epubMetadata?.title || 'Untitled')
+            .replace(/\{\{author\}\}/g, config.epubMetadata?.author || 'Unknown')
+            .replace(/\{\{year\}\}/g, new Date().getFullYear().toString())
+            .replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
     }
 }

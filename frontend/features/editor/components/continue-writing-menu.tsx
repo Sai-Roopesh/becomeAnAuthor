@@ -3,7 +3,9 @@
 import { useEffect, memo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Wand2, BookOpen, Settings2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Sparkles, Wand2, BookOpen, Settings2, Brain } from 'lucide-react';
 import { TweakGenerateDialog, GenerateOptions } from './tweak-generate-dialog';
 import { ModelCombobox } from '@/features/ai';
 import { storage } from '@/core/storage/safe-storage';
@@ -67,6 +69,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onO
             context: {},
             model: state.model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
             mode: state.selectedMode,
+            reasoning: state.reasoning, // NEW: Pass reasoning toggle
         });
         // Keep popover open so user can see loading state and cancel if needed
     };
@@ -211,6 +214,28 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onO
                                     className="h-8 text-xs"
                                 />
                             </div>
+
+                            {/* Reasoning Toggle */}
+                            <div className="flex items-center justify-between mb-3 px-1">
+                                <div className="flex items-center gap-2">
+                                    <Brain className="h-4 w-4 text-muted-foreground" />
+                                    <Label htmlFor="reasoning-toggle" className="text-xs">
+                                        Deep Thinking
+                                    </Label>
+                                </div>
+                                <Switch
+                                    id="reasoning-toggle"
+                                    checked={state.reasoning === 'enabled'}
+                                    onCheckedChange={(checked) =>
+                                        dispatch({ type: 'SET_REASONING', payload: checked ? 'enabled' : 'disabled' })
+                                    }
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-3 px-1">
+                                {state.reasoning === 'enabled'
+                                    ? 'Better quality, slower generation'
+                                    : 'Faster generation, simpler reasoning'}
+                            </p>
 
                             <div className="flex gap-2">
                                 {!isGenerating ? (

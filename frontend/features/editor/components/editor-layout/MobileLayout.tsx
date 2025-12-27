@@ -7,7 +7,7 @@ import { TiptapEditor } from '../tiptap-editor';
 import { SnippetEditor } from '../../../snippets/components/snippet-editor';
 import { ProjectNavigation } from '../../../navigation/components/ProjectNavigation';
 import { StoryTimeline } from '../story-timeline';
-import type { DocumentNode } from '@/lib/config/types';
+import type { DocumentNode } from '@/domain/entities/types';
 
 interface MobileLayoutProps {
     projectId: string;

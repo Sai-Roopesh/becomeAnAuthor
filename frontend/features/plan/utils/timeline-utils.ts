@@ -1,4 +1,4 @@
-import type { DocumentNode, CodexCategory } from '@/lib/config/types';
+import type { DocumentNode, CodexCategory } from '@/domain/entities/types';
 import { User, MapPin, Scroll, BookOpen, Sparkles } from 'lucide-react';
 
 /**

@@ -9,14 +9,17 @@ import { Editor } from '@tiptap/react';
 import { useAI } from '@/hooks/use-ai';
 import { ModelCombobox } from '@/features/ai';
 import { Loader2, X } from 'lucide-react';
+import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
 interface TinkerModeProps {
     editor: Editor | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    sceneId: string;  // Required for save tracking
+    editorStateManager: EditorStateManager | null;  // Required for immediate save
 }
 
-export function TinkerMode({ editor, open, onOpenChange }: TinkerModeProps) {
+export function TinkerMode({ editor, open, onOpenChange, sceneId, editorStateManager }: TinkerModeProps) {
     const [instruction, setInstruction] = useState('');
     const [streamingResult, setStreamingResult] = useState('');
 
@@ -74,11 +77,16 @@ Now apply your task to the original text. Provide ONLY the modified text:`,
                 onChunk: (chunk) => {
                     setStreamingResult(prev => prev + chunk);
                 },
-                onComplete: (fullText) => {
+                onComplete: async (fullText) => {
                     if (fullText) {
                         // Replace selected text with result
                         const { from, to } = editor.state.selection;
                         editor.chain().focus().insertContentAt({ from, to }, fullText).run();
+
+                        // ✅ NEW: Immediate save after AI modification
+                        if (editorStateManager) {
+                            await editorStateManager.saveImmediate();
+                        }
                     }
                     setStreamingResult('');
                     setInstruction('');

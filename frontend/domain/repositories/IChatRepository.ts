@@ -1,4 +1,4 @@
-import type { ChatThread, ChatMessage } from '@/lib/config/types';
+import type { ChatThread, ChatMessage } from '@/domain/entities/types';
 
 /**
  * Repository interface for Chat threads and messages

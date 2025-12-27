@@ -20,6 +20,18 @@
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
+    "fs:allow-read-file",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$HOME/Documents/**"
+        }
+      ]
+    },
     "shell:default",
     "shell:allow-open",
     "log:default"

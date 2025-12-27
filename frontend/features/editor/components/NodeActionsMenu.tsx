@@ -9,7 +9,7 @@ import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDo
 import { useState } from 'react';
 import { useAI } from '@/hooks/use-ai';
 import { toast } from '@/shared/utils/toast-service';
-import { isScene, Scene } from '@/lib/config/types';
+import { isScene, Scene } from '@/domain/entities/types';
 import { extractTextFromTiptapJSON } from '@/shared/utils/editor';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
 import { useAppServices } from '@/infrastructure/di/AppContext';

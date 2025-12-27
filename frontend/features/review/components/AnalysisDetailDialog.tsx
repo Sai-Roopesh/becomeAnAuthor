@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { StoryAnalysis } from '@/lib/config/types';
+import type { StoryAnalysis } from '@/domain/entities/types';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, BookOpen, Users, Activity, Layers, Trash2, Sparkles, Clock, FileText } from 'lucide-react';
 import { useAnalysisDelete } from '../hooks/use-analysis-delete';
 import { useState } from 'react';

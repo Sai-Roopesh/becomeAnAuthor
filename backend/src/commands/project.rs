@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, StructureNode};
 use crate::utils::{get_app_dir, get_projects_dir, slugify, validate_project_creation, timestamp};
-use crate::commands::seed::seed_built_in_data;
+// use crate::commands::seed::seed_built_in_data;
 
 // ============== Recent Projects ==============
 
@@ -168,6 +168,45 @@ pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
     Ok(projects)
 }
 
+/// Helper function to check if a book number already exists in a series
+/// 
+/// # Arguments
+/// * `series_id` - The series ID to check within
+/// * `series_index` - The book number to check (e.g., "Book 1")
+/// * `exclude_project_id` - Optional project ID to exclude from check (for updates)
+/// 
+/// # Returns
+/// * Ok(()) if the book number is unique
+/// * Err(String) with a descriptive message if duplicate found
+fn check_duplicate_book_number(
+    series_id: &str, 
+    series_index: &str,
+    exclude_project_id: Option<&str>
+) -> Result<(), String> {
+    // Get all projects
+    let all_projects = list_projects()?;
+    
+    // Check if any other project in the same series has the same book number
+    for project in all_projects {
+        // Skip if this is the project being updated
+        if let Some(exclude_id) = exclude_project_id {
+            if project.id == exclude_id {
+                continue;
+            }
+        }
+        
+        // Check for duplicate
+        if project.series_id == series_id && project.series_index == series_index {
+            return Err(format!(
+                "Book number '{}' already exists in this series (used by '{}')",
+                series_index, project.title
+            ));
+        }
+    }
+    
+    Ok(())
+}
+
 #[tauri::command]
 pub fn create_project(
     title: String, 
@@ -183,6 +222,9 @@ pub fn create_project(
     if series_id.is_empty() {
         return Err("Series ID is required. All projects must belong to a series.".to_string());
     }
+    
+    // CHECK FOR DUPLICATE: Ensure book number is unique within the series
+    check_duplicate_book_number(&series_id, &series_index, None)?;
     
     // User must provide custom path - no default fallback
     let base_dir = PathBuf::from(&custom_path);
@@ -282,6 +324,15 @@ pub fn update_project(project_path: String, updates: ProjectUpdates) -> Result<P
     
     let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
     let mut project: ProjectMeta = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    
+    // Extract series_id and series_index for duplicate check
+    let new_series_id = updates.series_id.as_ref().unwrap_or(&project.series_id);
+    let new_series_index = updates.series_index.as_ref().unwrap_or(&project.series_index);
+    
+    // CHECK FOR DUPLICATE: If either series_id or series_index is being changed
+    if updates.series_id.is_some() || updates.series_index.is_some() {
+        check_duplicate_book_number(new_series_id, new_series_index, Some(&project.id))?;
+    }
     
     if let Some(title) = updates.title {
         project.title = title;

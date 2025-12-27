@@ -1,4 +1,4 @@
-import type { StoryAnalysis } from '@/lib/config/types';
+import type { StoryAnalysis } from '@/domain/entities/types';
 
 /**
  * Service interface for running story analyses

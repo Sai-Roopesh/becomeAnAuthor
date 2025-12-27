@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useChatRepository } from '@/hooks/use-chat-repository';
+import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
 import { useChatService } from '@/features/chat/hooks/use-chat-service';
 import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
 import { useChatStore } from '@/store/use-chat-store';
 import { type ContextItem } from '@/features/shared/components';
-import type { ChatContext } from '@/lib/config/types';
+import type { ChatContext } from '@/domain/entities/types';
 import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { storage } from '@/core/storage/safe-storage';

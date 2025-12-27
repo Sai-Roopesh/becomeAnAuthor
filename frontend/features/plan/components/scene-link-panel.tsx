@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import type { CodexCategory, CodexEntry, SceneCodexLinkRole } from '@/lib/config/types';
+import type { CodexCategory, CodexEntry, SceneCodexLinkRole } from '@/domain/entities/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';

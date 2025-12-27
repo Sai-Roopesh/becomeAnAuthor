@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, FileText, BookOpen, X, Layers, Hash, File, Book, User, MapPin, Box, Scroll, HelpCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Act, Chapter, Scene, CodexEntry, CodexCategory } from '@/lib/config/types';
+import { Act, Chapter, Scene, CodexEntry, CodexCategory } from '@/domain/entities/types';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 
 export interface ContextItem {

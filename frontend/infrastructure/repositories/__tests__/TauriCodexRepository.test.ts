@@ -43,6 +43,7 @@ import * as tauriCommands from '@/core/tauri';
 const createMockCharacter = (overrides: Partial<CodexEntry> = {}): CodexEntry => ({
     id: 'char-1',
     projectId: 'project-1',
+    seriesId: 'series-1',
     name: 'Alice',
     category: 'character', // singular!
     aliases: [],

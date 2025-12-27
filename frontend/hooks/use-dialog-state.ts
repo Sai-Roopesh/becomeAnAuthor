@@ -137,6 +137,7 @@ export type ContinueWritingState = {
     model: string;
     showTweakDialog: boolean;
     selectedMode: 'scene-beat' | 'continue-writing' | 'codex-progression';
+    reasoning: 'enabled' | 'disabled'; // NEW: reasoning toggle
 };
 
 export type ContinueWritingAction =
@@ -144,13 +145,15 @@ export type ContinueWritingAction =
     | { type: 'SET_MODEL'; payload: string }
     | { type: 'OPEN_TWEAK_DIALOG' }
     | { type: 'CLOSE_TWEAK_DIALOG' }
-    | { type: 'SET_MODE'; payload: 'scene-beat' | 'continue-writing' | 'codex-progression' };
+    | { type: 'SET_MODE'; payload: 'scene-beat' | 'continue-writing' | 'codex-progression' }
+    | { type: 'SET_REASONING'; payload: 'enabled' | 'disabled' }; // NEW
 
 export const initialContinueWritingState: ContinueWritingState = {
     wordCount: '400',
     model: '',
     showTweakDialog: false,
     selectedMode: 'continue-writing',
+    reasoning: 'enabled', // Default to enabled for quality
 };
 
 export function continueWritingReducer(
@@ -168,6 +171,8 @@ export function continueWritingReducer(
             return { ...state, showTweakDialog: false };
         case 'SET_MODE':
             return { ...state, selectedMode: action.payload };
+        case 'SET_REASONING':
+            return { ...state, reasoning: action.payload };
         default:
             return state;
     }

@@ -115,8 +115,10 @@ pub fn run() {
             // Export commands
             export_manuscript_text,
             export_manuscript_docx,
+            export_manuscript_epub,
             export_project_backup,
             export_project_as_json,
+            write_export_file,
             // Import command
             import_project_backup,
             // Series commands
@@ -147,6 +149,24 @@ pub fn run() {
             load_yjs_state,
             has_yjs_state,
             delete_yjs_state,
+            // Idea commands
+            list_ideas,
+            create_idea,
+            update_idea,
+            delete_idea,
+            // Scene note commands
+            get_scene_note,
+            save_scene_note,
+            delete_scene_note,
+            // Map commands
+            list_maps,
+            save_map,
+            delete_map,
+            upload_map_image,
+            // World timeline commands
+            list_world_events,
+            save_world_event,
+            delete_world_event,
             // App info
             get_app_info,
         ])

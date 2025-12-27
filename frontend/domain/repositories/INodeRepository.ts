@@ -1,4 +1,4 @@
-import type { DocumentNode, Scene, Act, Chapter } from '@/lib/config/types';
+import type { DocumentNode, Scene, Act, Chapter } from '@/domain/entities/types';
 
 /**
  * Repository interface for document nodes (Acts, Chapters, Scenes)
@@ -59,4 +59,9 @@ export interface INodeRepository {
      * Bulk delete multiple nodes
      */
     bulkDelete(ids: string[]): Promise<void>;
+
+    /**
+     * Get the current project path
+     */
+    getProjectPath(): string | null;
 }

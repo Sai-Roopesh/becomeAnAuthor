@@ -1,4 +1,4 @@
-import type { CodexTemplate, CodexCategory } from '@/lib/config/types';
+import type { CodexTemplate, CodexCategory } from '@/domain/entities/types';
 
 /**
  * Repository interface for Codex Template operations

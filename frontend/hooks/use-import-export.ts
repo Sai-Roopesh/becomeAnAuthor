@@ -11,7 +11,7 @@ import { ExportedProjectSchema } from '@/shared/schemas/import-schema';
 import { googleAuthService } from '@/infrastructure/services/google-auth-service';
 import { googleDriveService } from '@/infrastructure/services/google-drive-service';
 import { exportProjectAsJson } from '@/core/tauri/commands';
-import type { DriveFile, DriveBackupMetadata } from '@/lib/config/types';
+import type { DriveFile, DriveBackupMetadata } from '@/domain/entities/types';
 import { logger } from '@/shared/utils/logger';
 
 const log = logger.scope('ImportExport');

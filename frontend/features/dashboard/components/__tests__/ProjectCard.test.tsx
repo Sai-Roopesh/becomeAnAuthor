@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProjectCard } from '../ProjectCard';
-import type { Project } from '@/lib/config/types';
+import type { Project } from '@/domain/entities/types';
 
 // ============================================
 // Mock Dependencies

@@ -4,7 +4,7 @@
  */
 
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
-import type { Project } from '@/lib/config/types';
+import type { Project } from '@/domain/entities/types';
 import {
     listProjects,
     createProject,

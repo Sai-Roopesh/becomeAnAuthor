@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, EmergencyBackup, StructureNode};
 use crate::utils::{get_app_dir, get_projects_dir, slugify, timestamp};
-use crate::commands::seed::seed_built_in_data;
+// use crate::commands::seed::seed_built_in_data;
 
 // Emergency Backup Commands
 #[tauri::command]
@@ -257,6 +257,147 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
     Ok(output_path)
 }
 
+/// Export manuscript as ePub eBook
+#[tauri::command]
+pub fn export_manuscript_epub(
+    project_path: String,
+    output_path: String,
+    title: Option<String>,
+    author: Option<String>,
+    language: Option<String>,
+) -> Result<String, String> {
+    use epub_builder::{EpubBuilder, EpubContent, ZipLibrary};
+    
+    let structure = crate::commands::project::get_structure(project_path.clone())?;
+    let project_dir = PathBuf::from(&project_path);
+    
+    // Create ePub builder
+    let mut epub = EpubBuilder::new(ZipLibrary::new().map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    
+    // Set metadata
+    epub.metadata("title", title.as_deref().unwrap_or("Untitled"))
+        .map_err(|e| e.to_string())?;
+    epub.metadata("author", author.as_deref().unwrap_or("Unknown"))
+        .map_err(|e| e.to_string())?;
+    epub.metadata("lang", language.as_deref().unwrap_or("en"))
+        .map_err(|e| e.to_string())?;
+    epub.metadata("generator", "Become An Author")
+        .map_err(|e| e.to_string())?;
+    
+    // Add stylesheet
+    let css = r#"
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 1em;
+            line-height: 1.6;
+            text-align: justify;
+            margin: 1.5em;
+        }
+        h1 {
+            font-size: 2em;
+            margin: 1.5em 0 1em 0;
+            text-align: center;
+            page-break-before: always;
+        }
+        h2 {
+            font-size: 1.5em;
+            margin: 1.2em 0 0.8em 0;
+        }
+        h3 {
+            font-size: 1.2em;
+            margin: 1em 0 0.6em 0;
+        }
+        p {
+            margin: 0 0 0.5em 0;
+            text-indent: 1.5em;
+        }
+        p:first-of-type {
+            text-indent: 0;
+        }
+        .scene-break {
+            text-align: center;
+            margin: 1.5em 0;
+        }
+    "#;
+    epub.stylesheet(css.as_bytes()).map_err(|e| e.to_string())?;
+    
+    // Process structure and add chapters
+    fn add_chapters_to_epub(
+        epub: &mut EpubBuilder<ZipLibrary>,
+        nodes: &[StructureNode],
+        project_path: &str,
+        chapter_num: &mut i32,
+    ) -> Result<(), String> {
+        for node in nodes {
+            match node.node_type.as_str() {
+                "act" => {
+                    // Acts don't become chapters, but process their children
+                    add_chapters_to_epub(epub, &node.children, project_path, chapter_num)?;
+                }
+                "chapter" => {
+                    // Each chapter becomes an ePub chapter
+                    let mut content = format!("<h2>{}</h2>\n", node.title);
+                    
+                    // Collect all scene content in this chapter
+                    for scene in &node.children {
+                        if scene.node_type == "scene" {
+                            content.push_str(&format!("<h3>{}</h3>\n", scene.title));
+                            
+                            if let Some(file) = &scene.file {
+                                let file_path = PathBuf::from(project_path).join("manuscript").join(file);
+                                if let Ok(file_content) = fs::read_to_string(&file_path) {
+                                    let parts: Vec<&str> = file_content.splitn(3, "---").collect();
+                                    if parts.len() >= 3 {
+                                        let body = parts[2].trim();
+                                        
+                                        // Try to parse as Tiptap JSON
+                                        if let Ok(tiptap) = serde_json::from_str::<serde_json::Value>(body) {
+                                            let text = extract_text_from_tiptap(&tiptap);
+                                            for para in text.split("\n\n").filter(|s| !s.trim().is_empty()) {
+                                                content.push_str(&format!("<p>{}</p>\n", para.trim()));
+                                            }
+                                        } else {
+                                            // Plain text fallback
+                                            for para in body.split("\n\n").filter(|s| !s.trim().is_empty()) {
+                                                content.push_str(&format!("<p>{}</p>\n", para.trim()));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Add scene break
+                            content.push_str("<p class=\"scene-break\">* * *</p>\n");
+                        }
+                    }
+                    
+                    // Add chapter to ePub
+                    *chapter_num += 1;
+                    epub.add_content(
+                        EpubContent::new(format!("chapter{}.xhtml", chapter_num), content.as_bytes())
+                            .title(&node.title)
+                    ).map_err(|e| e.to_string())?;
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+    
+    let mut chapter_num = 0;
+    add_chapters_to_epub(&mut epub, &structure, &project_path, &mut chapter_num)?;
+    
+    // Generate ePub file
+    let mut output_file = fs::File::create(&output_path)
+        .map_err(|e| format!("Failed to create output file: {}", e))?;
+    
+    epub.generate(&mut output_file)
+        .map_err(|e| format!("Failed to generate ePub: {}", e))?;
+    
+    Ok(output_path)
+}
+
 
 #[tauri::command]
 pub fn export_project_backup(project_path: String, output_path: Option<String>) -> Result<String, String> {
@@ -445,4 +586,20 @@ pub fn import_project_backup(backup_json: String, series_id: String, series_inde
     // Note: Templates are seeded at series level, not project level
     
     Ok(project)
+}
+
+/// Write export file data to the specified path
+/// Used by frontend to save generated export files to user-selected location
+#[tauri::command]
+pub fn write_export_file(file_path: String, data: Vec<u8>) -> Result<(), String> {
+    let path = PathBuf::from(&file_path);
+    
+    // Ensure parent directory exists
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    
+    fs::write(&path, data).map_err(|e| e.to_string())?;
+    
+    Ok(())
 }

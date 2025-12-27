@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { googleAuthService } from '@/infrastructure/services/google-auth-service';
-import { GoogleUser } from '@/lib/config/types';
+import { GoogleUser } from '@/domain/entities/types';
 
 export function useGoogleAuth() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);

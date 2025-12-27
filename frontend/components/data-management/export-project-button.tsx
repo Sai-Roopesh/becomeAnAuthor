@@ -1,12 +1,13 @@
 'use client';
 
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Download, FileText, Cloud } from 'lucide-react';
+import { Download, FileText, Cloud, FileCode } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
 import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useDocumentExport } from '@/hooks/use-document-export';
 import { toast } from '@/shared/utils/toast-service';
 import { useState } from 'react';
+import { ExportDialog } from '@/features/export/components/export-dialog';
 
 interface ExportProjectButtonProps {
     projectId: string;
@@ -18,6 +19,7 @@ export function ExportProjectButton({ projectId, onExportStart }: ExportProjectB
     const { exportProjectAsDocx } = useDocumentExport();
     const { isAuthenticated, signIn } = useGoogleAuth();
     const [isBackingUp, setIsBackingUp] = useState(false);
+    const [showExportDialog, setShowExportDialog] = useState(false);
 
     const handleJsonExport = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -64,8 +66,19 @@ export function ExportProjectButton({ projectId, onExportStart }: ExportProjectB
         }
     };
 
+    const handleTemplateExport = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onExportStart) onExportStart();
+        setShowExportDialog(true);
+    };
+
     return (
         <>
+            <DropdownMenuItem onClick={handleTemplateExport}>
+                <FileCode className="h-4 w-4 mr-2" />
+                Export with Templates...
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleJsonExport}>
                 <Download className="h-4 w-4 mr-2" />
                 Export Project JSON (Backup)
@@ -78,6 +91,12 @@ export function ExportProjectButton({ projectId, onExportStart }: ExportProjectB
                 <Cloud className="h-4 w-4 mr-2" />
                 {isBackingUp ? 'Backing up...' : 'Backup to Google Drive'}
             </DropdownMenuItem>
+
+            <ExportDialog
+                projectId={projectId}
+                open={showExportDialog}
+                onOpenChange={setShowExportDialog}
+            />
         </>
     );
 }

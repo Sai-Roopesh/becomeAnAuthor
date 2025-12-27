@@ -12,9 +12,11 @@ import { cn } from '@/lib/utils';
 interface StoryTimelineProps {
     projectId: string;
     activeSceneWordCount?: number;
+    /** Hide the header (Timeline title) when used inside a tabbed panel */
+    hideHeader?: boolean;
 }
 
-export function StoryTimeline({ projectId, activeSceneWordCount }: StoryTimelineProps) {
+export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = false }: StoryTimelineProps) {
     const { activeSceneId, setActiveSceneId } = useProjectStore();
     const [collapsed, setCollapsed] = useState(false);
     const { nodeRepository: nodeRepo } = useAppServices();
@@ -47,22 +49,24 @@ export function StoryTimeline({ projectId, activeSceneWordCount }: StoryTimeline
     }
 
     return (
-        <div className="h-full w-80 bg-background/50 border-l border-border/50 flex flex-col backdrop-blur-sm">
-            {/* Header */}
-            <div className="p-4 border-b border-border/50 flex items-center justify-between bg-muted/20">
-                <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-heading font-semibold">Timeline</h3>
+        <div className="h-full flex flex-col">
+            {/* Header - only shown when not inside a tabbed panel */}
+            {!hideHeader && (
+                <div className="p-4 border-b border-border/50 flex items-center justify-between bg-muted/20">
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <h3 className="text-sm font-heading font-semibold">Timeline</h3>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                        onClick={() => setCollapsed(true)}
+                    >
+                        <ChevronDown className="h-4 w-4" />
+                    </Button>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-                    onClick={() => setCollapsed(true)}
-                >
-                    <ChevronDown className="h-4 w-4" />
-                </Button>
-            </div>
+            )}
 
             {/* Timeline */}
             <ScrollArea className="flex-1 p-4">

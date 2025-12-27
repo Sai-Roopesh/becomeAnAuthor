@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatMessage } from '@/lib/config/types';
+import { ChatMessage } from '@/domain/entities/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface AIChatMessageListProps {

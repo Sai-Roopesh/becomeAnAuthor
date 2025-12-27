@@ -10,13 +10,15 @@ import CharacterCount from '@tiptap/extension-character-count';
 import Collaboration from '@tiptap/extension-collaboration';
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
-import { useAutoSave } from '@/hooks/use-auto-save';
 import { useAI } from '@/hooks/use-ai';
+import { EditorStateManager } from '@/lib/core/editor-state-manager';
+import type { SaveStatus } from '@/lib/core/editor-state-manager';
 import { useCollaboration } from '@/hooks/use-collaboration';
 import { EditorToolbar } from './editor-toolbar';
 import { TextSelectionMenu } from './text-selection-menu';
 import { ContinueWritingMenu } from './continue-writing-menu';
 import { CollaborationPanel } from '@/features/collaboration';
+import { SaveStatusIndicator } from '@/components/ui/save-status-indicator';
 import { useFormatStore } from '@/store/use-format-store';
 import { Section } from '@/lib/tiptap-extensions/section-node';
 import { AI_DEFAULTS } from '@/lib/config/constants';
@@ -66,6 +68,11 @@ export function TiptapEditor({
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
     const { assembleContext } = useContextAssembly(projectId);
+
+    // Save state management with EditorStateManager
+    const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+    const [lastSaved, setLastSaved] = useState<number | undefined>();
+    const editorStateManagerRef = useRef<EditorStateManager | null>(null);
 
     // Collaboration state
     const [enableP2P, setEnableP2P] = useState(false);
@@ -171,20 +178,16 @@ export function TiptapEditor({
             if (previousSceneIdRef.current !== sceneId) {
                 log.debug(`Switching from ${previousSceneIdRef.current} to ${sceneId}`);
 
-                // Step 1: Save the previous scene's content before switching
+                // Step 1: Flush EditorStateManager before switching
                 if (previousSceneIdRef.current !== null && editor && !editor.isDestroyed) {
                     try {
-                        const oldSceneContent = editor.getJSON();
-                        const oldSceneId = previousSceneIdRef.current;
+                        log.debug(`Flushing save for scene ${previousSceneIdRef.current}`);
 
-                        log.debug(`Captured content for scene ${oldSceneId}`, { nodeCount: oldSceneContent.content?.length || 0 });
+                        if (editorStateManagerRef.current) {
+                            await editorStateManagerRef.current.flush();
+                        }
 
-                        const { saveCoordinator } = await import('@/lib/core/save-coordinator');
-                        await saveCoordinator.scheduleSave(
-                            oldSceneId,
-                            () => oldSceneContent
-                        );
-                        log.debug(`Save completed for ${oldSceneId}`);
+                        log.debug(`Save completed for ${previousSceneIdRef.current}`);
                     } catch (error) {
                         console.error('[SceneSwitch] Failed to save scene before switch:', error);
                     }
@@ -251,7 +254,29 @@ export function TiptapEditor({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sceneId, editor]); // validatedContent removed - we fetch fresh from backend now
 
-    useAutoSave(sceneId, editor);
+    // Create EditorStateManager when editor is ready
+    useEffect(() => {
+        if (!editor || !sceneId) return;
+
+        // Create EditorStateManager
+        const manager = new EditorStateManager(editor, sceneId, {
+            debounceMs: 500,
+        });
+
+        // Subscribe to status changes
+        const unsubscribe = manager.onStatusChange((status, lastSavedAt) => {
+            setSaveStatus(status);
+            setLastSaved(lastSavedAt);
+        });
+
+        editorStateManagerRef.current = manager;
+
+        return () => {
+            unsubscribe();
+            manager.destroy();
+            editorStateManagerRef.current = null;
+        };
+    }, [editor, sceneId]);
 
     // Typewriter Scrolling - Keep current line centered
     useEffect(() => {
@@ -375,8 +400,10 @@ YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
                         editor.chain().focus().insertContent(fullText).run();
                     }
 
-                    const { saveCoordinator } = await import('@/lib/core/save-coordinator');
-                    await saveCoordinator.scheduleSave(sceneId, () => editor!.getJSON());
+                    // ✅ NEW: Use EditorStateManager for immediate save
+                    if (editorStateManagerRef.current) {
+                        await editorStateManagerRef.current.saveImmediate();
+                    }
 
                     // Close the continue writing menu after successful generation
                     setShowContinueMenu(false);
@@ -430,7 +457,8 @@ YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
                     isGenerating={isGenerating}
                     onInsertSection={handleInsertSection}
                 />
-                <div className="pr-2">
+                <div className="flex items-center gap-4 pr-4">
+                    <SaveStatusIndicator status={saveStatus} {...(lastSaved !== undefined && { lastSaved })} />
                     <CollaborationPanel
                         status={collabStatus}
                         peers={peers}
@@ -440,7 +468,13 @@ YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
                     />
                 </div>
             </div>
-            <TextSelectionMenu editor={editor} projectId={projectId} seriesId={seriesId} />
+            <TextSelectionMenu
+                editor={editor}
+                projectId={projectId}
+                seriesId={seriesId}
+                sceneId={sceneId}
+                editorStateManager={editorStateManagerRef.current}
+            />
             <ContinueWritingMenu
                 open={showContinueMenu}
                 onOpenChange={handleMenuClose}

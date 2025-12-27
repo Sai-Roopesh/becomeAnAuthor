@@ -10,8 +10,9 @@ import { AnalysisRunDialog } from './AnalysisRunDialog';
 import { AnalysisDetailDialog } from './AnalysisDetailDialog';
 import { useManuscriptVersion } from '../hooks/use-manuscript-version';
 import { useAnalysisRepository } from '../hooks/use-analysis-repository';
-import type { StoryAnalysis } from '@/lib/config/types';
+import type { StoryAnalysis } from '@/domain/entities/types';
 import { cn } from '@/lib/utils';
+import { ViewHeader } from '@/components/layout/view-header';
 
 interface ReviewDashboardProps {
     projectId: string;
@@ -37,26 +38,22 @@ export function ReviewDashboard({ projectId }: ReviewDashboardProps) {
             {/* Subtle background texture */}
             <div className="absolute inset-0 z-[-1] opacity-30 pointer-events-none bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)]" />
 
-            {/* Header */}
-            <div className="sticky top-0 z-20 border-b border-border/50 p-6 flex items-center justify-between bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-                <div>
-                    <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-                        <Sparkles className="h-6 w-6 text-primary" />
-                        Story Analysis
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        AI-powered developmental feedback for your manuscript
-                    </p>
-                </div>
-                <Button
-                    onClick={() => setRunDialogOpen(true)}
-                    size="lg"
-                    className="shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
-                >
-                    <PlayCircle className="w-4 h-4 mr-2" />
-                    Run Analysis
-                </Button>
-            </div>
+            {/* Header - Using ViewHeader for consistency */}
+            <ViewHeader
+                title="Story Analysis"
+                icon={<Sparkles className="h-5 w-5" />}
+                subtitle="AI-powered developmental feedback for your manuscript"
+                actions={
+                    <Button
+                        onClick={() => setRunDialogOpen(true)}
+                        size="lg"
+                        className="shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+                    >
+                        <PlayCircle className="w-4 h-4 mr-2" />
+                        Run Analysis
+                    </Button>
+                }
+            />
 
             {/* Version Warning */}
             {editsSinceAnalysis > 0 && latestAnalysis && (

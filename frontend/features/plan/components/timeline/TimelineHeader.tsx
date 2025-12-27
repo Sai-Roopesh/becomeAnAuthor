@@ -1,6 +1,6 @@
 'use client';
 
-import type { CodexEntry } from '@/lib/config/types';
+import type { CodexEntry } from '@/domain/entities/types';
 import { CATEGORY_CONFIG } from '../../utils/timeline-utils';
 
 interface TimelineHeaderProps {

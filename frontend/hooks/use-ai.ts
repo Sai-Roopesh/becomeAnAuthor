@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { generateText, generateTextStream } from '@/lib/core/ai-client';
+import { generateText, generateTextStream } from '@/lib/ai';
 import { getValidatedModel, formatAIError, buildAIPrompt, persistModelSelection } from '@/shared/utils/ai-utils';
 import { toast } from '@/shared/utils/toast-service';
 import { AI_DEFAULTS } from '@/lib/config/constants';

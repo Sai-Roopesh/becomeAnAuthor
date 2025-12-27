@@ -10,16 +10,19 @@ import {
     textSelectionReducer,
     initialTextSelectionState
 } from '@/hooks/use-dialog-state';
+import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
 interface TextSelectionMenuProps {
     editor: Editor;
     projectId: string;
     seriesId: string;  // Required - series-first architecture
+    sceneId: string;  // Required for save tracking
+    editorStateManager: EditorStateManager | null;  // Required for immediate save
 }
 
 type ReplaceAction = 'expand' | 'rephrase' | 'shorten' | null;
 
-export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, projectId, seriesId }: TextSelectionMenuProps) {
+export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, projectId, seriesId, sceneId, editorStateManager }: TextSelectionMenuProps) {
     // Replace 4 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         initialTextSelectionState,
@@ -150,6 +153,8 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, proje
                     onClose={handleClose}
                     projectId={projectId}
                     seriesId={seriesId}
+                    sceneId={sceneId}
+                    editorStateManager={editorStateManager}
                 />
             )}
         </>

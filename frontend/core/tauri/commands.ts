@@ -10,7 +10,11 @@ import type {
     CodexEntry,
     CodexRelation,
     CodexTag,
-    CodexEntryTag
+    CodexEntryTag,
+    Idea,
+    SceneNote,
+    ProjectMap,
+    WorldEvent
 } from '@/domain/entities/types';
 
 // ============ Types ============
@@ -223,6 +227,20 @@ export async function deleteScene(projectPath: string, sceneFile: string): Promi
     return invoke('delete_scene', { projectPath, sceneFile });
 }
 
+// ============ Scene Note Commands ============
+
+export async function getSceneNote(projectPath: string, sceneId: string): Promise<SceneNote | null> {
+    return invoke<SceneNote | null>('get_scene_note', { projectPath, sceneId });
+}
+
+export async function saveSceneNote(projectPath: string, note: SceneNote): Promise<void> {
+    return invoke('save_scene_note', { projectPath, note });
+}
+
+export async function deleteSceneNote(projectPath: string, sceneId: string): Promise<void> {
+    return invoke('delete_scene_note', { projectPath, sceneId });
+}
+
 // ==========================================
 // Codex Commands
 // ==========================================
@@ -288,6 +306,24 @@ export async function saveCodexEntryTag(projectPath: string, entryTag: CodexEntr
 
 export async function deleteCodexEntryTag(projectPath: string, entryTagId: string): Promise<void> {
     return invoke('delete_codex_entry_tag', { projectPath, entryTagId });
+}
+
+// ============ Idea Commands ============
+
+export async function listIdeas(projectPath: string): Promise<Idea[]> {
+    return invoke<Idea[]>('list_ideas', { projectPath });
+}
+
+export async function createIdea(projectPath: string, idea: Idea): Promise<Idea> {
+    return invoke<Idea>('create_idea', { projectPath, idea });
+}
+
+export async function updateIdea(projectPath: string, idea: Idea): Promise<Idea> {
+    return invoke<Idea>('update_idea', { projectPath, idea });
+}
+
+export async function deleteIdea(projectPath: string, ideaId: string): Promise<void> {
+    return invoke('delete_idea', { projectPath, ideaId });
 }
 
 // ============ Codex Templates ============
@@ -566,24 +602,6 @@ export async function deleteSeriesCodexRelation(
     return invoke('delete_series_codex_relation', { seriesId, relationId });
 }
 
-/**
- * Migration result type
- */
-export interface MigrationResult {
-    total_projects: number;
-    migrated_entries: number;
-    skipped_entries: number;
-    series_affected: string[];
-    errors: string[];
-}
-
-/**
- * Migrate codex entries from project-level to series-level storage
- */
-export async function migrateCodexToSeries(): Promise<MigrationResult> {
-    return invoke<MigrationResult>('migrate_codex_to_series');
-}
-
 // ============ Snippet Commands ============
 
 export async function listSnippets(projectPath: string): Promise<Snippet[]> {
@@ -602,6 +620,43 @@ export async function deleteSnippet(projectPath: string, snippetId: string): Pro
 
 export async function searchProject(projectPath: string, query: string): Promise<SearchResult[]> {
     return invoke<SearchResult[]>('search_project', { projectPath, query });
+}
+
+// ============ Map Commands ============
+
+export async function listMaps(projectPath: string): Promise<ProjectMap[]> {
+    return invoke<ProjectMap[]>('list_maps', { projectPath });
+}
+
+export async function saveMap(projectPath: string, map: ProjectMap): Promise<void> {
+    return invoke('save_map', { projectPath, map });
+}
+
+export async function deleteMap(projectPath: string, mapId: string): Promise<void> {
+    return invoke('delete_map', { projectPath, mapId });
+}
+
+export async function uploadMapImage(
+    projectPath: string,
+    mapId: string,
+    imageData: number[],
+    fileName: string
+): Promise<string> {
+    return invoke<string>('upload_map_image', { projectPath, mapId, imageData, fileName });
+}
+
+// ============ World Timeline Commands ============
+
+export async function listWorldEvents(projectPath: string): Promise<WorldEvent[]> {
+    return invoke<WorldEvent[]>('list_world_events', { projectPath });
+}
+
+export async function saveWorldEvent(projectPath: string, event: WorldEvent): Promise<void> {
+    return invoke('save_world_event', { projectPath, event });
+}
+
+export async function deleteWorldEvent(projectPath: string, eventId: string): Promise<void> {
+    return invoke('delete_world_event', { projectPath, eventId });
 }
 
 // ============ Export Commands ============

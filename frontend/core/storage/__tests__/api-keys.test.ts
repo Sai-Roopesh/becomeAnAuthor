@@ -53,7 +53,6 @@ import {
     deleteAPIKey,
     validateAPIKey,
     storeAPIKeyWithValidation,
-    migrateAPIKeysFromLocalStorage,
     hasAPIKey,
 } from '@/core/storage/api-keys';
 
@@ -254,61 +253,3 @@ describe('API Key Security Contract', () => {
     });
 });
 
-// ========================================
-// Migration Tests
-// ========================================
-
-describe('API Key Migration Contract', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
-    describe('SPEC: Migration - MUST move keys from localStorage to keychain', () => {
-        it('MUST migrate existing localStorage keys to keychain', async () => {
-            // Setup: Legacy key exists in localStorage
-            vi.mocked(storage.getItem).mockImplementation((key: string) => {
-                if (key === 'ai-api-key-openai') return 'sk-legacy-key';
-                return null;
-            });
-            mockInvoke.mockResolvedValue(undefined);
-
-            const count = await migrateAPIKeysFromLocalStorage();
-
-            // MUST attempt to store in keychain
-            expect(mockInvoke).toHaveBeenCalledWith('store_api_key', expect.objectContaining({
-                provider: 'openai',
-            }));
-            expect(count).toBeGreaterThan(0);
-        });
-
-        it('MUST remove key from localStorage after successful migration', async () => {
-            vi.mocked(storage.getItem).mockImplementation((key: string) => {
-                if (key === 'ai-api-key-google') return 'google-legacy-key';
-                return null;
-            });
-            mockInvoke.mockResolvedValue(undefined);
-
-            await migrateAPIKeysFromLocalStorage();
-
-            expect(storage.removeItem).toHaveBeenCalledWith('ai-api-key-google');
-        });
-
-        it('MUST NOT remove from localStorage if keychain storage fails', async () => {
-            vi.mocked(storage.getItem).mockReturnValue('legacy-key');
-            mockInvoke.mockRejectedValue(new Error('Storage failed'));
-
-            await migrateAPIKeysFromLocalStorage();
-
-            // Should NOT remove if migration failed
-            expect(storage.removeItem).not.toHaveBeenCalled();
-        });
-
-        it('MUST return 0 when no keys to migrate', async () => {
-            vi.mocked(storage.getItem).mockReturnValue(null);
-
-            const count = await migrateAPIKeysFromLocalStorage();
-
-            expect(count).toBe(0);
-        });
-    });
-});

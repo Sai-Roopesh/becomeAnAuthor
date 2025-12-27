@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useCodexTagRepository } from '@/hooks/use-codex-tag-repository';
-import type { CodexTag } from '@/lib/config/types';
+import type { CodexTag } from '@/domain/entities/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import { Plus, X } from 'lucide-react';
 import { toast } from '@/shared/utils/toast-service';
 
 interface TagManagerProps {
-    projectId: string;
+    seriesId: string;
     entryId: string;
 }
 
@@ -24,15 +24,15 @@ interface TagManagerProps {
  * - Feature component location
  * - 'use client' directive
  */
-export function TagManager({ projectId, entryId }: TagManagerProps) {
+export function TagManager({ seriesId, entryId }: TagManagerProps) {
     const tagRepo = useCodexTagRepository();
     const [newTagName, setNewTagName] = useState('');
     const [isAdding, setIsAdding] = useState(false);
 
     // ✅ Repository hooks + live queries
     const allTags = useLiveQuery(
-        () => tagRepo.getByProject(projectId),
-        [projectId]
+        () => tagRepo.getByProject(seriesId),
+        [seriesId]
     );
 
     const entryTags = useLiveQuery(
@@ -46,7 +46,7 @@ export function TagManager({ projectId, entryId }: TagManagerProps) {
         setIsAdding(true);
         try {
             const newTag = await tagRepo.create({
-                projectId,
+                projectId: seriesId, // Using seriesId for series-first architecture
                 name: newTagName.trim(),
                 color: generateRandomColor(),
             });

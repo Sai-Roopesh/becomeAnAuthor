@@ -3,7 +3,7 @@ import type { IAnalysisRepository } from '@/domain/repositories/IAnalysisReposit
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
-import type { StoryAnalysis, Scene, DocumentNode, CodexEntry, AnalysisInsight } from '@/lib/config/types';
+import type { StoryAnalysis, Scene, DocumentNode, CodexEntry, AnalysisInsight } from '@/domain/entities/types';
 import type {
     PlotThreadResponse,
     CharacterArcResponse,

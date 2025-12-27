@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Expand, Copy } from 'lucide-react';
 import { ModelCombobox } from '@/features/ai';
-import type { ChatContext } from '@/lib/config/types';
+import type { ChatContext } from '@/domain/entities/types';
 import { storage } from '@/core/storage/safe-storage';
 import {
     useDialogState,
@@ -39,6 +39,7 @@ export interface GenerateOptions {
     context: ChatContext;
     model: string;
     selectedContexts?: ContextItem[];
+    reasoning?: 'enabled' | 'disabled'; // NEW: reasoning toggle
 }
 
 export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, mode, projectId, seriesId }: TweakGenerateDialogProps) {

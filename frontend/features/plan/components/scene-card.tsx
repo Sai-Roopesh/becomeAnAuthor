@@ -1,6 +1,6 @@
 'use client';
 
-import { DocumentNode } from '@/lib/config/types';
+import { DocumentNode } from '@/domain/entities/types';
 import { useProjectStore } from '@/store/use-project-store';
 import { isElementNode } from '@/shared/types/tiptap';
 import { FileText, MoreVertical, Link2 } from 'lucide-react';

@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
-import { isScene, DocumentNode, CodexEntry } from '@/lib/config/types';
+import { isScene, DocumentNode, CodexEntry } from '@/domain/entities/types';
 import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 
 interface RustSearchResult {

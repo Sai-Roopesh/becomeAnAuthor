@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
-import type { CodexEntry, Scene } from '@/lib/config/types';
+import type { CodexEntry, Scene } from '@/domain/entities/types';
 import type { TiptapContent } from '@/shared/types/tiptap';
 
 // Helper to yield to main thread to prevent blocking UI

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { DocumentNode, CodexEntry, SceneCodexLink } from '@/lib/config/types';
+import type { DocumentNode, CodexEntry, SceneCodexLink } from '@/domain/entities/types';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { ScrollArea } from '@/components/ui/scroll-area';

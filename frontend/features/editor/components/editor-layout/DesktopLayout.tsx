@@ -19,9 +19,9 @@ import {
 import { TiptapEditor } from '../tiptap-editor';
 import { SnippetEditor } from '../../../snippets/components/snippet-editor';
 import { ProjectNavigation } from '../../../navigation/components/ProjectNavigation';
-import { StoryTimeline } from '../story-timeline';
+import { WriteRightPanel } from '../write-right-panel';
 import { FocusModeToggle } from '../FocusModeToggle';
-import type { DocumentNode, Snippet } from '@/lib/config/types';
+import type { DocumentNode, Snippet } from '@/domain/entities/types';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 import { isElementNode } from '@/shared/types/tiptap';
 
@@ -183,14 +183,17 @@ export function DesktopLayout({
                                 </div>
                             </ResizablePanel>
 
-                            {/* Story Timeline */}
+                            {/* Right Panel (Timeline, Notes, Comments, Analysis) */}
                             {!activeSnippetId && showTimeline && (
                                 <>
                                     <ResizableHandle className="w-1 bg-transparent hover:bg-primary/20 transition-colors" />
                                     <ResizablePanel defaultSize={22} minSize={18} maxSize={30}>
-                                        <StoryTimeline
+                                        <WriteRightPanel
                                             projectId={projectId}
+                                            seriesId={seriesId}
+                                            activeSceneId={activeScene?.id || null}
                                             activeSceneWordCount={editorWordCount}
+                                            onCollapse={onToggleTimeline}
                                         />
                                     </ResizablePanel>
                                 </>

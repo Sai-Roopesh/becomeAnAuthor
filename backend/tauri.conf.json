@@ -23,7 +23,15 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$DOCUMENT/**",
+          "$HOME/Documents/**",
+          "**"
+        ]
+      }
     }
   },
   "bundle": {

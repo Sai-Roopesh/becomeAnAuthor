@@ -6,7 +6,7 @@ import { FileText, Trash2, Clock, HardDrive } from 'lucide-react';
 import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
 import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useImportExport } from '@/hooks/use-import-export';
-import { DriveFile } from '@/lib/config/types';
+import { DriveFile } from '@/domain/entities/types';
 import { toast } from '@/shared/utils/toast-service';
 
 interface DriveBackupBrowserProps {

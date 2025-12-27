@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import type { CodexCategory, CodexEntry } from '@/lib/config/types';
+import type { CodexCategory, CodexEntry } from '@/domain/entities/types';
 import { CATEGORY_CONFIG } from '../../utils/timeline-utils';
 
 export type LaneCategory = 'character' | 'subplot' | 'location';

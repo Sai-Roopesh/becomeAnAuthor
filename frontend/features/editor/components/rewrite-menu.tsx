@@ -14,8 +14,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ModelCombobox } from '@/features/ai';
 import { TinkerMode } from './tinker-mode';
+import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
-export const RewriteMenu = memo(function RewriteMenu({ editor }: { editor: Editor | null }) {
+export const RewriteMenu = memo(function RewriteMenu({
+    editor,
+    sceneId,
+    editorStateManager
+}: {
+    editor: Editor | null;
+    sceneId: string;
+    editorStateManager: EditorStateManager | null;
+}) {
     const [showTinker, setShowTinker] = useState(false);
     const [streamingResult, setStreamingResult] = useState('');
     const [currentMode, setCurrentMode] = useState<string | null>(null);
@@ -145,10 +154,15 @@ Now rewrite:
                 onChunk: (chunk) => {
                     setStreamingResult(prev => prev + chunk);
                 },
-                onComplete: (fullText) => {
+                onComplete: async (fullText) => {
                     // Replace selected text with result
                     if (fullText) {
                         editor.chain().focus().insertContent(fullText).run();
+
+                        // ✅ NEW: Immediate save after AI rewrite
+                        if (editorStateManager) {
+                            await editorStateManager.saveImmediate();
+                        }
                     }
                     setStreamingResult('');
                     setCurrentMode(null);
@@ -270,6 +284,8 @@ Now rewrite:
                 open={showTinker}
                 onOpenChange={setShowTinker}
                 editor={editor}
+                sceneId={sceneId}
+                editorStateManager={editorStateManager}
             />
         </>
     );

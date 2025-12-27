@@ -1,4 +1,4 @@
-import type { SceneCodexLink, SceneCodexLinkRole } from '@/lib/config/types';
+import type { SceneCodexLink, SceneCodexLinkRole } from '@/domain/entities/types';
 
 /**
  * Repository interface for Scene-Codex Links

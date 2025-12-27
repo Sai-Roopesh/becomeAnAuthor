@@ -318,7 +318,7 @@ MyNovel/
 ├── manuscript/                  # Core content (Markdown)
 │   ├── {scene-uuid}.md          # Scene files (YAML frontmatter + content)
 │   └── ...
-├── codex/                       # World-building (JSON)
+├── codex/                       # World-building (JSON) - ⚠️ DEPRECATED (see series-first below)
 │   ├── characters/
 │   │   └── {entry-id}.json
 │   ├── locations/
@@ -810,6 +810,6 @@ graph TB
 
 ---
 
-**Last Updated**: 2025-01-20  
-**Document Version**: 2.0
+**Last Updated**: 2025-12-25  
+**Document Version**: 2.1
 

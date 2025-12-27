@@ -1,4 +1,4 @@
-import type { Project } from '@/lib/config/types';
+import type { Project } from '@/domain/entities/types';
 
 /**
  * Project Repository Interface

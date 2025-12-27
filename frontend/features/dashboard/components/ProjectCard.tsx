@@ -10,7 +10,7 @@ import {
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { ExportProjectButton } from '@/components/data-management/export-project-button';
-import type { Project } from '@/lib/config/types';
+import type { Project } from '@/domain/entities/types';
 
 interface ProjectCardProps {
     project: Project;

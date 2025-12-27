@@ -14,6 +14,10 @@ import { TauriCodexRelationTypeRepository } from '@/infrastructure/repositories/
 import { TauriSceneCodexLinkRepository } from '@/infrastructure/repositories/TauriSceneCodexLinkRepository';
 import { TauriAnalysisRepository } from '@/infrastructure/repositories/TauriAnalysisRepository';
 import { TauriSeriesRepository } from '@/infrastructure/repositories/TauriSeriesRepository';
+import { TauriIdeaRepository } from '@/infrastructure/repositories/TauriIdeaRepository';
+import { TauriSceneNoteRepository } from '@/infrastructure/repositories/TauriSceneNoteRepository';
+import { TauriMapRepository } from '@/infrastructure/repositories/TauriMapRepository';
+import { TauriWorldTimelineRepository } from '@/infrastructure/repositories/TauriWorldTimelineRepository';
 // Repository interfaces
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
@@ -27,6 +31,10 @@ import type { ICodexRelationTypeRepository } from '@/domain/repositories/ICodexR
 import type { ISceneCodexLinkRepository } from '@/domain/repositories/ISceneCodexLinkRepository';
 import type { IAnalysisRepository } from '@/domain/repositories/IAnalysisRepository';
 import type { ISeriesRepository } from '@/domain/repositories/ISeriesRepository';
+import type { IIdeaRepository } from '@/domain/repositories/IIdeaRepository';
+import type { ISceneNoteRepository } from '@/domain/repositories/ISceneNoteRepository';
+import type { IMapRepository } from '@/domain/repositories/IMapRepository';
+import type { IWorldTimelineRepository } from '@/domain/repositories/IWorldTimelineRepository';
 // Services
 import type { IChatService } from '@/domain/services/IChatService';
 import { ChatService } from '@/infrastructure/services/ChatService';
@@ -58,6 +66,10 @@ interface AppServices {
     sceneCodexLinkRepository: ISceneCodexLinkRepository;
     // NEW: Series management (GAP-2)
     seriesRepository: ISeriesRepository;
+    ideaRepository: IIdeaRepository;
+    sceneNoteRepository: ISceneNoteRepository;
+    mapRepository: IMapRepository;
+    worldTimelineRepository: IWorldTimelineRepository;
 
     // Services
     chatService: IChatService;
@@ -140,6 +152,14 @@ export function AppProvider({ children, services: customServices }: AppProviderP
             createLazy(() => new TauriAnalysisRepository());
         const seriesRepo = customServices?.seriesRepository ??
             createLazy(() => new TauriSeriesRepository());
+        const ideaRepo = customServices?.ideaRepository ??
+            createLazy(() => new TauriIdeaRepository());
+        const sceneNoteRepo = customServices?.sceneNoteRepository ??
+            createLazy(() => new TauriSceneNoteRepository());
+        const mapRepo = customServices?.mapRepository ??
+            createLazy(() => new TauriMapRepository());
+        const worldTimelineRepo = customServices?.worldTimelineRepository ??
+            createLazy(() => new TauriWorldTimelineRepository());
 
 
         // Services still need eager instantiation as they're commonly used
@@ -175,6 +195,10 @@ export function AppProvider({ children, services: customServices }: AppProviderP
             codexRelationTypeRepository: codexRelationTypeRepo,
             sceneCodexLinkRepository: sceneCodexLinkRepo,
             seriesRepository: seriesRepo,
+            ideaRepository: ideaRepo,
+            sceneNoteRepository: sceneNoteRepo,
+            mapRepository: mapRepo,
+            worldTimelineRepository: worldTimelineRepo,
             chatService: chatSvc,
             exportService: exportSvc,
             analysisService: analysisSvc,

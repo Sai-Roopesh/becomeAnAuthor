@@ -67,12 +67,6 @@ export function useAIConnections() {
         );
         setConnections(updated);
         storage.setItem('ai_connections', updated);
-
-        // Legacy support for old OpenRouter key
-        const selected = connections.find((c) => c.id === id);
-        if (selected?.provider === 'openrouter' && updates.apiKey) {
-            storage.setItem('openrouter_api_key', updates.apiKey);
-        }
     };
 
     const addConnection = (connection: Omit<AIConnection, 'id' | 'createdAt' | 'updatedAt'>) => {

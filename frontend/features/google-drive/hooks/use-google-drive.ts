@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { googleDriveService } from '@/infrastructure/services/google-drive-service';
-import { DriveFile, DriveQuota } from '@/lib/config/types';
+import { DriveFile, DriveQuota } from '@/domain/entities/types';
 import { useGoogleAuth } from './use-google-auth';
 
 export function useGoogleDrive() {

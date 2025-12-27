@@ -1,6 +1,6 @@
 'use client';
 
-import { DocumentNode } from '@/lib/config/types';
+import { DocumentNode } from '@/domain/entities/types';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useState } from 'react';

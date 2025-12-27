@@ -4,13 +4,14 @@ import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
 import { cn } from '@/lib/utils';
-import { DocumentNode } from '@/lib/config/types';
+import { DocumentNode } from '@/domain/entities/types';
 import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreateNodeDialog } from '@/features/shared/components';
 import { SnippetList } from '../../snippets/components/snippet-list';
 import { CodexList } from '../../codex/components/codex-list';
+import { IdeasSection } from '../components/ideas-section';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     DropdownMenu,
@@ -170,6 +171,11 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                                     No acts yet. Click + to start.
                                 </div>
                             )}
+                        </div>
+
+                        {/* Ideas Section - Collapsible below manuscript tree */}
+                        <div className="border-t mt-2">
+                            <IdeasSection projectId={projectId} defaultOpen={false} />
                         </div>
                     </ScrollArea>
                 </TabsContent>

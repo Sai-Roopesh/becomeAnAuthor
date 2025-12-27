@@ -56,6 +56,28 @@ export type CodexCategory = 'character' | 'location' | 'item' | 'lore' | 'subplo
 
 export type AIContext = 'always' | 'detected' | 'exclude' | 'never';
 
+export type IdeaCategory = 'plot' | 'character' | 'worldbuilding' | 'dialogue' | 'other';
+
+export interface Idea {
+    id: string;
+    projectId: string;
+    content: string;
+    category: IdeaCategory;
+    tags: string[];
+    archived: boolean;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface SceneNote {
+    id: string;
+    sceneId: string;
+    projectId: string;
+    content: TiptapContent;
+    createdAt: number;
+    updatedAt: number;
+}
+
 // Arc Point types for character evolution tracking
 export interface KnowledgeState {
     knows: string[];
@@ -102,7 +124,7 @@ export interface ArcPoint {
 
 export interface CodexEntry {
     id: string;
-    projectId: string;
+    projectId?: string; // Optional - series-first architecture uses seriesId instead
     name: string;
     aliases: string[];
     category: CodexCategory;
@@ -512,3 +534,53 @@ export type CollaborationStatus =
     | 'connecting'         // Attempting to connect
     | 'syncing'            // Connected, syncing data
     | 'synced';            // Fully synced with peers
+
+// ============================================
+// Map & Timeline Types
+// ============================================
+
+export interface MapMarker {
+    id: string;
+    x: number; // percentage
+    y: number; // percentage
+    label: string;
+    color?: string;
+    codexId?: string; // Link to Location entry
+}
+
+export interface ProjectMap {
+    id: string;
+    projectId: string;
+    name: string;
+    imagePath: string; // Relative to project root
+    markers: MapMarker[];
+    zoomLevel: number;
+    panX: number;
+    panY: number;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export type WorldEventCategory =
+    | 'political'
+    | 'cultural'
+    | 'natural'
+    | 'magical'
+    | 'technological'
+    | 'military'
+    | 'other';
+
+export interface WorldEvent {
+    id: string;
+    projectId: string;
+    title: string;
+    description: string;
+    date: string; // Human-readable date string
+    year?: number; // For sorting
+    era?: string;
+    category: WorldEventCategory;
+    importance: 'minor' | 'moderate' | 'major' | 'world-changing';
+    linkedCodexIds: string[];
+    createdAt: number;
+    updatedAt: number;
+}

@@ -74,7 +74,6 @@ export class TauriCodexRepository implements ICodexRepository {
         const newEntry: CodexEntry = {
             ...entry,
             id: crypto.randomUUID(),
-            projectId: '', // No longer used - kept for backwards compat
             aliases: entry.aliases ?? [],
             description: entry.description ?? '',
             attributes: entry.attributes ?? {},

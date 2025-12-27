@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { Project } from '@/lib/config/types';
+import { Project } from '@/domain/entities/types';
 import { ProjectCard } from './ProjectCard';
 import { CreateProjectDialog } from '@/features/project';
 import { Plus, FolderOpen } from 'lucide-react';

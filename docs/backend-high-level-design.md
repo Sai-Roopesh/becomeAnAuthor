@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Rust/Tauri backend.**  
-> Last updated: 2025-01-20
+> Last updated: 2025-12-25
 
 ---
 
@@ -450,7 +450,13 @@ pub struct CodexEntry {
 }
 ```
 
-**Storage**: `~/BecomeAnAuthor/Projects/<project-path>/.meta/codex/<category>/<id>.json`
+**Storage**: 
+- **Series-first (NEW)**: `~/BecomeAnAuthor/series/<series-id>/codex/<category>/<id>.json`
+- **Legacy (deprecated)**: `~/BecomeAnAuthor/Projects/<project-path>/.meta/codex/<category>/<id>.json`
+
+> [!NOTE]
+> **Series-First Architecture**: Codex entries are now stored at the **series level**, not the project level.
+> This allows characters, locations, and lore to be shared across all books in a series.
 
 ---
 
@@ -528,6 +534,15 @@ pub struct StructureNode {
 
 ```
 ~/BecomeAnAuthor/
+├── series/                          # ✅ NEW: Series-first architecture
+│   └── <series-id>/
+│       └── codex/                   # Shared codex for all books in series
+│           ├── character/
+│           ├── location/
+│           ├── item/
+│           ├── lore/
+│           └── subplot/
+│
 ├── Projects/
 │   └── <project-name>/              # User's project
 │       ├── scenes/                  # Scene content files
@@ -536,17 +551,8 @@ pub struct StructureNode {
 │       │   └── ...
 │       │
 │       └── .meta/                   # Metadata (hidden directory)
-│           ├── project.json         # Project metadata
+│           ├── project.json         # Project metadata (includes seriesId)
 │           ├── structure.json       # Project structure tree
-│           │
-│           ├── codex/               # World-building entries
-│           │   ├── character/
-│           │   │   ├── <id>.json
-│           │   │   └── ...
-│           │   ├── location/
-│           │   ├── item/
-│           │   ├── lore/
-│           │   └── subplot/
 │           │
 │           ├── chat/                # AI chat history
 │           │   ├── threads.json
@@ -1166,7 +1172,7 @@ The backend architecture is a **secure, filesystem-based Rust application** with
 ---
 
 **Document Status**: ✅ Complete  
-**Last Updated**: 2025-01-20  
+**Last Updated**: 2025-12-25  
 **Command Modules Documented**: 13/13  
 **Data Models Documented**: 7/7  
 **Utility Modules Documented**: 6/6  

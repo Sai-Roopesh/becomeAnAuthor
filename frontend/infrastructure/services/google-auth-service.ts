@@ -5,7 +5,7 @@
  */
 
 import { GOOGLE_CONFIG, STORAGE_KEYS } from '@/lib/config/constants';
-import { GoogleTokens, GoogleUser } from '@/lib/config/types';
+import { GoogleTokens, GoogleUser } from '@/domain/entities/types';
 import { storage } from '@/core/storage/safe-storage';
 
 /**

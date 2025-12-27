@@ -10,12 +10,12 @@ import type {
     CodexEntry,
     Act,
     Chapter
-} from '@/lib/config/types';
+} from '@/domain/entities/types';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
-import { generateText } from '@/lib/core/ai-client';
+import { generateText } from '@/lib/ai';
 import { getPromptTemplate } from '@/shared/prompts/templates';
 import { extractTextFromContent } from '@/shared/utils/editor';
 import { aiRateLimiter } from '@/infrastructure/services/ai-rate-limiter';
