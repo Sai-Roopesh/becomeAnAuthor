@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Detailed implementation specifications for the Next.js 16 frontend.**  
-> Last updated: 2025-12-25
+> Last updated: 2025-12-28
 
 ---
 

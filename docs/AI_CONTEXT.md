@@ -56,17 +56,24 @@ Handles **all business logic**, UI state management, and AI orchestration.
   - Custom mention system for Codex entries
 
 #### AI Integration
-- **SDK**: [Vercel AI SDK](https://sdk.vercel.ai/) v5
+- **SDK**: [Vercel AI SDK](https://sdk.vercel.ai/) v6 (December 2025)
 - **Core Functions**: `streamText`, `generateText` from `ai` package
-- **Official Providers**:
-  - `@ai-sdk/google` - Google Gemini
-  - `@ai-sdk/anthropic` - Claude
-  - `@ai-sdk/mistral` - Mistral AI
-  - `@ai-sdk/openai` - OpenAI + OpenAI-compatible (LM Studio, Ollama)
-  - `@ai-sdk/deepseek` - DeepSeek
-  - `@ai-sdk/groq` - Groq (fast inference)
+- **Official Providers** (v3.x - all @ai-sdk/* packages):
+  - `@ai-sdk/google` - Google Gemini 3 (Flash, Pro, Deep Think)
+  - `@ai-sdk/anthropic` - Claude 4.5 (Opus, Sonnet, Haiku)
+  - `@ai-sdk/openai` - GPT-5.2 (Instant, Thinking, Pro, Codex)
+  - `@ai-sdk/mistral` - Mistral Large 2.0
+  - `@ai-sdk/deepseek` - DeepSeek R1, Chat
+  - `@ai-sdk/groq` - Groq (fast inference on Llama, Mixtral)
+  - `@ai-sdk/cohere` - Command R+
+  - `@ai-sdk/xai` - Grok 2.5
+  - `@ai-sdk/azure` - Azure OpenAI
+  - `@ai-sdk/togetherai` - Together.ai hosted models
+  - `@ai-sdk/fireworks` - Fireworks fine-tuned models
+  - `@ai-sdk/perplexity` - Perplexity Sonar (search-augmented)
 - **Community Providers**: `@openrouter/ai-sdk-provider`
 - **Token Counting**: `@dqbd/tiktoken` (WebAssembly)
+- **Model Discovery**: Dynamic model fetching from provider APIs (no hardcoded lists)
 - **Pattern**: Provider Factory → Unified `streamText`/`generateText` API
 
 
@@ -226,7 +233,7 @@ frontend/
 │   │   ├── IChatRepository.ts
 │   │   ├── IAnalysisRepository.ts
 │   │   └── ... (7 more)
-│   └── services/            # Domain services
+│   └── services/            # Domain services\n│       └── IModelDiscoveryService.ts  # Dynamic model fetching
 ├── infrastructure/          # Implementation Layer
 │   ├── repositories/        # 12 Tauri Repository Implementations
 │   │   ├── TauriProjectRepository.ts

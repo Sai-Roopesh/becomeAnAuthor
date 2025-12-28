@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Rust/Tauri backend.**  
-> Last updated: 2025-12-25
+> Last updated: 2025-12-28
 
 ---
 

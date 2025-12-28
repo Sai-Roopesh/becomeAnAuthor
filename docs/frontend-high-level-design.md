@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Next.js 16 frontend.**  
-> Last updated: 2025-12-25
+> Last updated: 2025-12-28
 
 ---
 
@@ -145,7 +145,8 @@ frontend/
 │       ├── IAnalysisService.ts
 │       ├── IChatService.ts
 │       ├── IExportService.ts
-│   │       └── NodeDeletionService.ts
+│       ├── IModelDiscoveryService.ts  # Dynamic model fetching
+│       └── NodeDeletionService.ts
 │
 ├── infrastructure/            # Implementations
 │   ├── di/
@@ -158,7 +159,8 @@ frontend/
 │   └── services/
 │       ├── AnalysisService.ts
 │       ├── ChatService.ts
-│       └── DocumentExportService.ts
+│       ├── DocumentExportService.ts
+│       └── ModelDiscoveryService.ts  # Fetches models from 12 provider APIs
 │
 ├── features/                  # Feature-Sliced Design (17 features)
 │   ├── editor/               # Scene editor (23 components)
@@ -188,6 +190,7 @@ frontend/
 │   ├── use-confirmation.tsx  # Confirmation dialogs
 │   ├── use-prompt.tsx        # Input prompts
 │   ├── use-*-repository.ts   # Repository hooks (12 files)
+│   ├── use-model-discovery.ts # Dynamic model fetching from provider APIs
 │   └── ... (27 more hooks)
 │
 ├── lib/                      # Shared libraries
