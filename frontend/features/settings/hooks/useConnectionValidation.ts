@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { AIConnection } from '@/lib/config/ai-vendors';
-import { fetchModelsForConnection } from '@/lib/ai';
+import { modelDiscoveryService } from '@/infrastructure/services/ModelDiscoveryService';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('useConnectionValidation');
 
 /**
  * Hook for validating AI connections and fetching models.
- * Handles loading and error states.
+ * Uses ModelDiscoveryService for dynamic model fetching from provider APIs.
  */
 export function useConnectionValidation() {
     const [loading, setLoading] = useState(false);
@@ -26,23 +29,32 @@ export function useConnectionValidation() {
         setError('');
 
         try {
-            const connectionData: AIConnection = {
-                ...connection,
-                apiKey,
-            };
+            log.info(`Fetching models for ${connection.provider}...`);
 
-            if (customEndpoint) {
-                connectionData.customEndpoint = customEndpoint;
+            // Use ModelDiscoveryService for dynamic model fetching
+            const result = await modelDiscoveryService.fetchModels(
+                connection.provider,
+                apiKey,
+                customEndpoint
+            );
+
+            if (result.error) {
+                setError(result.error);
+                setLoading(false);
+                throw new Error(result.error);
             }
 
-            const fetchedModels = await fetchModelsForConnection(connectionData);
+            // Extract model IDs
+            const modelIds = result.models.map((m) => m.id);
+            log.info(`Found ${modelIds.length} models for ${connection.provider}`);
 
             setLoading(false);
-            return fetchedModels;
+            return modelIds;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch models';
             setError(errorMessage);
             setLoading(false);
+            log.error('Failed to fetch models:', err);
             throw err;
         }
     };
