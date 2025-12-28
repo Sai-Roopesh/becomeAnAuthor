@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Settings2, Maximize2 } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { useFormatStore } from '@/store/use-format-store';
 import {
     Tooltip,
@@ -21,11 +21,8 @@ export function FormatMenu() {
         fontFamily,
         fontSize,
         lineHeight,
-        textIndent,
         alignment,
-        paragraphSpacing,
         pageWidth,
-        writingMode,
         typewriterMode,
         continueInChapter,
         focusMode,

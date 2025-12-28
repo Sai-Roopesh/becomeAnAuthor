@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
 import type { CodexCategory, CodexTemplate } from '@/domain/entities/types';
@@ -28,7 +28,7 @@ interface TemplateSelectorProps {
  */
 export function TemplateSelector({
     category,
-    projectId,
+    projectId: _projectId,
     onSelectTemplate,
     onSkip,
     open,

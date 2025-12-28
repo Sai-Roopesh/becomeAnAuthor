@@ -13,7 +13,7 @@ import { useSceneNote } from '../hooks/use-scene-note';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/ui/empty-state';
-import { StickyNote, Trash2, Save, Loader2 } from 'lucide-react';
+import { StickyNote, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';

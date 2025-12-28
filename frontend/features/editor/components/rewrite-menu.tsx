@@ -5,13 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Wand2, Minimize2, Maximize2, RefreshCw, Eye, X } from 'lucide-react';
 import { useState, memo } from 'react';
 import { useAI } from '@/hooks/use-ai';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ModelCombobox } from '@/features/ai';
 import { TinkerMode } from './tinker-mode';
 import type { EditorStateManager } from '@/lib/core/editor-state-manager';

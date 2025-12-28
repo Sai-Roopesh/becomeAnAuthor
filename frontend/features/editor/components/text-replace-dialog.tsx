@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { ModelCombobox } from '@/features/ai';
 import { useAI } from '@/hooks/use-ai';
@@ -28,7 +27,7 @@ interface TextReplaceDialogProps {
     editorStateManager: EditorStateManager | null;  // Required for immediate save
 }
 
-export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId, seriesId, sceneId, editorStateManager }: TextReplaceDialogProps) {
+export function TextReplaceDialog({ action, selectedText, editor, onClose, projectId, seriesId, sceneId: _sceneId, editorStateManager }: TextReplaceDialogProps) {
     // Replace 7 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         initialTextReplaceState,

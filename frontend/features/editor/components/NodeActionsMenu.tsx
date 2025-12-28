@@ -5,13 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
+import { MoreVertical, Eye, EyeOff, FileText, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { useAI } from '@/hooks/use-ai';
 import { toast } from '@/shared/utils/toast-service';
-import { isScene, Scene } from '@/domain/entities/types';
+import { isScene } from '@/domain/entities/types';
 import { extractTextFromTiptapJSON } from '@/shared/utils/editor';
-import { FEATURE_FLAGS } from '@/lib/config/constants';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { logger } from '@/shared/utils/logger';
 

@@ -9,7 +9,6 @@
 
 import { useState, useRef, useMemo } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -35,14 +34,11 @@ import {
 } from '@/components/ui/select';
 import {
     Map,
-    Plus,
     Upload,
     MapPin,
     Trash2,
-    Edit,
     ZoomIn,
     ZoomOut,
-    Move,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMaps } from '../hooks/use-maps';

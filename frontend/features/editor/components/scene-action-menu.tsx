@@ -3,13 +3,12 @@
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { usePrompt } from '@/hooks/use-prompt';
 import { MoreVertical, Eye, EyeOff, FileText, Users, MessageSquare, Copy, FileDown, Archive, History } from 'lucide-react';
 import { useAI } from '@/hooks/use-ai';
 import { toast } from '@/shared/utils/toast-service';
-import { isScene, Scene } from '@/domain/entities/types';
+import { isScene } from '@/domain/entities/types';
 import { extractTextFromTiptapJSON } from '@/shared/utils/editor';
 import { FEATURE_FLAGS } from '@/lib/config/constants';
 import { useAppServices } from '@/infrastructure/di/AppContext';

@@ -9,7 +9,6 @@ import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Collaboration from '@tiptap/extension-collaboration';
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { useDebounce } from '@/hooks/use-debounce';
 import { useAI } from '@/hooks/use-ai';
 import { EditorStateManager } from '@/lib/core/editor-state-manager';
 import type { SaveStatus } from '@/lib/core/editor-state-manager';
@@ -67,7 +66,7 @@ export function TiptapEditor({
     const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
     const previousSceneIdRef = useRef<string | null>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
-    const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
+    const { codexRepository: codexRepo } = useAppServices();
     const { assembleContext } = useContextAssembly(projectId);
 
     // Save state management with EditorStateManager
@@ -459,7 +458,6 @@ YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
             <div className="flex items-center justify-between border-b">
                 <EditorToolbar
                     editor={editor}
-                    isGenerating={isGenerating}
                     onInsertSection={handleInsertSection}
                 />
                 <div className="flex items-center gap-4 pr-4">

@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Editor } from '@tiptap/react';
 import { useAI } from '@/hooks/use-ai';
 import { ModelCombobox } from '@/features/ai';
-import { Loader2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
 interface TinkerModeProps {
@@ -19,7 +19,7 @@ interface TinkerModeProps {
     editorStateManager: EditorStateManager | null;  // Required for immediate save
 }
 
-export function TinkerMode({ editor, open, onOpenChange, sceneId, editorStateManager }: TinkerModeProps) {
+export function TinkerMode({ editor, open, onOpenChange, sceneId: _sceneId, editorStateManager }: TinkerModeProps) {
     const [instruction, setInstruction] = useState('');
     const [streamingResult, setStreamingResult] = useState('');
 

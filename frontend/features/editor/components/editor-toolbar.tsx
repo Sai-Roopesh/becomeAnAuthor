@@ -15,8 +15,6 @@ import {
     List,
     ListOrdered,
     Square,
-    Heading1,
-    Heading2,
     Quote,
     Undo,
     Redo
@@ -57,11 +55,9 @@ function ToolbarButton({ icon: Icon, label, shortcut, onClick, isActive, disable
 
 export function EditorToolbar({
     editor,
-    isGenerating,
     onInsertSection
 }: {
     editor: Editor;
-    isGenerating: boolean;
     onInsertSection?: () => void;
 }) {
     return (

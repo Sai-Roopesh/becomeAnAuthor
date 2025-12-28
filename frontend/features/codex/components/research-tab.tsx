@@ -2,7 +2,6 @@
 
 import { CodexEntry } from '@/domain/entities/types';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Plus, ExternalLink, X } from 'lucide-react';
 import { usePrompt } from '@/hooks/use-prompt';

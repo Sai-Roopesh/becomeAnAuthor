@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { Copy, History, Sparkles, Upload, Plus, Trash2 } from 'lucide-react';
+import { Copy, History, Sparkles, Plus, Trash2 } from 'lucide-react';
 import { useAI } from '@/hooks/use-ai';
 import { toast } from '@/shared/utils/toast-service';
 

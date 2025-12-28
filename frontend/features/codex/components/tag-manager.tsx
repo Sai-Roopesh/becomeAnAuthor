@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useCodexTagRepository } from '@/hooks/use-codex-tag-repository';
-import type { CodexTag } from '@/domain/entities/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
