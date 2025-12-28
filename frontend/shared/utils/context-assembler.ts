@@ -5,7 +5,7 @@
  */
 
 import { countTokens } from './token-counter';
-import type { TiptapContent, TiptapNode, TiptapElementNode } from '@/shared/types/tiptap';
+import type { TiptapContent, TiptapNode } from '@/shared/types/tiptap';
 import { isElementNode } from '@/shared/types/tiptap';
 
 export interface ContextItem {
