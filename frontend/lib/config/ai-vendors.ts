@@ -32,29 +32,29 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     google: {
         id: 'google',
         name: 'Google AI Studio',
-        description: 'Gemini models (2.5, 3.0)',
+        description: 'Gemini 3 Flash, Pro, Deep Think',
         icon: '🔷',
         setupUrl: 'https://aistudio.google.com/app/apikey',
         requiresAuth: true,
-        defaultModels: ['gemini-2.5-flash', 'gemini-2.5-pro-preview-03-25', 'gemini-3-pro-preview'],
+        // Models fetched dynamically from API
     },
     anthropic: {
         id: 'anthropic',
         name: 'Anthropic',
-        description: 'Claude models (3.5, 4)',
+        description: 'Claude Opus 4.5, Sonnet 4.5, Haiku 4.5',
         icon: '🧠',
         setupUrl: 'https://console.anthropic.com/settings/keys',
         requiresAuth: true,
-        defaultModels: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest'],
+        // Models fetched dynamically from API
     },
     openai: {
         id: 'openai',
         name: 'OpenAI / Local',
-        description: 'OpenAI or compatible endpoints (LM Studio, Ollama)',
+        description: 'GPT-5.2, o1, or compatible endpoints (LM Studio, Ollama)',
         icon: '⚡',
         setupUrl: 'https://platform.openai.com/api-keys',
         requiresAuth: false,
-        defaultModels: ['gpt-4o', 'gpt-4o-mini'],
+        // Models fetched dynamically from API
     },
     mistral: {
         id: 'mistral',
@@ -63,7 +63,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '🌫️',
         setupUrl: 'https://console.mistral.ai/api-keys/',
         requiresAuth: true,
-        defaultModels: ['mistral-large-latest', 'mistral-small-latest'],
+        // Models fetched dynamically from API
     },
     deepseek: {
         id: 'deepseek',
@@ -72,7 +72,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '🔍',
         setupUrl: 'https://platform.deepseek.com/api_keys',
         requiresAuth: true,
-        defaultModels: ['deepseek-chat', 'deepseek-reasoner'],
+        // Models fetched dynamically from API
     },
     groq: {
         id: 'groq',
@@ -81,7 +81,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '⚡',
         setupUrl: 'https://console.groq.com/keys',
         requiresAuth: true,
-        defaultModels: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+        // Models fetched dynamically from API
     },
     cohere: {
         id: 'cohere',
@@ -90,7 +90,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '📊',
         setupUrl: 'https://dashboard.cohere.com/api-keys',
         requiresAuth: true,
-        defaultModels: ['command-r-plus', 'command-r'],
+        // Models fetched dynamically from API
     },
     xai: {
         id: 'xai',
@@ -99,7 +99,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '🤖',
         setupUrl: 'https://x.ai/',
         requiresAuth: true,
-        defaultModels: ['grok-2', 'grok-2-mini'],
+        // Models fetched dynamically from API
     },
     azure: {
         id: 'azure',
@@ -116,7 +116,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '🤝',
         setupUrl: 'https://api.together.xyz/settings/api-keys',
         requiresAuth: true,
-        defaultModels: ['meta-llama/Llama-3-70b-chat-hf'],
+        // Models fetched dynamically from API
     },
     fireworks: {
         id: 'fireworks',
@@ -133,7 +133,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '🔎',
         setupUrl: 'https://www.perplexity.ai/settings/api',
         requiresAuth: true,
-        defaultModels: ['llama-3.1-sonar-small-128k-online'],
+        // Models fetched dynamically from API
     },
     kimi: {
         id: 'kimi',
@@ -142,7 +142,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
         icon: '🌙',
         setupUrl: 'https://platform.moonshot.cn/console/api-keys',
         requiresAuth: true,
-        defaultModels: ['kimi-v1-405b'],
+        // Models fetched dynamically from API
     },
 };
 
