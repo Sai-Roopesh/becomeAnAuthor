@@ -154,9 +154,11 @@ export function getModelSpec(model: string): ModelSpec {
 /**
  * Calculate output tokens based on word count
  * Rule of thumb: 1 word ≈ 1.3 tokens (English average)
+ * We use 2x multiplier to ensure enough tokens for the requested output
  */
 export function wordsToTokens(words: number): number {
-    return Math.ceil(words * 1.3);
+    // Use 2x multiplier to provide buffer for AI to complete thoughts
+    return Math.ceil(words * 2);
 }
 
 /**
@@ -168,12 +170,14 @@ export function wordsToTokens(words: number): number {
 export function calculateMaxTokens(model: string, userWordCount: number): number {
     const spec = getModelSpec(model);
 
-    // Convert user's word count to tokens
+    // Convert user's word count to tokens with generous buffer
+    // Users expect 400 words, so we need ~800 tokens minimum
     const requestedTokens = wordsToTokens(userWordCount);
 
     // Calculate max allowed after reserving space for thinking tokens
     const maxAllowed = spec.maxOutputTokens - spec.thinkingTokenBudget;
 
     // Return requested or max allowed, whichever is smaller
-    return Math.min(requestedTokens, maxAllowed);
+    // Minimum of 1000 tokens to ensure meaningful output
+    return Math.max(1000, Math.min(requestedTokens, maxAllowed));
 }
