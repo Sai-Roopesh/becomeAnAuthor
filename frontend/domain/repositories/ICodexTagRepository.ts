@@ -1,4 +1,4 @@
-import type { CodexTag, CodexEntryTag } from '@/domain/entities/types';
+import type { CodexTag } from '@/domain/entities/types';
 
 /**
  * Repository interface for Codex Tag operations

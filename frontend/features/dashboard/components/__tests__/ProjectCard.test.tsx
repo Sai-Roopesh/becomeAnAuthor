@@ -270,7 +270,7 @@ describe('ProjectCard Component', () => {
             expect(screen.getByTestId('export-button')).toBeInTheDocument();
         });
 
-        it('MUST include delete option in dropdown', () => {
+        it('MUST call onDelete when delete option is clicked', () => {
             render(
                 <ProjectCard
                     project={createMockProject()}
@@ -278,7 +278,14 @@ describe('ProjectCard Component', () => {
                 />
             );
 
-            expect(screen.getByText('Delete Project')).toBeInTheDocument();
+            // Open dropdown
+            fireEvent.click(screen.getByTestId('more-icon'));
+
+            // Click delete option
+            fireEvent.click(screen.getByText('Delete Project'));
+
+            expect(mockOnDelete).toHaveBeenCalled();
         });
     });
 });
+

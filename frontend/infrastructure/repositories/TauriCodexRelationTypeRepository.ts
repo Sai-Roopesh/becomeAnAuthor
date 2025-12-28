@@ -31,7 +31,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         if (!projectPath) return [];
 
         try {
-            return await listCodexRelationTypes(projectPath) as unknown as CodexRelationType[];
+            return await listCodexRelationTypes(projectPath);
         } catch (error) {
             console.error('Failed to list codex relation types:', error);
             return [];
@@ -40,7 +40,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
 
     async getByCategory(category: string): Promise<CodexRelationType[]> {
         const types = await this.getAll();
-        return types.filter(t => (t as any).category === category);
+        return types.filter(t => t.category === category);
     }
 
     async getBuiltIn(): Promise<CodexRelationType[]> {
@@ -58,7 +58,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         } as CodexRelationType;
 
         try {
-            await saveCodexRelationType(projectPath, newType as any);
+            await saveCodexRelationType(projectPath, newType);
             return newType;
         } catch (error) {
             console.error('Failed to create codex relation type:', error);
@@ -75,7 +75,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
 
         const updated = { ...existing, ...data };
         try {
-            await saveCodexRelationType(projectPath, updated as any);
+            await saveCodexRelationType(projectPath, updated);
         } catch (error) {
             console.error('Failed to update codex relation type:', error);
             throw error;

@@ -75,7 +75,7 @@ describe('EmergencyBackupService Contract', () => {
             const call = vi.mocked(invoke).mock.calls.find(c => c[0] === 'save_emergency_backup');
             expect(call).toBeDefined();
 
-            const backup = (call![1] as any).backup;
+            const backup = (call![1] as { backup: { expiresAt: number } }).backup;
 
             // SPECIFICATION: expiresAt MUST be ~24 hours from now
             const expectedExpiry = beforeSave + 24 * 60 * 60 * 1000;
@@ -89,7 +89,7 @@ describe('EmergencyBackupService Contract', () => {
             await service.saveBackup('scene-123', { type: 'doc', content: [] });
 
             const call = vi.mocked(invoke).mock.calls.find(c => c[0] === 'save_emergency_backup');
-            const backup = (call![1] as any).backup;
+            const backup = (call![1] as { backup: { id: string } }).backup;
 
             // ID format: backup_{sceneId}_{timestamp}
             expect(backup.id).toMatch(/^backup_scene-123_\d+$/);
@@ -102,7 +102,7 @@ describe('EmergencyBackupService Contract', () => {
             await service.saveBackup('scene-1', content);
 
             const call = vi.mocked(invoke).mock.calls.find(c => c[0] === 'save_emergency_backup');
-            const backup = (call![1] as any).backup;
+            const backup = (call![1] as { backup: { content: string } }).backup;
 
             // Content MUST be stringified for storage
             expect(typeof backup.content).toBe('string');
@@ -123,7 +123,7 @@ describe('EmergencyBackupService Contract', () => {
             }));
 
             const { EmergencyBackupService } = await import('@/infrastructure/services/emergency-backup-service');
-            const noPathService = new EmergencyBackupService();
+            new EmergencyBackupService();
 
             // This test verifies the service handles missing path
             // The actual behavior depends on implementation

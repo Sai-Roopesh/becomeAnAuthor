@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { DocumentNode, CodexEntry, SceneCodexLink } from '@/domain/entities/types';
+import type { DocumentNode } from '@/domain/entities/types';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { extractScenes, calculateChapterBoundaries } from '../utils/timeline-utils';
+import { extractScenes } from '../utils/timeline-utils';
 import { TimelineHeader } from './timeline/TimelineHeader';
 import { TimelineLane } from './timeline/TimelineLane';
 import { TimelineControls, type LaneCategory } from './timeline/TimelineControls';
@@ -19,15 +19,15 @@ interface TimelineViewProps {
     searchQuery: string;
 }
 
-export function TimelineView({ projectId, seriesId, nodes, searchQuery }: TimelineViewProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQuery }: TimelineViewProps) {
     const {
-        projectRepository: projectRepo,
         codexRepository: codexRepo,
         sceneCodexLinkRepository: linkRepo
     } = useAppServices();
 
     const router = useRouter();
-    const { setActiveSceneId, setShowSidebar, toggleSidebar } = useProjectStore();
+    const { setActiveSceneId, setShowSidebar } = useProjectStore();
     const [visibleCategories, setVisibleCategories] = useState<LaneCategory[]>(['character', 'subplot', 'location']);
 
     // Data fetching (series-level codex)
@@ -44,10 +44,7 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery }: Timeli
     // Process data
     const scenes = useMemo(() => extractScenes(nodes), [nodes]);
 
-    const filteredScenes = useMemo(() => {
-        if (!searchQuery) return scenes;
-        return scenes.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [scenes, searchQuery]);
+    // filteredScenes removed - unused
 
     const visibleLanes = useMemo(() => {
         if (!codexEntries) return [];

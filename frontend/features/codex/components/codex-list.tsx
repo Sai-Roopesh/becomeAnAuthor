@@ -94,7 +94,7 @@ export function CodexList({ projectId, seriesId }: CodexListProps) {
                 if (selectedEntityId === entry.id) {
                     setSelectedEntityId(null);
                 }
-            } catch (error) {
+            } catch {
                 toast.error('Failed to delete entity');
             }
         }

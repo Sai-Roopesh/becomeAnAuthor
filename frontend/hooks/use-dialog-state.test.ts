@@ -10,10 +10,6 @@ import {
     initialContinueWritingState,
     textSelectionReducer,
     initialTextSelectionState,
-    TextReplaceAction,
-    TweakGenerateAction,
-    ContinueWritingAction,
-    TextSelectionAction,
 } from './use-dialog-state';
 
 describe('useDialogState', () => {
@@ -71,10 +67,12 @@ describe('useDialogState', () => {
         });
 
         it('should handle SET_SELECTED_CONTEXTS', () => {
-            const contexts = [{ type: 'scene', id: '1', name: 'Test' }];
+            const contexts = [{ type: 'scene', id: '1', name: 'Test', label: 'Test Scene' }] as const;
+            // Or better, let it infer correctly or cast object elements
+            const payload = [{ type: 'scene' as const, id: '1', name: 'Test', label: 'Test Scene' }];
             const state = textReplaceReducer(initialTextReplaceState, {
                 type: 'SET_SELECTED_CONTEXTS',
-                payload: contexts as any,
+                payload,
             });
             expect(state.selectedContexts).toEqual(contexts);
         });

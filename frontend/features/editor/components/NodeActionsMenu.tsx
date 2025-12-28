@@ -45,7 +45,6 @@ STYLE:
 
 EXAMPLE:
 "Marcus infiltrates the gala to steal classified files. Security recognizes him from surveillance footage, forcing an improvised escape through the kitchen. He escapes but without the files—and now they know he's onto them."`,
-        streaming: false,
         operationName: 'Scene Summarization',
     });
 
@@ -139,7 +138,7 @@ SUMMARY (2-3 sentences, present tense):`,
     };
 
     const executeArchive = async () => {
-        await nodeRepo.update(nodeId, { archived: true } as any);
+        await nodeRepo.update(nodeId, { archived: true });
         const { invalidateQueries } = await import('@/hooks/use-live-query');
         invalidateQueries();
         toast.success('Scene archived');

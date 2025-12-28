@@ -19,7 +19,7 @@ interface TinkerModeProps {
     editorStateManager: EditorStateManager | null;  // Required for immediate save
 }
 
-export function TinkerMode({ editor, open, onOpenChange, sceneId: _sceneId, editorStateManager }: TinkerModeProps) {
+export function TinkerMode({ editor, open, onOpenChange, editorStateManager }: TinkerModeProps) {
     const [instruction, setInstruction] = useState('');
     const [streamingResult, setStreamingResult] = useState('');
 
@@ -41,7 +41,6 @@ COMMON MODIFICATIONS:
 - "More formal/informal" → Adjust vocabulary and sentence structure
 
 Follow the user's instructions precisely. Output only the modified text without explanation.`,
-        streaming: true,
         persistModel: true,
         operationName: 'Tinker Mode',
     });

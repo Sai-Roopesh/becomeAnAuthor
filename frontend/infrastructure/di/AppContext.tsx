@@ -113,14 +113,14 @@ export function AppProvider({ children, services: customServices }: AppProviderP
                     if (!instance) {
                         instance = factory();
                     }
-                    return (instance as any)[prop];
+                    return Reflect.get(instance as object, prop);
                 },
                 // Support method binding
                 apply(_, thisArg, args) {
                     if (!instance) {
                         instance = factory();
                     }
-                    return Reflect.apply(instance as any, thisArg, args);
+                    return Reflect.apply(instance as (...args: unknown[]) => unknown, thisArg, args);
                 }
             });
         };

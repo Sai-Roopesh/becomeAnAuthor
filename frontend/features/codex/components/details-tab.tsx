@@ -20,7 +20,6 @@ export function DetailsTab({ entity, onChange }: DetailsTabProps) {
     const [newAttrValue, setNewAttrValue] = useState('');
     const { generate, isGenerating } = useAI({
         system: 'You are a helpful creative writing assistant specializing in world-building.',
-        streaming: false,
         operationName: 'Codex Description Generation',
     });
 

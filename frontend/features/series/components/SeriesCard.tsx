@@ -196,7 +196,7 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
 
             {/* Edit Series Dialog */}
             <EditSeriesDialog
-                series={series as any}
+                series={series}
                 open={showEditDialog}
                 onOpenChange={setShowEditDialog}
             />

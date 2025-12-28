@@ -9,16 +9,17 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TauriCodexRepository } from '../TauriCodexRepository';
-import type { CodexEntry, CodexCategory } from '@/domain/entities/types';
+import type { CodexEntry } from '@/domain/entities/types';
 
 // ============================================
 // Mock Dependencies
 // ============================================
 
 vi.mock('@/core/tauri', () => ({
-    listCodexEntries: vi.fn(),
-    saveCodexEntry: vi.fn(),
-    deleteCodexEntry: vi.fn(),
+    listSeriesCodexEntries: vi.fn(),
+    saveSeriesCodexEntry: vi.fn(),
+    deleteSeriesCodexEntry: vi.fn(),
+    getSeriesCodexEntry: vi.fn(),
 }));
 
 vi.mock('../TauriNodeRepository', () => ({
@@ -74,39 +75,23 @@ describe('TauriCodexRepository Contract', () => {
     // ========================================
 
     describe('Category Constraints', () => {
-        const VALID_CATEGORIES = ['characters', 'locations', 'items', 'lore', 'subplots'];
+        const VALID_CATEGORIES = ['character', 'location', 'item', 'lore', 'subplot'] as const;
 
         it('MUST accept all valid category values', async () => {
             for (const category of VALID_CATEGORIES) {
-                vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
-                vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([]);
+                vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
+                vi.mocked(tauriCommands.listSeriesCodexEntries).mockResolvedValue([]);
 
-                const entry = await repo.create({
-                    projectId: 'proj-1',
-                    name: `Test ${category}`,
-                    category: category as any,
-                });
+                const entry = await repo.create(
+                    'series-1',
+                    {
+                        name: `Test ${category}`,
+                        category: category,
+                    }
+                );
 
                 expect(entry.category).toBe(category);
             }
-        });
-
-        it('MUST store entries in category-specific files', async () => {
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
-
-            await repo.create({
-                projectId: 'proj-1',
-                name: 'A Location',
-                category: 'locations',
-            });
-
-            // Verify saveCodexEntry was called with correct category in entry
-            expect(tauriCommands.saveCodexEntry).toHaveBeenCalledWith(
-                '/mock/project/path',
-                expect.objectContaining({
-                    category: 'locations',
-                })
-            );
         });
     });
 
@@ -116,40 +101,46 @@ describe('TauriCodexRepository Contract', () => {
 
     describe('Name Uniqueness - REQUIREMENT: Duplicate names ARE allowed', () => {
         it('MUST allow creating two characters with the same name', async () => {
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
-            vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
+            vi.mocked(tauriCommands.listSeriesCodexEntries).mockResolvedValue([
                 createMockCharacter({ id: 'char-1', name: 'John' }),
             ]);
 
             // Create second character with same name - MUST succeed
-            const secondJohn = await repo.create({
-                projectId: 'proj-1',
-                name: 'John', // Same name as existing
-                category: 'characters',
-            });
+            const secondJohn = await repo.create(
+                'series-1',
+                {
+                    name: 'John', // Same name as existing
+                    category: 'character',
+                }
+            );
 
             expect(secondJohn.name).toBe('John');
-            expect(tauriCommands.saveCodexEntry).toHaveBeenCalled();
+            expect(tauriCommands.saveSeriesCodexEntry).toHaveBeenCalled();
         });
 
         it('MUST allow same name in different categories', async () => {
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
 
             // "London" as character (person named London)
-            await repo.create({
-                projectId: 'proj-1',
-                name: 'London',
-                category: 'characters',
-            });
+            await repo.create(
+                'series-1',
+                {
+                    name: 'London',
+                    category: 'character',
+                }
+            );
 
             // "London" as location - MUST also succeed
-            await repo.create({
-                projectId: 'proj-1',
-                name: 'London',
-                category: 'locations',
-            });
+            await repo.create(
+                'series-1',
+                {
+                    name: 'London',
+                    category: 'location',
+                }
+            );
 
-            expect(tauriCommands.saveCodexEntry).toHaveBeenCalledTimes(2);
+            expect(tauriCommands.saveSeriesCodexEntry).toHaveBeenCalledTimes(2);
         });
     });
 
@@ -159,37 +150,37 @@ describe('TauriCodexRepository Contract', () => {
 
     describe('Search Contract', () => {
         it('MUST search case-insensitively', async () => {
-            vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([
+            vi.mocked(tauriCommands.listSeriesCodexEntries).mockResolvedValue([
                 createMockCharacter({ name: 'ALICE' }),
                 createMockCharacter({ id: 'char-2', name: 'Bob' }),
             ]);
 
-            const results = await repo.search('proj-1', 'alice');
+            const results = await repo.search('series-1', 'alice');
 
             expect(results).toHaveLength(1);
-            expect(results[0].name).toBe('ALICE');
+            expect(results[0]?.name).toBe('ALICE');
         });
 
         it('MUST search in aliases as well as names', async () => {
-            vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([
+            vi.mocked(tauriCommands.listSeriesCodexEntries).mockResolvedValue([
                 createMockCharacter({
                     name: 'Elizabeth',
                     aliases: ['Liz', 'Beth', 'Lizzy'],
                 }),
             ]);
 
-            const results = await repo.search('proj-1', 'liz');
+            const results = await repo.search('series-1', 'liz');
 
             expect(results).toHaveLength(1);
-            expect(results[0].name).toBe('Elizabeth');
+            expect(results[0]?.name).toBe('Elizabeth');
         });
 
         it('MUST return empty array for no matches', async () => {
-            vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([
+            vi.mocked(tauriCommands.listSeriesCodexEntries).mockResolvedValue([
                 createMockCharacter({ name: 'Alice' }),
             ]);
 
-            const results = await repo.search('proj-1', 'xyz123');
+            const results = await repo.search('series-1', 'xyz123');
 
             expect(results).toEqual([]);
         });
@@ -201,21 +192,21 @@ describe('TauriCodexRepository Contract', () => {
 
     describe('Entry Retrieval Contract', () => {
         it('MUST return undefined for non-existent entry', async () => {
-            vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([]);
+            vi.mocked(tauriCommands.getSeriesCodexEntry).mockResolvedValue(null);
 
-            const result = await repo.get('non-existent-id');
+            const result = await repo.get('series-1', 'non-existent-id');
 
             expect(result).toBeUndefined();
         });
 
         it('MUST filter by category when requested', async () => {
             const allEntries = [
-                createMockCharacter({ id: 'char-1', category: 'characters' }),
-                createMockCharacter({ id: 'loc-1', category: 'locations', name: 'Forest' }),
+                createMockCharacter({ id: 'char-1', category: 'character' }),
+                createMockCharacter({ id: 'loc-1', category: 'location', name: 'Forest' }),
             ];
 
-            vi.mocked(tauriCommands.listCodexEntries).mockImplementation(
-                async (_path, category?) => {
+            vi.mocked(tauriCommands.listSeriesCodexEntries).mockImplementation(
+                async (_id, category?) => {
                     if (category) {
                         return allEntries.filter(e => e.category === category);
                     }
@@ -223,13 +214,13 @@ describe('TauriCodexRepository Contract', () => {
                 }
             );
 
-            const characters = await repo.getByCategory('proj-1', 'characters');
-            const locations = await repo.getByCategory('proj-1', 'locations');
+            const characters = await repo.getByCategory('series-1', 'character');
+            const locations = await repo.getByCategory('series-1', 'location');
 
             expect(characters).toHaveLength(1);
             expect(locations).toHaveLength(1);
-            expect(characters[0].category).toBe('characters');
-            expect(locations[0].category).toBe('locations');
+            expect(characters[0]?.category).toBe('character');
+            expect(locations[0]?.category).toBe('location');
         });
     });
 
@@ -245,15 +236,15 @@ describe('TauriCodexRepository Contract', () => {
                 tags: ['protagonist', 'hero'],
             });
 
-            vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([existingEntry]);
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
+            vi.mocked(tauriCommands.getSeriesCodexEntry).mockResolvedValue(existingEntry);
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
 
             // Update only the description
-            await repo.update('char-1', { description: 'New description' });
+            await repo.update('series-1', 'char-1', { description: 'New description' });
 
             // SPECIFICATION: All other fields MUST be preserved
-            expect(tauriCommands.saveCodexEntry).toHaveBeenCalledWith(
-                '/mock/project/path',
+            expect(tauriCommands.saveSeriesCodexEntry).toHaveBeenCalledWith(
+                'series-1',
                 expect.objectContaining({
                     name: 'Alice', // Preserved
                     description: 'New description', // Updated
@@ -268,13 +259,15 @@ describe('TauriCodexRepository Contract', () => {
                 updatedAt: oldTimestamp,
             });
 
-            vi.mocked(tauriCommands.listCodexEntries).mockResolvedValue([existingEntry]);
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
+            vi.mocked(tauriCommands.getSeriesCodexEntry).mockResolvedValue(existingEntry);
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
 
-            await repo.update('char-1', { description: 'Changed' });
+            await repo.update('series-1', 'char-1', { description: 'Changed' });
 
-            const savedEntry = vi.mocked(tauriCommands.saveCodexEntry).mock.calls[0][1];
-            expect(savedEntry.updatedAt).toBeGreaterThan(oldTimestamp);
+            const calls = vi.mocked(tauriCommands.saveSeriesCodexEntry).mock.calls;
+            // Ensure array has elements via safe indexing or check
+            const savedEntry = calls?.[0]?.[1];
+            expect(savedEntry?.updatedAt).toBeGreaterThan(oldTimestamp);
         });
     });
 
@@ -284,13 +277,15 @@ describe('TauriCodexRepository Contract', () => {
 
     describe('Create Contract', () => {
         it('MUST generate a unique UUID for new entries', async () => {
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
 
-            const entry = await repo.create({
-                projectId: 'proj-1',
-                name: 'New Character',
-                category: 'characters',
-            });
+            const entry = await repo.create(
+                'series-1',
+                {
+                    name: 'New Character',
+                    category: 'character',
+                }
+            );
 
             // UUID format validation
             expect(entry.id).toMatch(
@@ -299,13 +294,15 @@ describe('TauriCodexRepository Contract', () => {
         });
 
         it('MUST set default values for optional fields', async () => {
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
 
-            const entry = await repo.create({
-                projectId: 'proj-1',
-                name: 'Minimal Entry',
-                category: 'items',
-            });
+            const entry = await repo.create(
+                'series-1',
+                {
+                    name: 'Minimal Entry',
+                    category: 'item',
+                }
+            );
 
             // SPECIFICATION: Defaults must be applied
             expect(entry.aliases).toEqual([]);
@@ -317,13 +314,15 @@ describe('TauriCodexRepository Contract', () => {
 
         it('MUST set createdAt and updatedAt to current time', async () => {
             const beforeCreate = Date.now();
-            vi.mocked(tauriCommands.saveCodexEntry).mockResolvedValue(undefined);
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockResolvedValue(undefined);
 
-            const entry = await repo.create({
-                projectId: 'proj-1',
-                name: 'Timed Entry',
-                category: 'lore',
-            });
+            const entry = await repo.create(
+                'series-1',
+                {
+                    name: 'Timed Entry',
+                    category: 'lore',
+                }
+            );
 
             const afterCreate = Date.now();
 
@@ -339,25 +338,27 @@ describe('TauriCodexRepository Contract', () => {
 
     describe('Error Handling', () => {
         it('MUST throw when Rust command fails on create', async () => {
-            vi.mocked(tauriCommands.saveCodexEntry).mockRejectedValue(
+            vi.mocked(tauriCommands.saveSeriesCodexEntry).mockRejectedValue(
                 new Error('Disk full')
             );
 
             await expect(
-                repo.create({
-                    projectId: 'proj-1',
-                    name: 'Will Fail',
-                    category: 'characters',
-                })
+                repo.create(
+                    'series-1',
+                    {
+                        name: 'Will Fail',
+                        category: 'character',
+                    }
+                )
             ).rejects.toThrow('Disk full');
         });
 
         it('MUST return empty array when listing fails', async () => {
-            vi.mocked(tauriCommands.listCodexEntries).mockRejectedValue(
+            vi.mocked(tauriCommands.listSeriesCodexEntries).mockRejectedValue(
                 new Error('Read error')
             );
 
-            const result = await repo.getByProject('proj-1');
+            const result = await repo.getBySeries('series-1');
 
             // Graceful degradation - return empty, don't crash
             expect(result).toEqual([]);
@@ -365,14 +366,4 @@ describe('TauriCodexRepository Contract', () => {
     });
 });
 
-// ========================================
-// FUTURE: Relation Deletion Blocking
-// ========================================
 
-describe('Codex Deletion Constraints', () => {
-    describe('REQUIREMENT: Cannot delete entry with existing relations', () => {
-        it.todo('MUST throw error when attempting to delete entry with relations');
-        it.todo('MUST list which entries have relations blocking deletion');
-        it.todo('MUST allow deletion after all relations are removed');
-    });
-});

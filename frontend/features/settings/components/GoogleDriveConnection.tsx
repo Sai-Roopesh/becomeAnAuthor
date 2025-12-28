@@ -42,7 +42,7 @@ export function GoogleDriveConnection() {
     const handleSignIn = async () => {
         try {
             await signIn();
-        } catch (error) {
+        } catch {
             toast.error('Failed to connect Google Drive');
         }
     };
@@ -52,7 +52,7 @@ export function GoogleDriveConnection() {
             await signOut();
             setQuota(null);
             toast.success('Disconnected from Google Drive');
-        } catch (error) {
+        } catch {
             toast.error('Failed to disconnect');
         }
     };

@@ -28,7 +28,7 @@ interface TemplateSelectorProps {
  */
 export function TemplateSelector({
     category,
-    projectId: _projectId,
+    // projectId removed - unused
     onSelectTemplate,
     onSkip,
     open,

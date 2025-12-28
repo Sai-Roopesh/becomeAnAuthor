@@ -43,7 +43,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useMaps } from '../hooks/use-maps';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import type { ProjectMap, MapMarker, CodexEntry } from '@/domain/entities/types';
+import type { ProjectMap, MapMarker } from '@/domain/entities/types';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 interface MapViewProps {
@@ -80,7 +80,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
 
     const {
         maps,
-        loading: isLoading,
+        // loading removed - unused
         saveMap,
         deleteMap,
         uploadImage
@@ -88,6 +88,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
 
     const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
     const [isAddingMarker, setIsAddingMarker] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [editingMarker, setEditingMarker] = useState<MapMarker | null>(null);
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [newMapName, setNewMapName] = useState('');
@@ -372,7 +373,8 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
                                                                 handleUpdateMarker({ ...marker, codexId: v });
                                                             } else {
                                                                 // Delete the optional property instead of setting to undefined
-                                                                const { codexId, ...rest } = marker;
+                                                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                                                const { codexId: _codexId, ...rest } = marker;
                                                                 handleUpdateMarker(rest as MapMarker);
                                                             }
                                                         }}

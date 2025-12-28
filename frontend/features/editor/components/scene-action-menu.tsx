@@ -24,7 +24,6 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
     const { prompt, PromptDialog } = usePrompt();
     const { generate, isGenerating } = useAI({
         system: 'You are a helpful assistant that summarizes creative writing scenes.',
-        streaming: false,
         operationName: 'Scene Summarization',
     });
 
@@ -121,7 +120,7 @@ export function SceneActionMenu({ sceneId }: SceneActionMenuProps) {
         });
 
         if (confirmed) {
-            await nodeRepo.update(sceneId, { archived: true } as any);
+            await nodeRepo.update(sceneId, { archived: true });
             toast.success('Scene archived');
         }
     };

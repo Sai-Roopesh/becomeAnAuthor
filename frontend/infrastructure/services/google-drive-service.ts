@@ -4,7 +4,7 @@
  */
 
 import { googleAuthService } from './google-auth-service';
-import { DriveFile, DriveQuota, DriveBackupMetadata, ExportedProject } from '@/domain/entities/types';
+import { DriveFile, DriveQuota, DriveBackupMetadata } from '@/domain/entities/types';
 import { fetchWithTimeout } from '@/core/api/fetch-utils';
 
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';

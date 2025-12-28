@@ -35,7 +35,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
     const snippetRepo = useSnippetRepository();
 
     // Editor state management
-    const { editorWordCount, handleWordCountUpdate } = useEditorState(activeSceneId);
+    const { editorWordCount, handleWordCountUpdate } = useEditorState();
 
     // Fetch project to get seriesId
     const project = useLiveQuery(

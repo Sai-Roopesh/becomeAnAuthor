@@ -26,7 +26,6 @@ export function TimelineLane({
     scenes,
     sceneIndices,
     links,
-    totalWidth,
     onOpenScene,
 }: TimelineLaneProps) {
     const config = CATEGORY_CONFIG[lane.category];

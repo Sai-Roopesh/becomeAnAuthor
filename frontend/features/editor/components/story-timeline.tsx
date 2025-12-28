@@ -79,7 +79,7 @@ export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = fa
                         <div className="space-y-6">
                             {scenes.map((scene, index) => {
                                 const isActive = scene.id === activeSceneId;
-                                const sceneData = scene as any;
+                                const sceneData = scene as import('@/domain/entities/types').Scene;
 
                                 // Use live word count for active scene, stored for others
                                 const displayWordCount = isActive && activeSceneWordCount !== undefined
@@ -171,7 +171,7 @@ export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = fa
                     <div className="flex justify-between items-center">
                         <span>Total Words</span>
                         <span className="font-medium font-mono bg-background/50 px-1.5 py-0.5 rounded border border-border/30">
-                            {scenes.reduce((sum, s) => sum + ((s as any).wordCount || 0), 0).toLocaleString()}
+                            {scenes.reduce((sum, s) => sum + ((s as import('@/domain/entities/types').Scene).wordCount || 0), 0).toLocaleString()}
                         </span>
                     </div>
                 </div>

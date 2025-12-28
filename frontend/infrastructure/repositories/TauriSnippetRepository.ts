@@ -25,7 +25,8 @@ export class TauriSnippetRepository implements ISnippetRepository {
         return snippets.find(s => s.id === id);
     }
 
-    async getByProject(projectId: string): Promise<Snippet[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getByProject(_projectId: string): Promise<Snippet[]> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
@@ -60,7 +61,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
         };
 
         try {
-            await saveSnippet(projectPath, newSnippet as any);
+            await saveSnippet(projectPath, newSnippet);
             return newSnippet;
         } catch (error) {
             console.error('Failed to create snippet:', error);
@@ -82,7 +83,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
         };
 
         try {
-            await saveSnippet(projectPath, updated as any);
+            await saveSnippet(projectPath, updated);
         } catch (error) {
             console.error('Failed to update snippet:', error);
             throw error;

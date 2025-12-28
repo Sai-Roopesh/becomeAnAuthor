@@ -9,6 +9,7 @@
  * 5. MUST sanitize input to prevent XSS and injection
  */
 
+
 import { describe, it, expect } from 'vitest';
 import { ExportedProjectSchema } from '../import-schema';
 
@@ -97,14 +98,15 @@ describe('Import Schema Validation Contract', () => {
 
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.issues[0].path).toContain('version');
+                expect(result.error.issues[0]?.path).toContain('version');
             }
         });
 
         it('MUST reject missing version', () => {
             const backup = createValidBackup();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            delete (backup as any).version;
+            const backupRecord = backup as unknown as Record<string, unknown>;
+            delete backupRecord['version'];
+
 
             const result = ExportedProjectSchema.safeParse(backup);
 
@@ -181,8 +183,8 @@ describe('Import Schema Validation Contract', () => {
 
         it('MUST require scene type field', () => {
             const invalidScene = createValidScene();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            delete (invalidScene as any).type;
+            const sceneRecord = invalidScene as unknown as Record<string, unknown>;
+            delete sceneRecord['type'];
 
             const backup = createValidBackup({ nodes: [invalidScene] });
             const result = ExportedProjectSchema.safeParse(backup);

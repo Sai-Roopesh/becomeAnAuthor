@@ -32,6 +32,7 @@ export class TauriMentionRepository implements IMentionRepository {
      * Rebuild the mention index for a project
      * Currently not implemented server-side - mentions are computed on-demand
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async rebuildIndex(_projectId: string): Promise<void> {
         // No-op: Mentions are computed on-demand, not stored
         // Could be implemented for performance optimization in the future
@@ -41,6 +42,7 @@ export class TauriMentionRepository implements IMentionRepository {
      * Get all mentions in a project grouped by codex entry
      * Not yet implemented - would need a new backend command
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async getAllByProject(_projectId: string): Promise<Record<string, Mention[]>> {
         // Not implemented yet - would require backend support
         return {};

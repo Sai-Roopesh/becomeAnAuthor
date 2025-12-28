@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
+// ScrollArea, Checkbox imports removed - unused
 import { Expand, Copy } from 'lucide-react';
 import { ModelCombobox } from '@/features/ai';
 import type { ChatContext } from '@/domain/entities/types';
@@ -42,7 +41,7 @@ export interface GenerateOptions {
     reasoning?: 'enabled' | 'disabled'; // NEW: reasoning toggle
 }
 
-export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, mode, projectId, seriesId }: TweakGenerateDialogProps) {
+export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWordCount = 400, projectId, seriesId }: TweakGenerateDialogProps) {
     // Replace 6 useState calls with single useReducer
     const [state, dispatch] = useDialogState(
         createInitialTweakGenerateState(defaultWordCount),

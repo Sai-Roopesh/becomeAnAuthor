@@ -33,6 +33,7 @@ export type TextReplaceAction =
     | { type: 'SET_PRESET'; payload: string }
     | { type: 'SET_CUSTOM_LENGTH'; payload: string }
     | { type: 'SET_RESULT'; payload: string }
+    | { type: 'APPEND_RESULT'; payload: string }
     | { type: 'SET_SELECTED_CONTEXTS'; payload: ContextItem[] }
     | { type: 'UPDATE_STREAM_COUNT'; payload: number }
     | { type: 'SWITCH_TAB'; payload: 'tweak' | 'preview' }
@@ -68,6 +69,14 @@ export function textReplaceReducer(
             return { ...state, customLength: action.payload };
         case 'SET_RESULT':
             return { ...state, result: action.payload };
+        case 'APPEND_RESULT': {
+            const newResult = state.result + action.payload;
+            return {
+                ...state,
+                result: newResult,
+                streamingWordCount: newResult.trim().split(/\s+/).filter(Boolean).length
+            };
+        }
         case 'SET_SELECTED_CONTEXTS':
             return { ...state, selectedContexts: action.payload };
         case 'UPDATE_STREAM_COUNT':

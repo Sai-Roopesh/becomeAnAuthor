@@ -142,8 +142,21 @@ export const SlashCommands = Extension.create({
                     let component: ReactRenderer | null = null;
                     let popup: TippyInstance[] | null = null;
 
+                    interface SlashCommandProps {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        items: any[];
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        command: (item: any) => void;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        editor: any;
+                        clientRect?: () => DOMRect;
+                        event?: KeyboardEvent;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        [key: string]: any;
+                    }
+
                     return {
-                        onStart: (props: any) => {
+                        onStart: (props: SlashCommandProps) => {
                             component = new ReactRenderer(SlashCommandsList, {
                                 props: {
                                     items: props.items,
@@ -165,7 +178,7 @@ export const SlashCommands = Extension.create({
                             });
                         },
 
-                        onUpdate(props: any) {
+                        onUpdate(props: SlashCommandProps) {
                             component?.updateProps({
                                 items: props.items,
                                 command: props.command,
@@ -178,13 +191,13 @@ export const SlashCommands = Extension.create({
                             }
                         },
 
-                        onKeyDown(props: any) {
-                            if (props.event.key === 'Escape') {
+                        onKeyDown(props: SlashCommandProps) {
+                            if (props.event?.key === 'Escape') {
                                 popup?.[0]?.hide();
                                 return true;
                             }
 
-                            return (component?.ref as any)?.onKeyDown?.(props) ?? false;
+                            return (component?.ref as unknown as { onKeyDown?: (props: unknown) => boolean })?.onKeyDown?.(props) ?? false;
                         },
 
                         onExit() {

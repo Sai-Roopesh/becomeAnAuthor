@@ -50,7 +50,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
 
     async update(id: string, updates: Partial<Series>): Promise<void> {
         try {
-            await updateSeries(id, updates as any);
+            return await updateSeries(id, updates);
         } catch (error) {
             console.error('Failed to update series:', error);
             throw error;

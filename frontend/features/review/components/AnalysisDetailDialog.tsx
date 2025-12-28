@@ -2,11 +2,11 @@
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { StoryAnalysis } from '@/domain/entities/types';
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, BookOpen, Users, Activity, Layers, Trash2, Sparkles, Clock, FileText } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, BookOpen, Activity, Layers, Trash2, Sparkles, Clock, FileText } from 'lucide-react';
 import { useAnalysisDelete } from '../hooks/use-analysis-delete';
 import { useState } from 'react';
 import {
@@ -60,7 +60,7 @@ export function AnalysisDetailDialog({ analysis, open, onClose }: AnalysisDetail
             await deleteAnalysis(analysis.id);
             setShowDeleteConfirm(false);
             onClose();
-        } catch (error) {
+        } catch {
             // Error already toasted by hook
         }
     };
@@ -393,9 +393,10 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
 
     // Plot Threads Analysis
     if (analysis.analysisType === 'plot-threads' && data['threads']) {
+        const threads = data['threads'] as unknown as PlotThread[];
         return (
             <div className="space-y-6">
-                {(data['threads'] as PlotThread[]).map((thread, idx) => (
+                {threads.map((thread, idx) => (
                     <Card key={idx} className="overflow-hidden border-border/50 shadow-sm">
                         <div className="h-1 bg-gradient-to-r from-primary/50 to-secondary/50" />
                         <CardHeader className="pb-3">
@@ -433,9 +434,10 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
 
     // Character Arcs Analysis
     if (analysis.analysisType === 'character-arcs' && data['characters']) {
+        const characters = data['characters'] as unknown as CharacterData[];
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(data['characters'] as CharacterData[]).map((char, idx) => (
+                {characters.map((char, idx) => (
                     <Card key={idx} className="border-border/50 shadow-sm hover:shadow-md transition-all">
                         <CardHeader className="pb-3 bg-muted/20 border-b border-border/50">
                             <CardTitle className="text-lg font-heading flex items-center justify-between">

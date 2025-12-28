@@ -7,6 +7,7 @@ export interface BaseNode {
     title: string;
     order: number; // Float for easy reordering
     expanded: boolean;
+    archived?: boolean;
     createdAt: number;
     updatedAt: number;
 }
@@ -125,6 +126,7 @@ export interface ArcPoint {
 export interface CodexEntry {
     id: string;
     projectId?: string; // Optional - series-first architecture uses seriesId instead
+    seriesId?: string;  // Series context for the entry
     name: string;
     aliases: string[];
     category: CodexCategory;
@@ -238,7 +240,7 @@ export interface StoryAnalysis {
     results: {
         summary?: string;
         insights: AnalysisInsight[];
-        metrics?: Record<string, any>;
+        metrics?: Record<string, number | string | boolean>;
     };
 
     // Version tracking

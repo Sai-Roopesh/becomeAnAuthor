@@ -23,7 +23,7 @@ export function useSearch(projectId: string, seriesId: string) {
     const [allNodes, setAllNodes] = useState<DocumentNode[]>([]);
     const [codexEntries, setCodexEntries] = useState<CodexEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { nodeRepository: nodeRepo, snippetRepository: snippetRepo, codexRepository: codexRepo } = useAppServices();
+    const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
 
     // Fetch data on mount
     useEffect(() => {

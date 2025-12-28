@@ -1,4 +1,4 @@
-import type { CodexTemplate, TemplateField, CodexRelationType, RelationCategory } from '@/domain/entities/types';
+import type { CodexTemplate, CodexRelationType } from '@/domain/entities/types';
 
 /**
  * Built-in Templates Seed Data

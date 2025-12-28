@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { Series } from '@/core/tauri/commands';
+import type { Series } from '@/domain/entities/types';
 import { useSeriesRepository } from '@/hooks/use-series-repository';
 import { invalidateQueries } from '@/hooks/use-live-query';
 import {

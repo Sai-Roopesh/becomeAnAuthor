@@ -127,7 +127,7 @@ export function GridView({ projectId, seriesId, nodes, searchQuery }: GridViewPr
                         {/* Chapters Grid */}
                         {isExpanded && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4">
-                                {chapters.filter(filterNodes).map((chapter, chapterIndex) => {
+                                {chapters.filter(filterNodes).map((chapter) => {
                                     const scenes = getChildren(chapter.id);
                                     return (
                                         <div

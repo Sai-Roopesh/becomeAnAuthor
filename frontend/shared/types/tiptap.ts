@@ -9,6 +9,7 @@
  */
 export interface TiptapMark {
     type: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     attrs?: Record<string, any>;
 }
 
@@ -27,6 +28,7 @@ export interface TiptapTextNode {
  */
 export interface TiptapElementNode {
     type: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     attrs?: Record<string, any>;
     content?: TiptapNode[];
     marks?: TiptapMark[];

@@ -1,4 +1,4 @@
-import type { DocumentNode, Scene, Act, Chapter } from '@/domain/entities/types';
+import type { DocumentNode, Scene } from '@/domain/entities/types';
 
 /**
  * Repository interface for document nodes (Acts, Chapters, Scenes)

@@ -175,7 +175,7 @@ export async function parseGeminiStream(
                                     }
                                 }
                             }
-                        } catch (parseError) {
+                        } catch {
                             console.warn('[Gemini] Failed to parse object:', currentObject.substring(0, 100));
                         }
 

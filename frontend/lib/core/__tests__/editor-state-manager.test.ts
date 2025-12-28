@@ -1,3 +1,4 @@
+
 /**
  * EditorStateManager Specification Tests
  * 
@@ -18,11 +19,23 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Editor } from '@tiptap/react';
+// Editor removed
 
 // ============================================
 // Mock Dependencies BEFORE importing
 // ============================================
+
+// Local mock interface to avoid any (eslint-disable required for mock flexibility)
+/* eslint-disable @typescript-eslint/no-explicit-any */
+interface MockEditor extends Partial<import('@tiptap/core').Editor> {
+    _emit(event: string): void;
+    on: any;
+    off: any;
+    getJSON: any;
+    isDestroyed: boolean;
+    commands: any;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 const mockScheduleSave = vi.fn();
 vi.mock('@/lib/core/save-coordinator', () => ({
@@ -50,7 +63,7 @@ vi.mock('@/shared/utils/logger', () => ({
 
 // Import after mocks
 import { EditorStateManager } from '../editor-state-manager';
-import type { SaveStatus } from '../editor-state-manager';
+// SaveStatus removed
 
 // ============================================
 // Mock Editor Factory
@@ -60,16 +73,16 @@ function createMockEditor(options: {
     content?: object;
     isDestroyed?: boolean;
 } = {}) {
-    const handlers: Map<string, Function[]> = new Map();
+    const handlers: Map<string, Array<() => void>> = new Map();
 
     return {
         getJSON: vi.fn().mockReturnValue(options.content ?? { type: 'doc', content: [] }),
         isDestroyed: options.isDestroyed ?? false,
-        on: vi.fn((event: string, handler: Function) => {
+        on: vi.fn((event: string, handler: () => void) => {
             const existing = handlers.get(event) || [];
             handlers.set(event, [...existing, handler]);
         }),
-        off: vi.fn((event: string, handler: Function) => {
+        off: vi.fn((event: string, handler: () => void) => {
             const existing = handlers.get(event) || [];
             handlers.set(event, existing.filter(h => h !== handler));
         }),
@@ -78,7 +91,7 @@ function createMockEditor(options: {
             handlers.get(event)?.forEach(h => h());
         },
         _handlers: handlers,
-    };
+    } as unknown as MockEditor;
 }
 
 // ============================================
@@ -105,7 +118,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Dirty Flag - MUST mark dirty on editor update', () => {
         it('MUST mark dirty when editor emits update event', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             // Initially clean
             expect(manager.getStatus().isDirty).toBe(false);
@@ -124,14 +137,14 @@ describe('EditorStateManager Specifications', () => {
         it('MUST attach update listener on construction', () => {
             const editor = createMockEditor();
 
-            new EditorStateManager(editor as any, 'scene-123');
+            new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             expect(editor.on).toHaveBeenCalledWith('update', expect.any(Function));
         });
 
         it('MUST NOT mark dirty multiple times for rapid updates', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             editor._emit('update');
             editor._emit('update');
@@ -151,7 +164,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Debounced Saves - MUST wait 500ms before saving', () => {
         it('MUST debounce save after update event', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123', { debounceMs: 500 });
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
 
             editor._emit('update');
 
@@ -174,7 +187,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST coalesce multiple rapid updates into single save', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123', { debounceMs: 500 });
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
 
             // Rapid updates
             editor._emit('update');
@@ -195,7 +208,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST allow custom debounce time', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123', { debounceMs: 1000 });
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 1000 });
 
             editor._emit('update');
 
@@ -218,7 +231,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Immediate Save - MUST bypass debounce', () => {
         it('MUST save immediately without waiting for debounce', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123', { debounceMs: 500 });
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
 
             editor._emit('update');
 
@@ -233,7 +246,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST cancel pending debounced save when immediate save called', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123', { debounceMs: 500 });
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
 
             editor._emit('update');
 
@@ -252,7 +265,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST NOT save if already clean', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             // Don't trigger update (stay clean)
             await manager.saveImmediate();
@@ -265,7 +278,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST NOT save if already saving', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             // Make it block on first save
             let resolveFirstSave: () => void;
@@ -300,7 +313,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Status Tracking - MUST track save status', () => {
         it('MUST start with "saved" status', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const status = manager.getStatus();
             expect(status.status).toBe('saved');
@@ -313,7 +326,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST change to "unsaved" when dirty', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             editor._emit('update');
 
@@ -324,7 +337,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST change to "saving" during save', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             // Block save
             let resolveSave: () => void;
@@ -348,7 +361,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST change to "saved" after successful save', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             editor._emit('update');
             await manager.saveImmediate();
@@ -364,7 +377,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST change to "error" on save failure', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             mockScheduleSave.mockRejectedValueOnce(new Error('Save failed'));
 
@@ -389,7 +402,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Status Listeners - MUST notify on status change', () => {
         it('MUST call listener immediately with current status on subscribe', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const listener = vi.fn();
             manager.onStatusChange(listener);
@@ -402,7 +415,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST notify listener when status changes to unsaved', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const listener = vi.fn();
             manager.onStatusChange(listener);
@@ -418,7 +431,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST notify listener when status changes to saved', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const listener = vi.fn();
             manager.onStatusChange(listener);
@@ -436,7 +449,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST support multiple listeners', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const listener1 = vi.fn();
             const listener2 = vi.fn();
@@ -456,7 +469,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST return unsubscribe function', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const listener = vi.fn();
             const unsubscribe = manager.onStatusChange(listener);
@@ -482,7 +495,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Emergency Backup - MUST create backup on save failure', () => {
         it('MUST create emergency backup when save fails', async () => {
             const editor = createMockEditor({ content: { type: 'doc', content: [{ type: 'paragraph' }] } });
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             mockScheduleSave.mockRejectedValueOnce(new Error('Network error'));
 
@@ -504,12 +517,13 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST still throw error after creating backup', async () => {
             const editor = createMockEditor();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const manager = new EditorStateManager(editor as any, 'scene-123');
 
             const error = new Error('Save failed');
             mockScheduleSave.mockRejectedValueOnce(error);
 
-            editor._emit('update');
+            (editor as unknown as MockEditor)._emit('update');
 
             await expect(manager.saveImmediate()).rejects.toThrow('Save failed');
 
@@ -524,9 +538,10 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: SaveCoordinator - MUST use coordinator for saves', () => {
         it('MUST call saveCoordinator.scheduleSave with scene ID', async () => {
             const editor = createMockEditor();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const manager = new EditorStateManager(editor as any, 'my-scene-456');
 
-            editor._emit('update');
+            (editor as unknown as MockEditor)._emit('update');
             await manager.saveImmediate();
 
             expect(mockScheduleSave).toHaveBeenCalledWith(
@@ -540,9 +555,9 @@ describe('EditorStateManager Specifications', () => {
         it('Content getter MUST return current editor JSON', async () => {
             const expectedContent = { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 } }] };
             const editor = createMockEditor({ content: expectedContent });
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
-            editor._emit('update');
+            (editor as unknown as MockEditor)._emit('update');
             await manager.saveImmediate();
 
             const calls = mockScheduleSave.mock.calls[0] as [string, () => unknown];
@@ -560,7 +575,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Cleanup - MUST cleanup on destroy', () => {
         it('MUST detach editor listeners on destroy', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             expect(editor.on).toHaveBeenCalled();
 
@@ -571,9 +586,9 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST clear debounce timer on destroy', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123', { debounceMs: 500 });
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
 
-            editor._emit('update');
+            (editor as unknown as MockEditor)._emit('update');
 
             manager.destroy();
 
@@ -587,7 +602,7 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST clear status listeners on destroy', () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const listener = vi.fn();
             manager.onStatusChange(listener);
@@ -610,7 +625,7 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: Flush - MUST provide flush method', () => {
         it('flush() MUST be an alias for saveImmediate()', async () => {
             const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             editor._emit('update');
             await manager.flush();

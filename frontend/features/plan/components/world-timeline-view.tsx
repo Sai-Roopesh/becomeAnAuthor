@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useLiveQuery } from '@/hooks/use-live-query';
+// useLiveQuery removed - unused
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWorldTimeline } from '../hooks/use-world-timeline';
-import { useAppServices } from '@/infrastructure/di/AppContext';
+// useAppServices removed - unused
 import type { WorldEvent, WorldEventCategory } from '@/domain/entities/types';
 
 interface WorldTimelineViewProps {
@@ -82,8 +82,8 @@ const createEmptyEvent = (projectId: string): Omit<WorldEvent, 'year' | 'era'> &
     updatedAt: Date.now(),
 });
 
-export function WorldTimelineView({ projectId, seriesId }: WorldTimelineViewProps) {
-    const { worldTimelineRepository } = useAppServices();
+export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
+    // worldTimelineRepository removed - unused
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     // Use a type that allows year to be undefined for the editing form
@@ -93,7 +93,7 @@ export function WorldTimelineView({ projectId, seriesId }: WorldTimelineViewProp
 
     const {
         events,
-        loading: isLoading,
+        // loading removed - unused
         saveEvent,
         deleteEvent
     } = useWorldTimeline({ projectId });
@@ -367,7 +367,8 @@ export function WorldTimelineView({ projectId, seriesId }: WorldTimelineViewProp
                                             });
                                         } else {
                                             // Remove year property to avoid undefined assignment
-                                            const { year, ...rest } = editingEvent;
+                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                            const { year: _year, ...rest } = editingEvent;
                                             setEditingEvent(rest as typeof editingEvent);
                                         }
                                     }}

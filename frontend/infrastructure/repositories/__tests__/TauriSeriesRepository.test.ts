@@ -27,7 +27,7 @@ import * as tauriCommands from '@/core/tauri';
 // Test Fixtures
 // ============================================
 
-const createMockSeries = (overrides: any = {}) => ({
+const createMockSeries = (overrides: Partial<import('@/domain/entities/types').Series> = {}) => ({
     id: 'series-1',
     title: 'Fantasy Series',
     created_at: Date.now(),

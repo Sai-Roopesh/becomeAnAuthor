@@ -8,10 +8,10 @@
  * Usage: Replace `from '@/hooks/use-live-query'` with `from '@/hooks/use-live-query'`
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // Global refresh counter - incrementing this triggers all useLiveQuery hooks to refetch
-let globalRefreshCounter = 0;
+// globalRefreshCounter removed - unused
 const listeners = new Set<() => void>();
 
 /**
@@ -19,7 +19,7 @@ const listeners = new Set<() => void>();
  * Call this after any mutation (create, update, delete)
  */
 export function invalidateQueries(): void {
-    globalRefreshCounter++;
+    // Global refresh trigger
     listeners.forEach(listener => listener());
 }
 

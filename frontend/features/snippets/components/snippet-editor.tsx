@@ -22,7 +22,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
     const snippetRepo = useSnippetRepository();
     const [title, setTitle] = useState('');
     const [pinned, setPinned] = useState(false);
-    const [initialContent, setInitialContent] = useState<any>(null);
+    const [initialContent, setInitialContent] = useState<import('@/shared/types/tiptap').TiptapContent | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -56,7 +56,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
     }, [initialContent]); // Re-create editor when initialContent changes (loaded)
 
     const debouncedTitle = useDebounce(title, 500);
-    const [content, setContent] = useState<any>(null);
+    const [content, setContent] = useState<import('@/shared/types/tiptap').TiptapContent | null>(null);
     const debouncedContent = useDebounce(content, 1000);
 
     // Sync Title
@@ -69,7 +69,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
     // Sync Content
     useEffect(() => {
         if (editor) {
-            const updateHandler = () => setContent(editor.getJSON());
+            const updateHandler = () => setContent(editor.getJSON() as import('@/shared/types/tiptap').TiptapContent);
             editor.on('update', updateHandler);
             return () => { editor.off('update', updateHandler); };
         }

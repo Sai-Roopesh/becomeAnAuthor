@@ -21,7 +21,7 @@ class SaveCoordinator {
      * Schedule a save operation for a scene
      * Ensures saves are serialized per scene to prevent race conditions
      */
-    async scheduleSave(sceneId: string, getContent: () => any): Promise<void> {
+    async scheduleSave(sceneId: string, getContent: () => import('@/shared/types/tiptap').TiptapContent): Promise<void> {
         // Check if this scene was cancelled (deleted)
         if (this.cancelledScenes.has(sceneId)) {
             log.debug(`Scene ${sceneId} was deleted, skipping save`);

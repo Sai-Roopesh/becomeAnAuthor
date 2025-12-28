@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { invalidateQueries } from '@/hooks/use-live-query';
-import { DocumentNode } from '@/domain/entities/types';
+// DocumentNode removed - unused
 
 interface CreateNodeDialogProps {
     open: boolean;

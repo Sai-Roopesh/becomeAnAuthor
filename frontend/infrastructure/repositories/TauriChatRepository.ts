@@ -30,19 +30,20 @@ export class TauriChatRepository implements IChatRepository {
 
         try {
             const result = await getChatThread(projectPath, id);
-            return result as unknown as ChatThread || undefined;
+            return result || undefined;
         } catch (error) {
             console.error('Failed to get chat thread:', error);
             return undefined;
         }
     }
 
-    async getThreadsByProject(projectId: string): Promise<ChatThread[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getThreadsByProject(_projectId: string): Promise<ChatThread[]> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
-            return await listChatThreads(projectPath) as unknown as ChatThread[];
+            return await listChatThreads(projectPath);
         } catch (error) {
             console.error('Failed to list chat threads:', error);
             return [];
@@ -70,13 +71,16 @@ export class TauriChatRepository implements IChatRepository {
             name: thread.name,
             pinned: false,
             archived: false,
-            defaultModel: null,
             createdAt: now,
             updatedAt: now,
         };
 
+        if (thread.defaultModel) {
+            Object.assign(newThread, { defaultModel: thread.defaultModel });
+        }
+
         try {
-            return await createChatThread(projectPath, newThread as any) as unknown as ChatThread;
+            return await createChatThread(projectPath, newThread);
         } catch (error) {
             console.error('Failed to create chat thread:', error);
             throw error;
@@ -99,7 +103,7 @@ export class TauriChatRepository implements IChatRepository {
         };
 
         try {
-            await updateChatThread(projectPath, updatedThread as any);
+            await updateChatThread(projectPath, updatedThread);
         } catch (error) {
             console.error('Failed to update chat thread:', error);
             throw error;
@@ -120,7 +124,8 @@ export class TauriChatRepository implements IChatRepository {
 
     // ============ Message Operations ============
 
-    async getMessage(id: string): Promise<ChatMessage | undefined> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getMessage(_id: string): Promise<ChatMessage | undefined> {
         // To get a specific message, we'd need to know the thread ID
         // For now, this is not efficiently supported by the file-based approach
         console.warn('TauriChatRepository.getMessage: Not efficient for file-based storage');
@@ -132,7 +137,7 @@ export class TauriChatRepository implements IChatRepository {
         if (!projectPath) return [];
 
         try {
-            return await getChatMessages(projectPath, threadId) as unknown as ChatMessage[];
+            return await getChatMessages(projectPath, threadId);
         } catch (error) {
             console.error('Failed to get chat messages:', error);
             return [];
@@ -156,20 +161,22 @@ export class TauriChatRepository implements IChatRepository {
         };
 
         try {
-            return await createChatMessage(projectPath, newMessage as any) as unknown as ChatMessage;
+            return await createChatMessage(projectPath, newMessage);
         } catch (error) {
             console.error('Failed to create chat message:', error);
             throw error;
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async updateMessage(_id: string, _data: Partial<ChatMessage>): Promise<void> {
         // Message editing is not supported in the current UI.
         // Messages are immutable once created.
         // If editing is needed in the future, add a Rust command: update_chat_message
     }
 
-    async deleteMessage(id: string): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async deleteMessage(_id: string): Promise<void> {
         // Need thread ID to delete message efficiently
         console.warn('TauriChatRepository.deleteMessage: Requires threadId');
     }
@@ -187,7 +194,8 @@ export class TauriChatRepository implements IChatRepository {
         }
     }
 
-    async bulkDeleteMessages(ids: string[]): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async bulkDeleteMessages(_ids: string[]): Promise<void> {
         console.warn('TauriChatRepository.bulkDeleteMessages: Not efficiently supported');
     }
 }

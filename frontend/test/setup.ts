@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { expect, afterEach, beforeEach } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 

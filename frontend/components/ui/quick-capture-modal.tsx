@@ -10,7 +10,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Lightbulb, Sparkles, X } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 
 interface QuickCaptureModalProps {
     /** Whether the modal is open */

@@ -11,7 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { TagManager } from '../tag-manager';
 
 // ============================================
@@ -73,7 +73,7 @@ vi.mock('lucide-react', () => ({
     ),
 }));
 
-import { toast } from '@/shared/utils/toast-service';
+
 
 // ============================================
 // Test Fixtures
@@ -109,7 +109,7 @@ describe('TagManager Component', () => {
                 createMockTag({ id: 'tag-2', name: 'Thriller' }),
             ]);
 
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             expect(screen.getByText('Action')).toBeInTheDocument();
             expect(screen.getByText('Thriller')).toBeInTheDocument();
@@ -118,7 +118,7 @@ describe('TagManager Component', () => {
         it('MUST show "No tags yet" when entry has no tags', () => {
             mockTagRepo.getTagsByEntry.mockReturnValue([]);
 
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             expect(screen.getByText('No tags yet')).toBeInTheDocument();
         });
@@ -128,7 +128,7 @@ describe('TagManager Component', () => {
                 createMockTag({ id: 'tag-1', name: 'Removable' }),
             ]);
 
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             expect(screen.getByTestId('remove-icon')).toBeInTheDocument();
         });
@@ -140,13 +140,13 @@ describe('TagManager Component', () => {
 
     describe('SPEC: Create New Tags', () => {
         it('MUST show input for new tag name', () => {
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             expect(screen.getByTestId('tag-input')).toBeInTheDocument();
         });
 
         it('MUST show add button', () => {
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             expect(screen.getByTestId('plus-icon')).toBeInTheDocument();
         });
@@ -163,7 +163,7 @@ describe('TagManager Component', () => {
             ]);
             mockTagRepo.getTagsByEntry.mockReturnValue([]);
 
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             // Should show "Or add existing tag:" section
             expect(screen.getByText('Or add existing tag:')).toBeInTheDocument();
@@ -175,7 +175,7 @@ describe('TagManager Component', () => {
             mockTagRepo.getByProject.mockReturnValue([attachedTag]);
             mockTagRepo.getTagsByEntry.mockReturnValue([attachedTag]);
 
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             // "Or add existing tag:" should not appear when all tags are attached
             expect(screen.queryByText('Or add existing tag:')).not.toBeInTheDocument();
@@ -188,13 +188,13 @@ describe('TagManager Component', () => {
 
     describe('SPEC: Section Headers', () => {
         it('MUST show "Tags" section header', () => {
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             expect(screen.getByText('Tags')).toBeInTheDocument();
         });
 
         it('MUST show "Add New Tag" section header', () => {
-            render(<TagManager projectId="proj-1" entryId="entry-1" />);
+            render(<TagManager entryId="entry-1" seriesId="series-1" />);
 
             expect(screen.getByText('Add New Tag')).toBeInTheDocument();
         });

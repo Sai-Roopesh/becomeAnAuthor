@@ -126,7 +126,7 @@ export function RestoreProjectDialog() {
                                 <InlineGoogleAuth onAuthComplete={() => {/* Refresh will happen automatically */ }} />
                             ) : (
                                 <DriveBackupBrowser
-                                    onRestore={(fileId: string) => {
+                                    onRestore={() => {
                                         setOpen(false);
                                         toast.success('Project restored from Google Drive!');
                                         setTimeout(() => window.location.reload(), 500);

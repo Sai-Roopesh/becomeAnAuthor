@@ -12,8 +12,10 @@ import { useGoogleAuth } from './use-google-auth';
 
 export function useGoogleDrive() {
     const { isAuthenticated } = useGoogleAuth();
-    const [isUploading, setIsUploading] = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [isUploading, _setIsUploading] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [isDownloading, _setIsDownloading] = useState(false);
 
     const listBackups = async (): Promise<DriveFile[]> => {
         if (!isAuthenticated) {

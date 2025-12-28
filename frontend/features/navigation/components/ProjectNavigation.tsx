@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
 import { cn } from '@/lib/utils';
 import { DocumentNode } from '@/domain/entities/types';
-import { ChevronRight, ChevronDown, Plus, FileText, Folder, Book, Users, MoreVertical, Trash2, Pencil } from 'lucide-react';
+import { Plus, FileText, Folder, Book, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreateNodeDialog } from '@/features/shared/components';
@@ -13,12 +13,6 @@ import { SnippetList } from '../../snippets/components/snippet-list';
 import { CodexList } from '../../codex/components/codex-list';
 import { IdeasSection } from '../components/ideas-section';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { toast } from '@/shared/utils/toast-service';
 import { NodeActionsMenu } from '../../editor/components/NodeActionsMenu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -34,7 +28,7 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
         [projectId, nodeRepo]
     );
     const { activeSceneId, setActiveSceneId } = useProjectStore();
-    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    // expanded state removed - unused
 
     const [dialogState, setDialogState] = useState<{
         open: boolean;

@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useProjectStore } from '@/store/use-project-store';
-import { FileText, Clock, Target, Zap } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface StatusBarItem {

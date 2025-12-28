@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import type { CodexEntry, SceneCodexLink, CodexCategory } from '@/domain/entities/types';
+import type { CodexEntry, CodexCategory } from '@/domain/entities/types';
 import { User, MapPin, Scroll, BookOpen, Sparkles } from 'lucide-react';
 import {
     Tooltip,
@@ -36,7 +36,7 @@ const CATEGORY_CONFIG: Record<CodexCategory, { icon: typeof User; color: string;
  */
 export function SceneCodexBadges({
     sceneId,
-    projectId,
+    // projectId removed - unused
     seriesId,
     maxBadges = 4,
     size = 'sm'

@@ -21,7 +21,7 @@ interface ExportDialogProps {
  * Main export dialog with template selection, configuration, and preview
  */
 export function ExportDialog({ projectId, open, onOpenChange }: ExportDialogProps) {
-    const { nodeRepository, projectRepository } = useAppServices();
+    const { projectRepository } = useAppServices();
     const { presets, selectedPreset, setSelectedPreset, isLoading: presetsLoading } = useExportPresets();
     const { exportWithPreset, isExporting } = useDocumentExport();
     const {
@@ -90,7 +90,7 @@ export function ExportDialog({ projectId, open, onOpenChange }: ExportDialogProp
                     <DialogTitle>Export Manuscript</DialogTitle>
                 </DialogHeader>
 
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 flex flex-col min-h-0">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="presets">Templates</TabsTrigger>
                         <TabsTrigger value="config" disabled={!selectedPreset}>

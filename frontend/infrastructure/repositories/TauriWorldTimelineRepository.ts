@@ -13,6 +13,7 @@ import {
 import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async list(_projectId: string): Promise<WorldEvent[]> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];

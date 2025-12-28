@@ -5,15 +5,15 @@
 
 'use client';
 
-import { useState } from 'react';
+// useState removed - unused
 import { googleDriveService } from '@/infrastructure/services/google-drive-service';
 import { DriveFile, DriveQuota } from '@/domain/entities/types';
 import { useGoogleAuth } from './use-google-auth';
 
 export function useGoogleDrive() {
     const { isAuthenticated } = useGoogleAuth();
-    const [isUploading, setIsUploading] = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
+    const isUploading = false;
+    const isDownloading = false;
 
     const listBackups = async (): Promise<DriveFile[]> => {
         if (!isAuthenticated) {

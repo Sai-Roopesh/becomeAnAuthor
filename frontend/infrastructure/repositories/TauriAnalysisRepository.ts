@@ -30,16 +30,18 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         return analyses.find(a => a.id === id);
     }
 
-    async getByProject(projectId: string): Promise<StoryAnalysis[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getByProject(_projectId: string): Promise<StoryAnalysis[]> {
         return await this.getAllAnalyses();
     }
 
-    async getByType(projectId: string, type: string): Promise<StoryAnalysis[]> {
+    async getByType(_projectId: string, type: string): Promise<StoryAnalysis[]> {
         const analyses = await this.getAllAnalyses();
         return analyses.filter(a => a.analysisType === type);
     }
 
-    async getLatest(projectId: string): Promise<StoryAnalysis | undefined> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getLatest(_projectId: string): Promise<StoryAnalysis | undefined> {
         const analyses = await this.getAllAnalyses();
         if (analyses.length === 0) return undefined;
         return analyses.sort((a, b) => b.createdAt - a.createdAt)[0];
@@ -56,7 +58,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         };
 
         try {
-            await saveAnalysis(projectPath, newAnalysis as any);
+            await saveAnalysis(projectPath, newAnalysis);
             return newAnalysis;
         } catch (error) {
             console.error('Failed to create analysis:', error);
@@ -73,7 +75,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
 
         const updated = { ...existing, ...data };
         try {
-            await saveAnalysis(projectPath, updated as any);
+            await saveAnalysis(projectPath, updated);
         } catch (error) {
             console.error('Failed to update analysis:', error);
             throw error;
@@ -111,7 +113,8 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         }
     }
 
-    async deleteByProject(projectId: string): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async deleteByProject(_projectId: string): Promise<void> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 

@@ -114,7 +114,7 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
                         // Fetch codex entry - series-first: use seriesId
                         const entry = await codexRepo.get(effectiveSeriesId, context.id);
                         if (entry) {
-                            const codexContext = contextAssembler.createCodexContext(entry as any);
+                            const codexContext = contextAssembler.createCodexContext(entry);
                             contexts.push(codexContext.content);
                         }
                     }

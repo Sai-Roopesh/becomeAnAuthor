@@ -11,10 +11,18 @@ import type {
     CodexRelation,
     CodexTag,
     CodexEntryTag,
-    Idea,
-    SceneNote,
     ProjectMap,
-    WorldEvent
+    WorldEvent,
+    StoryAnalysis,
+    ChatThread,
+    ChatMessage,
+    Series,
+    Snippet,
+    CodexTemplate,
+    CodexRelationType,
+    SceneCodexLink,
+    Idea,
+    SceneNote
 } from '@/domain/entities/types';
 
 // ============ Types ============
@@ -68,14 +76,7 @@ export interface Scene {
 
 import type { TiptapContent } from '@/shared/types/tiptap';
 
-export interface Snippet {
-    id: string;
-    title: string;
-    content: TiptapContent;
-    pinned: boolean;
-    created_at: number;
-    updated_at: number;
-}
+// Snippet interface removed in favor of domain type
 
 export interface SearchResult {
     type: string;
@@ -328,26 +329,7 @@ export async function deleteIdea(projectPath: string, ideaId: string): Promise<v
 
 // ============ Codex Templates ============
 
-export interface TemplateField {
-    id: string;
-    name: string;
-    fieldType: string;
-    required: boolean;
-    defaultValue?: string;
-    placeholder?: string;
-    options?: string[];
-    min?: number;
-    max?: number;
-}
-
-export interface CodexTemplate {
-    id: string;
-    name: string;
-    category: string;
-    isBuiltIn: boolean;
-    fields: TemplateField[];
-    createdAt: number;
-}
+// CodexTemplate interface removed in favor of domain type
 
 export async function listCodexTemplates(projectPath: string): Promise<CodexTemplate[]> {
     return invoke<CodexTemplate[]>('list_codex_templates', { projectPath });
@@ -363,13 +345,7 @@ export async function deleteCodexTemplate(projectPath: string, templateId: strin
 
 // ============ Codex Relation Types ============
 
-export interface CodexRelationType {
-    id: string;
-    name: string;
-    inverse_name?: string;
-    color?: string;
-    is_builtin?: boolean;
-}
+// CodexRelationType interface removed in favor of domain type
 
 export async function listCodexRelationTypes(projectPath: string): Promise<CodexRelationType[]> {
     return invoke<CodexRelationType[]>('list_codex_relation_types', { projectPath });
@@ -385,16 +361,7 @@ export async function deleteCodexRelationType(projectPath: string, typeId: strin
 
 // ============ Scene-Codex Links ============
 
-export interface SceneCodexLink {
-    id: string;
-    scene_id: string;
-    codex_id: string;        // ✅ Renamed from codex_entry_id
-    project_id: string;      // ✅ Added
-    role: string;            // ✅ Renamed from link_type
-    auto_detected?: boolean; // ✅ Added
-    created_at: number;
-    updated_at: number;
-}
+// SceneCodexLink interface removed in favor of domain type
 
 export async function listSceneCodexLinks(projectPath: string): Promise<SceneCodexLink[]> {
     return invoke<SceneCodexLink[]>('list_scene_codex_links', { projectPath });
@@ -410,20 +377,7 @@ export async function deleteSceneCodexLink(projectPath: string, linkId: string):
 
 // ============ Chat Commands ============
 
-export interface ChatThread {
-    id: string;
-    title: string;
-    created_at: number;  // ✅ Changed from string
-    updated_at: number;  // ✅ Changed from string
-}
-
-export interface ChatMessage {
-    id: string;
-    thread_id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    created_at: number;  // ✅ Changed from string
-}
+// Chat Types now imported from domain/entities/types
 
 export async function listChatThreads(projectPath: string): Promise<ChatThread[]> {
     return invoke<ChatThread[]>('list_chat_threads', { projectPath });
@@ -433,7 +387,7 @@ export async function getChatThread(projectPath: string, threadId: string): Prom
     return invoke<ChatThread | null>('get_chat_thread', { projectPath, threadId });
 }
 
-export async function createChatThread(projectPath: string, thread: Omit<ChatThread, 'id' | 'created_at' | 'updated_at'>): Promise<ChatThread> {
+export async function createChatThread(projectPath: string, thread: Omit<ChatThread, 'id' | 'createdAt' | 'updatedAt'>): Promise<ChatThread> {
     return invoke<ChatThread>('create_chat_thread', { projectPath, thread });
 }
 
@@ -449,7 +403,7 @@ export async function getChatMessages(projectPath: string, threadId: string): Pr
     return invoke<ChatMessage[]>('get_chat_messages', { projectPath, threadId });
 }
 
-export async function createChatMessage(projectPath: string, message: Omit<ChatMessage, 'id' | 'created_at'>): Promise<ChatMessage> {
+export async function createChatMessage(projectPath: string, message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage> {
     return invoke<ChatMessage>('create_chat_message', { projectPath, message });
 }
 
@@ -459,32 +413,13 @@ export async function deleteChatMessage(projectPath: string, threadId: string, m
 
 // ============ Analysis Commands ============
 
-export interface Analysis {
-    id: string;
-    projectId: string;
-    analysisType: string;
-    title: string;
-    content: TiptapContent;
-    scope: string;
-    scopeIds: string[];
-    results: unknown; // Results structure varies by analysis type
-    manuscriptVersion: number;
-    wordCountAtAnalysis: number;
-    scenesAnalyzedCount: number;
-    model: string;
-    tokensUsed?: number;
-    dismissed: boolean;
-    resolved: boolean;
-    userNotes?: string;
-    createdAt: number;
-    updatedAt: number;
+// Analysis interface removed in favor of StoryAnalysis from types.ts
+
+export async function listAnalyses(projectPath: string): Promise<StoryAnalysis[]> {
+    return invoke<StoryAnalysis[]>('list_analyses', { projectPath });
 }
 
-export async function listAnalyses(projectPath: string): Promise<Analysis[]> {
-    return invoke<Analysis[]>('list_analyses', { projectPath });
-}
-
-export async function saveAnalysis(projectPath: string, analysis: Analysis): Promise<void> {
+export async function saveAnalysis(projectPath: string, analysis: StoryAnalysis): Promise<void> {
     return invoke('save_analysis', { projectPath, analysis });
 }
 
@@ -494,23 +429,14 @@ export async function deleteAnalysis(projectPath: string, analysisId: string): P
 
 // ============ Series Commands ============
 
-export interface Series {
-    id: string;
-    title: string;
-    description?: string;
-    author?: string;
-    genre?: string;
-    status?: 'planned' | 'in-progress' | 'completed' | 'hiatus';
-    created_at: number;  // ✅ Changed from string
-    updated_at: number;  // ✅ Changed from string
-}
+// Series interface removed in favor of domain type
 
 
 export async function listSeries(): Promise<Series[]> {
     return invoke<Series[]>('list_series');
 }
 
-export async function createSeries(series: Omit<Series, 'id' | 'created_at' | 'updated_at'>): Promise<Series> {
+export async function createSeries(series: Omit<Series, 'id' | 'createdAt' | 'updatedAt'>): Promise<Series> {
     return invoke<Series>('create_series', { title: series.title });
 }
 

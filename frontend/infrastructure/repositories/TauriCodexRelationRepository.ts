@@ -18,7 +18,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         if (!projectPath) return [];
 
         try {
-            const relations = await listCodexRelations(projectPath) as unknown as CodexRelation[];
+            const relations = await listCodexRelations(projectPath);
             return relations.filter(r => r.parentId === parentId);
         } catch (error) {
             console.error('Failed to list codex relations:', error);
@@ -44,7 +44,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         };
 
         try {
-            await saveCodexRelation(projectPath, newRelation as any);
+            await saveCodexRelation(projectPath, newRelation);
             return newRelation;
         } catch (error) {
             console.error('Failed to save codex relation:', error);

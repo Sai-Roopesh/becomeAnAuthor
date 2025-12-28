@@ -161,10 +161,10 @@ export class ContextAssembler {
     createCodexContext(entry: {
         id: string;
         name: string;
-        description: string;
+        description?: string;
         category: string;
     }, priority: number = 6): ContextItem {
-        const fullContent = `${entry.category}: ${entry.name}\n\n${entry.description}`;
+        const fullContent = `${entry.category}: ${entry.name}\n\n${entry.description || ''}`;
 
         return {
             type: 'codex',

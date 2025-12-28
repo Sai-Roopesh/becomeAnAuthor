@@ -37,7 +37,7 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
     });
 
     const enabledTypes = Object.entries(analysisTypes)
-        .filter(([_key, enabled]) => enabled)
+        .filter(([, enabled]) => enabled)
         .map(([type]) => type);
 
     const estimatedTokens = enabledTypes.length * 10000; // Rough estimate
@@ -55,7 +55,7 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
                 selectedModel
             );
             onClose();
-        } catch (_error) {
+        } catch {
             // Error is already toasted by the hook
         }
     };

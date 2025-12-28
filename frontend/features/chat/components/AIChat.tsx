@@ -60,7 +60,6 @@ export function AIChat({ projectId, seriesId }: AIChatProps) {
     // Use unified AI hook
     const { generateStream, isGenerating, model, setModel, cancel } = useAI({
         system: 'You are a creative writing assistant',
-        streaming: true,
         persistModel: true,
         operationName: 'Chat',
     });

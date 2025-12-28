@@ -46,7 +46,7 @@ export function ExportProjectButton({ projectId, onExportStart }: ExportProjectB
                 await signIn();
                 // After sign-in redirect, user will need to try again
                 return;
-            } catch (error) {
+            } catch {
                 toast.error('Failed to connect to Google Drive');
                 return;
             }

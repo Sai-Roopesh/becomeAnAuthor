@@ -3,7 +3,7 @@
  * Strongly-typed interfaces for AI-generated story analysis responses
  */
 
-import type { AnalysisInsight, SceneReference } from './types';
+import type { AnalysisInsight } from './types';
 
 // ============================================
 // Plot Thread Analysis

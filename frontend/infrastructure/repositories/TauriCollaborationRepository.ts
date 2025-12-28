@@ -55,6 +55,7 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async loadYjsState(sceneId: string, _projectId: string): Promise<YjsStateSnapshot | null> {
         const projectPath = this.getProjectPath();
         if (!projectPath) {
@@ -88,6 +89,7 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async hasYjsState(sceneId: string, _projectId: string): Promise<boolean> {
         const projectPath = this.getProjectPath();
         if (!projectPath) return false;
@@ -102,6 +104,7 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async deleteYjsState(sceneId: string, _projectId: string): Promise<void> {
         const projectPath = this.getProjectPath();
         if (!projectPath) {

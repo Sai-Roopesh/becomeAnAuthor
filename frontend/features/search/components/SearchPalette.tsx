@@ -7,7 +7,7 @@ import { SearchInput } from './SearchInput';
 import { SearchResults } from './SearchResults';
 import { useSearch } from '../hooks/use-search';
 import { useProjectStore } from '@/store/use-project-store';
-import { useRouter } from 'next/navigation';
+// useRouter removed - unused
 
 interface SearchPaletteProps {
     projectId: string;
@@ -19,7 +19,7 @@ interface SearchPaletteProps {
 export function SearchPalette({ projectId, seriesId, open, onOpenChange }: SearchPaletteProps) {
     const { query, setQuery, results, isLoading } = useSearch(projectId, seriesId);
     const { setActiveSceneId, setViewMode } = useProjectStore();
-    const router = useRouter();
+    // router removed - unused
     const [selectedIndex, setSelectedIndex] = useState(0);
 
     // Reset state when dialog opens/closes

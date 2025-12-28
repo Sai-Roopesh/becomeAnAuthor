@@ -32,7 +32,8 @@ async function loadTiktoken() {
  * Count tokens for a given text and model
  * Falls back to estimation if model is unsupported or on server
  */
-export function countTokens(text: string, model: string): number {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function countTokens(text: string, _model: string): number {
     // Only use tiktoken on client-side to avoid Next.js SSR issues
     if (typeof window === 'undefined') {
         // Server-side: use fallback estimation

@@ -52,7 +52,8 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         }
     }
 
-    async getCustomTemplates(projectId: string): Promise<CodexTemplate[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getCustomTemplates(_projectId: string): Promise<CodexTemplate[]> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
@@ -76,7 +77,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         } as CodexTemplate;
 
         try {
-            await saveCodexTemplate(projectPath, newTemplate as any);
+            await saveCodexTemplate(projectPath, newTemplate);
             return newTemplate;
         } catch (error) {
             console.error('Failed to create codex template:', error);
@@ -93,7 +94,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
 
         const updated = { ...existing, ...data };
         try {
-            await saveCodexTemplate(projectPath, updated as any);
+            await saveCodexTemplate(projectPath, updated);
         } catch (error) {
             console.error('Failed to update codex template:', error);
             throw error;

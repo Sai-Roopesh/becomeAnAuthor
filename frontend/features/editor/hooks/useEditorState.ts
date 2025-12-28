@@ -8,7 +8,7 @@ import { useState } from 'react';
  * save_scene command, which calculates and updates word count during content saves.
  * This hook only tracks the current word count for UI display.
  */
-export function useEditorState(activeSceneId: string | null) {
+export function useEditorState() {
     const [editorWordCount, setEditorWordCount] = useState(0);
 
     const handleWordCountUpdate = (count: number) => {

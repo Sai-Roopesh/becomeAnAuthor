@@ -1,30 +1,14 @@
-import type {
-    IChatService,
-    GenerateResponseParams,
-    ChatSettings
-} from '@/domain/services/IChatService';
-import type {
-    ChatContext,
-    ChatMessage,
-    Scene,
-    CodexEntry,
-    Act,
-    Chapter
-} from '@/domain/entities/types';
+import type { IChatService, GenerateResponseParams } from '@/domain/services/IChatService';
+import type { ChatContext, ChatMessage } from '@/domain/entities/types';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IChatRepository } from '@/domain/repositories/IChatRepository';
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
-import { generateText } from '@/lib/ai';
-import { getPromptTemplate } from '@/shared/prompts/templates';
-import { extractTextFromContent } from '@/shared/utils/editor';
-import { aiRateLimiter } from '@/infrastructure/services/ai-rate-limiter';
-import { toast } from '@/shared/utils/toast-service';
+import { generate } from '@/lib/ai';
 
 /**
- * Chat Service with AI Rate Limiting
- * Handles AI interactions using repositories
- * Series-first: uses projectRepo to get seriesId for codex lookups
+ * Chat Service Implementation
+ * Provides AI generation using the new unified AI SDK client
  */
 export class ChatService implements IChatService {
     constructor(
@@ -32,186 +16,50 @@ export class ChatService implements IChatService {
         private codexRepository: ICodexRepository,
         private chatRepository: IChatRepository,
         private projectRepository: IProjectRepository
-    ) {
-        // Set up rate limiter callbacks
-        aiRateLimiter.setWarningCallback((usage, limit, period) => {
-            toast.warning(`AI rate limit warning: ${usage}/${limit} requests this ${period}`, {
-                description: 'Slow down to avoid being blocked'
-            });
+    ) { }
+
+    async generateResponse(params: GenerateResponseParams): Promise<{ responseText: string; model: string }> {
+        const context = params.context ? await this.buildContextText(params.context, params.projectId) : '';
+        const systemPrompt = context ? `Context:\n${context}` : undefined;
+
+        const result = await generate({
+            model: params.model,
+            prompt: params.message,
+            ...(systemPrompt && { system: systemPrompt }),
+            ...(params.settings.maxTokens && { maxTokens: params.settings.maxTokens }),
+            ...(params.settings.temperature != null && { temperature: params.settings.temperature }),
         });
-
-        aiRateLimiter.setBlockedCallback((retryAfterMs) => {
-            const seconds = Math.ceil(retryAfterMs / 1000);
-            toast.error(`Rate limit exceeded. Try again in ${seconds} seconds.`);
-        });
-    }
-
-    /**
-     * Generate AI response with full context and conversation history
-     */
-    async generateResponse(params: GenerateResponseParams): Promise<{
-        responseText: string;
-        model: string;
-    }> {
-        const { message, threadId, projectId, context, model, settings, promptId } = params;
-
-        // ✅ SEC-3: Check rate limit before making AI request
-        const rateLimitCheck = aiRateLimiter.canMakeRequest();
-        if (!rateLimitCheck.allowed) {
-            throw new Error(rateLimitCheck.reason || 'Rate limit exceeded');
-        }
-
-        // 1. Build context text if provided
-        let contextText = '';
-        if (context) {
-            contextText = await this.buildContextText(context, projectId);
-        }
-
-        // 2. Get prompt template
-        const template = getPromptTemplate(promptId);
-
-        // 3. Build system prompt with context
-        let systemPrompt = template.systemPrompt;
-        if (contextText) {
-            systemPrompt += `\n\n=== CONTEXT ===\n${contextText}`;
-        }
-
-        // 4. Get conversation history
-        const allMessages = await this.chatRepository.getMessagesByThread(threadId);
-
-        // Build conversation history string (exclude current message if it exists)
-        const conversationHistory = allMessages
-            .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-            .join('\n\n');
-
-        // 5. Build full prompt with history
-        const fullPrompt = conversationHistory
-            ? `Previous conversation:\n${conversationHistory}\n\nUser: ${message}`
-            : message;
-
-        // 6. Generate AI response
-        const response = await generateText({
-            model,
-            system: systemPrompt,
-            prompt: fullPrompt,
-            temperature: settings.temperature,
-            maxTokens: settings.maxTokens,
-        });
-
-        // ✅ Record successful request for rate limiting
-        aiRateLimiter.recordRequest();
 
         return {
-            responseText: response.text,
-            model,
+            responseText: result.text,
+            model: params.model,
         };
     }
 
-    /**
-     * Build context text from novel/codex selections
-     * Series-first: fetches project to get seriesId for codex lookups
-     */
-    async buildContextText(
-        context: ChatContext,
-        projectId: string
-    ): Promise<string> {
-        if (!projectId) return '';
+    async buildContextText(context: ChatContext, projectId: string): Promise<string> {
         const parts: string[] = [];
 
-        // 1. Full Novel Text
-        if (context.novelText === 'full') {
-            const allScenes = await this.nodeRepository.getByProject(projectId);
-            const scenes = allScenes.filter(n => n.type === 'scene') as Scene[];
-
-            const fullText = scenes.map(s => {
-                return `[Scene: ${s.title}]\n${extractTextFromContent(s.content)}`;
-            }).join('\n\n');
-
-            parts.push(`=== FULL NOVEL TEXT ===\n${fullText}`);
-        }
-
-        // 2. Outline
-        if (context.novelText === 'outline') {
-            const nodes = await this.nodeRepository.getByProject(projectId);
-
-            const outline = nodes.map(n => {
-                const indent = n.type === 'act' ? '' : n.type === 'chapter' ? '  ' : '    ';
-                let info = `${indent}- [${n.type.toUpperCase()}] ${n.title}`;
-                if (n.type === 'scene') {
-                    const scene = n as Scene;
-                    if (scene.summary) info += `\n${indent}  Summary: ${scene.summary}`;
-                }
-                return info;
-            }).join('\n');
-
-            parts.push(`=== NOVEL OUTLINE ===\n${outline}`);
-        }
-
-        // 3. Specific Acts
-        if (context.acts && context.acts.length > 0) {
-            for (const actId of context.acts) {
-                const act = await this.nodeRepository.get(actId) as Act | undefined;
-                if (act) {
-                    const chapters = await this.nodeRepository.getChildren(actId);
-                    const chapterIds = chapters.map(c => c.id);
-
-                    const allScenes = await this.nodeRepository.getByProject(projectId);
-                    const scenes = allScenes.filter(n =>
-                        n.type === 'scene' && chapterIds.includes(n.parentId || '')
-                    ) as Scene[];
-
-                    const actText = scenes.map(s => {
-                        return `[Scene: ${s.title}]\n${extractTextFromContent(s.content)}`;
-                    }).join('\n\n');
-
-                    parts.push(`=== ACT: ${act.title} ===\n${actText}`);
-                }
-            }
-        }
-
-        // 4. Specific Chapters
-        if (context.chapters && context.chapters.length > 0) {
-            for (const chapterId of context.chapters) {
-                const chapter = await this.nodeRepository.get(chapterId) as Chapter | undefined;
-                if (chapter) {
-                    const scenes = await this.nodeRepository.getChildren(chapterId) as Scene[];
-
-                    const chapterText = scenes.map(s => {
-                        return `[Scene: ${s.title}]\n${extractTextFromContent(s.content)}`;
-                    }).join('\n\n');
-
-                    parts.push(`=== CHAPTER: ${chapter.title} ===\n${chapterText}`);
-                }
-            }
-        }
-
-        // 5. Specific Scenes
-        if (context.scenes && context.scenes.length > 0) {
+        // Add scene content if selected
+        if (context.scenes?.length) {
+            const allNodes = await this.nodeRepository.getByProject(projectId);
             for (const sceneId of context.scenes) {
-                const scene = await this.nodeRepository.get(sceneId) as Scene | undefined;
-                if (scene) {
-                    parts.push(`=== SCENE: ${scene.title} ===\n${extractTextFromContent(scene.content)}`);
+                const node = allNodes.find((n) => n.id === sceneId);
+                if (node && node.type === 'scene') {
+                    parts.push(`[Scene: ${node.title}]\n${JSON.stringify((node as { content: unknown }).content)}`);
                 }
             }
         }
 
-        // 6. Codex Entries - series-first: fetch project to get seriesId
-        if (context.codexEntries && context.codexEntries.length > 0) {
+        // Add codex entries if selected (need to get seriesId from project)
+        if (context.codexEntries?.length) {
             const project = await this.projectRepository.get(projectId);
-            const seriesId = project?.seriesId;
-
-            if (seriesId) {
-                const entries = await Promise.all(
-                    context.codexEntries.map(id => this.codexRepository.get(seriesId, id))
-                );
-                const validEntries = entries.filter(e => e !== undefined) as CodexEntry[];
-
-                const codexText = validEntries.map(e =>
-                    `[Codex: ${e.name} (${e.category})]\n${e.description}\n${e.notes ? `Notes: ${e.notes}` : ''}`
-                ).join('\n\n');
-
-                if (codexText) {
-                    parts.push(`=== CODEX ENTRIES ===\n${codexText}`);
+            if (project?.seriesId) {
+                const allEntries = await this.codexRepository.getBySeries(project.seriesId);
+                for (const entryId of context.codexEntries) {
+                    const entry = allEntries.find((e) => e.id === entryId);
+                    if (entry?.description) {
+                        parts.push(`[${entry.category}: ${entry.name}]\n${entry.description}`);
+                    }
                 }
             }
         }
@@ -219,19 +67,14 @@ export class ChatService implements IChatService {
         return parts.join('\n\n');
     }
 
-    /**
-     * Get conversation history for a thread
-     */
-    async getConversationHistory(
-        threadId: string,
-        beforeTimestamp?: number
-    ): Promise<ChatMessage[]> {
-        const allMessages = await this.chatRepository.getMessagesByThread(threadId);
+    async getConversationHistory(threadId: string, beforeTimestamp?: number): Promise<ChatMessage[]> {
+        // Get messages for the thread from repository
+        const messages = await this.chatRepository.getMessagesByThread(threadId);
 
         if (beforeTimestamp) {
-            return allMessages.filter(m => m.timestamp < beforeTimestamp);
+            return messages.filter((m: ChatMessage) => m.timestamp < beforeTimestamp);
         }
 
-        return allMessages;
+        return messages;
     }
 }

@@ -25,7 +25,8 @@ export function useDocumentExport() {
      * Export using Tauri backend (DOCX only)
      * Legacy method for backward compatibility
      */
-    const exportProjectAsDocx = async (projectId: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const exportProjectAsDocx = async (_projectId: string) => {
         try {
             const projectPath = TauriNodeRepository.getInstance().getProjectPath();
             if (!projectPath) throw new Error('No project selected');
@@ -74,7 +75,7 @@ export function useDocumentExport() {
             toast.info(`Generating ${preset.name}...`);
 
             // Generate filename
-            const filename = generateFilename(preset, projectId);
+            const filename = generateFilename(preset);
             const extension = getExtensionForFormat(preset.defaultFormat);
 
             // Show native save dialog
@@ -201,7 +202,7 @@ function downloadBlob(blob: Blob, filename: string) {
 /**
  * Generate filename based on preset and date
  */
-function generateFilename(preset: ExportPreset, projectId: string): string {
+function generateFilename(preset: ExportPreset): string {
     const date = new Date().toISOString().split('T')[0];
     const extension = getExtensionForFormat(preset.defaultFormat);
     return `manuscript-${preset.id}-${date}.${extension}`;

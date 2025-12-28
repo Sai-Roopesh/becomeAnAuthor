@@ -130,7 +130,8 @@ export class EditorStateManager {
         this.updateStatus('saving');
 
         try {
-            const content = this.editor.getJSON();
+            // Cast to TiptapContent to satisfy type checker - getJSON() returns compatible structure
+            const content = this.editor.getJSON() as unknown as import('@/shared/types/tiptap').TiptapContent;
             log.debug(`Saving scene ${this.sceneId}...`);
 
             await saveCoordinator.scheduleSave(this.sceneId, () => content);
@@ -145,7 +146,7 @@ export class EditorStateManager {
 
             // Create emergency backup on failure
             try {
-                const content = this.editor.getJSON();
+                const content = this.editor.getJSON() as unknown as import('@/shared/types/tiptap').TiptapContent;
                 await emergencyBackupService.saveBackup(this.sceneId, content);
                 log.debug('Emergency backup created');
             } catch (backupError) {

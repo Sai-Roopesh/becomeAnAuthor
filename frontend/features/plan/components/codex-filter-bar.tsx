@@ -42,7 +42,6 @@ const CATEGORIES: { id: CodexCategory; label: string; icon: typeof User; color: 
  * Series-first: uses seriesId for codex lookups
  */
 export function CodexFilterBar({
-    projectId,
     seriesId,
     selectedIds,
     onSelectionChange,

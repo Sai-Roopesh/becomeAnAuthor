@@ -4,7 +4,6 @@ import { DocumentNode } from '@/domain/entities/types';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Table } from 'lucide-react';
 import {
     Select,
@@ -23,7 +22,8 @@ interface MatrixViewProps {
 
 type MatrixMode = 'codex' | 'pov' | 'labels';
 
-export function MatrixView({ projectId, seriesId, nodes, searchQuery }: MatrixViewProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function MatrixView({ projectId: _projectId, seriesId, nodes, searchQuery }: MatrixViewProps) {
     const [mode, setMode] = useState<MatrixMode>('codex');
     const codexRepo = useCodexRepository();
     const codexEntries = useLiveQuery(() => codexRepo.getBySeries(seriesId), [seriesId, codexRepo]);
@@ -116,7 +116,7 @@ export function MatrixView({ projectId, seriesId, nodes, searchQuery }: MatrixVi
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/30">
-                            {filteredScenes.map((scene, idx) => (
+                            {filteredScenes.map((scene) => (
                                 <tr
                                     key={scene.id}
                                     className="group hover:bg-muted/30 transition-colors"

@@ -22,11 +22,13 @@ export function useImportExport() {
         toast.info('Full database backup not available in desktop mode. Use project export instead.');
     };
 
-    const importFullBackup = async (file: File) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const importFullBackup = async (_file: File) => {
         toast.info('Full database restore not available in desktop mode. Use project import instead.');
     };
 
-    const exportProject = async (projectId: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const exportProject = async (_projectId: string) => {
         try {
             const projectPath = TauriNodeRepository.getInstance().getProjectPath();
             if (!projectPath) throw new Error('No project selected');
@@ -55,7 +57,7 @@ export function useImportExport() {
             let parsedData: unknown;
             try {
                 parsedData = JSON.parse(fileContent);
-            } catch (e) {
+            } catch {
                 toast.error('Invalid file: not a valid JSON file');
                 throw new Error('Invalid JSON file');
             }
@@ -90,7 +92,8 @@ export function useImportExport() {
     /**
      * Backup current project to Google Drive
      */
-    const backupToGoogleDrive = async (projectId: string): Promise<DriveFile | null> => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const backupToGoogleDrive = async (_projectId: string): Promise<DriveFile | null> => {
         try {
             // 1. Check authentication
             if (!googleAuthService.isAuthenticated()) {

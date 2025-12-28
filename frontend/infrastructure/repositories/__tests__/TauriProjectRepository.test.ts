@@ -41,14 +41,17 @@ import * as tauriCommands from '@/core/tauri';
 // Test Fixtures
 // ============================================
 
-const createMockProject = (overrides: any = {}) => ({
+const createMockProject = (overrides: Partial<import('@/core/tauri').ProjectMeta> = {}): import('@/core/tauri').ProjectMeta => ({
     id: 'proj-1',
     title: 'My Novel',
     author: 'Jane Doe',
+    description: 'A test project',
     path: '/Users/test/Projects/MyNovel',
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-15T12:30:00Z',
+    created_at: Date.now(),
+    updated_at: Date.now(),
     archived: false,
+    series_id: 'series-1',
+    series_index: 'Book 1',
     ...overrides,
 });
 
@@ -186,7 +189,7 @@ describe('TauriProjectRepository Contract', () => {
         });
 
         it('MUST set project path in singleton after creation', async () => {
-            const mockSetPath = vi.fn();
+            // mockSetPath removed
             vi.mocked(tauriCommands.createProject).mockResolvedValue({
                 id: 'new-proj',
                 title: 'New',
@@ -226,8 +229,8 @@ describe('TauriProjectRepository Contract', () => {
         it('MUST convert timestamp formats correctly', async () => {
             vi.mocked(tauriCommands.listProjects).mockResolvedValue([
                 createMockProject({
-                    created_at: '2025-01-01T00:00:00Z',
-                    updated_at: '2025-06-15T12:30:00Z',
+                    created_at: 1704067200000,
+                    updated_at: 1718454600000,
                 }),
             ]);
 

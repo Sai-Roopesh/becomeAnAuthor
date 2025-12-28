@@ -19,7 +19,7 @@ import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useSeriesRepository } from '@/hooks/use-series-repository';
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { toast } from 'sonner';
-import type { Series } from '@/domain/entities/types';
+// Series import removed - unused
 
 const TITLES = [
     "The Last Starship", "Whispers in the Dark", "The Clockwork Heart", "Echoes of Eternity",
@@ -158,7 +158,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                 seriesId: formData.seriesId,       // REQUIRED
                 seriesIndex: formData.seriesIndex, // REQUIRED
                 customPath: formData.savePath,
-            } as any); // Type assertion needed since customPath not in base Project type
+            } as unknown as Omit<import('@/domain/entities/types').Project, 'id' | 'createdAt' | 'updatedAt'> & { customPath: string });
 
             // Create initial manuscript structure using repository
             const act = await nodeRepo.create({
@@ -213,7 +213,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
     const isFormValid = formData.title.trim() && formData.seriesId && formData.seriesIndex.trim() && formData.savePath;
 
     // Get selected series name for display
-    const selectedSeries = existingSeries?.find(s => s.id === formData.seriesId);
+    // selectedSeries removed - unused
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>

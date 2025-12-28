@@ -302,7 +302,7 @@ export function TiptapEditor({
                         behavior: 'smooth'
                     });
                 }
-            } catch (e) {
+            } catch {
                 // Ignore errors from coordsAtPos when selection is invalid
             }
         };
@@ -315,7 +315,7 @@ export function TiptapEditor({
         };
     }, [editor, formatSettings.typewriterMode]);
 
-    const { generateStream, isGenerating, model, setModel, cancel } = useAI({
+    const { generateStream, isGenerating, model, cancel } = useAI({
         system: `You are an expert fiction writer specializing in immersive storytelling.
 
 CORE PRINCIPLES:
@@ -331,7 +331,6 @@ WRITING STYLE:
 - Vivid sensory details: sight, sound, touch, smell, taste
 
 When continuing a story, extend the narrative naturally while honoring the established world, characters, and tone.`,
-        streaming: true,
         persistModel: true,
         operationName: 'Generate',
     });
@@ -383,7 +382,7 @@ ${options.instructions || 'Continue the story naturally from the current context
 
 YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
 
-        let generatedText = '';
+        // generatedText variable removed - unused
 
         await generateStream(
             {
@@ -396,8 +395,8 @@ YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
                 temperature: AI_DEFAULTS.TEMPERATURE,
             },
             {
-                onChunk: (chunk) => {
-                    generatedText += chunk;
+                onChunk: () => {
+                    // generatedText += chunk;
                 },
                 onComplete: async (fullText) => {
                     if (fullText && editor) {

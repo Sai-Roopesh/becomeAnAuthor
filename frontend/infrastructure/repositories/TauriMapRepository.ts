@@ -14,7 +14,8 @@ import {
 import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriMapRepository implements IMapRepository {
-    async list(projectId: string): Promise<ProjectMap[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async list(_projectId: string): Promise<ProjectMap[]> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 

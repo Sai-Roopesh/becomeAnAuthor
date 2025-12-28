@@ -5,13 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { storage } from '@/core/storage/safe-storage';
 
-interface ModelInfo {
-    id: string;
-    name?: string;
-    provider?: string;
-    maxOutput?: string;
-    category?: 'popular' | 'new' | 'other';
-}
+// ModelInfo type was defined for documentation but not used - removed to fix lint
 
 interface ModelSelectorProps {
     value: string;

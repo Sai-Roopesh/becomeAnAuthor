@@ -39,22 +39,19 @@ const createMockStructure = () => [
         type: 'act',
         title: 'Act One',
         order: 0,
-        expanded: true,
         children: [
             {
                 id: 'chapter-1',
                 type: 'chapter',
                 title: 'Chapter One',
                 order: 0,
-                expanded: true,
                 children: [
                     {
                         id: 'scene-1',
                         type: 'scene',
                         title: 'Opening Scene',
                         order: 0,
-                        file: 'scene-uuid-1.md', // Correct property name
-                        expanded: false,
+                        file: 'scene-uuid-1.md',
                         children: [],
                     },
                     {
@@ -62,8 +59,7 @@ const createMockStructure = () => [
                         type: 'scene',
                         title: 'Second Scene',
                         order: 1,
-                        file: 'scene-uuid-2.md', // Correct property name
-                        expanded: false,
+                        file: 'scene-uuid-2.md',
                         children: [],
                     },
                 ],
@@ -201,17 +197,15 @@ describe('TauriNodeRepository Contract', () => {
                     type: 'act',
                     title: 'Big Act',
                     order: 0,
-                    expanded: true,
                     children: [
                         {
                             id: 'ch-1',
                             type: 'chapter',
                             title: 'Chapter 1',
                             order: 0,
-                            expanded: true,
                             children: [
-                                { id: 's1', type: 'scene', title: 'Scene 1', order: 0, file: 's1.md', expanded: false, children: [] },
-                                { id: 's2', type: 'scene', title: 'Scene 2', order: 1, file: 's2.md', expanded: false, children: [] },
+                                { id: 's1', type: 'scene', title: 'Scene 1', order: 0, file: 's1.md', children: [] },
+                                { id: 's2', type: 'scene', title: 'Scene 2', order: 1, file: 's2.md', children: [] },
                             ],
                         },
                         {
@@ -219,15 +213,14 @@ describe('TauriNodeRepository Contract', () => {
                             type: 'chapter',
                             title: 'Chapter 2',
                             order: 1,
-                            expanded: true,
                             children: [
-                                { id: 's3', type: 'scene', title: 'Scene 3', order: 0, file: 's3.md', expanded: false, children: [] },
+                                { id: 's3', type: 'scene', title: 'Scene 3', order: 0, file: 's3.md', children: [] },
                             ],
                         },
                     ],
                 },
             ];
-            vi.mocked(tauriCommands.getStructure).mockResolvedValue(deepStructure as any);
+            vi.mocked(tauriCommands.getStructure).mockResolvedValue(deepStructure as import('@/core/tauri').StructureNode[]);
             vi.mocked(tauriCommands.saveStructure).mockResolvedValue(undefined);
             vi.mocked(tauriCommands.deleteScene).mockResolvedValue(undefined);
 
@@ -250,8 +243,8 @@ describe('TauriNodeRepository Contract', () => {
             const savedStructure = vi.mocked(tauriCommands.saveStructure).mock.calls[0][1];
 
             // The saved structure should not contain scene-1
-            const flattenIds = (nodes: any[]): string[] => {
-                return nodes.flatMap((n: any) => [n.id, ...flattenIds(n.children || [])]);
+            const flattenIds = (nodes: import('@/core/tauri').StructureNode[]): string[] => {
+                return nodes.flatMap((n: import('@/core/tauri').StructureNode) => [n.id, ...flattenIds(n.children || [])]);
             };
             expect(flattenIds(savedStructure)).not.toContain('scene-1');
         });
@@ -289,11 +282,10 @@ describe('TauriNodeRepository Contract', () => {
                     type: 'scene',
                     title: 'Test',
                     order: 0,
-                    expanded: false,
                     file: 'test.md',
                     children: [],
                 },
-            ] as any);
+            ] as import('@/core/tauri').StructureNode[]);
             vi.mocked(tauriCommands.saveScene).mockResolvedValue({
                 id: 'scene-1',
                 title: 'Test',
@@ -304,7 +296,7 @@ describe('TauriNodeRepository Contract', () => {
                 updated_at: Date.now(),
             });
 
-            await repo.update('scene-1', { content: complexContent as any });
+            await repo.update('scene-1', { content: complexContent as import('@/shared/types/tiptap').TiptapContent });
 
             // SPECIFICATION: Content MUST be passed to saveScene
             // Note: Serialization to JSON happens in Rust layer, not JS layer
@@ -324,23 +316,26 @@ describe('TauriNodeRepository Contract', () => {
     describe('Node Creation Contract', () => {
         it('MUST generate unique UUIDs for new nodes', async () => {
             vi.mocked(tauriCommands.createNode).mockImplementation(
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 async (_path, type, title, _parentId) => ({
                     id: 'mock-uuid',
                     type,
                     title,
+                    id: 'mock-uuid',
+                    type,
+                    title,
                     order: 0,
-                    expanded: true,
                     children: [],
                 })
             );
 
-            const node1 = await repo.create({
+            await repo.create({
                 projectId: 'proj-1',
                 type: 'scene',
                 title: 'Scene A',
             });
 
-            const node2 = await repo.create({
+            await repo.create({
                 projectId: 'proj-1',
                 type: 'scene',
                 title: 'Scene B',
@@ -363,13 +358,14 @@ describe('TauriNodeRepository Contract', () => {
                     type,
                     title: 'Test',
                     order: 0,
-                    expanded: true,
+                    title: 'Test',
+                    order: 0,
                     children: [],
-                } as any);
+                } as import('@/core/tauri').StructureNode);
 
                 await expect(repo.create({
                     projectId: 'proj',
-                    type: type as any,
+                    type: type as 'act' | 'chapter' | 'scene',
                     title: 'Test',
                 })).resolves.toBeDefined();
             }
@@ -395,8 +391,8 @@ describe('TauriNodeRepository Contract', () => {
                 new Error('Corrupted file')
             );
             vi.mocked(tauriCommands.getStructure).mockResolvedValue([
-                { id: 'scene-1', type: 'scene', title: 'Test', order: 0, file: 'test.md', expanded: false, children: [] },
-            ] as any);
+                { id: 'scene-1', type: 'scene', title: 'Test', order: 0, file: 'test.md', children: [] },
+            ] as import('@/core/tauri').StructureNode[]);
 
             const result = await repo.get('scene-1');
 
@@ -428,7 +424,8 @@ describe('Word Count Specifications', () => {
             ];
 
             // These are specification markers - implementation tests go elsewhere
-            contractions.forEach(({ text, expected }) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            contractions.forEach(({ text, expected: _expected }) => {
                 expect(text).toBeDefined(); // Placeholder for actual word count function
             });
         });

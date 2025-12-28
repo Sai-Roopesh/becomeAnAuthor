@@ -85,10 +85,10 @@ function TabButton({ id, icon, label, activeTab, onClick, disabled, badge }: Tab
  */
 export function WriteRightPanel({
     projectId,
-    seriesId,
+    // seriesId removed - unused
     activeSceneId,
     activeSceneWordCount,
-    onCollapse,
+    // onCollapse removed - unused
 }: WriteRightPanelProps) {
     const [activeTab, setActiveTab] = useState<RightPanelTab>('timeline');
 

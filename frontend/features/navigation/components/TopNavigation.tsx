@@ -12,7 +12,8 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-export function TopNavigation({ projectId }: { projectId: string }) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function TopNavigation({ projectId: _projectId }: { projectId: string }) {
     const { viewMode, setViewMode } = useProjectStore();
 
     const modes: { id: ViewMode; label: string; icon: React.ElementType }[] = [

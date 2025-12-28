@@ -57,8 +57,18 @@ Handles **all business logic**, UI state management, and AI orchestration.
 
 #### AI Integration
 - **SDK**: [Vercel AI SDK](https://sdk.vercel.ai/) v5
-- **Usage**: Client-side streaming (OpenAI, Anthropic, Google)
+- **Core Functions**: `streamText`, `generateText` from `ai` package
+- **Official Providers**:
+  - `@ai-sdk/google` - Google Gemini
+  - `@ai-sdk/anthropic` - Claude
+  - `@ai-sdk/mistral` - Mistral AI
+  - `@ai-sdk/openai` - OpenAI + OpenAI-compatible (LM Studio, Ollama)
+  - `@ai-sdk/deepseek` - DeepSeek
+  - `@ai-sdk/groq` - Groq (fast inference)
+- **Community Providers**: `@openrouter/ai-sdk-provider`
 - **Token Counting**: `@dqbd/tiktoken` (WebAssembly)
+- **Pattern**: Provider Factory → Unified `streamText`/`generateText` API
+
 
 #### UI Feedback
 - **Notifications**: `sonner` (Toast notifications)

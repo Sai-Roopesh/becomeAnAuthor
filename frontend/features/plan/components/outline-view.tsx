@@ -14,7 +14,7 @@ interface OutlineViewProps {
     searchQuery: string;
 }
 
-export function OutlineView({ projectId, seriesId, nodes, searchQuery }: OutlineViewProps) {
+export function OutlineView({ projectId, nodes, searchQuery }: OutlineViewProps) {
     const { setActiveSceneId, setViewMode } = useProjectStore();
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
     const [dialogState, setDialogState] = useState<{

@@ -1,137 +1,148 @@
 /**
  * AI Vendor Configurations
  * Defines all supported AI vendors and their settings
+ * Supports 14 providers via Vercel AI SDK
  */
 
-export type AIProvider = 'openrouter' | 'google' | 'mistral' | 'openai' | 'kimi' | 'anthropic';
+export type AIProvider =
+    | 'openrouter' | 'google' | 'anthropic' | 'openai' | 'mistral'
+    | 'deepseek' | 'groq' | 'cohere' | 'xai'
+    | 'azure' | 'togetherai' | 'fireworks' | 'perplexity' | 'kimi';
 
 export interface AIVendor {
     id: AIProvider;
     name: string;
     description: string;
-    apiEndpoint: string;
-    modelsEndpoint?: string;
-    apiKeyFormat: string;
-    apiKeyPlaceholder: string;
-    setupUrl: string;
     icon: string;
-    defaultModels?: string[];
+    setupUrl: string;
     requiresAuth: boolean;
+    defaultModels?: string[];
+    apiKeyPlaceholder?: string;
 }
 
 export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     openrouter: {
         id: 'openrouter',
         name: 'OpenRouter',
-        description: 'Access to multiple AI models through a unified API',
-        apiEndpoint: 'https://openrouter.ai/api/v1',
-        modelsEndpoint: 'https://openrouter.ai/api/v1/models',
-        apiKeyFormat: 'sk-or-v1-...',
-        apiKeyPlaceholder: 'sk-or-v1-...',
-        setupUrl: 'https://openrouter.ai/keys',
+        description: 'Access 100+ models through a unified API',
         icon: '🔀',
+        setupUrl: 'https://openrouter.ai/keys',
         requiresAuth: true,
     },
     google: {
         id: 'google',
         name: 'Google AI Studio',
-        description: 'Google Gemini models (2.0, 1.5 Pro/Flash, etc.)',
-        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta',
-        modelsEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
-        apiKeyFormat: 'AIza...',
-        apiKeyPlaceholder: 'AIzaSy...',
-        setupUrl: 'https://aistudio.google.com/app/apikey',
+        description: 'Gemini models (2.5, 3.0)',
         icon: '🔷',
-        defaultModels: [
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-001',
-            'gemini-2.0-flash-exp',
-            'gemini-2.0-flash-lite-preview-02-05',
-            'gemini-2.0-flash-thinking-exp',
-            'gemini-2.0-flash-thinking-exp-01-21',
-            'gemini-2.0-pro-exp',
-            'gemini-2.0-pro-exp-02-05',
-            'gemini-2.5-flash',
-            'gemini-2.5-flash-image',
-            'gemini-2.5-flash-lite-preview-09-25',
-            'gemini-2.5-flash-preview-09-25',
-            'gemini-2.5-pro-preview-03-25',
-            'gemini-2.5-pro-preview-04-05',
-            'gemini-3-pro-preview',
-            'gemini-3-pro-image-preview',
-            'gemini-exp-1206',
-            'gemini-flash-latest',
-            'gemini-pro-latest',
-        ],
+        setupUrl: 'https://aistudio.google.com/app/apikey',
         requiresAuth: true,
-    },
-    mistral: {
-        id: 'mistral',
-        name: 'Mistral AI',
-        description: 'Mistral Large, Medium, and Small models',
-        apiEndpoint: 'https://api.mistral.ai/v1',
-        modelsEndpoint: 'https://api.mistral.ai/v1/models',
-        apiKeyFormat: 'Standard bearer token',
-        apiKeyPlaceholder: 'Enter Mistral API key...',
-        setupUrl: 'https://console.mistral.ai/api-keys/',
-        icon: '🌫️',
-        defaultModels: [
-            'mistral-large-latest',
-            'mistral-medium-latest',
-            'mistral-small-latest',
-            'mistral-nemo:free',
-        ],
-        requiresAuth: true,
-    },
-    openai: {
-        id: 'openai',
-        name: 'OpenAI Compatible',
-        description: 'OpenAI API or compatible endpoints (LM Studio, Ollama, etc.)',
-        apiEndpoint: 'Custom',
-        apiKeyFormat: 'Optional (depends on endpoint)',
-        apiKeyPlaceholder: 'sk-... (if required)',
-        setupUrl: 'https://platform.openai.com/api-keys',
-        icon: '⚡',
-        defaultModels: [
-            'gpt-4o',
-            'gpt-4o-mini',
-            'gpt-4-turbo',
-            'gpt-3.5-turbo',
-        ],
-        requiresAuth: false,
-    },
-    kimi: {
-        id: 'kimi',
-        name: 'Kimi-LLM',
-        description: 'Moonshot AI Kimi models',
-        apiEndpoint: 'https://api.moonshot.cn/v1',
-        modelsEndpoint: 'https://api.moonshot.cn/v1/models',
-        apiKeyFormat: 'Standard bearer token',
-        apiKeyPlaceholder: 'Enter Kimi API key...',
-        setupUrl: 'https://platform.moonshot.cn/console/api-keys',
-        icon: '🌙',
-        defaultModels: [
-            'kimi-v1-405b',
-            'kimi-v1-fast',
-        ],
-        requiresAuth: true,
+        defaultModels: ['gemini-2.5-flash', 'gemini-2.5-pro-preview-03-25', 'gemini-3-pro-preview'],
     },
     anthropic: {
         id: 'anthropic',
         name: 'Anthropic',
-        description: 'Claude models (Opus, Sonnet, Haiku)',
-        apiEndpoint: 'https://api.anthropic.com/v1',
-        modelsEndpoint: 'https://api.anthropic.com/v1/models',
-        apiKeyFormat: 'sk-ant-...',
-        apiKeyPlaceholder: 'sk-ant-api03-...',
-        setupUrl: 'https://console.anthropic.com/settings/keys',
+        description: 'Claude models (3.5, 4)',
         icon: '🧠',
-        defaultModels: [
-            'claude-3-5-sonnet-latest',
-            'claude-3-5-haiku-latest',
-            'claude-3-opus-latest',
-        ],
+        setupUrl: 'https://console.anthropic.com/settings/keys',
         requiresAuth: true,
+        defaultModels: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest'],
+    },
+    openai: {
+        id: 'openai',
+        name: 'OpenAI / Local',
+        description: 'OpenAI or compatible endpoints (LM Studio, Ollama)',
+        icon: '⚡',
+        setupUrl: 'https://platform.openai.com/api-keys',
+        requiresAuth: false,
+        defaultModels: ['gpt-4o', 'gpt-4o-mini'],
+    },
+    mistral: {
+        id: 'mistral',
+        name: 'Mistral AI',
+        description: 'Mistral Large, Small models',
+        icon: '🌫️',
+        setupUrl: 'https://console.mistral.ai/api-keys/',
+        requiresAuth: true,
+        defaultModels: ['mistral-large-latest', 'mistral-small-latest'],
+    },
+    deepseek: {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        description: 'DeepSeek Chat and Reasoner',
+        icon: '🔍',
+        setupUrl: 'https://platform.deepseek.com/api_keys',
+        requiresAuth: true,
+        defaultModels: ['deepseek-chat', 'deepseek-reasoner'],
+    },
+    groq: {
+        id: 'groq',
+        name: 'Groq',
+        description: 'Ultra-fast inference (Llama, Mixtral)',
+        icon: '⚡',
+        setupUrl: 'https://console.groq.com/keys',
+        requiresAuth: true,
+        defaultModels: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+    },
+    cohere: {
+        id: 'cohere',
+        name: 'Cohere',
+        description: 'Command R+ models',
+        icon: '📊',
+        setupUrl: 'https://dashboard.cohere.com/api-keys',
+        requiresAuth: true,
+        defaultModels: ['command-r-plus', 'command-r'],
+    },
+    xai: {
+        id: 'xai',
+        name: 'xAI Grok',
+        description: 'Grok models',
+        icon: '🤖',
+        setupUrl: 'https://x.ai/',
+        requiresAuth: true,
+        defaultModels: ['grok-2', 'grok-2-mini'],
+    },
+    azure: {
+        id: 'azure',
+        name: 'Azure OpenAI',
+        description: 'Azure-hosted OpenAI models',
+        icon: '☁️',
+        setupUrl: 'https://portal.azure.com/',
+        requiresAuth: true,
+    },
+    togetherai: {
+        id: 'togetherai',
+        name: 'Together.ai',
+        description: 'Open-source models hosted',
+        icon: '🤝',
+        setupUrl: 'https://api.together.xyz/settings/api-keys',
+        requiresAuth: true,
+        defaultModels: ['meta-llama/Llama-3-70b-chat-hf'],
+    },
+    fireworks: {
+        id: 'fireworks',
+        name: 'Fireworks',
+        description: 'Fine-tuned models',
+        icon: '🎆',
+        setupUrl: 'https://fireworks.ai/account/api-keys',
+        requiresAuth: true,
+    },
+    perplexity: {
+        id: 'perplexity',
+        name: 'Perplexity',
+        description: 'Search-augmented AI',
+        icon: '🔎',
+        setupUrl: 'https://www.perplexity.ai/settings/api',
+        requiresAuth: true,
+        defaultModels: ['llama-3.1-sonar-small-128k-online'],
+    },
+    kimi: {
+        id: 'kimi',
+        name: 'Kimi (Moonshot)',
+        description: 'Kimi models',
+        icon: '🌙',
+        setupUrl: 'https://platform.moonshot.cn/console/api-keys',
+        requiresAuth: true,
+        defaultModels: ['kimi-v1-405b'],
     },
 };
 
@@ -140,49 +151,39 @@ export interface AIConnection {
     name: string;
     provider: AIProvider;
     apiKey: string;
-    customEndpoint?: string; // For OpenAI compatible
+    customEndpoint?: string;
     enabled: boolean;
     models?: string[];
     createdAt: number;
     updatedAt: number;
 }
 
-/**
- * Get all AI vendor configurations
- */
 export function getAllVendors(): AIVendor[] {
     return Object.values(AI_VENDORS);
 }
 
-/**
- * Get vendor by ID
- */
 export function getVendor(id: AIProvider): AIVendor | undefined {
     return AI_VENDORS[id];
 }
 
 /**
- * Check if API key format is valid for vendor
+ * Validate API key format for a provider.
+ * Most providers just check for non-empty string.
  */
 export function validateApiKey(provider: AIProvider, apiKey: string): boolean {
     if (!apiKey || apiKey.trim().length === 0) return false;
-
-    const vendor = getVendor(provider);
-    if (!vendor) return false;
 
     switch (provider) {
         case 'openrouter':
             return apiKey.startsWith('sk-or-');
         case 'google':
             return apiKey.startsWith('AIza');
-        case 'mistral':
-        case 'kimi':
-            return apiKey.length > 10; // Basic length check
-        case 'openai':
-            return true; // OpenAI compatible can have various formats
         case 'anthropic':
             return apiKey.startsWith('sk-ant-');
+        case 'openai':
+            return true; // Optional for compatible endpoints
         default:
-            return true;
+            return apiKey.length > 10; // Basic length check
     }
 }
+

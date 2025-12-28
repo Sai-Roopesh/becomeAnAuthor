@@ -4,9 +4,9 @@ import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useSnippetRepository } from '@/hooks/use-snippet-repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, FileText, Pin, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+// uuidv4 removed - unused
 import {
     DropdownMenu,
     DropdownMenuContent,

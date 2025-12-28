@@ -1,7 +1,8 @@
 import type { IExportService, ExportOptions } from '@/domain/services/IExportService';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
-import type { Scene } from '@/domain/entities/types';
+import type { Scene, DocumentNode } from '@/domain/entities/types';
 import { extractTextFromContent } from '@/shared/utils/editor';
+import { BUILT_IN_PRESETS } from '@/features/export/utils/export-presets';
 import {
     Document,
     Packer,
@@ -434,7 +435,6 @@ ${htmlContent}
      * Get available built-in export presets
      */
     getPresets(): import('@/domain/types/export-types').ExportPreset[] {
-        const { BUILT_IN_PRESETS } = require('@/features/export/utils/export-presets');
         return BUILT_IN_PRESETS;
     }
 
@@ -492,11 +492,11 @@ ${htmlContent}
      * NOTE: Currently unused - will be used when Tauri ePub export is fully integrated
      */
     private buildEpubChapters(
-        nodes: any[],
+        nodes: DocumentNode[],
         scenes: Scene[],
         config: import('@/domain/types/export-types').ExportConfig
-    ): any[] {
-        const chapters: any[] = [];
+    ): { title: string; data: string }[] {
+        const chapters: { title: string; data: string }[] = [];
 
         // Add front matter
         if (config.frontMatter?.titlePage) {
@@ -563,7 +563,7 @@ ${htmlContent}
      * Build preview pages for live preview
      */
     private buildPreviewPages(
-        nodes: any[],
+        nodes: DocumentNode[],
         scenes: Scene[],
         config: import('@/domain/types/export-types').ExportConfig
     ): import('@/domain/types/export-types').PreviewPage[] {

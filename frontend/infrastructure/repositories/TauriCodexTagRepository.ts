@@ -21,7 +21,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         if (!projectPath) return undefined;
 
         try {
-            const tags = await listCodexTags(projectPath) as unknown as CodexTag[];
+            const tags = await listCodexTags(projectPath);
             return tags.find(t => t.id === id);
         } catch (error) {
             console.error('Failed to get codex tag:', error);
@@ -29,12 +29,13 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         }
     }
 
-    async getByProject(projectId: string): Promise<CodexTag[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getByProject(_projectId: string): Promise<CodexTag[]> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
-            return await listCodexTags(projectPath) as unknown as CodexTag[];
+            return await listCodexTags(projectPath);
         } catch (error) {
             console.error('Failed to list codex tags:', error);
             return [];
@@ -43,7 +44,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
 
     async getByCategory(projectId: string, category: string): Promise<CodexTag[]> {
         const tags = await this.getByProject(projectId);
-        return tags.filter(t => (t as any).category === category);
+        return tags.filter(t => t.category === category);
     }
 
     async create(tag: Omit<CodexTag, 'id' | 'createdAt' | 'updatedAt'>): Promise<CodexTag> {
@@ -59,7 +60,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         } as CodexTag;
 
         try {
-            await saveCodexTag(projectPath, newTag as any);
+            await saveCodexTag(projectPath, newTag);
             return newTag;
         } catch (error) {
             console.error('Failed to create codex tag:', error);
@@ -76,7 +77,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
 
         const updated = { ...existing, ...data };
         try {
-            await saveCodexTag(projectPath, updated as any);
+            await saveCodexTag(projectPath, updated);
         } catch (error) {
             console.error('Failed to update codex tag:', error);
             throw error;

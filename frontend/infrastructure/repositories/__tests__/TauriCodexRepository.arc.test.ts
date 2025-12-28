@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TauriCodexRepository } from '../TauriCodexRepository';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { ArcPoint, CodexEntry } from '@/domain/entities/types';
 
 describe('TauriCodexRepository - Arc Points', () => {

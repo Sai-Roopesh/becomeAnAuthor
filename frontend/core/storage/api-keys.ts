@@ -11,7 +11,6 @@ import { AIProvider } from '@/lib/config/ai-vendors';
 import { logger } from '@/shared/utils/logger';
 
 const log = logger.scope('APIKeys');
-import { storage } from './safe-storage';
 import { toast } from '@/shared/utils/toast-service';
 
 /**

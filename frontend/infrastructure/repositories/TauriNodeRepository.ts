@@ -7,7 +7,6 @@
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { DocumentNode, Scene } from '@/domain/entities/types';
 import {
-    isTauri,
     getStructure,
     saveStructure,
     createNode,
@@ -15,7 +14,6 @@ import {
     saveScene,
     deleteScene,
     type StructureNode,
-    type Scene as TauriScene
 } from '@/core/tauri';
 import { logger } from '@/shared/utils/logger';
 
@@ -187,7 +185,7 @@ export class TauriNodeRepository implements INodeRepository {
             throw new Error('No project path set');
         }
 
-        const parentId = (node as any).parentId || null;
+        const parentId = node.parentId || null;
         const createdNode = await createNode(
             this.projectPath,
             parentId,
@@ -291,7 +289,8 @@ export class TauriNodeRepository implements INodeRepository {
         }
     }
 
-    async deleteCascade(id: string, type: 'act' | 'chapter' | 'scene'): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async deleteCascade(id: string, _type: 'act' | 'chapter' | 'scene'): Promise<void> {
         if (!this.projectPath) return;
 
         const structure = await getStructure(this.projectPath);

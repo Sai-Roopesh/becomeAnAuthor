@@ -32,7 +32,7 @@ interface ArcPointEditorProps {
  */
 export function ArcPointEditor({
     seriesId,
-    entryId,
+    // entryId removed - unused
     entryName,
     existingPoint,
     open,

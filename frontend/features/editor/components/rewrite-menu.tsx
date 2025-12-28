@@ -39,7 +39,6 @@ STYLE GOALS:
 - Flow: Vary sentence length and structure for rhythm
 
 Provide only the improved text without explanation, matching the original tone and style.`,
-        streaming: true,
         persistModel: true,
         operationName: 'Rewrite',
     });

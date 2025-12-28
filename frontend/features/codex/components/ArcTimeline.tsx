@@ -27,7 +27,7 @@ export function ArcTimeline({
     seriesId,
     onAddPoint,
     onUpdatePoint,
-    onDeletePoint
+    // onDeletePoint removed - unused
 }: ArcTimelineProps) {
     const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
@@ -118,7 +118,7 @@ export function ArcTimeline({
                     </Button>
                 </div>
 
-                {arcPoints.map((point, idx) => (
+                {arcPoints.map((point) => (
                     <div
                         key={point.id}
                         className="relative pl-6 pb-6 last:pb-0 border-l-2 border-primary/20"

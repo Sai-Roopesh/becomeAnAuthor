@@ -8,7 +8,8 @@
  * - MUST notify user of save failures
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { invoke } from '@tauri-apps/api/core';
 
 // ============================================
 // Mock Dependencies
@@ -54,9 +55,8 @@ vi.mock('@/shared/utils/logger', () => ({
     },
 }));
 
-import { invoke } from '@tauri-apps/api/core';
 import { toast } from '@/shared/utils/toast-service';
-import { storage } from '@/core/storage/safe-storage';
+import type { TiptapContent } from '@/shared/types/tiptap';
 
 // Import after mocks are set up
 import { saveCoordinator } from '@/lib/core/save-coordinator';
@@ -103,18 +103,19 @@ describe('SaveCoordinator Contract', () => {
         it('MUST allow parallel saves for DIFFERENT scenes', async () => {
             const saveCalls: string[] = [];
 
-            vi.mocked(invoke).mockImplementation(async (cmd, args: any) => {
-                if (cmd === 'save_scene_by_id') {
-                    saveCalls.push(args.sceneId);
+            vi.mocked(invoke).mockImplementation(async (cmd, args?: unknown) => {
+                const params = args as { sceneId?: string } | undefined;
+                if (cmd === 'save_scene_by_id' && params?.sceneId && typeof params.sceneId === 'string') {
+                    saveCalls.push(params.sceneId);
                 }
                 return undefined;
             });
 
             // Saves for different scenes can run concurrently
             await Promise.all([
-                saveCoordinator.scheduleSave('scene-1', () => ({ v: 1 })),
-                saveCoordinator.scheduleSave('scene-2', () => ({ v: 2 })),
-                saveCoordinator.scheduleSave('scene-3', () => ({ v: 3 })),
+                saveCoordinator.scheduleSave('scene-1', () => ({ type: 'doc', content: [] } as unknown as TiptapContent)),
+                saveCoordinator.scheduleSave('scene-2', () => ({ type: 'doc', content: [] } as unknown as TiptapContent)),
+                saveCoordinator.scheduleSave('scene-3', () => ({ type: 'doc', content: [] } as unknown as TiptapContent)),
             ]);
 
             // All three should be called
@@ -137,7 +138,7 @@ describe('SaveCoordinator Contract', () => {
             saveCoordinator.cancelPendingSaves('deleted-scene');
 
             // Try to save cancelled scene
-            await saveCoordinator.scheduleSave('deleted-scene', () => ({ data: 'test' }));
+            await saveCoordinator.scheduleSave('deleted-scene', () => ({ type: 'doc', content: [] } as unknown as TiptapContent));
 
             // SPECIFICATION: save_scene_by_id MUST NOT be called for cancelled scenes
             expect(invoke).not.toHaveBeenCalledWith(
@@ -154,7 +155,7 @@ describe('SaveCoordinator Contract', () => {
             saveCoordinator.clearCancelledScene('recreated-scene');
 
             // Now save should work
-            await saveCoordinator.scheduleSave('recreated-scene', () => ({ data: 'new' }));
+            await saveCoordinator.scheduleSave('recreated-scene', () => ({ type: 'doc', content: [] } as unknown as TiptapContent));
 
             expect(invoke).toHaveBeenCalledWith(
                 'save_scene_by_id',
@@ -177,7 +178,7 @@ describe('SaveCoordinator Contract', () => {
                 return undefined;
             });
 
-            const savePromise = saveCoordinator.scheduleSave('waiting-scene', () => ({}));
+            const savePromise = saveCoordinator.scheduleSave('waiting-scene', () => ({ type: 'doc', content: [] } as unknown as TiptapContent));
 
             // While save is pending
             expect(saveCoordinator.isSaving('waiting-scene')).toBe(true);
@@ -209,7 +210,7 @@ describe('SaveCoordinator Contract', () => {
             vi.mocked(invoke).mockRejectedValue(new Error('Scene not found in structure'));
 
             // This should NOT throw - deleted scenes are handled gracefully
-            await saveCoordinator.scheduleSave('deleted-graceful', () => ({}));
+            await saveCoordinator.scheduleSave('deleted-graceful', () => ({ type: 'doc', content: [] } as unknown as TiptapContent));
 
             // No error toast for expected "not found" errors
             expect(toast.error).not.toHaveBeenCalled();
@@ -229,7 +230,7 @@ describe('SaveCoordinator Contract', () => {
                 content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
             };
 
-            await saveCoordinator.scheduleSave('serialize-scene', () => complexContent);
+            await saveCoordinator.scheduleSave('serialize-scene', () => complexContent as unknown as TiptapContent);
 
             expect(invoke).toHaveBeenCalledWith(
                 'save_scene_by_id',
@@ -249,7 +250,7 @@ describe('SaveCoordinator Contract', () => {
             };
 
             // Should not throw
-            await saveCoordinator.scheduleSave('weird-content', () => contentWithPromise);
+            await saveCoordinator.scheduleSave('weird-content', () => contentWithPromise as unknown as TiptapContent);
 
             expect(invoke).toHaveBeenCalled();
         });

@@ -1,7 +1,7 @@
 'use client';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getAllPromptTemplates, PromptTemplate } from '@/shared/prompts/templates';
+import { getAllPromptTemplates } from '@/shared/prompts/templates';
 import { MessageSquare } from 'lucide-react';
 
 interface PromptSelectorProps {

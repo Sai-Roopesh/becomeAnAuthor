@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Database, Download, FileJson, Upload } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 export function DataManagementMenu() {
@@ -47,7 +47,7 @@ export function DataManagementMenu() {
                 if (newProjectId) {
                     window.location.reload(); // Reload to show new project
                 }
-            } catch (error) {
+            } catch {
                 // Error handled in hook
             }
         }

@@ -5,13 +5,6 @@ import type { ICodexRepository } from '@/domain/repositories/ICodexRepository';
 import type { IProjectRepository } from '@/domain/repositories/IProjectRepository';
 import type { StoryAnalysis, Scene, DocumentNode, CodexEntry, AnalysisInsight } from '@/domain/entities/types';
 import type {
-    PlotThreadResponse,
-    CharacterArcResponse,
-    TimelineResponse,
-    ContradictionResponse,
-    AlphaReaderResponse,
-    BetaReaderResponse,
-    SynopsisResponse,
     ParsedAnalysisResult,
     PlotThread,
     CharacterArc,
@@ -19,7 +12,7 @@ import type {
     Contradiction,
     ReaderConcern,
 } from '@/domain/entities/analysis-types';
-import { generateText } from '@/core/api/ai-service';
+import { generateText } from '@/lib/ai';
 import {
     SYNOPSIS_PROMPT,
     PLOT_THREADS_PROMPT,
@@ -80,7 +73,7 @@ export class AnalysisService implements IAnalysisService {
 
                 const analysis: Omit<StoryAnalysis, 'id' | 'createdAt'> = {
                     projectId,
-                    analysisType: type as any,
+                    analysisType: type as import('@/domain/entities/types').StoryAnalysis['analysisType'],
                     scope: this.determineScope(scope, allNodes),
                     scopeIds: scope.length > 0 ? scope : allNodes.filter(n => n.type === 'scene').map(n => n.id),
                     results: parsedResult,
@@ -398,6 +391,6 @@ export class AnalysisService implements IAnalysisService {
         const firstNode = nodes.find(n => n.id === scopeIds[0]);
         if (!firstNode) return 'full';
 
-        return firstNode.type as any;
+        return firstNode.type as 'act' | 'chapter' | 'scene';
     }
 }

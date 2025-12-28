@@ -18,7 +18,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         if (!projectPath) return [];
 
         try {
-            return await listSceneCodexLinks(projectPath) as unknown as SceneCodexLink[];
+            return await listSceneCodexLinks(projectPath);
         } catch (error) {
             console.error('Failed to list scene codex links:', error);
             return [];
@@ -35,6 +35,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         return links.filter(l => l.codexId === codexId);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async getByProject(_projectId: string): Promise<SceneCodexLink[]> {
         return await this.getAllLinks();
     }
@@ -62,7 +63,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         };
 
         try {
-            await saveSceneCodexLink(projectPath, newLink as any);
+            await saveSceneCodexLink(projectPath, newLink);
             return newLink;
         } catch (error) {
             console.error('Failed to create scene codex link:', error);
@@ -94,7 +95,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         };
 
         try {
-            await saveSceneCodexLink(projectPath, updated as any);
+            await saveSceneCodexLink(projectPath, updated);
         } catch (error) {
             console.error('Failed to update scene codex link:', error);
             throw error;
