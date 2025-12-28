@@ -35,10 +35,8 @@ export function ChatInput({
     return (
         <div className="p-4 bg-transparent relative z-20">
             <div className="max-w-3xl mx-auto relative group">
-                <div className={cn(
-                    "absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500",
-                    disabled && "opacity-0"
-                )} />
+                {/* Removed glow gradient for cleaner look */}
+
 
                 <div className="relative flex flex-col gap-2 bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg p-2 transition-all focus-within:shadow-xl focus-within:border-primary/20">
                     <Textarea
@@ -47,7 +45,7 @@ export function ChatInput({
                         onKeyDown={handleKeyDown}
                         placeholder={placeholder}
                         disabled={disabled}
-                        className="min-h-[60px] max-h-[25vh] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-2 text-base"
+                        className="flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-2 text-base"
                     />
 
                     <div className="flex justify-between items-center px-2 pb-1">

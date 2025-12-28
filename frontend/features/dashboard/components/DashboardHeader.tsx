@@ -24,8 +24,8 @@ export function DashboardHeader() {
     }, []);
 
     return (
-        <div className="relative mb-8 p-6 rounded-2xl bg-gradient-to-r from-primary/5 via-background to-accent/5 border border-border/30 overflow-hidden">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px)] bg-[size:20px_20px] opacity-50" />
+        <div className="relative mb-8 p-6 rounded-2xl bg-muted/30 border border-border/50 overflow-hidden">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px)] bg-[size:20px_20px] opacity-30" />
 
             <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-3">

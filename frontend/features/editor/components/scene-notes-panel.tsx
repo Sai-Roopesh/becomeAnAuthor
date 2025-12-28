@@ -52,7 +52,7 @@ export function SceneNotesPanel({ sceneId, projectId, className }: SceneNotesPan
         content: note?.content ?? { type: 'doc', content: [] },
         editorProps: {
             attributes: {
-                class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[200px] p-4',
+                class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none h-full p-4',
             },
         },
         onUpdate: ({ editor }) => {

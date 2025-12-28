@@ -60,7 +60,7 @@ pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, Str
 }
 
 #[tauri::command]
-pub fn save_scene(project_path: String, scene_file: String, content: String, title: Option<String>) -> Result<SceneMeta, String> {
+pub fn save_scene(project_path: String, scene_file: String, content: String, title: Option<String>, word_count: i32) -> Result<SceneMeta, String> {
     let file_path = PathBuf::from(&project_path).join("manuscript").join(&scene_file);
     
     // Load existing scene to preserve metadata
@@ -128,7 +128,7 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
         }
     };
     
-    meta.word_count = count_words(&content);
+    meta.word_count = word_count;
     meta.updated_at = now;
     if let Some(t) = title {
         meta.title = t;
@@ -165,7 +165,7 @@ pub fn delete_scene(project_path: String, scene_file: String) -> Result<(), Stri
 /// Save scene by ID - looks up the file path from structure.json
 /// This is used by the frontend save coordinator which only has scene ID
 #[tauri::command]
-pub fn save_scene_by_id(project_path: String, scene_id: String, content: String) -> Result<SceneMeta, String> {
+pub fn save_scene_by_id(project_path: String, scene_id: String, content: String, word_count: i32) -> Result<SceneMeta, String> {
     // Load structure to find the scene file
     let structure_path = PathBuf::from(&project_path).join(".meta/structure.json");
     let structure_content = fs::read_to_string(&structure_path)
@@ -194,6 +194,6 @@ pub fn save_scene_by_id(project_path: String, scene_id: String, content: String)
         .ok_or_else(|| format!("Scene not found in structure: {}", scene_id))?;
     
     // Call existing save_scene with the resolved file path
-    save_scene(project_path, scene_file, content, None)
+    save_scene(project_path, scene_file, content, None, word_count)
 }
 

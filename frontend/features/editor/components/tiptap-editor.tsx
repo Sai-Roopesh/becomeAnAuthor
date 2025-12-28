@@ -21,6 +21,7 @@ import { SaveStatusIndicator } from '@/components/ui/save-status-indicator';
 import { useFormatStore } from '@/store/use-format-store';
 import { Section } from '@/lib/tiptap-extensions/section-node';
 import { AI_DEFAULTS } from '@/lib/config/constants';
+import { TypewriterExtension } from '../extensions/TypewriterExtension';
 
 import Mention from '@tiptap/extension-mention';
 import { createCodexSuggestion } from './suggestion';
@@ -76,12 +77,25 @@ export function TiptapEditor({
 
     // Collaboration state
     const [enableP2P, setEnableP2P] = useState(false);
-    const { ydoc, status: collabStatus, peers, roomId } = useCollaboration({
+    const [customRoomId, setCustomRoomId] = useState<string | undefined>(undefined);
+    const { ydoc, status: collabStatus, peers, roomId, isJoinedRoom } = useCollaboration({
         sceneId,
         projectId,
         enabled: true,
         enableP2P,
+        customRoomId,
     });
+
+    // Handle joining an external room
+    const handleJoinRoom = useCallback((externalRoomId: string) => {
+        setCustomRoomId(externalRoomId);
+        setEnableP2P(true);
+    }, []);
+
+    // Handle leaving external room (back to own room)
+    const handleLeaveRoom = useCallback(() => {
+        setCustomRoomId(undefined);
+    }, []);
 
     // Create suggestion configuration with seriesId and repository (series-first)
     const suggestion = useMemo(
@@ -127,6 +141,13 @@ export function TiptapEditor({
                 },
                 suggestion,
             }),
+            // Typewriter mode - keeps cursor vertically centered while typing
+            TypewriterExtension.configure({
+                enabled: false, // Will be synced from formatSettings
+                offsetPercent: 40,
+                smoothScroll: true,
+                scrollThreshold: 20,
+            }),
         ];
 
         // Add Collaboration extension when ydoc is available
@@ -155,7 +176,7 @@ export function TiptapEditor({
         },
         editorProps: {
             attributes: {
-                class: 'prose dark:prose-invert max-w-full focus:outline-none min-h-[500px] px-8 py-6',
+                class: 'prose dark:prose-invert max-w-full focus:outline-none h-full px-8 py-6',
             },
             handleKeyDown: (view, event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === 'j') {
@@ -278,42 +299,14 @@ export function TiptapEditor({
         };
     }, [editor, sceneId]);
 
-    // Typewriter Scrolling - Keep current line centered
+    // Sync Typewriter extension state with formatSettings
     useEffect(() => {
-        if (!editor || !formatSettings.typewriterMode || !editorContainerRef.current) return;
+        if (!editor) return;
 
-        const scrollToCenter = () => {
-            const container = editorContainerRef.current;
-            if (!container) return;
-
-            try {
-                const { from } = editor.state.selection;
-                const coords = editor.view.coordsAtPos(from);
-                const containerRect = container.getBoundingClientRect();
-
-                // Calculate where we want the cursor to be (40% from top)
-                const targetY = containerRect.height * 0.4;
-                const cursorRelativeY = coords.top - containerRect.top;
-                const scrollDelta = cursorRelativeY - targetY;
-
-                if (Math.abs(scrollDelta) > 20) { // Only scroll if more than 20px off
-                    container.scrollBy({
-                        top: scrollDelta,
-                        behavior: 'smooth'
-                    });
-                }
-            } catch {
-                // Ignore errors from coordsAtPos when selection is invalid
-            }
-        };
-
-        // Listen for selection/cursor changes
-        editor.on('selectionUpdate', scrollToCenter);
-
-        return () => {
-            editor.off('selectionUpdate', scrollToCenter);
-        };
-    }, [editor, formatSettings.typewriterMode]);
+        // Update TypewriterExtension when settings change
+        editor.commands.setTypewriterEnabled(formatSettings.typewriterMode);
+        editor.commands.setTypewriterOffset(formatSettings.typewriterOffset);
+    }, [editor, formatSettings.typewriterMode, formatSettings.typewriterOffset]);
 
     const { generateStream, isGenerating, model, cancel } = useAI({
         system: `You are an expert fiction writer specializing in immersive storytelling.
@@ -476,7 +469,10 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
                         peers={peers}
                         roomId={roomId}
                         enabled={enableP2P}
+                        isJoinedRoom={isJoinedRoom}
                         onToggle={setEnableP2P}
+                        onJoinRoom={handleJoinRoom}
+                        onLeaveRoom={handleLeaveRoom}
                     />
                 </div>
             </div>

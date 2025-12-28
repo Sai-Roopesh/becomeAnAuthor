@@ -47,17 +47,17 @@ export function ChatMessageList({
 
                 {/* Quick Suggestions */}
                 {onSuggestionClick && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg w-full px-4">
                         {QUICK_SUGGESTIONS.map((suggestion, idx) => (
                             <Button
                                 key={idx}
                                 variant="outline"
                                 size="sm"
-                                className="justify-start text-left h-auto py-2.5 px-3 hover:bg-accent/50 transition-all"
+                                className="justify-start text-left h-auto py-3 px-4 hover:bg-accent/50 transition-all w-full"
                                 onClick={() => onSuggestionClick(suggestion.text)}
                             >
-                                <suggestion.icon className={`h-4 w-4 mr-2 flex-shrink-0 ${suggestion.color}`} />
-                                <span className="text-xs text-muted-foreground">{suggestion.text}</span>
+                                <suggestion.icon className={`h-4 w-4 mr-2.5 flex-shrink-0 ${suggestion.color}`} />
+                                <span className="text-xs text-muted-foreground truncate">{suggestion.text}</span>
                             </Button>
                         ))}
                     </div>

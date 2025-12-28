@@ -18,6 +18,7 @@ pub mod idea;
 pub mod scene_note;
 pub mod world_map;
 pub mod world_timeline;
+pub mod preset;
 
 // Re-export all commands for easy access in lib.rs
 pub use project::*;
@@ -37,3 +38,4 @@ pub use idea::*;
 pub use scene_note::*;
 pub use world_map::*;
 pub use world_timeline::*;
+pub use preset::*;

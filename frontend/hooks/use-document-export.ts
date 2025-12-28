@@ -110,7 +110,7 @@ export function useDocumentExport() {
     };
 
     /**
-     * Export to ePub format
+     * Export to ePub format using native Tauri command
      */
     const exportToEpub = async (
         projectId: string,
@@ -118,16 +118,37 @@ export function useDocumentExport() {
     ) => {
         setIsExporting(true);
         try {
+            const projectPath = TauriNodeRepository.getInstance().getProjectPath();
+            if (!projectPath) throw new Error('No project selected');
+
+            // Show native save dialog first
+            const defaultName = `${config.epubMetadata?.title || 'manuscript'}.epub`;
+            const savePath = await showSaveDialog({
+                defaultPath: defaultName,
+                filters: [{ name: 'ePub eBook', extensions: ['epub'] }],
+                title: 'Export as ePub'
+            });
+
+            if (!savePath) {
+                toast.info('Export cancelled');
+                setIsExporting(false);
+                return;
+            }
+
             toast.info('Generating ePub...');
 
-            const blob = await exportService.exportToEpub(projectId, config);
-
-            // Download the blob
-            const filename = `${config.epubMetadata?.title || 'manuscript'}.epub`;
-            downloadBlob(blob, filename);
+            // Call Rust command which writes directly to file
+            const { exportManuscriptEpub } = await import('@/core/tauri/commands');
+            await exportManuscriptEpub(
+                projectPath,
+                savePath,
+                config.epubMetadata?.title,
+                config.epubMetadata?.author,
+                config.epubMetadata?.language
+            );
 
             toast.success('ePub exported successfully!');
-            log.debug('ePub exported', { filename });
+            log.debug('ePub exported', { path: savePath });
         } catch (error) {
             log.error('ePub export failed', error);
             toast.error('Failed to export ePub');

@@ -298,6 +298,28 @@ export function SettingsDialog() {
                                                     onCheckedChange={(checked) => formatSettings.updateSettings({ typewriterMode: checked })}
                                                 />
                                             </div>
+
+                                            {/* Typewriter Offset - only show when typewriter mode is enabled */}
+                                            {formatSettings.typewriterMode && (
+                                                <div className="space-y-2 pl-4 border-l-2 border-primary/20">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label htmlFor="typewriter-offset">
+                                                            Cursor Position: {formatSettings.typewriterOffset}% from top
+                                                        </Label>
+                                                    </div>
+                                                    <Slider
+                                                        id="typewriter-offset"
+                                                        min={20}
+                                                        max={60}
+                                                        step={5}
+                                                        value={[formatSettings.typewriterOffset]}
+                                                        onValueChange={([value]) => value !== undefined && formatSettings.updateSettings({ typewriterOffset: value })}
+                                                    />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Lower values keep the cursor higher on screen.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </section>
 

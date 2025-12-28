@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import type { ExportPreset } from '@/domain/types/export-types';
 import { BUILT_IN_PRESETS } from '@/shared/constants/export/export-presets';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('ExportPresets');
 
 /**
  * Hook for managing export presets
@@ -18,17 +22,25 @@ export function useExportPresets() {
         const loadPresets = async () => {
             setIsLoading(true);
             try {
-                // For now, only built-in presets
-                // TODO: Load user custom presets from localStorage or Tauri
-                const builtIn = BUILT_IN_PRESETS;
-                setPresets(builtIn);
+                // Load user custom presets from Tauri storage
+                const customPresets = await invoke<ExportPreset[]>('list_custom_presets');
+                log.debug('Loaded custom presets', { count: customPresets.length });
 
-                // Set default preset to industry standard
-                if (!selectedPreset && builtIn.length > 0) {
-                    setSelectedPreset(builtIn[0] || null);
+                // Combine built-in and custom
+                const allPresets = [...BUILT_IN_PRESETS, ...customPresets];
+                setPresets(allPresets);
+
+                // Set default preset to first available
+                if (!selectedPreset && allPresets.length > 0) {
+                    setSelectedPreset(allPresets[0] || null);
                 }
             } catch (error) {
-                console.error('Failed to load export presets:', error);
+                log.error('Failed to load export presets:', error);
+                // Fall back to built-in only
+                setPresets(BUILT_IN_PRESETS);
+                if (!selectedPreset && BUILT_IN_PRESETS.length > 0) {
+                    setSelectedPreset(BUILT_IN_PRESETS[0] || null);
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -45,31 +57,32 @@ export function useExportPresets() {
     }, [presets]);
 
     /**
-     * Save a custom user preset
-     * TODO: Implement saving to localStorage or Tauri storage
+     * Save a custom user preset via Tauri
      */
     const saveUserPreset = useCallback(async (preset: ExportPreset): Promise<void> => {
-        // TODO: Save to localStorage or Tauri
-        console.log('Saving user preset:', preset);
+        try {
+            await invoke('save_custom_preset', { preset });
+            log.debug('Saved custom preset', { id: preset.id });
 
-        // For now, just add to state
-        setPresets(prev => {
-            // Check if preset already exists
-            const existingIndex = prev.findIndex(p => p.id === preset.id);
-            if (existingIndex >= 0) {
-                // Update existing
-                const updated = [...prev];
-                updated[existingIndex] = preset;
-                return updated;
-            } else {
-                // Add new
-                return [...prev, preset];
-            }
-        });
+            // Update local state
+            setPresets(prev => {
+                const existingIndex = prev.findIndex(p => p.id === preset.id);
+                if (existingIndex >= 0) {
+                    const updated = [...prev];
+                    updated[existingIndex] = preset;
+                    return updated;
+                } else {
+                    return [...prev, preset];
+                }
+            });
+        } catch (error) {
+            log.error('Failed to save preset', error);
+            throw error;
+        }
     }, []);
 
     /**
-     * Delete a user preset
+     * Delete a user preset via Tauri
      * Cannot delete built-in presets
      */
     const deleteUserPreset = useCallback(async (id: string): Promise<void> => {
@@ -79,15 +92,20 @@ export function useExportPresets() {
             throw new Error('Cannot delete built-in presets');
         }
 
-        // TODO: Delete from localStorage or Tauri
-        console.log('Deleting user preset:', id);
+        try {
+            await invoke('delete_custom_preset', { presetId: id });
+            log.debug('Deleted custom preset', { id });
 
-        // Remove from state
-        setPresets(prev => prev.filter(p => p.id !== id));
+            // Remove from local state
+            setPresets(prev => prev.filter(p => p.id !== id));
 
-        // If the deleted preset was selected, select the first available
-        if (selectedPreset?.id === id) {
-            setSelectedPreset(presets[0] || null);
+            // If the deleted preset was selected, select the first available
+            if (selectedPreset?.id === id) {
+                setSelectedPreset(presets[0] || null);
+            }
+        } catch (error) {
+            log.error('Failed to delete preset', error);
+            throw error;
         }
     }, [selectedPreset, presets]);
 

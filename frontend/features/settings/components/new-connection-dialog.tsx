@@ -9,6 +9,8 @@ import { useState } from 'react';
 import { AIProvider, AI_VENDORS, AIConnection, getAllVendors, validateApiKey } from '@/lib/config/ai-vendors';
 import { fetchModelsForConnection } from '@/lib/ai';
 import { Loader2, Eye, EyeOff, Check } from 'lucide-react';
+import { VendorLogo } from './VendorLogo';
+
 
 interface NewConnectionDialogProps {
     open: boolean;
@@ -119,27 +121,29 @@ export function NewConnectionDialog({ open, onClose, onSave }: NewConnectionDial
 
                 {!selectedProvider ? (
                     // Provider Selection
-                    <div className="py-4">
+                    <div className="flex-1 min-h-0 py-2">
                         <p className="text-sm text-muted-foreground mb-4">
                             Select an AI vendor to add to your connections
                         </p>
 
-                        <ScrollArea className="max-h-[80dvh]">
-                            <div className="grid gap-3 p-1">
+                        <ScrollArea className="h-[50vh]">
+                            <div className="grid gap-3 pr-4">
                                 {vendors.map((vendor) => (
                                     <button
                                         key={vendor.id}
                                         onClick={() => handleSelectProvider(vendor.id)}
                                         className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent transition-colors text-left"
                                     >
-                                        <div className="text-3xl">{vendor.icon}</div>
-                                        <div className="flex-1">
+                                        <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-muted flex items-center justify-center">
+                                            <VendorLogo providerId={vendor.id} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
                                             <h3 className="font-medium">{vendor.name}</h3>
-                                            <p className="text-sm text-muted-foreground mt-1">
+                                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                                                 {vendor.description}
                                             </p>
                                         </div>
-                                        <Check className="h-5 w-5 text-muted-foreground opacity-0" />
+                                        <Check className="h-5 w-5 text-muted-foreground opacity-0 flex-shrink-0" />
                                     </button>
                                 ))}
                             </div>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus } from 'lucide-react';
 import { AIConnection, AI_VENDORS } from '@/lib/config/ai-vendors';
+import { VendorLogo } from '../VendorLogo';
 
 interface ConnectionListProps {
     connections: AIConnection[];
@@ -38,7 +39,7 @@ export function ConnectionList({ connections, selectedId, onSelect, onAddNew }: 
                                     `}
                                 >
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-lg">{vendor.icon}</span>
+                                        <VendorLogo providerId={conn.provider} size={20} />
                                         <span className="font-medium text-sm truncate">{conn.name}</span>
                                     </div>
                                     <div className="flex items-center gap-2">

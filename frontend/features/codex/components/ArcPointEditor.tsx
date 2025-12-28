@@ -123,7 +123,7 @@ export function ArcPointEditor({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-3xl h-[85dvh] flex flex-col overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>
                         {existingPoint ? 'Edit' : 'Add'} Arc Point: {entryName}

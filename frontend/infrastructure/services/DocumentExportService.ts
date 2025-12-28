@@ -366,7 +366,7 @@ ${htmlContent}
             case 'pdf':
                 return this.exportToPDFWithConfig(projectId, config);
             case 'epub':
-                return this.exportToEpub(projectId, config);
+                return this.exportToEpub();
             case 'markdown':
                 const markdown = await this.exportToMarkdownWithConfig(projectId, config);
                 return new Blob([markdown], { type: 'text/markdown' });
@@ -376,43 +376,17 @@ ${htmlContent}
     }
 
     /**
-     * Export to ePub format (via Tauri backend)
-     * NOTE: Currently not fully implemented - uses basic export
-     * TODO: Add support for custom CSS themes and advanced front/back matter
+     * Export to ePub format
+     * 
+     * NOTE: ePub export is handled directly by the useDocumentExport hook
+     * which calls the Rust backend command with a native file save dialog.
+     * This method is deprecated - use exportToEpub from useDocumentExport hook instead.
      */
-    async exportToEpub(
-        projectId: string,
-        config: import('@/domain/types/export-types').ExportConfig
-    ): Promise<Blob> {
-        // For now, just return a simple text file
-        // Full ePub export with templates will be implemented in Phase 5 UI
-        const options: ExportOptions = {};
-        if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
-        if (config.epubMetadata?.title !== undefined) options.title = config.epubMetadata.title;
-        if (config.epubMetadata?.author !== undefined) options.author = config.epubMetadata.author;
-
-        const markdown = await this.exportToMarkdown(projectId, options);
-
-        return new Blob([markdown], { type: 'text/plain' });
-
-        // TODO: Implement via Tauri command when UI is ready
-        // const { invoke } = await import('@tauri-apps/api/core');
-        // const { TauriNodeRepository } = await import('@/infrastructure/repositories/TauriNodeRepository');
-        // const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-        // if (!projectPath) throw new Error('No project selected');
-        // 
-        // const outputPath = await invoke<string>('export_manuscript_epub', {
-        //     projectPath,
-        //     outputPath: '/tmp/output.epub',
-        //     title: config.epubMetadata?.title,
-        //     author: config.epubMetadata?.author,
-        //     language: config.epubMetadata?.language,
-        // });
-        // 
-        // // Read the file and return as blob
-        // const fs = await import('@tauri-apps/plugin-fs');
-        // const buffer = await fs.readFile(outputPath);
-        // return new Blob([buffer], { type: 'application/epub+zip' });
+    async exportToEpub(): Promise<Blob> {
+        throw new Error(
+            'ePub export should be called via useDocumentExport hook, ' +
+            'which uses native file save dialog and Rust backend.'
+        );
     }
 
     /**

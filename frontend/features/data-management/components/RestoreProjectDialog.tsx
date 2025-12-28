@@ -51,7 +51,7 @@ export function RestoreProjectDialog() {
                     Restore Project
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl h-[80dvh] flex flex-col overflow-hidden">
                 <DialogHeader>
                     <DialogTitle>Restore Project</DialogTitle>
                     <DialogDescription>

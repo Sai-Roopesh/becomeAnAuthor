@@ -7,12 +7,15 @@ import { storage } from '@/core/storage/safe-storage';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+/** Type for log metadata - allows any serializable value */
+type LogMetadata = Record<string, unknown>;
+
 export interface LogEntry {
     id: string;
     timestamp: number;
     level: LogLevel;
     message: string;
-    metadata?: Record<string, any>;
+    metadata?: LogMetadata;
     url: string;
     userAgent: string;
 }
@@ -30,7 +33,7 @@ class Logger {
     /**
      * Log a debug message (development only)
      */
-    debug(message: string, metadata?: Record<string, any>) {
+    debug(message: string, metadata?: LogMetadata) {
         if (process.env.NODE_ENV === 'development') {
             this.log('debug', message, metadata);
             console.debug(`[DEBUG] ${message}`, metadata);
@@ -40,7 +43,7 @@ class Logger {
     /**
      * Log an info message
      */
-    info(message: string, metadata?: Record<string, any>) {
+    info(message: string, metadata?: LogMetadata) {
         this.log('info', message, metadata);
         console.info(`[INFO] ${message}`, metadata);
     }
@@ -48,7 +51,7 @@ class Logger {
     /**
      * Log a warning
      */
-    warn(message: string, metadata?: Record<string, any>) {
+    warn(message: string, metadata?: LogMetadata) {
         this.log('warn', message, metadata);
         console.warn(`[WARN] ${message}`, metadata);
     }
@@ -56,7 +59,7 @@ class Logger {
     /**
      * Log an error
      */
-    error(message: string, metadata?: Record<string, any>) {
+    error(message: string, metadata?: LogMetadata) {
         this.log('error', message, metadata);
         console.error(`[ERROR] ${message}`, metadata);
 
@@ -67,7 +70,7 @@ class Logger {
     /**
      * Internal logging method
      */
-    private log(level: LogLevel, message: string, metadata?: Record<string, any>) {
+    private log(level: LogLevel, message: string, metadata?: LogMetadata) {
         const entry: LogEntry = {
             id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             timestamp: Date.now(),

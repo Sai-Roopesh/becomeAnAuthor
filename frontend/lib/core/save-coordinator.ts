@@ -20,15 +20,18 @@ class SaveCoordinator {
     /**
      * Schedule a save operation for a scene
      * Ensures saves are serialized per scene to prevent race conditions
+     * @param sceneId - Scene ID
+     * @param getContent - Function to get current editor content
+     * @param wordCount - Word count from Tiptap CharacterCount (source of truth)
      */
-    async scheduleSave(sceneId: string, getContent: () => import('@/shared/types/tiptap').TiptapContent): Promise<void> {
+    async scheduleSave(sceneId: string, getContent: () => import('@/shared/types/tiptap').TiptapContent, wordCount: number): Promise<void> {
         // Check if this scene was cancelled (deleted)
         if (this.cancelledScenes.has(sceneId)) {
             log.debug(`Scene ${sceneId} was deleted, skipping save`);
             return;
         }
 
-        log.debug(`scheduleSave called for scene: ${sceneId}`);
+        log.debug(`scheduleSave called for scene: ${sceneId}`, { wordCount });
 
         // If there's already a save in progress for this scene, wait for it
         const existingSave = this.saveQueue.get(sceneId);
@@ -64,12 +67,13 @@ class SaveCoordinator {
                 // Serialize content to remove any Promises or non-serializable data
                 const cleanContent = JSON.parse(JSON.stringify(content));
 
-                log.debug(`Calling save_scene_by_id for ${sceneId}`);
+                log.debug(`Calling save_scene_by_id for ${sceneId}`, { wordCount });
                 // Tauri auto-converts Rust snake_case to JS camelCase
                 await invoke('save_scene_by_id', {
                     projectPath,
                     sceneId,
                     content: typeof cleanContent === 'string' ? cleanContent : JSON.stringify(cleanContent),
+                    wordCount,
                 });
                 log.debug(`✅ Save successful for scene: ${sceneId}`);
 

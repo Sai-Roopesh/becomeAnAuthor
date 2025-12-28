@@ -18,6 +18,7 @@ import { Editor } from '@tiptap/react';
 import { saveCoordinator } from './save-coordinator';
 import { emergencyBackupService } from '@/infrastructure/services/emergency-backup-service';
 import { logger } from '@/shared/utils/logger';
+import { TIMING } from '@/lib/config/timing';
 
 const log = logger.scope('EditorStateManager');
 
@@ -46,7 +47,7 @@ export class EditorStateManager {
         private sceneId: string,
         options: EditorStateManagerOptions = {}
     ) {
-        this.saveDebounceMs = options.debounceMs ?? 500;
+        this.saveDebounceMs = options.debounceMs ?? TIMING.SAVE_DEBOUNCE_MS;
         this.attachListeners();
     }
 
@@ -132,9 +133,12 @@ export class EditorStateManager {
         try {
             // Cast to TiptapContent to satisfy type checker - getJSON() returns compatible structure
             const content = this.editor.getJSON() as unknown as import('@/shared/types/tiptap').TiptapContent;
-            log.debug(`Saving scene ${this.sceneId}...`);
 
-            await saveCoordinator.scheduleSave(this.sceneId, () => content);
+            // Get word count from Tiptap's CharacterCount extension (source of truth)
+            const wordCount = this.editor.storage.characterCount?.words() ?? 0;
+            log.debug(`Saving scene ${this.sceneId}...`, { wordCount });
+
+            await saveCoordinator.scheduleSave(this.sceneId, () => content, wordCount);
 
             this.isDirty = false;
             this.lastSavedAt = Date.now();

@@ -9,7 +9,7 @@
  * @see CODING_GUIDELINES.md - 8-Layer Architecture, Layer 1 (UI)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
     Select,
     SelectContent,

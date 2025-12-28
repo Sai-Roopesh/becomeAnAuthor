@@ -110,7 +110,7 @@ function AnalysisOverview({ analyses, onSelectAnalysis }: { analyses: StoryAnaly
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-gradient-to-br from-background to-muted/50 border-border/50 shadow-sm hover:shadow-md transition-all">
+                <Card className="bg-card border-border/50 shadow-sm hover:shadow-md transition-all">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                             <FileText className="h-4 w-4" />
@@ -123,7 +123,7 @@ function AnalysisOverview({ analyses, onSelectAnalysis }: { analyses: StoryAnaly
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-background to-muted/50 border-border/50 shadow-sm hover:shadow-md transition-all">
+                <Card className="bg-card border-border/50 shadow-sm hover:shadow-md transition-all">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                             <Clock className="h-4 w-4" />
@@ -140,7 +140,7 @@ function AnalysisOverview({ analyses, onSelectAnalysis }: { analyses: StoryAnaly
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-background to-muted/50 border-border/50 shadow-sm hover:shadow-md transition-all">
+                <Card className="bg-card border-border/50 shadow-sm hover:shadow-md transition-all">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                             <BarChart3 className="h-4 w-4" />

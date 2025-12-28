@@ -27,7 +27,11 @@ export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuP
     const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+    const [isPovDialogOpen, setIsPovDialogOpen] = useState(false);
+    const [isSubtitleDialogOpen, setIsSubtitleDialogOpen] = useState(false);
     const [renameValue, setRenameValue] = useState('');
+    const [povValue, setPovValue] = useState('');
+    const [subtitleValue, setSubtitleValue] = useState('');
     const { generate, isGenerating } = useAI({
         system: `You are an expert story analyst specializing in scene summarization.
 
@@ -53,14 +57,44 @@ EXAMPLE:
     // Scene-specific actions
     const handleSetPOV = async () => {
         if (!isScene(node)) return;
-        // TODO: Replace with proper dialog (prompt doesn't work in Tauri)
-        toast.info('POV customization coming soon! Use the scene properties panel.');
+        setPovValue(node.pov || '');
+        setIsPovDialogOpen(true);
+    };
+
+    const executePovUpdate = async () => {
+        if (!isScene(node)) return;
+        try {
+            await nodeRepo.updateMetadata(nodeId, { pov: povValue || '' });
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
+            toast.success(povValue ? `POV set to "${povValue}"` : 'POV cleared');
+            setIsPovDialogOpen(false);
+            setPovValue('');
+        } catch (error) {
+            log.error('Failed to update POV', error);
+            toast.error('Failed to update POV');
+        }
     };
 
     const handleAddSubtitle = async () => {
         if (!isScene(node)) return;
-        // TODO: Replace with proper dialog (prompt doesn't work in Tauri)
-        toast.info('Subtitle customization coming soon! Use the scene properties panel.');
+        setSubtitleValue(node.subtitle || '');
+        setIsSubtitleDialogOpen(true);
+    };
+
+    const executeSubtitleUpdate = async () => {
+        if (!isScene(node)) return;
+        try {
+            await nodeRepo.updateMetadata(nodeId, { subtitle: subtitleValue || '' });
+            const { invalidateQueries } = await import('@/hooks/use-live-query');
+            invalidateQueries();
+            toast.success(subtitleValue ? `Subtitle set to "${subtitleValue}"` : 'Subtitle cleared');
+            setIsSubtitleDialogOpen(false);
+            setSubtitleValue('');
+        } catch (error) {
+            log.error('Failed to update subtitle', error);
+            toast.error('Failed to update subtitle');
+        }
     };
 
     const handleToggleAIExclusion = async () => {
@@ -311,6 +345,66 @@ SUMMARY (2-3 sentences, present tense):`,
                         </Button>
                         <Button onClick={executeRename}>
                             Rename
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isPovDialogOpen} onOpenChange={setIsPovDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Set POV Character</DialogTitle>
+                        <DialogDescription>
+                            Enter the point-of-view character for this scene. Leave empty to use the default.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Input
+                        value={povValue}
+                        onChange={(e) => setPovValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                executePovUpdate();
+                            }
+                        }}
+                        placeholder="e.g., John Smith, Narrator, etc."
+                        autoFocus
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPovDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={executePovUpdate}>
+                            Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isSubtitleDialogOpen} onOpenChange={setIsSubtitleDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Set Subtitle</DialogTitle>
+                        <DialogDescription>
+                            Add a subtitle or description for this scene.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Input
+                        value={subtitleValue}
+                        onChange={(e) => setSubtitleValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                executeSubtitleUpdate();
+                            }
+                        }}
+                        placeholder="e.g., Three days later, In the abandoned warehouse..."
+                        autoFocus
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsSubtitleDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={executeSubtitleUpdate}>
+                            Save
                         </Button>
                     </DialogFooter>
                 </DialogContent>

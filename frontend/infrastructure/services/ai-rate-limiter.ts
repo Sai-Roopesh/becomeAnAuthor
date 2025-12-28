@@ -5,6 +5,8 @@
  * Implements token bucket algorithm with configurable limits.
  */
 
+import { TIMING } from '@/lib/config/timing';
+
 interface RateLimiterConfig {
     maxRequestsPerMinute: number;
     maxRequestsPerHour: number;
@@ -110,14 +112,14 @@ class AIRateLimiter {
             this.onWarning?.(minuteCount, this.config.maxRequestsPerMinute, 'minute');
 
             // Reset warning flag after 30 seconds
-            setTimeout(() => { this.state.isWarningShown = false; }, 30000);
+            setTimeout(() => { this.state.isWarningShown = false; }, TIMING.WARNING_COOLDOWN_MS);
         }
 
         if (hourUsage >= this.config.warningThreshold && !this.state.isWarningShown) {
             this.state.isWarningShown = true;
             this.onWarning?.(hourCount, this.config.maxRequestsPerHour, 'hour');
 
-            setTimeout(() => { this.state.isWarningShown = false; }, 30000);
+            setTimeout(() => { this.state.isWarningShown = false; }, TIMING.WARNING_COOLDOWN_MS);
         }
 
         return { allowed: true };

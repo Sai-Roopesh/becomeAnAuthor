@@ -34,7 +34,7 @@ export function ProjectGrid({ projects, seriesMap, onDeleteProject }: ProjectGri
                 <CreateProjectDialog
                     trigger={
                         <div className="h-full cursor-pointer group">
-                            <Card className="h-full flex flex-col items-center justify-center border-dashed border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300 min-h-[300px]">
+                            <Card className="h-full min-h-72 flex flex-col items-center justify-center border-dashed border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300">
                                 <div className="p-4 rounded-full bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 mb-4">
                                     <Plus className="w-8 h-8 text-primary" />
                                 </div>
@@ -49,7 +49,7 @@ export function ProjectGrid({ projects, seriesMap, onDeleteProject }: ProjectGri
             {/* Open Existing Project Card */}
             <div className="animate-in fade-in zoom-in duration-500 fill-mode-backwards" style={{ animationDelay: '50ms' }}>
                 <div className="h-full cursor-pointer group" onClick={handleOpenNovel}>
-                    <Card className="h-full flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 bg-muted/5 hover:bg-muted/10 hover:border-muted-foreground/50 transition-all duration-300 min-h-[300px]">
+                    <Card className="h-full min-h-72 flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 bg-muted/5 hover:bg-muted/10 hover:border-muted-foreground/50 transition-all duration-300">
                         <div className="p-4 rounded-full bg-muted/10 group-hover:bg-muted/20 group-hover:scale-110 transition-all duration-300 mb-4">
                             <FolderOpen className="w-8 h-8 text-muted-foreground" />
                         </div>

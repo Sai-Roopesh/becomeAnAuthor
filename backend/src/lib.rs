@@ -167,6 +167,10 @@ pub fn run() {
             list_world_events,
             save_world_event,
             delete_world_event,
+            // Custom preset commands
+            list_custom_presets,
+            save_custom_preset,
+            delete_custom_preset,
             // App info
             get_app_info,
         ])

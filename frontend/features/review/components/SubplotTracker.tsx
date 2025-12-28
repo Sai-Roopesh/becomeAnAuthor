@@ -134,7 +134,7 @@ export function SubplotTracker({ projectId, seriesId }: SubplotTrackerProps) {
             <ScrollArea className="flex-1 p-6">
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <Card className="bg-gradient-to-br from-background to-muted/50">
+                    <Card className="bg-card">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Scroll className="h-4 w-4" />
@@ -146,7 +146,7 @@ export function SubplotTracker({ projectId, seriesId }: SubplotTrackerProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-gradient-to-br from-background to-muted/50">
+                    <Card className="bg-card">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <AlertCircle className="h-4 w-4" />
@@ -163,7 +163,7 @@ export function SubplotTracker({ projectId, seriesId }: SubplotTrackerProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-gradient-to-br from-background to-muted/50">
+                    <Card className="bg-card">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <CheckCircle2 className="h-4 w-4" />

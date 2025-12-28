@@ -12,10 +12,12 @@ interface FormatSettings {
     pageWidth: number;
     sceneDividerStyle: string;
 
-    // Cursor
-    writingMode: 'normal' | 'typewriter';
+    // Writing
     continueInChapter: boolean;
+
+    // Typewriter Mode
     typewriterMode: boolean;
+    typewriterOffset: number; // Cursor position as % from top (20-60, default 40)
 
     // Page
     showLineNumbers: boolean;
@@ -41,9 +43,9 @@ const defaultSettings: FormatSettings = {
     paragraphSpacing: 1.2,
     pageWidth: 700,
     sceneDividerStyle: '***',
-    writingMode: 'normal',
     continueInChapter: true,
     typewriterMode: false,
+    typewriterOffset: 40,
     showLineNumbers: false,
     showWordCount: true,
     focusMode: false,
@@ -63,4 +65,3 @@ export const useFormatStore = create<FormatStore>()(
         }
     )
 );
-

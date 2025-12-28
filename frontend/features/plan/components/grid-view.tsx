@@ -93,7 +93,7 @@ export function GridView({ projectId, seriesId, nodes, searchQuery }: GridViewPr
                     >
                         {/* Act Section Header - Swimlane Style */}
                         <div className="flex items-center gap-4 mb-4">
-                            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                            <div className="flex-1 h-px bg-border" />
                             <div className="flex items-center gap-3 bg-card border border-border/50 shadow-sm px-4 py-2 rounded-full">
                                 <Button
                                     variant="ghost"
@@ -121,7 +121,7 @@ export function GridView({ projectId, seriesId, nodes, searchQuery }: GridViewPr
                                     <Plus className="h-3 w-3 mr-1" /> Add Chapter
                                 </Button>
                             </div>
-                            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                            <div className="flex-1 h-px bg-border" />
                         </div>
 
                         {/* Chapters Grid */}
@@ -151,7 +151,7 @@ export function GridView({ projectId, seriesId, nodes, searchQuery }: GridViewPr
                                             </div>
 
                                             {/* Scenes List - Index Card Style */}
-                                            <div className="p-3 space-y-2 flex-1 min-h-[100px]">
+                                            <div className="p-3 space-y-2 flex-1">
                                                 {scenes.filter(filterNodes).map(scene => (
                                                     <div key={scene.id} className="transform transition-transform hover:-translate-y-0.5">
                                                         <SceneCard scene={scene} seriesId={seriesId} />
@@ -185,7 +185,7 @@ export function GridView({ projectId, seriesId, nodes, searchQuery }: GridViewPr
                                 {/* Add Chapter Card */}
                                 <button
                                     onClick={() => openCreateDialog(act.id, 'chapter')}
-                                    className="flex flex-col items-center justify-center h-full min-h-[200px] border-2 border-dashed border-border/40 rounded-xl hover:border-primary/40 hover:bg-primary/5 transition-all group/add"
+                                    className="flex flex-col items-center justify-center h-full border-2 border-dashed border-border/40 rounded-xl hover:border-primary/40 hover:bg-primary/5 transition-all group/add aspect-[4/5]"
                                 >
                                     <div className="p-3 rounded-full bg-muted group-hover/add:bg-primary/10 transition-colors mb-2">
                                         <Plus className="h-6 w-6 text-muted-foreground group-hover/add:text-primary" />

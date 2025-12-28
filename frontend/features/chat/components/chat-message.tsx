@@ -138,7 +138,7 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
                 <Textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="min-h-[100px] mb-3 bg-muted/30 resize-none"
+                    className="flex-1 mb-3 bg-muted/30 resize-none"
                 />
                 <div className="flex justify-end gap-2">
                     <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>

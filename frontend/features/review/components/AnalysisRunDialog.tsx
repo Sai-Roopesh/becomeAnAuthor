@@ -66,7 +66,7 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border/50">
+            <DialogContent className="max-w-2xl h-[85dvh] flex flex-col overflow-hidden bg-background/95 backdrop-blur-xl border-border/50">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-heading font-bold">Run Story Analysis</DialogTitle>
                     <DialogDescription>

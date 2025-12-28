@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Eye, EyeOff, RefreshCw, Trash2 } from 'lucide-react';
 import { AIConnection, AIVendor } from '@/lib/config/ai-vendors';
 import { Switch } from '@/components/ui/switch';
+import { VendorLogo } from '../VendorLogo';
 
 interface ConnectionFormProps {
     connection: AIConnection;
@@ -64,8 +65,8 @@ export function ConnectionForm({
                 <div className="space-y-6 pr-4">
                     {/* Header with vendor info */}
                     <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">{vendor.icon}</span>
+                        <div className="flex items-center gap-3 mb-2">
+                            <VendorLogo providerId={vendor.id} size={32} />
                             <h3 className="text-lg font-semibold">{vendor.name}</h3>
                         </div>
                         <p className="text-sm text-muted-foreground">{vendor.description}</p>

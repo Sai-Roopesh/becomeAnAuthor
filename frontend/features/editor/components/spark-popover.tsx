@@ -183,7 +183,7 @@ export function SparkPopover({
         >
             <Card className="w-[380px] shadow-xl border overflow-hidden">
                 {/* Header */}
-                <div className="px-4 py-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b flex items-center justify-between">
+                <div className="px-4 py-3 bg-muted border-b flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-amber-500" />
                         <span className="font-semibold">Spark Ideas</span>
@@ -252,7 +252,7 @@ export function SparkPopover({
                 </div>
 
                 {/* Prompts */}
-                <div className="max-h-[280px] overflow-y-auto">
+                <div className="flex-1 overflow-y-auto">
                     {isLoading ? (
                         <div className="p-8 text-center">
                             <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin text-amber-500" />

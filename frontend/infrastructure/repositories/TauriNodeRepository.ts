@@ -147,7 +147,44 @@ export class TauriNodeRepository implements INodeRepository {
         if (!this.projectPath) return [];
 
         const structure = await getStructure(this.projectPath);
-        return flattenStructure(structure, projectId);
+        const nodes = flattenStructure(structure, projectId);
+
+        // Load word counts for scenes from their individual files
+        // Structure.json doesn't store word counts - they're in scene file frontmatter
+        log.debug(`getByProject: Loading word counts for ${nodes.filter(n => n.type === 'scene').length} scenes`);
+
+        const enrichedNodes = await Promise.all(
+            nodes.map(async (node) => {
+                if (node.type === 'scene') {
+                    const sceneNode = node as Scene & { _tauriFile?: string };
+                    if (sceneNode._tauriFile && this.projectPath) {
+                        try {
+                            const sceneData = await loadScene(this.projectPath, sceneNode._tauriFile);
+
+                            // Rust backend uses #[serde(flatten)] on meta, so fields are at root level
+                            // Response is: {id, title, word_count, status, content, ...}
+                            // Cast to record to access dynamic properties since TS interface is wrong
+                            const data = sceneData as unknown as Record<string, unknown>;
+                            const wordCount = (data['word_count'] ?? data['wordCount'] ?? 0) as number;
+                            const status = (data['status'] ?? 'draft') as string;
+
+                            log.debug('Loaded scene word count', { title: node.title, wordCount });
+                            return {
+                                ...node,
+                                wordCount,
+                                status: status as 'draft' | 'revised' | 'final',
+                            } as Scene;
+                        } catch (err) {
+                            log.error(`Failed to load scene ${node.id}:`, err);
+                            return node;
+                        }
+                    }
+                }
+                return node;
+            })
+        );
+
+        return enrichedNodes;
     }
 
     async getByParent(projectId: string, parentId: string | null): Promise<(DocumentNode | Scene)[]> {

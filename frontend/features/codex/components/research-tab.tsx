@@ -40,7 +40,7 @@ export function ResearchTab({ entity, onChange }: ResearchTabProps) {
                     Private notes not seen by AI. Use this for additional information, physical descriptions, or editing notes.
                 </p>
                 <Textarea
-                    className="min-h-[200px]"
+                    className="flex-1"
                     value={entity.notes || ''}
                     onChange={e => onChange('notes', e.target.value)}
                     placeholder="Add research notes..."

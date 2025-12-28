@@ -149,7 +149,7 @@ Provide only the transformed text. No explanations, no preamble.`,
 
     return (
         <Dialog open={true} onOpenChange={onClose}>
-            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0" aria-describedby={undefined}>
+            <DialogContent className="max-w-3xl h-[85dvh] flex flex-col p-0" aria-describedby={undefined}>
                 <VisuallyHidden>
                     <DialogTitle>{getActionTitle()}</DialogTitle>
                 </VisuallyHidden>
@@ -232,7 +232,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                                 value={state.instruction}
                                 onChange={(e) => dispatch({ type: 'SET_INSTRUCTION', payload: e.target.value })}
                                 placeholder="e.g., describe the setting"
-                                className="min-h-[80px] max-h-[20vh] mt-2"
+                                className="flex-1 mt-2"
                             />
                         </div>
 
@@ -250,7 +250,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                         {/* Original Text Preview */}
                         <div>
                             <Label className="text-sm font-medium">Original Text</Label>
-                            <div className="mt-2 p-3 bg-muted rounded-md max-h-[25vh] overflow-y-auto">
+                            <div className="mt-2 p-3 bg-muted rounded-md flex-1 overflow-y-auto">
                                 <p className="text-sm whitespace-pre-wrap">{selectedText}</p>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
@@ -279,7 +279,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                     <TabsContent value="preview" className="flex-1 overflow-y-auto px-6 py-4 space-y-4 mt-0">
                         <div>
                             <Label className="text-sm font-medium">Before</Label>
-                            <div className="mt-2 p-3 bg-muted rounded-md max-h-[25vh] overflow-y-auto">
+                            <div className="mt-2 p-3 bg-muted rounded-md flex-1 overflow-y-auto">
                                 <p className="text-sm whitespace-pre-wrap">{selectedText}</p>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
@@ -292,7 +292,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                             <Textarea
                                 value={state.result}
                                 onChange={(e) => dispatch({ type: 'SET_RESULT', payload: e.target.value })}
-                                className="min-h-[200px] mt-2"
+                                className="flex-1 mt-2"
                                 readOnly={isGenerating}
                             />
                             <p className="text-xs text-muted-foreground mt-1">

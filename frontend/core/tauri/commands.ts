@@ -616,6 +616,35 @@ export async function exportProjectAsJson(projectPath: string): Promise<string> 
 }
 
 /**
+ * Export manuscript as DOCX document
+ */
+export async function exportManuscriptDocx(
+    projectPath: string,
+    outputPath: string
+): Promise<string> {
+    return invoke<string>('export_manuscript_docx', { projectPath, outputPath });
+}
+
+/**
+ * Export manuscript as ePub eBook
+ */
+export async function exportManuscriptEpub(
+    projectPath: string,
+    outputPath: string,
+    title?: string,
+    author?: string,
+    language?: string
+): Promise<string> {
+    return invoke<string>('export_manuscript_epub', {
+        projectPath,
+        outputPath,
+        title,
+        author,
+        language,
+    });
+}
+
+/**
  * Get app info (name, version, platform, arch)
  */
 export async function getAppInfo(): Promise<AppInfo> {

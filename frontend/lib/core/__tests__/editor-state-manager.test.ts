@@ -72,12 +72,20 @@ import { EditorStateManager } from '../editor-state-manager';
 function createMockEditor(options: {
     content?: object;
     isDestroyed?: boolean;
+    wordCount?: number;
 } = {}) {
     const handlers: Map<string, Array<() => void>> = new Map();
 
     return {
         getJSON: vi.fn().mockReturnValue(options.content ?? { type: 'doc', content: [] }),
         isDestroyed: options.isDestroyed ?? false,
+        // Mock storage for CharacterCount extension (word count feature)
+        storage: {
+            characterCount: {
+                words: vi.fn().mockReturnValue(options.wordCount ?? 0),
+                characters: vi.fn().mockReturnValue(0),
+            },
+        },
         on: vi.fn((event: string, handler: () => void) => {
             const existing = handlers.get(event) || [];
             handlers.set(event, [...existing, handler]);
@@ -180,7 +188,7 @@ describe('EditorStateManager Specifications', () => {
             await vi.runAllTimersAsync();
 
             expect(mockScheduleSave).toHaveBeenCalledTimes(1);
-            expect(mockScheduleSave).toHaveBeenCalledWith('scene-123', expect.any(Function));
+            expect(mockScheduleSave).toHaveBeenCalledWith('scene-123', expect.any(Function), 0);
 
             manager.destroy();
         });
@@ -546,7 +554,8 @@ describe('EditorStateManager Specifications', () => {
 
             expect(mockScheduleSave).toHaveBeenCalledWith(
                 'my-scene-456',
-                expect.any(Function)
+                expect.any(Function),
+                0
             );
 
             manager.destroy();

@@ -49,7 +49,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
         content: initialContent,
         editorProps: {
             attributes: {
-                class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] p-4',
+                class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none h-full p-4',
             },
         },
         immediatelyRender: false,

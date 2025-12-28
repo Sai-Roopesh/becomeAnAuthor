@@ -7,9 +7,10 @@
 
 'use client';
 
-import { Users, Wifi, WifiOff, Loader2, Copy, CheckCheck } from 'lucide-react';
+import { Users, Wifi, WifiOff, Loader2, Copy, CheckCheck, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
     Popover,
     PopoverContent,
@@ -17,13 +18,17 @@ import {
 } from '@/components/ui/popover';
 import { useState } from 'react';
 import type { CollaborationStatus, CollaborationPeer } from '@/domain/entities/types';
+import { TIMING } from '@/lib/config/timing';
 
 interface CollaborationPanelProps {
     status: CollaborationStatus;
     peers: CollaborationPeer[];
     roomId: string;
     enabled: boolean;
+    isJoinedRoom?: boolean;
     onToggle: (enabled: boolean) => void;
+    onJoinRoom?: (roomId: string) => void;
+    onLeaveRoom?: () => void;
 }
 
 export function CollaborationPanel({
@@ -31,14 +36,34 @@ export function CollaborationPanel({
     peers,
     roomId,
     enabled,
+    isJoinedRoom = false,
     onToggle,
+    onJoinRoom,
+    onLeaveRoom,
 }: CollaborationPanelProps) {
     const [copied, setCopied] = useState(false);
+    const [joinRoomInput, setJoinRoomInput] = useState('');
+    const [joinError, setJoinError] = useState<string | null>(null);
 
     const copyRoomId = () => {
         navigator.clipboard.writeText(roomId);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), TIMING.COPIED_FEEDBACK_MS);
+    };
+
+    const handleJoinRoom = () => {
+        const trimmed = joinRoomInput.trim();
+        if (!trimmed) {
+            setJoinError('Please enter a room ID');
+            return;
+        }
+        if (!trimmed.startsWith('becomeauthor-')) {
+            setJoinError('Invalid room ID format');
+            return;
+        }
+        setJoinError(null);
+        setJoinRoomInput('');
+        onJoinRoom?.(trimmed);
     };
 
     const getStatusIcon = () => {
@@ -56,7 +81,7 @@ export function CollaborationPanel({
     const getStatusText = () => {
         switch (status) {
             case 'synced':
-                return 'Connected';
+                return isJoinedRoom ? 'Joined' : 'Connected';
             case 'syncing':
                 return 'Syncing...';
             case 'connecting':
@@ -105,13 +130,32 @@ export function CollaborationPanel({
 
                     {enabled && (
                         <>
-                            {/* Room ID */}
+                            {/* Joined Room Indicator */}
+                            {isJoinedRoom && onLeaveRoom && (
+                                <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded-md">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-blue-600 dark:text-blue-400">
+                                            Joined external room
+                                        </span>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={onLeaveRoom}
+                                            className="h-7 text-xs"
+                                        >
+                                            Leave
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Your Room ID - for sharing */}
                             <div className="space-y-2">
-                                <span className="text-sm text-muted-foreground">
-                                    Room ID (share with collaborators)
+                                <span className="text-sm font-medium">
+                                    {isJoinedRoom ? 'Current Room ID' : 'Your Room ID'}
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <code className="flex-1 px-2 py-1 bg-muted rounded text-xs truncate">
+                                    <code className="flex-1 px-2 py-1.5 bg-muted rounded text-xs truncate font-mono">
                                         {roomId}
                                     </code>
                                     <Button
@@ -127,10 +171,48 @@ export function CollaborationPanel({
                                         )}
                                     </Button>
                                 </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Share this ID with collaborators
+                                </p>
                             </div>
 
+                            {/* Join Room - for joining others */}
+                            {!isJoinedRoom && onJoinRoom && (
+                                <div className="space-y-2 pt-2 border-t">
+                                    <span className="text-sm font-medium">
+                                        Join Another Room
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            placeholder="Paste room ID..."
+                                            value={joinRoomInput}
+                                            onChange={(e) => {
+                                                setJoinRoomInput(e.target.value);
+                                                setJoinError(null);
+                                            }}
+                                            className="h-8 text-xs font-mono"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleJoinRoom();
+                                            }}
+                                        />
+                                        <Button
+                                            variant="default"
+                                            size="sm"
+                                            className="h-8 shrink-0"
+                                            onClick={handleJoinRoom}
+                                        >
+                                            <LogIn className="h-3 w-3 mr-1" />
+                                            Join
+                                        </Button>
+                                    </div>
+                                    {joinError && (
+                                        <p className="text-xs text-red-500">{joinError}</p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Connected Peers */}
-                            <div className="space-y-2">
+                            <div className="space-y-2 pt-2 border-t">
                                 <span className="text-sm text-muted-foreground">
                                     Connected Peers ({peers.length})
                                 </span>

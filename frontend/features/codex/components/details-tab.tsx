@@ -171,7 +171,7 @@ Generate now for: ${entity.name} (${entity.category})`;
                     </div>
                 </div>
                 <Textarea
-                    className="min-h-[300px] font-mono text-sm"
+                    className="flex-1 font-mono text-sm"
                     value={entity.description || ''}
                     onChange={e => onChange('description', e.target.value)}
                     placeholder="Describe this entry..."

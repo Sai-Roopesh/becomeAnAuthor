@@ -23,8 +23,9 @@ interface UsageStats {
 }
 
 // Mock function until actual usage tracker is implemented
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function mockGetStats(startDate: Date): Promise<UsageStats | null> {
-    console.log('Mock usage stats for:', startDate);
+    // TODO: Implement actual usage tracking
     return null;
 }
 

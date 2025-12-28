@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
         // ✅ CRASH REPORTING: Store crash details for debugging
         try {
-            const existingReports = storage.getItem<any[]>('crash_reports', []);
+            const existingReports = storage.getItem<Array<{ error: string; stack: string | null | undefined; timestamp: string }>>('crash_reports', []);
             const report = {
                 error: error.toString(),
                 stack: errorInfo.componentStack,
@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
             }
 
             return (
-                <div className="flex flex-col items-center justify-center min-h-[400px] p-6 text-center border rounded-lg bg-muted/30">
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center border rounded-lg bg-muted/30">
                     <div className="bg-destructive/10 p-4 rounded-full mb-4">
                         <AlertTriangle className="h-8 w-8 text-destructive" />
                     </div>

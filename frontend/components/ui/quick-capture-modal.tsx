@@ -118,7 +118,7 @@ export function QuickCaptureModal({
                         onKeyDown={handleKeyDown}
                         placeholder={placeholder}
                         className={cn(
-                            "min-h-24 max-h-[40vh] resize-none",
+                            "flex-1 resize-none",
                             "border-0 focus-visible:ring-0 bg-transparent",
                             "text-base placeholder:text-muted-foreground/50"
                         )}

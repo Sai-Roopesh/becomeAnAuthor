@@ -123,7 +123,7 @@ Now apply your task to the original text. Provide ONLY the modified text:`,
                             value={instruction}
                             onChange={(e) => setInstruction(e.target.value)}
                             placeholder="E.g., Make this more dramatic, Add more sensory details, Shorten while keeping the key points..."
-                            className="min-h-[100px] mt-2"
+                            className="flex-1 mt-2"
                             disabled={isGenerating}
                         />
                     </div>
@@ -132,7 +132,7 @@ Now apply your task to the original text. Provide ONLY the modified text:`,
                     {isGenerating && streamingResult && (
                         <div>
                             <Label>Preview (streaming...)</Label>
-                            <div className="mt-2 p-3 bg-muted rounded-md max-h-[200px] overflow-y-auto">
+                            <div className="mt-2 p-3 bg-muted rounded-md flex-1 overflow-y-auto">
                                 <p className="text-sm whitespace-pre-wrap">
                                     {streamingResult}
                                     <span className="inline-block w-2 h-4 ml-1 bg-blue-500 animate-pulse" />

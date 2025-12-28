@@ -9,6 +9,8 @@
  * Critical: Prevents race conditions in save operations across tabs
  */
 
+import { TIMING } from '@/lib/config/timing';
+
 export type TabMessage =
     | { type: 'project_opened'; projectId: string; tabId: string; timestamp: number }
     | { type: 'project_closed'; projectId: string; tabId: string }
@@ -85,10 +87,10 @@ export class TabCoordinator {
      * Send heartbeat to other tabs
      */
     private startHeartbeat() {
-        // Send heartbeat every 3 seconds
+        // Send heartbeat periodically
         this.heartbeatInterval = setInterval(() => {
             this.cleanupStaleTabs();
-        }, 3000);
+        }, TIMING.HEARTBEAT_INTERVAL_MS);
     }
 
     /**
@@ -96,10 +98,9 @@ export class TabCoordinator {
      */
     private cleanupStaleTabs() {
         const now = Date.now();
-        const timeout = 10000; // 10 seconds
 
         for (const [tabId, info] of this.activeTabs.entries()) {
-            if (now - info.lastSeen > timeout) {
+            if (now - info.lastSeen > TIMING.STALE_TAB_TIMEOUT_MS) {
                 this.activeTabs.delete(tabId);
             }
         }
@@ -118,7 +119,7 @@ export class TabCoordinator {
         this.channel.postMessage(message);
 
         // Check immediately if other tabs already have this project open
-        setTimeout(() => this.checkForMultiTab(projectId), 100);
+        setTimeout(() => this.checkForMultiTab(projectId), TIMING.MULTI_TAB_CHECK_DELAY_MS);
     }
 
     /**

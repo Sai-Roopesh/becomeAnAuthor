@@ -73,7 +73,7 @@ export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = fa
                 {scenes && scenes.length > 0 ? (
                     <div className="relative pl-4">
                         {/* Vertical line */}
-                        <div className="absolute left-[19px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-primary/20 via-primary/10 to-transparent" />
+                        <div className="absolute left-[19px] top-2 bottom-2 w-0.5 bg-border" />
 
                         {/* Scene markers */}
                         <div className="space-y-6">

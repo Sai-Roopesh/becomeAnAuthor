@@ -40,12 +40,12 @@ export function ProjectCard({ project, seriesName, onDelete }: ProjectCardProps)
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 text-primary/20 group-hover:text-primary/30 transition-colors">
+                        <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-colors">
                             <BookOpen className="h-16 w-16" />
                         </div>
                     )}
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-60" />
+                    <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                     {project.archived && (
                         <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full uppercase tracking-wider border border-white/10">
