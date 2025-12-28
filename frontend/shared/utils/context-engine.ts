@@ -118,10 +118,10 @@ export async function assembleContext(
 
     if (sceneId) {
         try {
-            // Load scene content
+            // Load scene content - Tauri expects sceneFile (snake_case in Rust becomes camelCase)
             const sceneContent = await invoke<string>('load_scene', {
                 projectPath,
-                sceneId
+                sceneFile: sceneId  // Backend expects scene_file, Tauri converts to sceneFile
             });
 
             const sceneJson = JSON.parse(sceneContent || '{}');
