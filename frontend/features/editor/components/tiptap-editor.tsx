@@ -361,14 +361,24 @@ When continuing a story, extend the narrative naturally while honoring the estab
             }
         };
 
-        const prompt = `Continue this story with approximately ${options.wordCount || 400} words.
+        // Calculate expected paragraphs for structural guidance
+        const targetWords = options.wordCount || 400;
+        const expectedParagraphs = Math.ceil(targetWords / 80); // ~80 words per paragraph
+
+        const prompt = `You MUST write EXACTLY ${targetWords} words (give or take 20 words). This is a strict requirement.
 
 ${codexContext}
 CONTINUATION FROM:
 ${lastContext}${additionalContext}
 
-REQUIREMENTS:
-- Style: ${getModeGuidance(options.mode || 'continue-writing')}
+CRITICAL WORD COUNT REQUIREMENT:
+- Write EXACTLY ${targetWords} words (acceptable range: ${targetWords - 20} to ${targetWords + 20} words)
+- Structure your response in ${expectedParagraphs} paragraphs, each approximately 80 words
+- Do NOT stop early. Do NOT go significantly over.
+- Count your words mentally as you write.
+
+STYLE REQUIREMENTS:
+- ${getModeGuidance(options.mode || 'continue-writing')}
 - Show, don't tell: Use vivid sensory details (sight, sound, touch, smell, taste)
 - No filter words: Avoid "saw," "felt," "heard," "seemed," "appeared"
 - Active voice: Choose strong, specific verbs
@@ -380,7 +390,7 @@ GOOD EXAMPLE OF CONTINUATION:
 
 ${options.instructions || 'Continue the story naturally from the current context.'}
 
-YOUR CONTINUATION (approximately ${options.wordCount || 400} words):`;
+YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragraphs):`;
 
         // generatedText variable removed - unused
 

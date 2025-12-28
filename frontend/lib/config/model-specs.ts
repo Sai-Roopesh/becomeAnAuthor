@@ -152,32 +152,43 @@ export function getModelSpec(model: string): ModelSpec {
 }
 
 /**
- * Calculate output tokens based on word count
+ * Estimate tokens for a word count
  * Rule of thumb: 1 word ≈ 1.3 tokens (English average)
- * We use 2x multiplier to ensure enough tokens for the requested output
+ * 
+ * NOTE: This is for ESTIMATION only, not for controlling output length.
+ * To control word count:
+ * 1. Use explicit word count instructions in the prompt
+ * 2. Set maxTokens as a generous CEILING (3x requested) to avoid cutting off
+ * 3. Add structural guidance (paragraphs/sections) for better compliance
  */
 export function wordsToTokens(words: number): number {
-    // Use 2x multiplier to provide buffer for AI to complete thoughts
-    return Math.ceil(words * 2);
+    return Math.ceil(words * 1.3);
 }
 
 /**
- * Calculate max tokens for a model based on user's word count
- * @param model Model identifier
- * @param userWordCount User-selected word count from UI (200/400/600 buttons)
- * @returns Appropriate maxTokens value
+ * Calculate max tokens as a CEILING for the model
+ * 
+ * IMPORTANT: maxTokens is NOT a target - it's a maximum limit.
+ * The actual output length is controlled via prompt instructions.
+ * We set this generously to avoid cutting off the AI's response.
+ * 
+ * @param model Model identifier  
+ * @param userWordCount User-selected word count from UI
+ * @returns Generous maxTokens ceiling (at least 3x the estimated tokens)
  */
 export function calculateMaxTokens(model: string, userWordCount: number): number {
     const spec = getModelSpec(model);
 
-    // Convert user's word count to tokens with generous buffer
-    // Users expect 400 words, so we need ~800 tokens minimum
-    const requestedTokens = wordsToTokens(userWordCount);
+    // Estimate tokens needed and multiply by 3 for generous ceiling
+    // This ensures the AI output doesn't get cut off mid-sentence
+    const estimatedTokens = wordsToTokens(userWordCount);
+    const generousCeiling = estimatedTokens * 3;
 
     // Calculate max allowed after reserving space for thinking tokens
     const maxAllowed = spec.maxOutputTokens - spec.thinkingTokenBudget;
 
-    // Return requested or max allowed, whichever is smaller
-    // Minimum of 1000 tokens to ensure meaningful output
-    return Math.max(1000, Math.min(requestedTokens, maxAllowed));
+    // Return the generous ceiling, capped at model's max
+    // Minimum of 1500 tokens to ensure enough room for any reasonable request
+    return Math.max(1500, Math.min(generousCeiling, maxAllowed));
 }
+
