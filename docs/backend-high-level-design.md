@@ -11,9 +11,9 @@
 This document provides an exhaustive analysis of the backend architecture for the "Become An Author" application—a **Rust-based Tauri backend** providing secure, local-first file system operations for a writing studio.
 
 ### Key Statistics
-- **13 Command Modules** (67 commands total)
-- **7 Data Model Files** (15+ structs)
-- **6 Utility Modules** (validation, security, I/O)
+- **18 Command Modules** (105 commands total)
+- **11 Data Model Files** (25+ structs)
+- **7 Utility Modules** (validation, security, I/O, timestamp)
 - **1 Main Binary** (`lib.rs` + `main.rs`)
 - **355 Lines** of validation code
 - **191 Lines** of security code
@@ -146,40 +146,50 @@ graph TB
 backend/
 ├── src/
 │   ├── main.rs                    # Binary entry point (4 lines)
-│   ├── lib.rs                     # Library + command registration (125 lines)
+│   ├── lib.rs                     # Library + command registration (176 lines)
 │   │
-│   ├── commands/                  # Command modules (13 modules, 67 commands)
+│   ├── commands/                  # Command modules (18 modules, 105 commands)
 │   │   ├── mod.rs                 # Module declarations
-│   │   ├── project.rs             # Project CRUD (14.5KB, 11 commands)
-│   │   ├── scene.rs               # Scene CRUD (6.7KB, 4 commands)
-│   │   ├── codex.rs               # Codex CRUD (10.7KB, 21 commands)
-│   │   ├── chat.rs                # Chat threads/messages (4.5KB, 7 commands)
+│   │   ├── project.rs             # Project CRUD (19KB, 15 commands)
+│   │   ├── scene.rs               # Scene CRUD (7.4KB, 4 commands)
+│   │   ├── codex.rs               # Codex CRUD (12KB, 21 commands)
+│   │   ├── chat.rs                # Chat threads/messages (5.4KB, 8 commands)
 │   │   ├── analysis.rs            # AI analysis storage (1.7KB, 3 commands)
 │   │   ├── snippet.rs             # Text snippets (1.7KB, 3 commands)
-│   │   ├── backup.rs              # Emergency backup (10.9KB, 4 commands)
+│   │   ├── backup.rs              # Backup + Export (23KB, 11 commands)
 │   │   ├── search.rs              # Full-text search (2.1KB, 1 command)
-│   │   ├── trash.rs               # Soft delete (5.2KB, 5 commands)
-│   │   ├── series.rs              # Multi-book series (2.2KB, 4 commands)
+│   │   ├── trash.rs               # Soft delete (5.4KB, 5 commands)
+│   │   ├── series.rs              # Multi-book series (9KB, 13 commands)
 │   │   ├── seed.rs                # Default templates (4.2KB, 1 command)
 │   │   ├── security.rs            # API key storage (5.9KB, 4 commands)
-│   │   └── [3 unused commands]    # rename_node, delete_node, save_scene_by_id
+│   │   ├── idea.rs                # Brainstorming (2KB, 4 commands)
+│   │   ├── mention.rs             # Cross-references (8.6KB, 2 commands)
+│   │   ├── collaboration.rs       # Yjs state (2.1KB, 4 commands)
+│   │   ├── scene_note.rs          # Scene annotations (1.5KB, 3 commands)
+│   │   ├── world_map.rs           # Story maps (2.8KB, 4 commands)
+│   │   └── world_timeline.rs      # Timeline events (1.7KB, 3 commands)
 │   │
-│   ├── models/                    # Data models (7 files, 15+ structs)
+│   ├── models/                    # Data models (11 files, 25+ structs)
 │   │   ├── mod.rs                 # Module exports
 │   │   ├── project.rs             # ProjectMeta, StructureNode, Series
 │   │   ├── scene.rs               # SceneMeta
 │   │   ├── codex.rs               # CodexEntry, CodexRelation, etc.
 │   │   ├── chat.rs                # ChatThread, ChatMessage
 │   │   ├── snippet.rs             # Snippet
-│   │   └── analysis.rs            # StoryAnalysis
+│   │   ├── analysis.rs            # StoryAnalysis
+│   │   ├── idea.rs                # Idea
+│   │   ├── scene_note.rs          # SceneNote
+│   │   ├── world_map.rs           # WorldMap, MapMarker
+│   │   └── world_timeline.rs      # WorldEvent
 │   │
-│   └── utils/                     # Utility modules (6 modules)
+│   └── utils/                     # Utility modules (7 modules)
 │       ├── mod.rs                 # Module exports
-│       ├── paths.rs               # Path resolution (1.2KB, 36 lines)
+│       ├── paths.rs               # Path resolution (1.8KB)
 │       ├── validation.rs          # Input validation (11.2KB, 355 lines)
-│       ├── security.rs            # Path security (not populated in commands/security.rs)
+│       ├── security.rs            # Path security (2.1KB)
 │       ├── io.rs                  # File I/O helpers
-│       └── text.rs                # Text processing
+│       ├── text.rs                # Text processing
+│       └── timestamp.rs           # Timestamp utilities (1.2KB)
 │
 ├── Cargo.toml                     # Dependencies
 ├── tauri.conf.json                # Tauri configuration
@@ -204,6 +214,12 @@ pub mod trash;
 pub mod series;
 pub mod seed;
 pub mod security;
+pub mod mention;
+pub mod collaboration;
+pub mod idea;
+pub mod scene_note;
+pub mod world_map;
+pub mod world_timeline;
 ```
 
 **Pattern**: Each module exports `#[tauri::command]` functions that are registered in `lib.rs`.
@@ -335,7 +351,7 @@ pub mod security;
 | `permanent_delete` | Permanently delete from trash |
 | `empty_trash` | Delete all trash items |
 
-#### Series Commands (4 commands)
+#### Series Commands (13 commands)
 
 | Command | Purpose |
 |---------|---------|
@@ -343,6 +359,15 @@ pub mod security;
 | `create_series` | Create new series |
 | `update_series` | Update series |
 | `delete_series` | Delete series |
+| `delete_series_cascade` | Delete series with all projects |
+| `list_series_codex_entries` | List codex entries for series |
+| `get_series_codex_entry` | Get single series codex entry |
+| `save_series_codex_entry` | Save series codex entry |
+| `delete_series_codex_entry` | Delete series codex entry |
+| `list_series_codex_relations` | List series codex relations |
+| `save_series_codex_relation` | Save series relation |
+| `delete_series_codex_relation` | Delete series relation |
+| `migrate_codex_to_series` | Migrate project codex to series |
 
 #### Security Commands (4 commands)
 
@@ -353,11 +378,55 @@ pub mod security;
 | `delete_api_key` | Delete API key from Keychain |
 | `list_api_key_providers` | List providers with stored keys |
 
-#### Utility Commands (1 command)
+#### Idea Commands (4 commands)
 
 | Command | Purpose |
 |---------|---------|
-| `get_app_info` | Get app version, platform |
+| `list_ideas` | Get all ideas for project |
+| `create_idea` | Create new idea |
+| `update_idea` | Update idea |
+| `delete_idea` | Delete idea |
+
+#### Mention Commands (2 commands)
+
+| Command | Purpose |
+|---------|---------|
+| `find_mentions` | Find all mentions of a codex entry |
+| `count_mentions` | Count mentions across project |
+
+#### Collaboration Commands (4 commands)
+
+| Command | Purpose |
+|---------|---------|
+| `save_yjs_state` | Save Yjs CRDT state |
+| `load_yjs_state` | Load Yjs state |
+| `has_yjs_state` | Check if Yjs state exists |
+| `delete_yjs_state` | Delete Yjs state |
+
+#### Scene Note Commands (3 commands)
+
+| Command | Purpose |
+|---------|---------|
+| `get_scene_note` | Get note for scene |
+| `save_scene_note` | Save scene note |
+| `delete_scene_note` | Delete scene note |
+
+#### World Map Commands (4 commands)
+
+| Command | Purpose |
+|---------|---------|
+| `list_maps` | List all maps |
+| `save_map` | Save map data |
+| `delete_map` | Delete map |
+| `upload_map_image` | Upload map image |
+
+#### World Timeline Commands (3 commands)
+
+| Command | Purpose |
+|---------|---------|
+| `list_world_events` | List timeline events |
+| `save_world_event` | Save timeline event |
+| `delete_world_event` | Delete timeline event |
 
 ---
 

@@ -2,7 +2,7 @@ import type { IExportService, ExportOptions } from '@/domain/services/IExportSer
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { Scene, DocumentNode } from '@/domain/entities/types';
 import { extractTextFromContent } from '@/shared/utils/editor';
-import { BUILT_IN_PRESETS } from '@/features/export/utils/export-presets';
+import { BUILT_IN_PRESETS } from '@/shared/constants/export/export-presets';
 import {
     Document,
     Packer,

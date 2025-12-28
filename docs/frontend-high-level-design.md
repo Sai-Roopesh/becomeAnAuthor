@@ -12,11 +12,12 @@ This document provides an exhaustive analysis of the frontend architecture for t
 
 ### Key Statistics
 - **192 Files** across **82 Directories**
-- **17 Features** (Feature-Sliced Design)
-- **12 Repository Interfaces** (Clean Architecture)
-- **39 Custom Hooks** (Business Logic Layer)
+- **18 Features** (Feature-Sliced Design)
+- **18 Repository Interfaces** (Clean Architecture)
+- **40+ Custom Hooks** (Business Logic Layer)
 - **4 Zustand Stores** (State Management)
-- **10+ Domain Entities** (Type-Safe Data Model)
+- **35+ Domain Entities** (Type-Safe Data Model)
+
 
 ### Architecture Philosophy
 The frontend follows a **Hybrid Architecture** combining:
@@ -298,7 +299,7 @@ export interface IRepository<T> {
 }
 ```
 
-**12 Repository Interfaces**:
+**18 Repository Interfaces**:
 1. `IProjectRepository` — Project CRUD (requires `seriesId`, `seriesIndex`)
 2. `INodeRepository` — Acts/Chapters/Scenes
 3. `ICodexRepository` — Codex entries **(series-scoped via `seriesId`)**
@@ -311,6 +312,12 @@ export interface IRepository<T> {
 10. `IAnalysisRepository` — Analysis results
 11. `ISnippetRepository` — Snippets
 12. `ISeriesRepository` — Series
+13. `IIdeaRepository` — Brainstorm/Ideas storage
+14. `IMapRepository` — Story world maps
+15. `IMentionRepository` — Cross-reference tracking
+16. `ICollaborationRepository` — Multi-user collaboration features
+17. `ISceneNoteRepository` — Scene annotations
+18. `IWorldTimelineRepository` — Timeline events
 
 **Location**: `frontend/domain/repositories/`
 
@@ -341,22 +348,23 @@ export function isScene(node: DocumentNode): node is Scene;
 
 | Feature | Components | Purpose | Key Dependencies |
 |---------|------------|---------|-----------------|
-| **editor** | 23 | Tiptap scene editor with AI tools | `use-auto-save`, `use-ai`, `TauriNodeRepository` |
-| **codex** | 18 | World-building wiki system | `TauriCodexRepository`, `use-codex-repository` |
+| **editor** | 24 | Tiptap scene editor with AI tools | `use-auto-save`, `use-ai`, `TauriNodeRepository` |
+| **codex** | 19 | World-building wiki system | `TauriCodexRepository`, `use-codex-repository` |
 | **chat** | 16 | AI chat interface | `use-ai`, `use-context-assembly`, `TauriChatRepository` |
-| **plan** | 14 | Story planning & outlining | `use-project-store`, `TauriNodeRepository` |
-| **review** | 11 | AI-powered manuscript analysis | `use-ai`, `TauriAnalysisRepository` |
-| **dashboard** | 5 | Project overview & stats | `use-project-repository`, word count aggregation |
-| **navigation** | 3 | Tree-based navigation sidebar | `useProjectStore`, drag-and-drop |
-| **search** | 7 | Global fuzzy search | `fuse.js`, `TauriNodeRepository` |
-| **settings** | 9 | User preferences & AI config | `localStorage`, `security::store_api_key` |
+| **plan** | 19 | Story planning & outlining | `use-project-store`, `TauriNodeRepository` |
+| **review** | 13 | AI-powered manuscript analysis | `use-ai`, `TauriAnalysisRepository` |
+| **dashboard** | 7 | Project overview & stats | `use-project-repository`, word count aggregation |
+| **navigation** | 5 | Tree-based navigation sidebar | `useProjectStore`, drag-and-drop |
+| **search** | 8 | Global fuzzy search | `fuse.js`, `TauriNodeRepository` |
+| **settings** | 10 | User preferences & AI config | `localStorage`, `security::store_api_key` |
 | **snippets** | 4 | Reusable text templates | `TauriSnippetRepository` |
-| **series** | 5 | Multi-book series management | `TauriSeriesRepository` |
+| **series** | 6 | Multi-book series management | `TauriSeriesRepository` |
 | **google-drive** | 5 | Google OAuth + Drive backup | `google-auth-service`, `google-drive-service` |
-| **migration** | 7 | Data migration UI | `migration` services |
-| **data-management** | 2 | Import/Export flows | `export_project_backup`, `import_project_backup` |
+| **data-management** | 4 | Import/Export flows | `export_project_backup`, `import_project_backup` |
 | **project** | 4 | Project CRUD dialogs | `TauriProjectRepository` |
-| **ai** | 3 | AI integration components | `Vercel AI SDK` |
+| **ai** | 4 | AI integration components | `Vercel AI SDK` |
+| **export** | 5 | Document export with templates | `DocumentExportService`, presets |
+| **collaboration** | 2 | Multi-user collaboration | `TauriCollaborationRepository` |
 | **shared** | 6 | Cross-feature utilities | N/A |
 
 ### 4.2 Feature Dependency Graph

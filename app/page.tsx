@@ -9,7 +9,7 @@ import type { ISeriesRepository } from '@/domain/repositories/ISeriesRepository'
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
 import { ProjectGrid } from '@/features/dashboard/components/ProjectGrid';
 import { EmptyState } from '@/features/dashboard/components/EmptyState';
-import { DataManagementMenu } from '@/components/data-management/data-management-menu';
+import { DataManagementMenu } from '@/features/data-management';
 import { SeriesList } from '@/features/series';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookOpen, Library } from 'lucide-react';

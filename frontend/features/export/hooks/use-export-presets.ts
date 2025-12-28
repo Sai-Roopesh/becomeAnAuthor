@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ExportPreset } from '@/domain/types/export-types';
-import { BUILT_IN_PRESETS } from '../utils/export-presets';
+import { BUILT_IN_PRESETS } from '@/shared/constants/export/export-presets';
 
 /**
  * Hook for managing export presets

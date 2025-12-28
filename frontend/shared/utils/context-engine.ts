@@ -1,6 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
 import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 import type { CodexEntry } from '@/domain/entities/types';
+import type { Scene } from '@/core/tauri/commands';
+
+// Structure node type from Tauri backend
+interface StructureNode {
+    id: string;
+    type: string;
+    file?: string;
+    children?: StructureNode[];
+}
 
 // Helper to yield to main thread to prevent blocking UI
 const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -118,13 +127,45 @@ export async function assembleContext(
 
     if (sceneId) {
         try {
-            // Load scene content - Tauri expects sceneFile (snake_case in Rust becomes camelCase)
-            const sceneContent = await invoke<string>('load_scene', {
+            // First, get the project structure to find the scene's file path
+            const structure = await invoke<StructureNode[]>('get_structure', { projectPath });
+
+            // Flatten and find the scene node
+            const flattenStructure = (nodes: StructureNode[]): StructureNode[] => {
+                const result: StructureNode[] = [];
+                for (const node of nodes) {
+                    result.push(node);
+                    if (node.children?.length) {
+                        result.push(...flattenStructure(node.children));
+                    }
+                }
+                return result;
+            };
+
+            const allNodes = flattenStructure(structure);
+            const sceneNode = allNodes.find(n => n.id === sceneId);
+
+            if (!sceneNode?.file) {
+                console.warn(`[ContextEngine] Scene ${sceneId} has no file path`);
+                return context;
+            }
+
+            // Load scene content using the file path
+            const sceneResult = await invoke<Scene>('load_scene', {
                 projectPath,
-                sceneFile: sceneId  // Backend expects scene_file, Tauri converts to sceneFile
+                sceneFile: sceneNode.file  // Use the actual file path, not the ID
             });
 
-            const sceneJson = JSON.parse(sceneContent || '{}');
+            // Parse scene content - content is a JSON string of Tiptap document
+            let sceneJson;
+            try {
+                sceneJson = typeof sceneResult.content === 'string'
+                    ? JSON.parse(sceneResult.content)
+                    : sceneResult.content;
+            } catch {
+                // If content is plain text, wrap in Tiptap structure
+                sceneJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: sceneResult.content || '' }] }] };
+            }
             const sceneText = await extractTextFromTiptap(sceneJson);
 
             // Extract @mentioned codex entry IDs from scene content

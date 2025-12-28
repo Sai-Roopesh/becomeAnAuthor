@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{ChatThread, ChatMessage};
+use crate::utils::{validate_no_null_bytes, validate_json_size};
 
 #[tauri::command]
 pub fn list_chat_threads(project_path: String) -> Result<Vec<ChatThread>, String> {
@@ -23,6 +24,9 @@ pub fn get_chat_thread(project_path: String, thread_id: String) -> Result<Option
 
 #[tauri::command]
 pub fn create_chat_thread(project_path: String, thread: ChatThread) -> Result<ChatThread, String> {
+    // Validate thread name
+    validate_no_null_bytes(&thread.name, "Thread name")?;
+    
     let threads_path = PathBuf::from(&project_path).join(".meta/chat/threads.json");
     // Create parent directory if needed
     if let Some(parent) = threads_path.parent() {
@@ -101,6 +105,10 @@ pub fn get_chat_messages(project_path: String, thread_id: String) -> Result<Vec<
 
 #[tauri::command]
 pub fn create_chat_message(project_path: String, message: ChatMessage) -> Result<ChatMessage, String> {
+    // Validate message content
+    validate_no_null_bytes(&message.content, "Message content")?;
+    validate_json_size(&message.content)?;
+    
     let messages_dir = PathBuf::from(&project_path).join(".meta/chat/messages");
     fs::create_dir_all(&messages_dir).map_err(|e| e.to_string())?;
     

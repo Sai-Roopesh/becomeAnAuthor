@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 use crate::models::{Series, CodexEntry, CodexRelation};
-use crate::utils::{get_series_path, get_series_codex_path, get_series_dir};
+use crate::utils::{get_series_path, get_series_codex_path, get_series_dir, validate_project_title};
 
 // ============== Series CRUD ==============
 
@@ -24,6 +24,9 @@ pub fn list_series() -> Result<Vec<Series>, String> {
 
 #[tauri::command]
 pub fn create_series(title: String) -> Result<Series, String> {
+    // Validate title (same rules as project titles)
+    validate_project_title(&title)?;
+    
     let now = chrono::Utc::now().timestamp_millis();
     
     let new_series = Series {
@@ -56,6 +59,11 @@ pub fn create_series(title: String) -> Result<Series, String> {
 pub fn update_series(series_id: String, updates: serde_json::Value) -> Result<(), String> {
     let mut all_series = list_series()?;
     let now = chrono::Utc::now().timestamp_millis();
+    
+    // Validate title if being updated
+    if let Some(title) = updates.get("title").and_then(|v| v.as_str()) {
+        validate_project_title(title)?;
+    }
     
     if let Some(series) = all_series.iter_mut().find(|s| s.id == series_id) {
         if let Some(title) = updates.get("title").and_then(|v| v.as_str()) {

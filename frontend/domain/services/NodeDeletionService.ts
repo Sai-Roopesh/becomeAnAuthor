@@ -1,34 +1,61 @@
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
-import { useConfirmation } from '@/hooks/use-confirmation';
-import { toast } from '@/shared/utils/toast-service';
-import { saveCoordinator } from '@/lib/core/save-coordinator';
 
 /**
- * Centralized Node Deletion Service
- * Consolidates all node deletion logic (18 duplicate handlers → 1 service)
- * Handles cascade delete with user confirmation
+ * Confirmation options for deletion dialogs
+ */
+export interface DeletionConfirmOptions {
+    title: string;
+    description: string;
+    confirmText: string;
+    variant: 'destructive' | 'default';
+}
+
+/**
+ * Confirmation function type (injected from React layer)
+ */
+export type ConfirmationFn = (options: DeletionConfirmOptions) => Promise<boolean>;
+
+/**
+ * Callback for canceling pending saves
+ */
+export type CancelSavesFn = (nodeId: string) => void;
+
+/**
+ * Toast notification callbacks
+ */
+export interface ToastCallbacks {
+    success: (message: string) => void;
+    error: (message: string) => void;
+}
+
+/**
+ * Node Deletion Service - Pure Domain Logic
+ * 
+ * Consolidates all node deletion logic (18 duplicate handlers → 1 service).
+ * Handles cascade delete with injectable confirmation.
+ * 
+ * Note: This is a pure domain service. React integration is handled
+ * by the useNodeDeletion hook in /hooks/use-node-deletion.ts
  */
 export class NodeDeletionService {
-    constructor(private nodeRepository: INodeRepository) { }
+    constructor(
+        private nodeRepository: INodeRepository,
+        private cancelSaves: CancelSavesFn,
+        private toast: ToastCallbacks
+    ) { }
 
     /**
      * Delete a node with confirmation and cascade delete
      * @param nodeId - ID of the node to delete
      * @param nodeType - Type of node (act, chapter, scene)
-     * @param confirmFn - Confirmation function from useConfirmation hook
+     * @param confirmFn - Confirmation function (injected from React)
      * @returns Promise<boolean> - true if deleted, false if cancelled
      */
     async deleteWithConfirmation(
         nodeId: string,
         nodeType: 'act' | 'chapter' | 'scene',
-        confirmFn: (options: {
-            title: string;
-            description: string;
-            confirmText: string;
-            variant: 'destructive' | 'default';
-        }) => Promise<boolean>
+        confirmFn: ConfirmationFn
     ): Promise<boolean> {
-        // Get confirmation messages based on node type
         const messages = this.getConfirmationMessages(nodeType);
 
         const confirmed = await confirmFn({
@@ -44,19 +71,18 @@ export class NodeDeletionService {
 
         try {
             // Cancel any pending saves for this node (prevents race conditions)
-            saveCoordinator.cancelPendingSaves(nodeId);
+            this.cancelSaves(nodeId);
 
             // Use repository's cascade delete
             await this.nodeRepository.deleteCascade(nodeId, nodeType);
-            toast.success(messages.successMessage);
+            this.toast.success(messages.successMessage);
             return true;
         } catch (error) {
             console.error('Failed to delete node:', error);
-            toast.error('Failed to delete. Please try again.');
+            this.toast.error('Failed to delete. Please try again.');
             return false;
         }
     }
-
 
     /**
      * Delete multiple nodes with confirmation
@@ -66,12 +92,7 @@ export class NodeDeletionService {
      */
     async bulkDeleteWithConfirmation(
         nodeIds: string[],
-        confirmFn: (options: {
-            title: string;
-            description: string;
-            confirmText: string;
-            variant: 'destructive' | 'default';
-        }) => Promise<boolean>
+        confirmFn: ConfirmationFn
     ): Promise<boolean> {
         const confirmed = await confirmFn({
             title: 'Delete Selected Items',
@@ -86,11 +107,11 @@ export class NodeDeletionService {
 
         try {
             await this.nodeRepository.bulkDelete(nodeIds);
-            toast.success(`${nodeIds.length} items deleted successfully`);
+            this.toast.success(`${nodeIds.length} items deleted successfully`);
             return true;
         } catch (error) {
             console.error('Failed to bulk delete:', error);
-            toast.error('Failed to delete items. Please try again.');
+            this.toast.error('Failed to delete items. Please try again.');
             return false;
         }
     }
@@ -113,31 +134,4 @@ export class NodeDeletionService {
             successMessage: `${typeLabel} deleted successfully`
         };
     }
-}
-
-/**
- * React Hook to use Node Deletion Service
- * Combines repository access with confirmation dialog
- */
-export function useNodeDeletion(nodeRepository: INodeRepository) {
-    const { confirm, ConfirmationDialog } = useConfirmation();
-
-    const deletionService = new NodeDeletionService(nodeRepository);
-
-    const deleteNode = async (
-        nodeId: string,
-        nodeType: 'act' | 'chapter' | 'scene'
-    ): Promise<boolean> => {
-        return await deletionService.deleteWithConfirmation(nodeId, nodeType, confirm);
-    };
-
-    const bulkDeleteNodes = async (nodeIds: string[]): Promise<boolean> => {
-        return await deletionService.bulkDeleteWithConfirmation(nodeIds, confirm);
-    };
-
-    return {
-        deleteNode,
-        bulkDeleteNodes,
-        ConfirmationDialog,
-    };
 }

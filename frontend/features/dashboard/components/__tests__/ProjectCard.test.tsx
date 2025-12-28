@@ -54,7 +54,7 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
     DropdownMenuSeparator: () => <hr data-testid="dropdown-separator" />,
 }));
 
-vi.mock('@/components/data-management/export-project-button', () => ({
+vi.mock('@/features/data-management', () => ({
     ExportProjectButton: ({ projectId }: { projectId: string }) => (
         <button data-testid="export-button">Export {projectId}</button>
     ),

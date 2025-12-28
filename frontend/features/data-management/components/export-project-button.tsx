@@ -3,11 +3,11 @@
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Download, FileText, Cloud, FileCode } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
-import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
+import { useGoogleAuth } from '@/features/google-drive';
 import { useDocumentExport } from '@/hooks/use-document-export';
 import { toast } from '@/shared/utils/toast-service';
 import { useState } from 'react';
-import { ExportDialog } from '@/features/export/components/export-dialog';
+import { ExportDialog } from '@/features/export';
 
 interface ExportProjectButtonProps {
     projectId: string;
