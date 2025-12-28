@@ -3,15 +3,14 @@
 import { useState } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, PlayCircle, Clock, FileText, Sparkles, BarChart3, Layers, ChevronRight } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PlayCircle, Clock, FileText, Sparkles, BarChart3, Layers, ChevronRight } from 'lucide-react';
 import { VersionWarning } from './VersionWarning';
 import { AnalysisRunDialog } from './AnalysisRunDialog';
 import { AnalysisDetailDialog } from './AnalysisDetailDialog';
 import { useManuscriptVersion } from '../hooks/use-manuscript-version';
 import { useAnalysisRepository } from '../hooks/use-analysis-repository';
 import type { StoryAnalysis } from '@/domain/entities/types';
-import { cn } from '@/lib/utils';
 import { ViewHeader } from '@/components/layout/view-header';
 
 interface ReviewDashboardProps {

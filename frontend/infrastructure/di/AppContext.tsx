@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useMemo, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, ReactNode, useMemo } from 'react';
 // Tauri repositories for filesystem-based storage (desktop-only app)
 import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 import { TauriProjectRepository } from '@/infrastructure/repositories/TauriProjectRepository';

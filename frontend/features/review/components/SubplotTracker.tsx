@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Scroll, AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react';
-import type { CodexEntry, SceneCodexLink, DocumentNode } from '@/domain/entities/types';
+import type { CodexEntry, DocumentNode } from '@/domain/entities/types';
 import { ViewHeader } from '@/components/layout/view-header';
 
 interface SubplotTrackerProps {

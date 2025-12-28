@@ -35,11 +35,11 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         return links.filter(l => l.codexId === codexId);
     }
 
-    async getByProject(projectId: string): Promise<SceneCodexLink[]> {
+    async getByProject(_projectId: string): Promise<SceneCodexLink[]> {
         return await this.getAllLinks();
     }
 
-    async getByRole(projectId: string, role: SceneCodexLinkRole): Promise<SceneCodexLink[]> {
+    async getByRole(_projectId: string, role: SceneCodexLinkRole): Promise<SceneCodexLink[]> {
         const links = await this.getAllLinks();
         return links.filter(l => l.role === role);
     }

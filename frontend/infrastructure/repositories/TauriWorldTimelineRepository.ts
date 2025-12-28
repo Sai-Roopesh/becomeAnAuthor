@@ -13,7 +13,7 @@ import {
 import { TauriNodeRepository } from './TauriNodeRepository';
 
 export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
-    async list(projectId: string): Promise<WorldEvent[]> {
+    async list(_projectId: string): Promise<WorldEvent[]> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
@@ -25,7 +25,7 @@ export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
         }
     }
 
-    async save(projectId: string, event: WorldEvent): Promise<void> {
+    async save(_projectId: string, event: WorldEvent): Promise<void> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) {
             throw new Error('No project path set');
@@ -42,7 +42,7 @@ export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
         }
     }
 
-    async delete(projectId: string, eventId: string): Promise<void> {
+    async delete(_projectId: string, eventId: string): Promise<void> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
