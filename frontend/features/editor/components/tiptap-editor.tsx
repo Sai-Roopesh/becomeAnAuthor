@@ -27,6 +27,7 @@ import Mention from '@tiptap/extension-mention';
 import { createCodexSuggestion } from './suggestion';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useContextAssembly } from '@/hooks/use-context-assembly';
+import { assembleContext as assembleCodexContext } from '@/shared/utils/context-engine';
 import type { TiptapContent } from '@/shared/types/tiptap';
 import type { EditorView } from '@tiptap/pm/view';
 import type { ContextItem } from '@/features/shared/components';
@@ -342,7 +343,10 @@ When continuing a story, extend the narrative naturally while honoring the estab
         const currentText = editor.getText();
         const lastContext = currentText.slice(-AI_DEFAULTS.CONTEXT_WINDOW_CHARS);
 
-        // ✅ Use centralized context assembly
+        // ✅ Auto-detect @mentioned codex entries from scene content
+        const codexContext = await assembleCodexContext(sceneId, '', seriesId);
+
+        // ✅ User-selected additional context  
         const additionalContext = options.selectedContexts && options.selectedContexts.length > 0
             ? '\n\n=== ADDITIONAL CONTEXT ===\n' + await assembleContext(options.selectedContexts)
             : '';
@@ -361,7 +365,8 @@ When continuing a story, extend the narrative naturally while honoring the estab
 
         const prompt = `Continue this story with approximately ${options.wordCount || 400} words.
 
-CONTEXT:
+${codexContext}
+CONTINUATION FROM:
 ${lastContext}${additionalContext}
 
 REQUIREMENTS:
