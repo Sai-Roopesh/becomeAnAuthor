@@ -257,6 +257,8 @@ pub fn create_project(
         author,
         description: String::new(),
         archived: false,
+        language: None,
+        cover_image: None,
         series_id,
         series_index,
         path: project_dir.to_string_lossy().to_string(),
@@ -311,6 +313,8 @@ pub struct ProjectUpdates {
     pub author: Option<String>,
     pub description: Option<String>,
     pub archived: Option<bool>,
+    pub language: Option<String>,
+    pub cover_image: Option<String>,
     pub series_id: Option<String>,
     pub series_index: Option<String>,
 }
@@ -346,6 +350,12 @@ pub fn update_project(project_path: String, updates: ProjectUpdates) -> Result<P
     if let Some(archived) = updates.archived {
         project.archived = archived;
     }
+    if let Some(language) = updates.language {
+        project.language = Some(language);
+    }
+    if let Some(cover_image) = updates.cover_image {
+        project.cover_image = Some(cover_image);
+    }
     if let Some(series_id) = updates.series_id {
         project.series_id = series_id;
     }
@@ -368,6 +378,8 @@ pub fn archive_project(project_path: String) -> Result<ProjectMeta, String> {
         author: None,
         description: None,
         archived: Some(true),
+        language: None,
+        cover_image: None,
         series_id: None,
         series_index: None,
     })

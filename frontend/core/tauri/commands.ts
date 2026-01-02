@@ -34,6 +34,8 @@ export interface ProjectMeta {
     description: string;
     path: string;
     archived: boolean;
+    language?: string;   // e.g., "English (US)"
+    cover_image?: string; // base64 data URL
     series_id: string;   // Required - all projects must belong to a series
     series_index: string; // e.g., "Book 1", "Book 2"
     created_at: number;
@@ -171,6 +173,10 @@ export interface ProjectUpdates {
     author?: string;
     description?: string;
     archived?: boolean;
+    language?: string;
+    cover_image?: string;
+    series_id?: string;
+    series_index?: string;
 }
 
 export async function updateProject(projectPath: string, updates: ProjectUpdates): Promise<ProjectMeta> {

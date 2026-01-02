@@ -519,6 +519,8 @@ pub fn import_project_backup(backup_json: String, series_id: String, series_inde
         author: author.to_string(),
         description: description.to_string(),
         archived: false,
+        language: None,
+        cover_image: None,
         series_id: series_id.clone(),
         series_index,
         path: project_dir.to_string_lossy().to_string(),

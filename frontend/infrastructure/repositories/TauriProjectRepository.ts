@@ -25,7 +25,8 @@ function projectMetaToProject(meta: ProjectMeta): Project & { _tauriPath?: strin
         author: meta.author || '',
         createdAt: new Date(meta.created_at).getTime(),
         updatedAt: new Date(meta.updated_at).getTime(),
-        language: 'en',
+        language: meta.language || 'English (US)',
+        coverImage: meta.cover_image || '',
         archived: meta.archived || false,
         seriesId: meta.series_id,
         seriesIndex: meta.series_index,
@@ -101,6 +102,8 @@ export class TauriProjectRepository implements IProjectRepository {
                 ...(updates.title !== undefined && { title: updates.title }),
                 ...(updates.author !== undefined && { author: updates.author }),
                 ...(updates.archived !== undefined && { archived: updates.archived }),
+                ...(updates.language !== undefined && { language: updates.language }),
+                ...(updates.coverImage !== undefined && { cover_image: updates.coverImage }),
                 ...(updates.seriesId !== undefined && { series_id: updates.seriesId }),
                 ...(updates.seriesIndex !== undefined && { series_index: updates.seriesIndex }),
             });

@@ -12,6 +12,12 @@ pub struct ProjectMeta {
     pub path: String,
     #[serde(default)]
     pub archived: bool,
+    /// Language of the project (e.g., "English (US)")
+    #[serde(default)]
+    pub language: Option<String>,
+    /// Cover image as base64 data URL
+    #[serde(default)]
+    pub cover_image: Option<String>,
     /// Series this project belongs to (REQUIRED)
     pub series_id: String,
     /// Position in series (e.g., "Book 1", "Book 2")

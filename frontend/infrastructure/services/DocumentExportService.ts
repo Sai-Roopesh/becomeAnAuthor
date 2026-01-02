@@ -86,7 +86,7 @@ export class DocumentExportService implements IExportService {
         }
         blockquote {
             border-left: 3px solid #ccc;
-            padding-left: 15px;
+            padding-left: 15f;
             margin-left: 0;
             color: #666;
             font-style: italic;
