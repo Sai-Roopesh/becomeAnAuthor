@@ -30,8 +30,11 @@ jobs:
       - run: cargo check --manifest-path backend/Cargo.toml
       - run: cargo clippy --manifest-path backend/Cargo.toml
 
+  # Build verification - tests that the code compiles correctly
+  # Full Tauri builds (with signing) should be done via tauri-apps/tauri-action for releases
   build-test:
     strategy:
+      fail-fast: false  # Continue other builds if one fails
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
@@ -52,6 +55,7 @@ jobs:
       
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       
-      # Using standard tauri build command
-      # Note: For actual distribution, you'd use tauri-apps/tauri-action to handle signing/artifacts
-      - run: npm run tauri build
+      # Only build the Rust binary (no bundling/signing)
+      # This verifies the code compiles without requiring signing keys
+      - name: Build Rust binary
+        run: cargo build --release --manifest-path backend/Cargo.toml
