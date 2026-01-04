@@ -46,7 +46,7 @@ export function useIdeas({ projectId }: UseIdeasOptions): UseIdeasReturn {
         } finally {
             setIsLoading(false);
         }
-    }, [ideaRepository]);
+    }, [ideaRepository, projectId]);
 
     // Load ideas on mount
     useEffect(() => {

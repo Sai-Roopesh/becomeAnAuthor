@@ -39,7 +39,6 @@ export function VendorLogo({
     const iconUrl = `https://unpkg.com/@lobehub/icons-static-svg@latest/icons/${iconName}.svg`;
 
     return (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
             src={iconUrl}
             alt={`${providerId} logo`}

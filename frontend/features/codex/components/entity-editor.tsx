@@ -59,7 +59,8 @@ export function EntityEditor({ entityId, seriesId, onBack }: EntityEditorProps) 
                 setFormData(entity);
             }
         }
-    }, [entity, entityId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [entity, entityId]); // formData.id intentionally excluded - only sync on entity load
 
     useEffect(() => {
         if (debouncedData && debouncedData.id === entityId && Object.keys(debouncedData).length > 0) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { SearchInput } from './SearchInput';
@@ -28,11 +28,25 @@ export function SearchPalette({ projectId, seriesId, open, onOpenChange }: Searc
         }
     }, [open, setQuery]);
 
+
     // Calculate total results for keyboard navigation
-    const allResults = [
+    const allResults = React.useMemo(() => [
         ...results.scenes.map(r => ({ ...r, resultType: 'scene' as const })),
         ...results.codex.map(r => ({ ...r, resultType: 'codex' as const })),
-    ];
+    ], [results.scenes, results.codex]);
+
+    const handleSelect = useCallback(async (result: typeof allResults[0]) => {
+        if (result.resultType === 'scene') {
+            // Navigate to scene
+            await setActiveSceneId(result.item.id);
+            setViewMode('write');
+            onOpenChange(false);
+        } else {
+            // Navigate to codex (future: implement codex view)
+            // For now, just close the palette
+            onOpenChange(false);
+        }
+    }, [setActiveSceneId, setViewMode, onOpenChange]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -55,25 +69,12 @@ export function SearchPalette({ projectId, seriesId, open, onOpenChange }: Searc
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [open, selectedIndex, allResults]);
+    }, [open, selectedIndex, allResults, handleSelect]);
 
     // Reset selected index when results change
     useEffect(() => {
         setSelectedIndex(0);
     }, [query]);
-
-    const handleSelect = async (result: typeof allResults[0]) => {
-        if (result.resultType === 'scene') {
-            // Navigate to scene
-            await setActiveSceneId(result.item.id);
-            setViewMode('write');
-            onOpenChange(false);
-        } else {
-            // Navigate to codex (future: implement codex view)
-            // For now, just close the palette
-            onOpenChange(false);
-        }
-    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

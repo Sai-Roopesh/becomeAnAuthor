@@ -53,7 +53,7 @@ export function useAIConnections() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const saveConnection = (
+    const saveConnection = useCallback((
         id: string,
         updates: {
             name?: string;
@@ -62,18 +62,20 @@ export function useAIConnections() {
             models?: string[];
         }
     ) => {
-        const updated = connections.map((c) =>
-            c.id === id
-                ? {
-                    ...c,
-                    ...updates,
-                    updatedAt: Date.now(),
-                }
-                : c
-        );
-        setConnections(updated);
-        storage.setItem('ai_connections', updated);
-    };
+        setConnections(prev => {
+            const updated = prev.map((c) =>
+                c.id === id
+                    ? {
+                        ...c,
+                        ...updates,
+                        updatedAt: Date.now(),
+                    }
+                    : c
+            );
+            storage.setItem('ai_connections', updated);
+            return updated;
+        });
+    }, []);
 
     const addConnection = (connection: Omit<AIConnection, 'id' | 'createdAt' | 'updatedAt'>) => {
         const newConnection: AIConnection = {
@@ -143,7 +145,7 @@ export function useAIConnections() {
         } finally {
             setLoading(false);
         }
-    }, [connections]);
+    }, [connections, saveConnection]);
 
     const selectedConnection = connections.find((c) => c.id === selectedId);
 

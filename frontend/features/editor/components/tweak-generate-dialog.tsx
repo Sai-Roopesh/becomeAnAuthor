@@ -63,7 +63,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
         if (allModels.length > 0 && !state.model && allModels[0]) {
             dispatch({ type: 'SET_MODEL', payload: allModels[0] });
         }
-    }, [state.model]);
+    }, [state.model, dispatch]);
 
 
     const handleGenerate = () => {

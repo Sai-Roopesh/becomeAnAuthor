@@ -39,7 +39,7 @@ export function GoogleDriveConnection() {
         }
 
         fetchQuota();
-    }, [isAuthenticated]);
+    }, [isAuthenticated, getQuota]);
 
     const handleSignIn = async () => {
         try {

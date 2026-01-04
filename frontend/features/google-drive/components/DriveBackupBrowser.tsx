@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText, Trash2, Clock, HardDrive } from 'lucide-react';
 import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
@@ -35,16 +35,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
     const [isRestoring, setIsRestoring] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
-    useEffect(() => {
-        // Only load backups if authenticated
-        if (isAuthenticated) {
-            loadBackups();
-        } else {
-            setIsLoading(false);
-        }
-    }, [isAuthenticated]);
-
-    const loadBackups = async () => {
+    const loadBackups = useCallback(async () => {
         try {
             setIsLoading(true);
             const files = await listBackups();
@@ -55,7 +46,16 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [listBackups]);
+
+    useEffect(() => {
+        // Only load backups if authenticated
+        if (isAuthenticated) {
+            loadBackups();
+        } else {
+            setIsLoading(false);
+        }
+    }, [isAuthenticated, loadBackups]);
 
     const handleRestore = async (fileId: string) => {
         try {

@@ -56,7 +56,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onO
             }
         }
 
-    }, [state.model]);
+    }, [state.model, dispatch]);
 
     const handleModeSelect = (mode: GenerationMode) => {
         dispatch({ type: 'SET_MODE', payload: mode });

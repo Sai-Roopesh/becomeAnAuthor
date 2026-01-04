@@ -154,7 +154,8 @@ export function usePrompt() {
         activeItemRef.current = null;
         setState(prev => ({ ...prev, isOpen: false, errorMessage: null }));
         // Queue processing happens in onOpenChange when dialog fully closes
-    }, [state.inputValue, state.validate, state.allowEmpty, state.preserveWhitespace]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.inputValue, state.validate, state.allowEmpty, state.preserveWhitespace]); // state intentionally excluded - using specific fields
 
     const handleCancel = useCallback(() => {
         if (activeItemRef.current) {

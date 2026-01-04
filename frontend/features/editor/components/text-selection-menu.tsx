@@ -71,7 +71,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, proje
             editor.off('selectionUpdate', updateMenu);
             editor.off('update', updateMenu);
         };
-    }, [editor]);
+    }, [editor, dispatch]);
 
     const handleAction = (actionType: ReplaceAction) => {
         const { from, to } = editor.state.selection;

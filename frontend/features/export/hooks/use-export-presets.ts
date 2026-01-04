@@ -46,7 +46,8 @@ export function useExportPresets() {
         };
 
         loadPresets();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run on mount - selectedPreset intentionally excluded
 
     /**
      * Get a preset by ID

@@ -59,10 +59,10 @@ export function EditorContainer({ projectId }: { projectId: string }) {
         [projectId, snippetRepo]
     );
 
-    const handleSnippetSelect = (id: string) => {
+    const handleSnippetSelect = useCallback((id: string) => {
         setActiveSnippetId(id);
         if (isMobile) setShowSidebar(false);
-    };
+    }, [isMobile, setShowSidebar]);
 
     const handleCloseSnippet = () => setActiveSnippetId(null);
 
