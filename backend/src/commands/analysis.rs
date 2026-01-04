@@ -14,13 +14,11 @@ pub fn list_analyses(project_path: String) -> Result<Vec<Analysis>, String> {
         return Ok(analyses);
     }
     
-    for entry in fs::read_dir(&analyses_dir).map_err(|e| e.to_string())? {
-        if let Ok(entry) = entry {
-            if entry.path().extension().map_or(false, |e| e == "json") {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    if let Ok(analysis) = serde_json::from_str::<Analysis>(&content) {
-                        analyses.push(analysis);
-                    }
+    for entry in (fs::read_dir(&analyses_dir).map_err(|e| e.to_string())?).flatten() {
+        if entry.path().extension().is_some_and(|e| e == "json") {
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                if let Ok(analysis) = serde_json::from_str::<Analysis>(&content) {
+                    analyses.push(analysis);
                 }
             }
         }

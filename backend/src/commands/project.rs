@@ -501,7 +501,7 @@ pub fn rename_node(project_path: String, node_id: String, new_title: String) -> 
     let content = fs::read_to_string(&structure_path).map_err(|e| e.to_string())?;
     let mut structure: Vec<StructureNode> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
     
-    fn rename_in_tree(nodes: &mut Vec<StructureNode>, node_id: &str, new_title: &str) -> bool {
+    fn rename_in_tree(nodes: &mut [StructureNode], node_id: &str, new_title: &str) -> bool {
         for node in nodes.iter_mut() {
             if node.id == node_id {
                 node.title = new_title.to_string();

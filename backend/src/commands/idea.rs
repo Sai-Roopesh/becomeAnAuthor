@@ -13,13 +13,11 @@ pub fn list_ideas(project_path: String) -> Result<Vec<Idea>, String> {
         return Ok(ideas);
     }
     
-    for entry in fs::read_dir(&ideas_dir).map_err(|e| e.to_string())? {
-        if let Ok(entry) = entry {
-            if entry.path().extension().map_or(false, |e| e == "json") {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    if let Ok(idea) = serde_json::from_str::<Idea>(&content) {
-                        ideas.push(idea);
-                    }
+    for entry in (fs::read_dir(&ideas_dir).map_err(|e| e.to_string())?).flatten() {
+        if entry.path().extension().is_some_and(|e| e == "json") {
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                if let Ok(idea) = serde_json::from_str::<Idea>(&content) {
+                    ideas.push(idea);
                 }
             }
         }

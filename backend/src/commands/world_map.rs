@@ -13,13 +13,11 @@ pub fn list_maps(project_path: String) -> Result<Vec<ProjectMap>, String> {
         return Ok(maps);
     }
     
-    for entry in fs::read_dir(&maps_dir).map_err(|e| e.to_string())? {
-        if let Ok(entry) = entry {
-            if entry.path().extension().map_or(false, |e| e == "json") {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    if let Ok(map) = serde_json::from_str::<ProjectMap>(&content) {
-                        maps.push(map);
-                    }
+    for entry in (fs::read_dir(&maps_dir).map_err(|e| e.to_string())?).flatten() {
+        if entry.path().extension().is_some_and(|e| e == "json") {
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                if let Ok(map) = serde_json::from_str::<ProjectMap>(&content) {
+                    maps.push(map);
                 }
             }
         }

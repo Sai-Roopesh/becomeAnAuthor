@@ -68,7 +68,7 @@ pub fn restore_from_trash(project_path: String, item_id: String, item_type: Stri
         .filter(|e| e.file_name() != "meta.json")
         .collect();
     
-    let trashed_file = entries.get(0)
+    let trashed_file = entries.first()
         .ok_or("No file found in trash item")?;
     
     let restore_path = match item_type.as_str() {

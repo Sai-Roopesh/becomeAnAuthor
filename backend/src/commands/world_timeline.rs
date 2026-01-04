@@ -13,13 +13,11 @@ pub fn list_world_events(project_path: String) -> Result<Vec<WorldEvent>, String
         return Ok(events);
     }
     
-    for entry in fs::read_dir(&timeline_dir).map_err(|e| e.to_string())? {
-        if let Ok(entry) = entry {
-            if entry.path().extension().map_or(false, |e| e == "json") {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    if let Ok(event) = serde_json::from_str::<WorldEvent>(&content) {
-                        events.push(event);
-                    }
+    for entry in fs::read_dir(&timeline_dir).map_err(|e| e.to_string())?.flatten() {
+        if entry.path().extension().is_some_and(|e| e == "json") {
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                if let Ok(event) = serde_json::from_str::<WorldEvent>(&content) {
+                    events.push(event);
                 }
             }
         }

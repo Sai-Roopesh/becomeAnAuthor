@@ -61,8 +61,8 @@ export class TauriMentionRepository implements IMentionRepository {
    * Get all mentions in a project grouped by codex entry
    * Not yet implemented - would need a new backend command
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getAllByProject(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _projectId: string,
   ): Promise<Record<string, Mention[]>> {
     // Not implemented yet - would require backend support

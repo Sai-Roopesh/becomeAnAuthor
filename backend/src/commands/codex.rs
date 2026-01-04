@@ -15,13 +15,11 @@ pub fn list_codex_entries(project_path: String) -> Result<Vec<CodexEntry>, Strin
         return Ok(entries);
     }
     
-    for entry in WalkDir::new(&codex_dir).min_depth(2).max_depth(2) {
-        if let Ok(entry) = entry {
-            if entry.file_type().is_file() && entry.path().extension().map_or(false, |e| e == "json") {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    if let Ok(codex_entry) = serde_json::from_str::<CodexEntry>(&content) {
-                        entries.push(codex_entry);
-                    }
+    for entry in WalkDir::new(&codex_dir).min_depth(2).max_depth(2).into_iter().flatten() {
+        if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                if let Ok(codex_entry) = serde_json::from_str::<CodexEntry>(&content) {
+                    entries.push(codex_entry);
                 }
             }
         }

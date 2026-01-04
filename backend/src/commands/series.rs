@@ -148,14 +148,12 @@ pub fn list_series_codex_entries(series_id: String, category: Option<String>) ->
     
     for entry in WalkDir::new(&search_path)
         .min_depth(if category.is_some() { 1 } else { 2 })
-        .max_depth(if category.is_some() { 1 } else { 2 })
+        .max_depth(if category.is_some() { 1 } else { 2 }).into_iter().flatten()
     {
-        if let Ok(entry) = entry {
-            if entry.file_type().is_file() && entry.path().extension().map_or(false, |e| e == "json") {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    if let Ok(codex_entry) = serde_json::from_str::<CodexEntry>(&content) {
-                        entries.push(codex_entry);
-                    }
+        if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                if let Ok(codex_entry) = serde_json::from_str::<CodexEntry>(&content) {
+                    entries.push(codex_entry);
                 }
             }
         }

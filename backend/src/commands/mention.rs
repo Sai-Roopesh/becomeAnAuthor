@@ -57,7 +57,7 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
     
     let mut mentions = Vec::new();
     let search_terms: Vec<String> = std::iter::once(entry_name.clone())
-        .chain(aliases.into_iter())
+        .chain(aliases)
         .collect();
     
     // Search in scenes (manuscript directory)
@@ -65,7 +65,7 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
     if manuscript_dir.exists() {
         if let Ok(entries) = fs::read_dir(&manuscript_dir) {
             for entry in entries.flatten() {
-                if entry.path().extension().map_or(false, |e| e == "md") {
+                if entry.path().extension().is_some_and(|e| e == "md") {
                     if let Ok(content) = fs::read_to_string(entry.path()) {
                         // Extract scene ID and title from frontmatter
                         let parts: Vec<&str> = content.splitn(3, "---").collect();

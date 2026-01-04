@@ -153,7 +153,7 @@ pub fn validate_json_size(json: &str) -> Result<(), String> {
 
 /// Validate scene content size
 pub fn validate_scene_content(content: &str) -> Result<(), String> {
-    let size = content.as_bytes().len() as u64;
+    let size = content.len() as u64;
     validate_file_size(size, MAX_SCENE_SIZE, "Scene content")
 }
 

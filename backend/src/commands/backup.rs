@@ -29,13 +29,11 @@ pub fn get_emergency_backup(scene_id: String) -> Result<Option<EmergencyBackup>,
         return Ok(None);
     }
     
-    for entry in fs::read_dir(&backups_dir).map_err(|e| e.to_string())? {
-        if let Ok(entry) = entry {
-            if let Ok(content) = fs::read_to_string(entry.path()) {
-                if let Ok(backup) = serde_json::from_str::<EmergencyBackup>(&content) {
-                    if backup.scene_id == scene_id && backup.expires_at > chrono::Utc::now().timestamp_millis() {
-                        return Ok(Some(backup));
-                    }
+    for entry in (fs::read_dir(&backups_dir).map_err(|e| e.to_string())?).flatten() {
+        if let Ok(content) = fs::read_to_string(entry.path()) {
+            if let Ok(backup) = serde_json::from_str::<EmergencyBackup>(&content) {
+                if backup.scene_id == scene_id && backup.expires_at > chrono::Utc::now().timestamp_millis() {
+                    return Ok(Some(backup));
                 }
             }
         }
@@ -68,16 +66,13 @@ pub fn cleanup_emergency_backups() -> Result<i32, String> {
     let now = chrono::Utc::now().timestamp_millis();
     let mut cleaned = 0;
     
-    for entry in fs::read_dir(&backups_dir).map_err(|e| e.to_string())? {
-        if let Ok(entry) = entry {
-            if let Ok(content) = fs::read_to_string(entry.path()) {
-                if let Ok(backup) = serde_json::from_str::<EmergencyBackup>(&content) {
-                    if backup.expires_at < now {
-                        if fs::remove_file(entry.path()).is_ok() {
-                            cleaned += 1;
-                        }
+    for entry in (fs::read_dir(&backups_dir).map_err(|e| e.to_string())?).flatten() {
+        if let Ok(content) = fs::read_to_string(entry.path()) {
+            if let Ok(backup) = serde_json::from_str::<EmergencyBackup>(&content) {
+                if backup.expires_at < now
+                    && fs::remove_file(entry.path()).is_ok() {
+                        cleaned += 1;
                     }
-                }
             }
         }
     }
@@ -268,7 +263,7 @@ pub fn export_manuscript_epub(
     use epub_builder::{EpubBuilder, EpubContent, ZipLibrary};
     
     let structure = crate::commands::project::get_structure(project_path.clone())?;
-    let project_dir = PathBuf::from(&project_path);
+    let _project_dir = PathBuf::from(&project_path);
     
     // Create ePub builder
     let mut epub = EpubBuilder::new(ZipLibrary::new().map_err(|e| e.to_string())?)

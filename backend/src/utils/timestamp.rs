@@ -10,7 +10,7 @@ where
     S: Serializer,
 {
     let dt = DateTime::from_timestamp_millis(*ts)
-        .unwrap_or_else(|| Utc::now());
+        .unwrap_or_else(Utc::now);
     serializer.serialize_str(&dt.to_rfc3339())
 }
 
