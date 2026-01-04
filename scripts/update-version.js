@@ -67,5 +67,5 @@ if (fs.existsSync(cargoTomlPath)) {
     console.error('Warning: backend/Cargo.toml not found');
 }
 
-// Output new version for GitHub Actions to capture
-console.log(`::set-output name=NEW_VERSION::${newVersion}`);
+// Output new version
+console.log(`Version updated to: ${newVersion}`);
