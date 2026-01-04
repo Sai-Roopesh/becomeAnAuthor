@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useProjectStore } from '@/store/use-project-store';
 import { useFormatStore } from '@/store/use-format-store';
 import { useLiveQuery } from '@/hooks/use-live-query';
@@ -11,6 +11,12 @@ import { useEditorState } from '../hooks/useEditorState';
 import { FocusModeLayout } from './editor-layout/FocusModeLayout';
 import { MobileLayout } from './editor-layout/MobileLayout';
 import { DesktopLayout } from './editor-layout/DesktopLayout';
+// Import slot components at app/feature boundary level
+import { ProjectNavigation } from '@/features/navigation/components/ProjectNavigation';
+import { SnippetEditor } from '@/features/snippets/components/snippet-editor';
+import { SnippetList } from '@/features/snippets/components/snippet-list';
+import { CodexList } from '@/features/codex/components/codex-list';
+import { NodeActionsMenu } from '@/features/editor/components/NodeActionsMenu';
 
 /**
  * EditorContainer - Refactored
@@ -62,6 +68,27 @@ export function EditorContainer({ projectId }: { projectId: string }) {
 
     // Check if we have an active scene
     const hasActiveScene = Boolean(activeScene && activeScene.type === 'scene');
+
+    // Slot render functions - compose features at container level
+    const renderSidebar = useCallback(() => (
+        <ProjectNavigation
+            projectId={projectId}
+            onSelectSnippet={handleSnippetSelect}
+            renderSnippetList={(props) => <SnippetList projectId={props.projectId} onSelect={props.onSelect} />}
+            renderCodexList={(props) => <CodexList seriesId={props.seriesId} />}
+            renderNodeActionsMenu={(props) => (
+                <NodeActionsMenu
+                    nodeId={props.nodeId}
+                    nodeType={props.nodeType}
+                    onDelete={props.onDelete}
+                />
+            )}
+        />
+    ), [projectId, handleSnippetSelect]);
+
+    const renderSnippetEditor = useCallback((props: { snippetId: string; onClose: () => void }) => (
+        <SnippetEditor snippetId={props.snippetId} onClose={props.onClose} />
+    ), []);
 
     // Keyboard shortcuts for Focus Mode
     useEffect(() => {
@@ -123,6 +150,8 @@ export function EditorContainer({ projectId }: { projectId: string }) {
                 onWordCountChange={handleWordCountUpdate}
                 onSnippetSelect={handleSnippetSelect}
                 onCloseSnippet={handleCloseSnippet}
+                renderSidebar={renderSidebar}
+                renderSnippetEditor={renderSnippetEditor}
             />
         );
     }
@@ -145,6 +174,8 @@ export function EditorContainer({ projectId }: { projectId: string }) {
             onWordCountChange={handleWordCountUpdate}
             onSnippetSelect={handleSnippetSelect}
             onCloseSnippet={handleCloseSnippet}
+            renderSidebar={renderSidebar}
+            renderSnippetEditor={renderSnippetEditor}
         />
     );
 }

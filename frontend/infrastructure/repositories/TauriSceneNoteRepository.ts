@@ -11,6 +11,9 @@ import {
     deleteSceneNote
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriSceneNoteRepository');
 
 export class TauriSceneNoteRepository implements ISceneNoteRepository {
     async getBySceneId(sceneId: string): Promise<SceneNote | null> {
@@ -20,7 +23,7 @@ export class TauriSceneNoteRepository implements ISceneNoteRepository {
         try {
             return await getSceneNote(projectPath, sceneId);
         } catch (error) {
-            console.error('Failed to get scene note:', error);
+            log.error('Failed to get scene note:', error);
             return null;
         }
     }
@@ -39,7 +42,7 @@ export class TauriSceneNoteRepository implements ISceneNoteRepository {
             await saveSceneNote(projectPath, updatedNote);
             return updatedNote;
         } catch (error) {
-            console.error('Failed to save scene note:', error);
+            log.error('Failed to save scene note:', error);
             throw error;
         }
     }
@@ -51,7 +54,7 @@ export class TauriSceneNoteRepository implements ISceneNoteRepository {
         try {
             await deleteSceneNote(projectPath, sceneId);
         } catch (error) {
-            console.error('Failed to delete scene note:', error);
+            log.error('Failed to delete scene note:', error);
             throw error;
         }
     }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { listCustomPresets, saveCustomPreset, deleteCustomPreset } from '@/core/tauri/commands';
 import type { ExportPreset } from '@/domain/types/export-types';
 import { BUILT_IN_PRESETS } from '@/shared/constants/export/export-presets';
 import { logger } from '@/shared/utils/logger';
@@ -22,8 +22,7 @@ export function useExportPresets() {
         const loadPresets = async () => {
             setIsLoading(true);
             try {
-                // Load user custom presets from Tauri storage
-                const customPresets = await invoke<ExportPreset[]>('list_custom_presets');
+                const customPresets = await listCustomPresets();
                 log.debug('Loaded custom presets', { count: customPresets.length });
 
                 // Combine built-in and custom
@@ -61,7 +60,7 @@ export function useExportPresets() {
      */
     const saveUserPreset = useCallback(async (preset: ExportPreset): Promise<void> => {
         try {
-            await invoke('save_custom_preset', { preset });
+            await saveCustomPreset(preset);
             log.debug('Saved custom preset', { id: preset.id });
 
             // Update local state
@@ -93,7 +92,7 @@ export function useExportPresets() {
         }
 
         try {
-            await invoke('delete_custom_preset', { presetId: id });
+            await deleteCustomPreset(id);
             log.debug('Deleted custom preset', { id });
 
             // Remove from local state

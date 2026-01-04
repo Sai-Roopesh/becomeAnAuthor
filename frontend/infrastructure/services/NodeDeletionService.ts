@@ -1,43 +1,25 @@
-import type { INodeRepository } from '@/domain/repositories/INodeRepository';
-
 /**
- * Confirmation options for deletion dialogs
- */
-export interface DeletionConfirmOptions {
-    title: string;
-    description: string;
-    confirmText: string;
-    variant: 'destructive' | 'default';
-}
-
-/**
- * Confirmation function type (injected from React layer)
- */
-export type ConfirmationFn = (options: DeletionConfirmOptions) => Promise<boolean>;
-
-/**
- * Callback for canceling pending saves
- */
-export type CancelSavesFn = (nodeId: string) => void;
-
-/**
- * Toast notification callbacks
- */
-export interface ToastCallbacks {
-    success: (message: string) => void;
-    error: (message: string) => void;
-}
-
-/**
- * Node Deletion Service - Pure Domain Logic
+ * Node Deletion Service Implementation
  * 
  * Consolidates all node deletion logic (18 duplicate handlers → 1 service).
  * Handles cascade delete with injectable confirmation.
  * 
- * Note: This is a pure domain service. React integration is handled
+ * Note: This is an infrastructure service. React integration is handled
  * by the useNodeDeletion hook in /hooks/use-node-deletion.ts
  */
-export class NodeDeletionService {
+
+import type { INodeRepository } from '@/domain/repositories/INodeRepository';
+import type {
+    INodeDeletionService,
+    ConfirmationFn,
+    CancelSavesFn,
+    ToastCallbacks
+} from '@/domain/services/INodeDeletionService';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('NodeDeletionService');
+
+export class NodeDeletionService implements INodeDeletionService {
     constructor(
         private nodeRepository: INodeRepository,
         private cancelSaves: CancelSavesFn,
@@ -78,7 +60,7 @@ export class NodeDeletionService {
             this.toast.success(messages.successMessage);
             return true;
         } catch (error) {
-            console.error('Failed to delete node:', error);
+            log.error('Failed to delete node:', error);
             this.toast.error('Failed to delete. Please try again.');
             return false;
         }
@@ -110,7 +92,7 @@ export class NodeDeletionService {
             this.toast.success(`${nodeIds.length} items deleted successfully`);
             return true;
         } catch (error) {
-            console.error('Failed to bulk delete:', error);
+            log.error('Failed to bulk delete:', error);
             this.toast.error('Failed to delete items. Please try again.');
             return false;
         }

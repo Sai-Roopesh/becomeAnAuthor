@@ -26,28 +26,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Lightbulb, MoreHorizontal, Trash2, Archive } from 'lucide-react';
-import type { Idea, IdeaCategory } from '@/domain/entities/types';
+import { IDEA_CATEGORY_COLORS, IDEA_CATEGORY_LABELS, NAVIGATION_CONSTANTS } from '@/lib/config/constants';
+import type { Idea } from '@/domain/entities/types';
 
 interface IdeasSectionProps {
     projectId: string;
     defaultOpen?: boolean;
 }
-
-const CATEGORY_COLORS: Record<IdeaCategory, string> = {
-    plot: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    character: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    worldbuilding: 'bg-green-500/20 text-green-400 border-green-500/30',
-    dialogue: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    other: 'bg-muted text-muted-foreground border-border',
-};
-
-const CATEGORY_LABELS: Record<IdeaCategory, string> = {
-    plot: 'Plot',
-    character: 'Character',
-    worldbuilding: 'World',
-    dialogue: 'Dialogue',
-    other: 'Other',
-};
 
 export function IdeasSection({ projectId, defaultOpen = true }: IdeasSectionProps) {
     const { ideas, isLoading, createIdea, deleteIdea, archiveIdea } = useIdeas({ projectId });
@@ -106,7 +91,7 @@ export function IdeasSection({ projectId, defaultOpen = true }: IdeasSectionProp
                     </div>
                 ) : (
                     <div className="space-y-1 p-1">
-                        {ideas.slice(0, 10).map((idea) => (
+                        {ideas.slice(0, NAVIGATION_CONSTANTS.IDEAS_DISPLAY_LIMIT).map((idea) => (
                             <IdeaItem
                                 key={idea.id}
                                 idea={idea}
@@ -114,9 +99,9 @@ export function IdeasSection({ projectId, defaultOpen = true }: IdeasSectionProp
                                 onArchive={archiveIdea}
                             />
                         ))}
-                        {ideas.length > 10 && (
+                        {ideas.length > NAVIGATION_CONSTANTS.IDEAS_DISPLAY_LIMIT && (
                             <p className="text-xs text-muted-foreground text-center py-2">
-                                +{ideas.length - 10} more ideas
+                                +{ideas.length - NAVIGATION_CONSTANTS.IDEAS_DISPLAY_LIMIT} more ideas
                             </p>
                         )}
                     </div>
@@ -150,10 +135,10 @@ function IdeaItem({ idea, onDelete, onArchive }: IdeaItemProps) {
                 variant="outline"
                 className={cn(
                     'text-[10px] px-1.5 py-0 h-5 shrink-0 mt-0.5',
-                    CATEGORY_COLORS[idea.category]
+                    IDEA_CATEGORY_COLORS[idea.category]
                 )}
             >
-                {CATEGORY_LABELS[idea.category]}
+                {IDEA_CATEGORY_LABELS[idea.category]}
             </Badge>
 
             {/* Content */}

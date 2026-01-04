@@ -131,9 +131,9 @@ export function QuickCaptureModal({
                     <div className="px-4 pb-4">
                         <p className="text-xs text-muted-foreground mb-2">Suggestions</p>
                         <div className="flex flex-wrap gap-2">
-                            {suggestions.map((suggestion, index) => (
+                            {suggestions.map((suggestion) => (
                                 <button
-                                    key={index}
+                                    key={suggestion}
                                     onClick={() => handleSuggestionClick(suggestion)}
                                     className={cn(
                                         "px-3 py-1.5 text-xs rounded-full",
@@ -185,32 +185,5 @@ export function QuickCaptureModal({
     );
 }
 
-/**
- * Hook to open QuickCaptureModal with keyboard shortcut
- * 
- * @example
- * const { isOpen, open, close, toggle } = useQuickCapture('i'); // ⌘+I
- */
-export function useQuickCapture(key: string) {
-    const [isOpen, setIsOpen] = useState(false);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === key.toLowerCase()) {
-                e.preventDefault();
-                setIsOpen(true);
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [key]);
-
-    return {
-        isOpen,
-        open: () => setIsOpen(true),
-        close: () => setIsOpen(false),
-        toggle: () => setIsOpen(prev => !prev),
-        setIsOpen,
-    };
-}
+// Re-export from proper hooks location for backwards compatibility
+export { useQuickCapture } from '@/hooks/use-quick-capture';

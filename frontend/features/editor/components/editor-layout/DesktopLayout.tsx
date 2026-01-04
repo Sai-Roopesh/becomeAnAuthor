@@ -17,13 +17,12 @@ import {
     PinOff,
 } from 'lucide-react';
 import { TiptapEditor } from '../tiptap-editor';
-import { SnippetEditor } from '../../../snippets/components/snippet-editor';
-import { ProjectNavigation } from '../../../navigation/components/ProjectNavigation';
 import { WriteRightPanel } from '../write-right-panel';
 import { FocusModeToggle } from '../FocusModeToggle';
 import type { DocumentNode, Snippet } from '@/domain/entities/types';
 import type { ISnippetRepository } from '@/domain/repositories/ISnippetRepository';
 import { isElementNode } from '@/shared/types/tiptap';
+import type { ReactNode } from 'react';
 
 
 interface DesktopLayoutProps {
@@ -42,6 +41,9 @@ interface DesktopLayoutProps {
     onWordCountChange: (count: number) => void;
     onSnippetSelect: (id: string) => void;
     onCloseSnippet: () => void;
+    // Slot components - avoid cross-feature imports
+    renderSidebar: () => ReactNode;
+    renderSnippetEditor: (props: { snippetId: string; onClose: () => void }) => ReactNode;
 }
 
 /**
@@ -62,8 +64,9 @@ export function DesktopLayout({
     onToggleSidebar,
     onToggleTimeline,
     onWordCountChange,
-    onSnippetSelect,
     onCloseSnippet,
+    renderSidebar,
+    renderSnippetEditor,
 }: DesktopLayoutProps) {
     return (
         <TooltipProvider delayDuration={300}>
@@ -128,7 +131,7 @@ export function DesktopLayout({
                                 maxSize={30}
                                 className="bg-background/50 backdrop-blur-sm border-r border-border/50"
                             >
-                                <ProjectNavigation projectId={projectId} onSelectSnippet={onSnippetSelect} />
+                                {renderSidebar()}
                             </ResizablePanel>
                             <ResizableHandle className="w-1 bg-transparent hover:bg-primary/20 transition-colors" />
                         </>
@@ -143,7 +146,7 @@ export function DesktopLayout({
                             >
                                 <div className="h-full flex flex-col min-w-0 relative">
                                     {activeSnippetId ? (
-                                        <SnippetEditor snippetId={activeSnippetId} onClose={onCloseSnippet} />
+                                        renderSnippetEditor({ snippetId: activeSnippetId, onClose: onCloseSnippet })
                                     ) : activeScene && activeScene.type === 'scene' ? (
                                         <div className="flex-1 flex flex-col h-full overflow-hidden">
                                             <div className="flex-1 overflow-hidden relative">
@@ -190,10 +193,8 @@ export function DesktopLayout({
                                     <ResizablePanel defaultSize={22} minSize={18} maxSize={30}>
                                         <WriteRightPanel
                                             projectId={projectId}
-                                            seriesId={seriesId}
                                             activeSceneId={activeScene?.id || null}
                                             activeSceneWordCount={editorWordCount}
-                                            onCollapse={onToggleTimeline}
                                         />
                                     </ResizablePanel>
                                 </>

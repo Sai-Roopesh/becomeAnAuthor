@@ -4,9 +4,12 @@
  * Implements smart truncation and token estimation
  */
 
-import { countTokens } from './token-counter';
 import type { TiptapContent, TiptapNode } from '@/shared/types/tiptap';
 import { isElementNode } from '@/shared/types/tiptap';
+import { getModelSpec } from '@/lib/config/model-specs';
+
+/** Minimum tokens threshold for including high-priority truncated items */
+const MIN_HIGH_PRIORITY_TOKENS = 500;
 
 export interface ContextItem {
     type: 'scene' | 'codex' | 'system';
@@ -16,36 +19,16 @@ export interface ContextItem {
     priority: number;
 }
 
-export interface ModelConfig {
-    name: string;
-    maxTokens: number;
-    responseTokens: number; // Reserve for response
-}
-
-// Common AI model configurations
-export const MODEL_CONFIGS: Record<string, ModelConfig> = {
-    'gpt-4': { name: 'GPT-4', maxTokens: 8192, responseTokens: 2000 },
-    'gpt-4-turbo': { name: 'GPT-4 Turbo', maxTokens: 128000, responseTokens: 4000 },
-    'gpt-3.5-turbo': { name: 'GPT-3.5 Turbo', maxTokens: 16385, responseTokens: 2000 },
-    'claude-3-opus': { name: 'Claude 3 Opus', maxTokens: 200000, responseTokens: 4000 },
-    'claude-3-sonnet': { name: 'Claude 3 Sonnet', maxTokens: 200000, responseTokens: 4000 },
-    'claude-3-haiku': { name: 'Claude 3 Haiku', maxTokens: 200000, responseTokens: 4000 },
-    'gemini-pro': { name: 'Gemini Pro', maxTokens: 32768, responseTokens: 2000 },
-};
 
 export class ContextAssembler {
     /**
      * Estimate token count for text
-     * Uses tiktoken for accurate counting, falls back to estimation if needed
+     * Uses rough estimation: 1 token ≈ 4 characters for English
      */
-    estimateTokens(text: string, model?: string): number {
-        if (model) {
-            // Use accurate token counting with tiktoken
-            return countTokens(text, model);
-        }
-        // Fallback to rough estimate: 1 token ≈ 4 characters for English
+    estimateTokens(text: string): number {
         return Math.ceil(text.length / 4);
     }
+
 
     /**
      * Assemble context within token limits
@@ -61,8 +44,9 @@ export class ContextAssembler {
         totalTokens: number;
         warningMessage?: string;
     } {
-        const modelConfig = MODEL_CONFIGS[modelKey ?? 'gpt-3.5-turbo'] || MODEL_CONFIGS['gpt-3.5-turbo'];
-        const maxContextTokens = modelConfig!.maxTokens - modelConfig!.responseTokens;
+        const modelSpec = getModelSpec(modelKey ?? 'gpt-3.5-turbo');
+        const maxContextTokens = modelSpec.maxInputTokens - modelSpec.maxOutputTokens;
+
 
         // System prompt always included
         const systemTokens = this.estimateTokens(systemPrompt);
@@ -81,7 +65,7 @@ export class ContextAssembler {
                 includedItems.push(item);
                 availableTokens -= item.tokens;
                 totalTokens += item.tokens;
-            } else if (availableTokens > 500 && item.priority >= 7) {
+            } else if (availableTokens > MIN_HIGH_PRIORITY_TOKENS && item.priority >= 7) {
                 // High priority item - truncate to fit
                 const truncatedContent = this.truncateText(item.content, availableTokens);
                 const truncatedItem: ContextItem = {
@@ -104,7 +88,7 @@ export class ContextAssembler {
         let warningMessage: string | undefined;
         if (truncated) {
             const skipped = sortedItems.length - includedItems.length;
-            warningMessage = `Context limited to ${totalTokens.toLocaleString()} tokens. ${skipped} items excluded to fit within ${modelConfig!.name} limits.`;
+            warningMessage = `Context limited to ${totalTokens.toLocaleString()} tokens. ${skipped} items excluded to fit within model limits.`;
         }
 
         return {
@@ -209,5 +193,17 @@ export class ContextAssembler {
     }
 }
 
-// Singleton instance
-export const contextAssembler = new ContextAssembler();
+// Lazy singleton for SSR safety
+let _contextAssembler: ContextAssembler | null = null;
+
+/**
+ * Get the ContextAssembler singleton instance
+ * Uses lazy initialization for SSR safety
+ */
+export function getContextAssembler(): ContextAssembler {
+    if (!_contextAssembler) {
+        _contextAssembler = new ContextAssembler();
+    }
+    return _contextAssembler;
+}
+

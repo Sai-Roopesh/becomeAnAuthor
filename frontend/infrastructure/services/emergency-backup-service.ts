@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Emergency Backup Service (Tauri Version)
  * 
@@ -30,7 +32,7 @@ export class EmergencyBackupService {
     async saveBackup(sceneId: string, content: JSONContent): Promise<boolean> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) {
-            console.warn('EmergencyBackupService: No project path set');
+            log.warn('EmergencyBackupService: No project path set');
             return false;
         }
 
@@ -51,7 +53,7 @@ export class EmergencyBackupService {
             log.debug(`Emergency backup saved for scene ${sceneId}`);
             return true;
         } catch (error) {
-            console.error('Emergency backup failed:', error);
+            log.error('Emergency backup failed:', error);
             toast.error('Emergency backup failed. Please save your work manually.');
             return false;
         }
@@ -68,7 +70,7 @@ export class EmergencyBackupService {
             });
             return backup;
         } catch (error) {
-            console.error('Failed to retrieve backup:', error);
+            log.error('Failed to retrieve backup:', error);
             return null;
         }
     }
@@ -93,7 +95,7 @@ export class EmergencyBackupService {
                 log.debug(`Emergency backup deleted for scene ${sceneId}`);
             }
         } catch (error) {
-            console.error('Failed to delete backup:', error);
+            log.error('Failed to delete backup:', error);
         }
     }
 
@@ -111,7 +113,7 @@ export class EmergencyBackupService {
             }
             return count;
         } catch (error) {
-            console.error('Failed to cleanup expired backups:', error);
+            log.error('Failed to cleanup expired backups:', error);
             return 0;
         }
     }

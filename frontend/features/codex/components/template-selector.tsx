@@ -10,7 +10,6 @@ import { FileText, User, MapPin, Box, Book } from 'lucide-react';
 
 interface TemplateSelectorProps {
     category: CodexCategory;
-    projectId: string;
     onSelectTemplate: (template: CodexTemplate) => void;
     onSkip: () => void;
     open: boolean;
@@ -24,11 +23,10 @@ interface TemplateSelectorProps {
  * - 'use client' directive for client component
  * - Uses repository hook (NOT db directly)
  * - Located in features/codex/components/
- * - Imports types from @/lib/config/types
+ * - Imports types from @/domain/entities/types
  */
 export function TemplateSelector({
     category,
-    // projectId removed - unused
     onSelectTemplate,
     onSkip,
     open,

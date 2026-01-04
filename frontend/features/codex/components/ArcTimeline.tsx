@@ -2,10 +2,11 @@
 
 import type { CodexEntry, ArcPoint } from '@/domain/entities/types';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp } from 'lucide-react';
+import { Plus, TrendingUp, Trash2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useState } from 'react';
 import { ArcPointEditor } from './ArcPointEditor';
+import { useConfirmation } from '@/hooks/use-confirmation';
 
 interface ArcTimelineProps {
     entry: CodexEntry;
@@ -27,10 +28,11 @@ export function ArcTimeline({
     seriesId,
     onAddPoint,
     onUpdatePoint,
-    // onDeletePoint removed - unused
+    onDeletePoint,
 }: ArcTimelineProps) {
     const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
+    const { confirm, ConfirmationDialog } = useConfirmation();
 
     const arcPoints = [...(entry.arcPoints || [])].sort((a, b) => a.timestamp - b.timestamp);
     const selectedPoint = arcPoints.find(p => p.id === selectedPointId);
@@ -63,7 +65,6 @@ export function ArcTimeline({
 
                 <ArcPointEditor
                     seriesId={seriesId}
-                    entryId={entry.id}
                     entryName={entry.name}
                     open={editorOpen}
                     onClose={() => setEditorOpen(false)}
@@ -106,6 +107,13 @@ export function ArcTimeline({
                 </div>
             )}
 
+            {/* Empty state hint when graph can't show */}
+            {chartData.length === 1 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                    Add more milestones to see the stats graph
+                </p>
+            )}
+
             {/* Timeline */}
             <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -139,11 +147,30 @@ export function ArcTimeline({
                                         <div className="text-xs text-muted-foreground">Age {point.age}</div>
                                     )}
                                 </div>
-                                {point.status && (
-                                    <span className="text-xs px-2 py-1 bg-primary/10 rounded">
-                                        {point.status}
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-1">
+                                    {point.status && (
+                                        <span className="text-xs px-2 py-1 bg-primary/10 rounded">
+                                            {point.status}
+                                        </span>
+                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-destructive hover:text-destructive"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            const confirmed = await confirm({
+                                                title: 'Delete Arc Point',
+                                                description: `Delete "${point.eventLabel}"? This cannot be undone.`,
+                                                confirmText: 'Delete',
+                                                variant: 'destructive'
+                                            });
+                                            if (confirmed) await onDeletePoint(point.id);
+                                        }}
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
                             </div>
                             <p className="text-sm text-muted-foreground mb-2">{point.description}</p>
 
@@ -179,7 +206,6 @@ export function ArcTimeline({
             {editorOpen && (
                 <ArcPointEditor
                     seriesId={seriesId}
-                    entryId={entry.id}
                     entryName={entry.name}
                     existingPoint={selectedPoint}
                     open={editorOpen}
@@ -196,6 +222,8 @@ export function ArcTimeline({
                     }}
                 />
             )}
+
+            <ConfirmationDialog />
         </div>
     );
 }

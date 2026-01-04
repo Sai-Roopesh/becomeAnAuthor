@@ -9,11 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Loader2, X } from 'lucide-react';
-import { ModelCombobox } from '@/features/ai';
+import { ModelSelector } from '@/components/model-selector';
 import { useAI } from '@/hooks/use-ai';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useDialogState, textReplaceReducer, initialTextReplaceState } from '@/hooks/use-dialog-state';
-import { ContextSelector, type ContextItem } from '@/features/shared/components';
+import { ContextSelector, type ContextItem } from '@/components/context-selector';
 import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
 interface TextReplaceDialogProps {
@@ -261,7 +261,7 @@ Provide only the transformed text. No explanations, no preamble.`,
                         {/* Model Selector */}
                         <div>
                             <Label className="text-sm font-medium">Model</Label>
-                            <ModelCombobox
+                            <ModelSelector
                                 value={model}
                                 onValueChange={setModel}
                                 className="mt-2"

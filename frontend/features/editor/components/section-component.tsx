@@ -3,10 +3,10 @@
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { ChevronDown, ChevronRight, MoreVertical, Palette, EyeOff, Copy, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { FEATURE_FLAGS } from '@/lib/config/constants';
+import { FEATURE_FLAGS, SECTION_COLORS } from '@/lib/config/constants';
 
 // Section node attributes
 interface SectionAttrs {
@@ -20,16 +20,6 @@ export function SectionComponent({ node, updateAttributes, deleteNode }: NodeVie
     const [isEditing, setIsEditing] = useState(false);
     const attrs = node.attrs as SectionAttrs;
     const { title, color, excludeFromAI, collapsed } = attrs;
-
-    const colors = [
-        { name: 'Blue', value: '#3b82f6' },
-        { name: 'Green', value: '#10b981' },
-        { name: 'Yellow', value: '#f59e0b' },
-        { name: 'Red', value: '#ef4444' },
-        { name: 'Purple', value: '#8b5cf6' },
-        { name: 'Pink', value: '#ec4899' },
-        { name: 'Gray', value: '#6b7280' },
-    ];
 
     const handleCopy = () => {
         // Get the text content
@@ -99,15 +89,13 @@ export function SectionComponent({ node, updateAttributes, deleteNode }: NodeVie
                                 {excludeFromAI ? 'Include in AI' : 'Exclude from AI'}
                             </DropdownMenuItem>
 
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                        <Palette className="h-4 w-4 mr-2" />
-                                        Change Color
-                                    </DropdownMenuItem>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent side="right">
-                                    {colors.map((c) => (
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                    <Palette className="h-4 w-4 mr-2" />
+                                    Change Color
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    {SECTION_COLORS.map((c) => (
                                         <DropdownMenuItem
                                             key={c.value}
                                             onClick={() => updateAttributes({ color: c.value })}
@@ -119,8 +107,8 @@ export function SectionComponent({ node, updateAttributes, deleteNode }: NodeVie
                                             {c.name}
                                         </DropdownMenuItem>
                                     ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
 
                             <DropdownMenuItem onClick={handleCopy}>
                                 <Copy className="h-4 w-4 mr-2" />

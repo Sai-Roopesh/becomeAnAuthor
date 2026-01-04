@@ -5,6 +5,9 @@ import { useAppServices } from '@/infrastructure/di/AppContext';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
 import { isScene, DocumentNode, CodexEntry } from '@/domain/entities/types';
 import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('useSearch');
 
 interface RustSearchResult {
     id: string;
@@ -42,7 +45,7 @@ export function useSearch(projectId: string, seriesId: string) {
                     setIsLoading(false);
                 }
             } catch (error) {
-                console.error('Failed to fetch search data:', error);
+                log.error('Failed to fetch search data:', error);
                 if (mounted) setIsLoading(false);
             }
         };
@@ -107,7 +110,7 @@ export function useSearch(projectId: string, seriesId: string) {
                 query: searchQuery
             });
         } catch (error) {
-            console.error('Rust search failed:', error);
+            log.error('Rust search failed:', error);
             return [];
         }
     }, []);

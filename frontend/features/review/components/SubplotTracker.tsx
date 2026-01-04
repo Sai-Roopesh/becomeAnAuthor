@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Scroll, AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react';
 import type { CodexEntry, DocumentNode } from '@/domain/entities/types';
 import { ViewHeader } from '@/components/layout/view-header';
+import { SUBPLOT_WEAK_THRESHOLD_PERCENT, SUBPLOT_DOMINANT_THRESHOLD_PERCENT } from '../constants';
 
 interface SubplotTrackerProps {
     projectId: string;
@@ -80,9 +81,9 @@ export function SubplotTracker({ projectId, seriesId }: SubplotTrackerProps) {
             let status: SubplotStats['status'];
             if (sceneCount === 0) {
                 status = 'orphan';
-            } else if (percentage < 10) {
+            } else if (percentage < SUBPLOT_WEAK_THRESHOLD_PERCENT) {
                 status = 'weak';
-            } else if (percentage > 50) {
+            } else if (percentage > SUBPLOT_DOMINANT_THRESHOLD_PERCENT) {
                 status = 'dominant';
             } else {
                 status = 'balanced';

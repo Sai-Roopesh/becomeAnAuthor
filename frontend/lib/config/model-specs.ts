@@ -1,7 +1,12 @@
 /**
  * Model Specifications
  * Defines token limits and capabilities for each AI model
+ *
+ * @maintainer Update this registry when new models are released.
+ * Last reviewed: 2026-01-03
  */
+
+import { DEFAULT_MODEL_LIMITS } from './constants';
 
 export interface ModelSpec {
     /** Maximum input tokens (context) */
@@ -143,10 +148,10 @@ export function getModelSpec(model: string): ModelSpec {
 
     // Conservative defaults for unknown models
     return {
-        maxInputTokens: 8192,
-        maxOutputTokens: 4096,
+        maxInputTokens: DEFAULT_MODEL_LIMITS.MAX_INPUT_TOKENS,
+        maxOutputTokens: DEFAULT_MODEL_LIMITS.MAX_OUTPUT_TOKENS,
         thinkingTokenBudget: 0,
-        recommendedOutput: 2000,
+        recommendedOutput: DEFAULT_MODEL_LIMITS.RECOMMENDED_OUTPUT,
         supportsStreaming: true,
     };
 }

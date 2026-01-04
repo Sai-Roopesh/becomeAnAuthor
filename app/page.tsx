@@ -12,13 +12,15 @@ import { EmptyState } from '@/features/dashboard/components/EmptyState';
 import { DataManagementMenu } from '@/features/data-management';
 import { SeriesList } from '@/features/series';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, Library } from 'lucide-react';
+import { toast } from '@/shared/utils/toast-service';
 
 export default function Dashboard() {
   const projectRepo = useRepository<IProjectRepository>('projectRepository');
   const seriesRepo = useRepository<ISeriesRepository>('seriesRepository');
   const projects = useLiveQuery(() => projectRepo.getAll(), [projectRepo]);
-  const series = useLiveQuery(() => seriesRepo.list(), [seriesRepo]);
+  const series = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
   const { confirm, ConfirmationDialog } = useConfirmation();
   const [viewMode, setViewMode] = useState<'projects' | 'series'>('projects');
 
@@ -28,7 +30,22 @@ export default function Dashboard() {
     return new Map(series.map(s => [s.id, s.title]));
   }, [series]);
 
-  if (!projects) return null;
+  if (!projects) {
+    return (
+      <div className="container mx-auto p-4 md:p-8 max-w-7xl min-h-screen">
+        <div className="flex justify-between items-center mb-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-10" />
+        </div>
+        <Skeleton className="h-24 w-full mb-8" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-40 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const hasProjects = projects.length > 0;
 
@@ -44,7 +61,13 @@ export default function Dashboard() {
     });
 
     if (confirmed) {
-      await projectRepo.delete(projectId);
+      try {
+        await projectRepo.delete(projectId);
+        toast.success('Project deleted successfully');
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+        toast.error('Failed to delete project. Please try again.');
+      }
     }
   };
 

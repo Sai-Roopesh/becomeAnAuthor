@@ -72,7 +72,7 @@ class Logger {
      */
     private log(level: LogLevel, message: string, metadata?: LogMetadata) {
         const entry: LogEntry = {
-            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
             timestamp: Date.now(),
             level,
             message,
@@ -147,6 +147,23 @@ class Logger {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Create a scoped logger for a specific component/feature
+     * Automatically prefixes all log messages
+     */
+    scope(componentName: string) {
+        return {
+            debug: (msg: string, ctx?: LogMetadata) =>
+                this.debug(`[${componentName}] ${msg}`, ctx),
+            info: (msg: string, ctx?: LogMetadata) =>
+                this.info(`[${componentName}] ${msg}`, ctx),
+            warn: (msg: string, ctx?: LogMetadata) =>
+                this.warn(`[${componentName}] ${msg}`, ctx),
+            error: (msg: string, ctx?: LogMetadata) =>
+                this.error(`[${componentName}] ${msg}`, ctx),
+        };
     }
 }
 

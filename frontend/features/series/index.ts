@@ -1,6 +1,5 @@
-export * from './components/SeriesCard';
-export * from './components/SeriesList';
-export * from './components/CreateSeriesDialog';
-export * from './components/EditSeriesDialog';
-// MoveNovelDialog and RenameSeriesDialog are not yet implemented
-
+// Public API for series feature
+export { SeriesCard } from './components/SeriesCard';
+export { SeriesList } from './components/SeriesList';
+export { CreateSeriesDialog } from './components/CreateSeriesDialog';
+export { EditSeriesDialog } from './components/EditSeriesDialog';

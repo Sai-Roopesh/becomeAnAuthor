@@ -58,7 +58,7 @@ describe('EmptyState Component', () => {
             render(<EmptyState />);
 
             expect(screen.getByText(/Your journey begins here/i)).toBeInTheDocument();
-            expect(screen.getByText(/Create your first novel/i)).toBeInTheDocument();
+            expect(screen.getByText(/Create a new novel/i)).toBeInTheDocument();
         });
     });
 

@@ -10,6 +10,9 @@ import { AIConnection, AIVendor } from '@/lib/config/ai-vendors';
 import { Switch } from '@/components/ui/switch';
 import { VendorLogo } from '../VendorLogo';
 
+/** Maximum number of models to display in the list */
+const MAX_VISIBLE_MODELS = 10;
+
 interface ConnectionFormProps {
     connection: AIConnection;
     vendor: AIVendor;
@@ -150,14 +153,14 @@ export function ConnectionForm({
                                     {connection.models.length} models available
                                 </p>
                                 <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
-                                    {connection.models.slice(0, 10).map((model) => (
+                                    {connection.models.slice(0, MAX_VISIBLE_MODELS).map((model) => (
                                         <div key={model} className="text-muted-foreground">
                                             {model}
                                         </div>
                                     ))}
-                                    {connection.models.length > 10 && (
+                                    {connection.models.length > MAX_VISIBLE_MODELS && (
                                         <div className="text-muted-foreground italic">
-                                            ... and {connection.models.length - 10} more
+                                            ... and {connection.models.length - MAX_VISIBLE_MODELS} more
                                         </div>
                                     )}
                                 </div>

@@ -39,7 +39,7 @@ export interface MockCodexRepository {
 
 export interface MockChatRepository {
     listThreads: MockFn;
-    getThread: MockFn;
+    get: MockFn;
     createThread: MockFn;
     updateThread: MockFn;
     deleteThread: MockFn;
@@ -95,7 +95,7 @@ export function createMockServices(): MockServices {
         },
         chatRepository: {
             listThreads: vi.fn().mockResolvedValue([]),
-            getThread: vi.fn().mockResolvedValue(null),
+            get: vi.fn().mockResolvedValue(null),
             createThread: vi.fn().mockResolvedValue({ id: 'thread-1' }),
             updateThread: vi.fn().mockResolvedValue(undefined),
             deleteThread: vi.fn().mockResolvedValue(undefined),

@@ -684,3 +684,28 @@ export async function showOpenDialog(options?: {
 }): Promise<string | string[] | null> {
     return dialogOpen(options);
 }
+
+// ============ Export Preset Commands ============
+
+import type { ExportPreset } from '@/domain/types/export-types';
+
+/**
+ * List custom user export presets
+ */
+export async function listCustomPresets(): Promise<ExportPreset[]> {
+    return invoke<ExportPreset[]>('list_custom_presets');
+}
+
+/**
+ * Save a custom user export preset
+ */
+export async function saveCustomPreset(preset: ExportPreset): Promise<void> {
+    return invoke('save_custom_preset', { preset });
+}
+
+/**
+ * Delete a custom user export preset
+ */
+export async function deleteCustomPreset(presetId: string): Promise<void> {
+    return invoke('delete_custom_preset', { presetId });
+}

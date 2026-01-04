@@ -2,7 +2,7 @@
 
 Best practices and conventions for the Become An Author codebase.
 
-> **Last Updated**: December 28, 2025
+> **Last Updated**: January 3, 2026
 
 ---
 
@@ -136,6 +136,65 @@ let now_str = timestamp::to_rfc3339(now);  // For YAML frontmatter
 ---
 
 ## Code Quality
+
+### Toast Notifications
+
+> [!IMPORTANT]
+> **Always use the toast-service wrapper**, not direct sonner imports.
+
+```typescript
+// ✅ CORRECT - Use toast-service wrapper
+import { toast } from '@/shared/utils/toast-service';
+
+toast.success('Project saved');
+toast.error('Failed to load', { description: 'Check network connection' });
+
+// ❌ WRONG - Direct sonner import (only for infrastructure files)
+import { toast } from 'sonner';
+```
+
+**Why?** The `toast-service` wrapper:
+- Provides consistent default durations (4s success, 5s error)
+- Normalizes the API across the app
+- Allows future changes in one place
+
+**Exceptions** (may use direct sonner):
+- `core/toast.ts` - Core layer wrapper
+- `shared/utils/toast-service.ts` - The wrapper itself
+- `components/toast-provider.tsx` - Toaster initialization
+
+### Cross-Feature Imports
+
+> [!CAUTION]
+> **Features should NOT directly import from other features.** Use composition patterns.
+
+```typescript
+// ❌ WRONG - Direct cross-feature import
+import { CreateProjectDialog } from '@/features/project';
+import { ExportProjectButton } from '@/features/data-management';
+
+// ✅ CORRECT - Accept as props (slots pattern)
+interface EmptyStateProps {
+    createProjectSlot?: React.ReactNode;
+    restoreProjectSlot?: React.ReactNode;
+}
+
+// ✅ CORRECT - Accept as render prop
+interface ProjectCardProps {
+    renderExportButton?: (projectId: string) => React.ReactNode;
+}
+
+// Parent (app layer) composes features:
+<EmptyState
+    createProjectSlot={<CreateProjectDialog />}
+    restoreProjectSlot={<RestoreProjectDialog />}
+/>
+```
+
+**Why?** Feature-Sliced Design principles:
+- Features remain independent and testable
+- No circular dependencies
+- Clear composition at app layer
 
 ### Logging
 
@@ -549,7 +608,7 @@ When components need codex access, pass `seriesId` as a prop:
 // ✅ CORRECT - Pass seriesId through component hierarchy
 <EditorContainer project={project} />
   ↳ <DesktopLayout seriesId={project.seriesId} />
-    ↳ <AIChat seriesId={seriesId} projectId={projectId} />
+    ↳ <ChatThread threadId={threadId} />  // Uses useAI for streaming
       ↳ <ContextSelector seriesId={seriesId} projectId={projectId} />
 ```
 

@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Wand2, BookOpen, Settings2, Brain } from 'lucide-react';
 import { TweakGenerateDialog, GenerateOptions } from './tweak-generate-dialog';
-import { ModelCombobox } from '@/features/ai';
+import { ModelSelector } from '@/components/model-selector';
 import { storage } from '@/core/storage/safe-storage';
 import {
     useDialogState,
@@ -208,7 +208,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({ open, onO
                             </div>
 
                             <div className="mb-3">
-                                <ModelCombobox
+                                <ModelSelector
                                     value={state.model}
                                     onValueChange={(value) => dispatch({ type: 'SET_MODEL', payload: value })}
                                     className="h-8 text-xs"

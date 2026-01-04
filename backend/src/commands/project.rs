@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, StructureNode};
 use crate::utils::{get_app_dir, get_projects_dir, slugify, validate_project_creation, timestamp};
-// use crate::commands::seed::seed_built_in_data;
 
 // ============== Recent Projects ==============
 

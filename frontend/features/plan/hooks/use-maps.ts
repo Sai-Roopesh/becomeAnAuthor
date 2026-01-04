@@ -7,6 +7,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { ProjectMap } from '@/domain/entities/types';
 import { toast } from '@/shared/utils/toast-service';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('Maps');
 
 interface UseMapsProps {
     projectId: string;
@@ -24,7 +27,7 @@ export function useMaps({ projectId }: UseMapsProps) {
             const data = await mapRepository.list(projectId);
             setMaps(data);
         } catch (error) {
-            console.error('Failed to fetch maps:', error);
+            log.error('Failed to fetch maps:', error);
             toast.error('Failed to load maps');
         } finally {
             setLoading(false);
@@ -41,7 +44,7 @@ export function useMaps({ projectId }: UseMapsProps) {
             await fetchMaps();
             toast.success('Map saved successfully');
         } catch (error) {
-            console.error('Failed to save map:', error);
+            log.error('Failed to save map:', error);
             toast.error('Failed to save map');
             throw error;
         }
@@ -53,7 +56,7 @@ export function useMaps({ projectId }: UseMapsProps) {
             await fetchMaps();
             toast.success('Map deleted successfully');
         } catch (error) {
-            console.error('Failed to delete map:', error);
+            log.error('Failed to delete map:', error);
             toast.error('Failed to delete map');
             throw error;
         }
@@ -67,7 +70,7 @@ export function useMaps({ projectId }: UseMapsProps) {
             await fetchMaps();
             return path;
         } catch (error) {
-            console.error('Failed to upload image:', error);
+            log.error('Failed to upload image:', error);
             toast.error('Failed to upload image');
             throw error;
         }

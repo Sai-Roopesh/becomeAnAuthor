@@ -6,7 +6,7 @@ import type { CodexCategory } from '@/domain/entities/types';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LayoutGrid, List, Table, Search, Settings, ChevronDown, ChevronUp, Layers, Map as MapIcon, Calendar } from 'lucide-react';
+import { LayoutGrid, List, Table, Search, ChevronDown, ChevronUp, Layers, Map as MapIcon, Calendar } from 'lucide-react';
 import { GridView } from './grid-view';
 import { OutlineView } from './outline-view';
 import { MatrixView } from './matrix-view';
@@ -123,9 +123,6 @@ export function PlanView({ projectId }: { projectId: string }) {
                                 </span>
                             )}
                         </Button>
-                        <Button variant="ghost" size="icon">
-                            <Settings className="h-4 w-4" />
-                        </Button>
                     </div>
                 </div>
 
@@ -133,7 +130,6 @@ export function PlanView({ projectId }: { projectId: string }) {
                 {showFilters && (
                     <div className="px-4 pb-4 border-t pt-3 bg-muted/30">
                         <CodexFilterBar
-                            projectId={projectId}
                             seriesId={project.seriesId}
                             selectedIds={selectedCodexIds}
                             onSelectionChange={setSelectedCodexIds}

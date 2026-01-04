@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/use-project-store';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import type { Scene } from '@/domain/entities/types';
 
 interface StoryTimelineProps {
     projectId: string;
@@ -79,12 +80,13 @@ export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = fa
                         <div className="space-y-6">
                             {scenes.map((scene, index) => {
                                 const isActive = scene.id === activeSceneId;
-                                const sceneData = scene as import('@/domain/entities/types').Scene;
+                                // Type assertion after filtering for scenes
+                                const sceneTyped = scene as Scene;
 
                                 // Use live word count for active scene, stored for others
                                 const displayWordCount = isActive && activeSceneWordCount !== undefined
                                     ? activeSceneWordCount
-                                    : (sceneData.wordCount || 0);
+                                    : (sceneTyped.wordCount || 0);
 
                                 return (
                                     <div key={scene.id} className="relative pl-6 group">
@@ -112,7 +114,7 @@ export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = fa
                                                 <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                                                     Scene {index + 1}
                                                 </span>
-                                                {sceneData.excludeFromAI && (
+                                                {sceneTyped.excludeFromAI && (
                                                     <span className="h-1.5 w-1.5 rounded-full bg-orange-500" title="Excluded from AI context" />
                                                 )}
                                             </div>
@@ -124,9 +126,9 @@ export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = fa
                                                 {scene.title}
                                             </div>
 
-                                            {sceneData.subtitle && (
+                                            {sceneTyped.subtitle && (
                                                 <div className="text-xs text-muted-foreground italic truncate mb-2 opacity-80">
-                                                    "{sceneData.subtitle}"
+                                                    "{sceneTyped.subtitle}"
                                                 </div>
                                             )}
 
@@ -135,10 +137,10 @@ export function StoryTimeline({ projectId, activeSceneWordCount, hideHeader = fa
                                                     <Hash className="h-3 w-3" />
                                                     <span>{displayWordCount.toLocaleString()}</span>
                                                 </div>
-                                                {sceneData.pov && (
+                                                {sceneTyped.pov && (
                                                     <div className="flex items-center gap-1">
                                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-                                                        <span>{sceneData.pov}</span>
+                                                        <span>{sceneTyped.pov}</span>
                                                     </div>
                                                 )}
                                             </div>

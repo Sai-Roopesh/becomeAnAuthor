@@ -115,13 +115,6 @@ export function AppProvider({ children, services: customServices }: AppProviderP
                     }
                     return Reflect.get(instance as object, prop);
                 },
-                // Support method binding
-                apply(_, thisArg, args) {
-                    if (!instance) {
-                        instance = factory();
-                    }
-                    return Reflect.apply(instance as (...args: unknown[]) => unknown, thisArg, args);
-                }
             });
         };
 

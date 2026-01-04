@@ -4,8 +4,9 @@ import "./globals.css";
 import { ThemeProvider } from "@/features/shared/components/ThemeProvider";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import { AppProvider } from '@/infrastructure/di/AppContext';
-import { ClientToaster } from '@/components/client-toaster';
-import { AppCleanup } from '@/components/app-cleanup';
+import { ToastProvider } from '@/components/toast-provider';
+import { TooltipProvider } from '@/components/ui/tooltip';
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,14 +37,16 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppProvider>
-            <ErrorBoundary>
-              <AppCleanup />
-              {children}
-            </ErrorBoundary>
-          </AppProvider>
+          <TooltipProvider delayDuration={300}>
+            <AppProvider>
+              <ErrorBoundary>
+
+                {children}
+              </ErrorBoundary>
+            </AppProvider>
+          </TooltipProvider>
         </ThemeProvider>
-        <ClientToaster />
+        <ToastProvider />
       </body>
     </html>
   );

@@ -117,13 +117,14 @@ export function useConfirmation() {
         // Queue processing happens in onOpenChange when dialog fully closes
     }, []);
 
+    // Memoized dialog component to avoid reconciliation issues
+    // Using useCallback to maintain stable reference for consumers using <ConfirmationDialog />
     const ConfirmationDialog = useCallback(() => (
         <Dialog
             open={state.isOpen}
             onOpenChange={(open) => {
                 if (!open) {
                     handleCancel();
-                    // Process next in queue after dialog animation completes
                     processNextInQueue();
                 }
             }}
@@ -146,7 +147,9 @@ export function useConfirmation() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    ), [state, handleConfirm, handleCancel]);
+    ), [state, handleConfirm, handleCancel, processNextInQueue]);
 
     return { confirm, ConfirmationDialog };
 }
+
+

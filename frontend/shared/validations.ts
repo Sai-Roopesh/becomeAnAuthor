@@ -6,11 +6,24 @@
 import { z } from 'zod';
 
 // ============================================================================
+// Shared Schemas
+// ============================================================================
+
+/**
+ * Context item schema for AI context selection
+ */
+const contextItemSchema = z.object({
+    id: z.string().optional(),
+    type: z.enum(['scene', 'codex', 'snippet', 'novel', 'outline', 'act', 'chapter']),
+    label: z.string(),
+});
+
+// ============================================================================
 // Dialog Form Schemas
 // ============================================================================
 
 /**
- * Schema for Tweak & Generate dialog
+ * Schema for Tweak &amp; Generate dialog
  */
 export const tweakGenerateSchema = z.object({
     wordCount: z.string()
@@ -23,8 +36,9 @@ export const tweakGenerateSchema = z.object({
         }),
     instructions: z.string().optional(),
     model: z.string().min(1, 'Please select a model'),
-    selectedContexts: z.array(z.any()).optional().default([]),
+    selectedContexts: z.array(contextItemSchema).optional().default([]),
 });
+
 
 export type TweakGenerateFormData = z.infer<typeof tweakGenerateSchema>;
 
@@ -35,7 +49,7 @@ export const textReplaceSchema = z.object({
     instruction: z.string().min(1, 'Instruction is required'),
     preset: z.enum(['default', 'shorter', 'longer', 'custom']),
     customLength: z.string().optional(),
-    selectedContexts: z.array(z.any()).optional().default([]),
+    selectedContexts: z.array(contextItemSchema).optional().default([]),
 });
 
 export type TextReplaceFormData = z.infer<typeof textReplaceSchema>;

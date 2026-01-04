@@ -10,16 +10,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Loader2, FileText, Layers, Users, Clock, AlertCircle, Eye } from 'lucide-react';
 import { useAnalysisRunner } from '../hooks/use-analysis-runner';
 import { ManuscriptTreeSelector } from './ManuscriptTreeSelector';
-import { ModelCombobox } from '@/features/ai';
+import { ESTIMATED_TOKENS_PER_ANALYSIS_TYPE } from '../constants';
 import { cn } from '@/lib/utils';
 
 interface AnalysisRunDialogProps {
     projectId: string;
     open: boolean;
     onClose: () => void;
+    /** Render prop for AI model selector - receives value and onChange for state management */
+    renderModelSelector: (props: { value: string; onValueChange: (value: string) => void }) => React.ReactNode;
 }
 
-export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialogProps) {
+export function AnalysisRunDialog({ projectId, open, onClose, renderModelSelector }: AnalysisRunDialogProps) {
     const { runAnalysis, isRunning } = useAnalysisRunner();
 
     const [scope, setScope] = useState<'full' | 'custom'>('full');
@@ -40,7 +42,7 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
         .filter(([, enabled]) => enabled)
         .map(([type]) => type);
 
-    const estimatedTokens = enabledTypes.length * 10000; // Rough estimate
+    const estimatedTokens = enabledTypes.length * ESTIMATED_TOKENS_PER_ANALYSIS_TYPE;
 
     const handleRunAnalysis = async () => {
         if (!selectedModel) {
@@ -113,10 +115,7 @@ export function AnalysisRunDialog({ projectId, open, onClose }: AnalysisRunDialo
                     {/* Model Selection */}
                     <div className="space-y-4">
                         <Label className="text-base font-semibold">AI Model</Label>
-                        <ModelCombobox
-                            value={selectedModel}
-                            onValueChange={setSelectedModel}
-                        />
+                        {renderModelSelector({ value: selectedModel, onValueChange: setSelectedModel })}
                     </div>
 
                     {/* Analysis Types */}

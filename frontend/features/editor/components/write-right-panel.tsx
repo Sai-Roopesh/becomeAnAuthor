@@ -24,10 +24,8 @@ export type RightPanelTab = 'timeline' | 'notes' | 'comments' | 'analysis';
 
 interface WriteRightPanelProps {
     projectId: string;
-    seriesId: string;
     activeSceneId: string | null;
     activeSceneWordCount: number;
-    onCollapse?: () => void;
 }
 
 interface TabButtonProps {
@@ -85,10 +83,8 @@ function TabButton({ id, icon, label, activeTab, onClick, disabled, badge }: Tab
  */
 export function WriteRightPanel({
     projectId,
-    // seriesId removed - unused
     activeSceneId,
     activeSceneWordCount,
-    // onCollapse removed - unused
 }: WriteRightPanelProps) {
     const [activeTab, setActiveTab] = useState<RightPanelTab>('timeline');
 

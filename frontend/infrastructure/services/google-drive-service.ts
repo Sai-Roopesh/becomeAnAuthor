@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Google Drive API Service
  * Handles backup and restore operations to user's Google Drive
@@ -6,6 +8,9 @@
 import { googleAuthService } from './google-auth-service';
 import { DriveFile, DriveQuota, DriveBackupMetadata } from '@/domain/entities/types';
 import { fetchWithTimeout } from '@/core/api/fetch-utils';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('GoogleDriveService');
 
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_BASE = 'https://www.googleapis.com/upload/drive/v3';
@@ -34,7 +39,7 @@ class GoogleDriveService {
 
         if (!searchResponse.ok) {
             const errorData = await searchResponse.json().catch(() => ({ error: 'Unknown error' }));
-            console.error('Drive API Error:', errorData);
+            log.error('Drive API Error:', errorData);
             throw new Error(`Failed to search for app folder: ${errorData.error?.message || searchResponse.statusText}`);
         }
 

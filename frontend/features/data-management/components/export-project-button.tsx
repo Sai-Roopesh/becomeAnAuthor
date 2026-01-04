@@ -3,11 +3,11 @@
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Download, FileText, Cloud, FileCode } from 'lucide-react';
 import { useImportExport } from '@/hooks/use-import-export';
-import { useGoogleAuth } from '@/features/google-drive';
+import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useDocumentExport } from '@/hooks/use-document-export';
 import { toast } from '@/shared/utils/toast-service';
 import { useState } from 'react';
-import { ExportDialog } from '@/features/export';
+import { ExportDialog } from '@/features/export/components/export-dialog';
 
 interface ExportProjectButtonProps {
     projectId: string;
@@ -42,14 +42,12 @@ export function ExportProjectButton({ projectId, onExportStart }: ExportProjectB
         // Check if authenticated
         if (!isAuthenticated) {
             toast.info('Connecting to Google Drive...');
-            try {
-                await signIn();
-                // After sign-in redirect, user will need to try again
-                return;
-            } catch {
+            const result = await signIn().catch(() => null);
+            if (!result) {
                 toast.error('Failed to connect to Google Drive');
-                return;
             }
+            // After sign-in redirect, user will need to try again
+            return;
         }
 
         // Perform backup

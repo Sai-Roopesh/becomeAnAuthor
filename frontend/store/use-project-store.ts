@@ -1,3 +1,8 @@
+/**
+ * Project Store
+ * Manages project-level UI state: active scene, view mode, panel visibility
+ */
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -11,7 +16,7 @@ export type LeftSidebarTab = 'manuscript' | 'codex' | 'snippets';
 
 export interface ProjectStore {
     activeSceneId: string | null;
-    setActiveSceneId: (id: string | null) => Promise<void>;
+    setActiveSceneId: (id: string | null) => void;
     viewMode: ViewMode;
     setViewMode: (mode: ViewMode) => void;
     activeProjectId: string | null;
@@ -52,8 +57,7 @@ export const useProjectStore = create<ProjectStore>()(
             setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
             setLeftSidebarTab: (tab) => set({ leftSidebarTab: tab }),
 
-            // Set active scene ID - validation happens when scene is loaded in EditorContainer
-            setActiveSceneId: async (id) => {
+            setActiveSceneId: (id) => {
                 set({ activeSceneId: id });
             },
 
@@ -70,4 +74,3 @@ export const useProjectStore = create<ProjectStore>()(
         }
     )
 );
-

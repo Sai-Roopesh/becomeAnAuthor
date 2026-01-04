@@ -1,3 +1,8 @@
+/**
+ * Format Store
+ * Persisted editor formatting preferences: typography, typewriter mode, focus mode
+ */
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 

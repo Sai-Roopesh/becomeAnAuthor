@@ -56,7 +56,7 @@ class SaveCoordinator {
             // Now perform our save via Tauri
             const projectPath = TauriNodeRepository.getInstance().getProjectPath();
             if (!projectPath) {
-                console.warn('[SaveCoordinator] No project path set, cannot save');
+                log.warn('No project path set, cannot save');
                 return;
             }
 
@@ -91,7 +91,7 @@ class SaveCoordinator {
                     return;
                 }
 
-                console.error(`[SaveCoordinator] ❌ Save failed for scene ${sceneId}:`, error);
+                log.error(`Save failed for scene ${sceneId}:`, error);
 
                 // Primary: Emergency backup via Tauri (filesystem)
                 try {
@@ -111,7 +111,7 @@ class SaveCoordinator {
 
                     toast.error('Save failed. Emergency backup created.');
                 } catch (backupError) {
-                    console.error('Tauri backup failed, falling back to localStorage:', backupError);
+                    log.error('Tauri backup failed, falling back to localStorage:', backupError);
 
                     // Fallback: localStorage (if Tauri also fails)
                     try {
@@ -123,7 +123,7 @@ class SaveCoordinator {
                         });
                         toast.error('Save failed. Local fallback backup created.');
                     } catch (e) {
-                        console.error('All backup methods failed:', e);
+                        log.error('All backup methods failed:', e);
                         toast.error('Save failed. Could not create backup.');
                     }
                 }

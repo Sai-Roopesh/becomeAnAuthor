@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlayCircle, Clock, FileText, Sparkles, BarChart3, Layers, ChevronRight } from 'lucide-react';
+import { PlayCircle, Clock, FileText, Sparkles, BarChart3, Layers, ChevronRight, Users } from 'lucide-react';
 import { VersionWarning } from './VersionWarning';
 import { AnalysisRunDialog } from './AnalysisRunDialog';
 import { AnalysisDetailDialog } from './AnalysisDetailDialog';
@@ -15,9 +15,11 @@ import { ViewHeader } from '@/components/layout/view-header';
 
 interface ReviewDashboardProps {
     projectId: string;
+    /** Render prop for AI model selector - receives value and onChange for state management */
+    renderModelSelector: (props: { value: string; onValueChange: (value: string) => void }) => React.ReactNode;
 }
 
-export function ReviewDashboard({ projectId }: ReviewDashboardProps) {
+export function ReviewDashboard({ projectId, renderModelSelector }: ReviewDashboardProps) {
     const [runDialogOpen, setRunDialogOpen] = useState(false);
     const [selectedAnalysis, setSelectedAnalysis] = useState<StoryAnalysis | null>(null);
 
@@ -71,7 +73,12 @@ export function ReviewDashboard({ projectId }: ReviewDashboardProps) {
             </div>
 
             {/* Run Analysis Dialog */}
-            <AnalysisRunDialog projectId={projectId} open={runDialogOpen} onClose={() => setRunDialogOpen(false)} />
+            <AnalysisRunDialog
+                projectId={projectId}
+                open={runDialogOpen}
+                onClose={() => setRunDialogOpen(false)}
+                renderModelSelector={renderModelSelector}
+            />
 
             {/* Analysis Detail Dialog */}
             <AnalysisDetailDialog
@@ -209,29 +216,7 @@ function getAnalysisIcon(type: string) {
     switch (type) {
         case 'synopsis': return <FileText className="h-5 w-5" />;
         case 'plot-threads': return <Layers className="h-5 w-5" />;
-        case 'character-arcs': return <UsersIcon className="h-5 w-5" />; // Need to import UsersIcon or similar
+        case 'character-arcs': return <Users className="h-5 w-5" />;
         default: return <Sparkles className="h-5 w-5" />;
     }
-}
-
-function UsersIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-    )
 }

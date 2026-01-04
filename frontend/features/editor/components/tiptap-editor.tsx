@@ -16,7 +16,7 @@ import { useCollaboration } from '@/hooks/use-collaboration';
 import { EditorToolbar } from './editor-toolbar';
 import { TextSelectionMenu } from './text-selection-menu';
 import { ContinueWritingMenu } from './continue-writing-menu';
-import { CollaborationPanel } from '@/features/collaboration';
+import { CollaborationPanel } from '@/components/collaboration-panel';
 import { SaveStatusIndicator } from '@/components/ui/save-status-indicator';
 import { useFormatStore } from '@/store/use-format-store';
 import { Section } from '@/lib/tiptap-extensions/section-node';
@@ -30,7 +30,9 @@ import { useContextAssembly } from '@/hooks/use-context-assembly';
 import { assembleContext as assembleCodexContext } from '@/shared/utils/context-engine';
 import type { TiptapContent } from '@/shared/types/tiptap';
 import type { EditorView } from '@tiptap/pm/view';
-import type { ContextItem } from '@/features/shared/components';
+import type { ContextItem } from '@/components/context-selector';
+import { getStructure, loadScene } from '@/core/tauri/commands';
+import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 
 // Structure node from Tauri backend
 interface StructureNode {
@@ -217,9 +219,6 @@ export function TiptapEditor({
                 // Step 2: Fetch FRESH content DIRECTLY from backend, bypassing ALL caches
                 log.debug(`Fetching fresh content for scene ${sceneId} from BACKEND`);
                 try {
-                    const { getStructure, loadScene } = await import('@/core/tauri/commands');
-                    const { TauriNodeRepository } = await import('@/infrastructure/repositories/TauriNodeRepository');
-
                     const projectPath = TauriNodeRepository.getInstance().getProjectPath();
                     if (!projectPath) throw new Error('No project path');
 

@@ -1,14 +1,17 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { BookOpen, Sparkles, FolderOpen } from 'lucide-react';
+import { BookOpen, Sparkles, FolderOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CreateProjectDialog } from '@/features/project';
-import { RestoreProjectDialog } from '@/features/data-management';
 import { useOpenProject } from '@/hooks/use-open-project';
-import { toast } from 'sonner';
+import { toast } from '@/shared/utils/toast-service';
 
-export function EmptyState() {
+interface EmptyStateProps {
+    createProjectSlot?: React.ReactNode;
+    restoreProjectSlot?: React.ReactNode;
+}
+
+export function EmptyState({ createProjectSlot, restoreProjectSlot }: EmptyStateProps) {
     const router = useRouter();
     const { openFromPicker, isOpening, error } = useOpenProject();
 
@@ -49,13 +52,16 @@ export function EmptyState() {
                     size="lg"
                     className="min-w-40"
                 >
-                    <FolderOpen className="mr-2 h-4 w-4" />
+                    {isOpening ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <FolderOpen className="mr-2 h-4 w-4" />
+                    )}
                     {isOpening ? 'Opening...' : 'Open Novel...'}
                 </Button>
-                <CreateProjectDialog />
-                <RestoreProjectDialog />
+                {createProjectSlot}
+                {restoreProjectSlot}
             </div>
         </div>
     );
 }
-

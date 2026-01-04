@@ -30,6 +30,16 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
     Plus,
     Calendar,
     Edit,
@@ -90,6 +100,7 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
     type EditableWorldEvent = Omit<WorldEvent, 'year' | 'era'> & { year?: number; era?: string };
     const [editingEvent, setEditingEvent] = useState<EditableWorldEvent | null>(null);
     const [selectedEra, setSelectedEra] = useState<string | null>(null);
+    const [deleteEventConfirm, setDeleteEventConfirm] = useState<{ id: string; title: string } | null>(null);
 
     const {
         events,
@@ -136,8 +147,14 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
         setEditingEvent(null);
     };
 
-    const handleDeleteEvent = async (eventId: string) => {
-        await deleteEvent(eventId);
+    const handleDeleteEventClick = (eventId: string, eventTitle: string) => {
+        setDeleteEventConfirm({ id: eventId, title: eventTitle });
+    };
+
+    const handleDeleteEventConfirm = async () => {
+        if (!deleteEventConfirm) return;
+        await deleteEvent(deleteEventConfirm.id);
+        setDeleteEventConfirm(null);
     };
 
     if (!events) {
@@ -260,7 +277,7 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-8 w-8 text-destructive"
-                                                                onClick={() => handleDeleteEvent(event.id)}
+                                                                onClick={() => handleDeleteEventClick(event.id, event.title)}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
@@ -398,6 +415,24 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Event Confirmation */}
+            <AlertDialog open={!!deleteEventConfirm} onOpenChange={(open) => !open && setDeleteEventConfirm(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete &quot;{deleteEventConfirm?.title}&quot;? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteEventConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

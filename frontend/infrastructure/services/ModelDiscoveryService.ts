@@ -15,30 +15,12 @@ import type {
 } from '@/domain/services/IModelDiscoveryService';
 import { logger } from '@/shared/utils/logger';
 import { storage } from '@/core/storage/safe-storage';
+import { CACHE_CONSTANTS, AI_PROVIDER_ENDPOINTS } from '@/lib/config/constants';
 
 const log = logger.scope('ModelDiscoveryService');
 
-// Cache TTL: 5 minutes
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-// Provider API endpoints
-const PROVIDER_ENDPOINTS: Record<string, string> = {
-    openai: 'https://api.openai.com/v1/models',
-    anthropic: 'https://api.anthropic.com/v1/models',
-    google: 'https://generativelanguage.googleapis.com/v1beta/models',
-    openrouter: 'https://openrouter.ai/api/v1/models',
-    groq: 'https://api.groq.com/openai/v1/models',
-    mistral: 'https://api.mistral.ai/v1/models',
-    deepseek: 'https://api.deepseek.com/v1/models',
-    cohere: 'https://api.cohere.ai/v1/models',
-    xai: 'https://api.x.ai/v1/models',
-    togetherai: 'https://api.together.xyz/v1/models',
-    fireworks: 'https://api.fireworks.ai/inference/v1/models',
-    perplexity: 'https://api.perplexity.ai/models',
-};
-
 // Providers that support model listing
-const SUPPORTED_PROVIDERS = new Set(Object.keys(PROVIDER_ENDPOINTS));
+const SUPPORTED_PROVIDERS = new Set(Object.keys(AI_PROVIDER_ENDPOINTS));
 
 /**
  * Parse OpenAI-compatible model list response
@@ -192,7 +174,7 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
         if (!cached || !cached.cachedAt) return null;
 
         // Check if cache is expired
-        if (Date.now() - cached.cachedAt > CACHE_TTL_MS) {
+        if (Date.now() - cached.cachedAt > CACHE_CONSTANTS.MODEL_CACHE_TTL_MS) {
             storage.removeItem(cacheKey);
             return null;
         }
@@ -237,7 +219,7 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
             };
         }
 
-        const endpoint = customEndpoint || PROVIDER_ENDPOINTS[provider];
+        const endpoint = customEndpoint || AI_PROVIDER_ENDPOINTS[provider];
         if (!endpoint) {
             return {
                 models: [],

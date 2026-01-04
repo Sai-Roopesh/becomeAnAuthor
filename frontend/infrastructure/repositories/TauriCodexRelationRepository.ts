@@ -11,6 +11,9 @@ import {
     deleteCodexRelation
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriCodexRelationRepository');
 
 export class TauriCodexRelationRepository implements ICodexRelationRepository {
     async getByParent(parentId: string): Promise<CodexRelation[]> {
@@ -21,7 +24,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
             const relations = await listCodexRelations(projectPath);
             return relations.filter(r => r.parentId === parentId);
         } catch (error) {
-            console.error('Failed to list codex relations:', error);
+            log.error('Failed to list codex relations:', error);
             return [];
         }
     }
@@ -47,7 +50,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
             await saveCodexRelation(projectPath, newRelation);
             return newRelation;
         } catch (error) {
-            console.error('Failed to save codex relation:', error);
+            log.error('Failed to save codex relation:', error);
             throw error;
         }
     }
@@ -59,7 +62,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         try {
             await deleteCodexRelation(projectPath, id);
         } catch (error) {
-            console.error('Failed to delete codex relation:', error);
+            log.error('Failed to delete codex relation:', error);
             throw error;
         }
     }

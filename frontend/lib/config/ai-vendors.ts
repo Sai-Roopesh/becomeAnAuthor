@@ -180,10 +180,15 @@ export function validateApiKey(provider: AIProvider, apiKey: string): boolean {
             return apiKey.startsWith('AIza');
         case 'anthropic':
             return apiKey.startsWith('sk-ant-');
+        case 'groq':
+            return apiKey.startsWith('gsk_');
+        case 'deepseek':
+            return apiKey.startsWith('sk-');
+        case 'mistral':
+            return apiKey.length >= 32; // Mistral keys are 32+ chars
         case 'openai':
             return true; // Optional for compatible endpoints
         default:
             return apiKey.length > 10; // Basic length check
     }
 }
-

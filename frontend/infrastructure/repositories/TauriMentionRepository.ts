@@ -1,6 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { IMentionRepository } from '@/domain/repositories/IMentionRepository';
 import type { Mention } from '@/domain/entities/types';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriMentionRepository');
 
 /**
  * Tauri implementation of IMentionRepository
@@ -11,21 +14,31 @@ export class TauriMentionRepository implements IMentionRepository {
      * Get all mentions of a codex entry
      */
     async getByCodexEntry(projectId: string, codexEntryId: string): Promise<Mention[]> {
-        // projectId is the project path in the backend
-        return await invoke<Mention[]>('find_mentions', {
-            projectPath: projectId,
-            codexEntryId,
-        });
+        try {
+            // projectId is the project path in the backend
+            return await invoke<Mention[]>('find_mentions', {
+                projectPath: projectId,
+                codexEntryId,
+            });
+        } catch (error) {
+            log.error('Failed to get mentions by codex entry:', error);
+            return [];
+        }
     }
 
     /**
      * Get count of mentions for a codex entry
      */
     async countByCodexEntry(projectId: string, codexEntryId: string): Promise<number> {
-        return await invoke<number>('count_mentions', {
-            projectPath: projectId,
-            codexEntryId,
-        });
+        try {
+            return await invoke<number>('count_mentions', {
+                projectPath: projectId,
+                codexEntryId,
+            });
+        } catch (error) {
+            log.error('Failed to count mentions by codex entry:', error);
+            return 0;
+        }
     }
 
     /**
@@ -47,14 +60,4 @@ export class TauriMentionRepository implements IMentionRepository {
         // Not implemented yet - would require backend support
         return {};
     }
-}
-
-// Singleton instance
-let instance: TauriMentionRepository | null = null;
-
-export function getMentionRepository(): IMentionRepository {
-    if (!instance) {
-        instance = new TauriMentionRepository();
-    }
-    return instance;
 }

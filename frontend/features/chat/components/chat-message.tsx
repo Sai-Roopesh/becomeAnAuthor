@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
-import { MoreVertical, Copy, Save, RefreshCw, Trash2, Pencil, Sparkles, User } from 'lucide-react';
+import { MoreVertical, Copy, Trash2, Pencil, Sparkles, User } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@/domain/entities/types';
-import { FEATURE_FLAGS } from '@/lib/config/constants';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from '@/shared/utils/toast-service';
@@ -18,9 +17,11 @@ interface ChatMessageProps {
     message: ChatMessageType;
     threadId: string;
     onRegenerate?: (message: ChatMessageType) => void;
+    isStreaming?: boolean;
+    streamingContent?: string | undefined;
 }
 
-export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
+export function ChatMessage({ message, onRegenerate, isStreaming = false, streamingContent }: ChatMessageProps) {
     const chatRepo = useChatRepository();
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(message.content);
@@ -29,16 +30,9 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
     const isUser = message.role === 'user';
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(message.content);
+        const contentToCopy = isStreaming && streamingContent ? streamingContent : message.content;
+        navigator.clipboard.writeText(contentToCopy);
         toast.success('Message copied to clipboard');
-    };
-
-    const handleSaveAsSnippet = async () => {
-        // Feature hidden by FEATURE_FLAGS
-    };
-
-    const handleRetry = () => {
-        // Feature hidden by FEATURE_FLAGS
     };
 
     const handleEdit = () => {
@@ -219,8 +213,12 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
                                 }
                             }}
                         >
-                            {message.content}
+                            {isStreaming && streamingContent ? streamingContent : message.content}
                         </ReactMarkdown>
+                        {/* Streaming cursor */}
+                        {isStreaming && (
+                            <span className="inline-block w-1 h-4 bg-current ml-0.5 animate-pulse" />
+                        )}
                     </div>
 
                     <div className={cn(
@@ -255,18 +253,6 @@ export function ChatMessage({ message, onRegenerate }: ChatMessageProps) {
                                 <DropdownMenuItem onClick={handleEdit}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Edit Message
-                                </DropdownMenuItem>
-                            )}
-                            {FEATURE_FLAGS.SAVE_AS_SNIPPET && (
-                                <DropdownMenuItem onClick={handleSaveAsSnippet}>
-                                    <Save className="h-4 w-4 mr-2" />
-                                    Save as Snippet
-                                </DropdownMenuItem>
-                            )}
-                            {!isUser && FEATURE_FLAGS.RETRY_MESSAGE && (
-                                <DropdownMenuItem onClick={handleRetry}>
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Retry
                                 </DropdownMenuItem>
                             )}
                             <DropdownMenuItem

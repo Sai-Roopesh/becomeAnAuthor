@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, EmergencyBackup, StructureNode};
 use crate::utils::{get_app_dir, get_projects_dir, slugify, timestamp};
-// use crate::commands::seed::seed_built_in_data;
 
 // Emergency Backup Commands
 #[tauri::command]

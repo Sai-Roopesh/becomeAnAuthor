@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { Editor } from '@tiptap/react';
 import { useAI } from '@/hooks/use-ai';
-import { ModelCombobox } from '@/features/ai';
+import { ModelSelector } from '@/components/model-selector';
 import { X } from 'lucide-react';
 import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
@@ -109,7 +109,7 @@ Now apply your task to the original text. Provide ONLY the modified text:`,
                     {/* Model Selector */}
                     <div>
                         <Label>Model</Label>
-                        <ModelCombobox
+                        <ModelSelector
                             value={model}
                             onValueChange={setModel}
                             className="mt-2"

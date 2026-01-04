@@ -24,7 +24,9 @@ import type { AIConnection } from '@/lib/config/ai-vendors';
 export function getModel(connection: AIConnection, modelId: string) {
     const { provider, apiKey, customEndpoint } = connection;
 
-    // Use loose typing to accommodate different SDK versions
+    // Use loose typing to accommodate different SDK versions in return types.
+    // Each provider's create* function returns a different shape, but they all
+    // work with Vercel AI SDK's streamText/generateText functions.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const providers: Record<string, () => any> = {
         openai: () => createOpenAI({ apiKey, ...(customEndpoint && { baseURL: customEndpoint }) }),

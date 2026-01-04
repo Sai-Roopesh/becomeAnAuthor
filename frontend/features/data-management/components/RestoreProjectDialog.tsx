@@ -15,6 +15,7 @@ import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { DriveBackupBrowser } from '@/features/google-drive';
 import { InlineGoogleAuth } from '@/features/google-drive';
 import { toast } from '@/shared/utils/toast-service';
+import { invalidateQueries } from '@/hooks/use-live-query';
 
 export function RestoreProjectDialog() {
     const [open, setOpen] = useState(false);
@@ -31,8 +32,7 @@ export function RestoreProjectDialog() {
                 if (newProjectId) {
                     toast.success('Project restored successfully!');
                     setOpen(false);
-                    // Reload to show new project
-                    setTimeout(() => window.location.reload(), 500);
+                    invalidateQueries();
                 }
             } catch (error) {
                 // Error handled in hook
@@ -129,7 +129,7 @@ export function RestoreProjectDialog() {
                                     onRestore={() => {
                                         setOpen(false);
                                         toast.success('Project restored from Google Drive!');
-                                        setTimeout(() => window.location.reload(), 500);
+                                        invalidateQueries();
                                     }}
                                 />
                             )}

@@ -1,3 +1,5 @@
+'use client';
+
 import { useAppServices } from '@/infrastructure/di/AppContext';
 
 /**

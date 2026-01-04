@@ -22,11 +22,10 @@ import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 
 interface CodexListProps {
-    projectId: string;
     seriesId: string;  // Required - series-first architecture
 }
 
-export function CodexList({ projectId, seriesId }: CodexListProps) {
+export function CodexList({ seriesId }: CodexListProps) {
     const codexRepo = useCodexRepository();
     const templateRepo = useCodexTemplateRepository();
     const [search, setSearch] = useState('');
@@ -102,6 +101,15 @@ export function CodexList({ projectId, seriesId }: CodexListProps) {
 
     if (selectedEntityId) {
         return <EntityEditor entityId={selectedEntityId} seriesId={seriesId} onBack={() => setSelectedEntityId(null)} />;
+    }
+
+    // Loading state
+    if (!entries) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+            </div>
+        );
     }
 
     return (
@@ -183,7 +191,6 @@ export function CodexList({ projectId, seriesId }: CodexListProps) {
 
             <TemplateSelector
                 category={pendingCategory}
-                projectId={projectId}
                 onSelectTemplate={handleTemplateSelected}
                 onSkip={handleSkipTemplate}
                 open={showTemplateSelector}

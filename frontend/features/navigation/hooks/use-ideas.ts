@@ -38,7 +38,7 @@ export function useIdeas({ projectId }: UseIdeasOptions): UseIdeasReturn {
         setError(null);
 
         try {
-            const allIdeas = await ideaRepository.list();
+            const allIdeas = await ideaRepository.list(projectId);
             // Sort by createdAt descending (newest first)
             setIdeas(allIdeas.sort((a, b) => b.createdAt - a.createdAt));
         } catch (err) {

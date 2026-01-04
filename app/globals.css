@@ -6,8 +6,6 @@
   @apply bg-primary/10 text-primary font-medium rounded px-1 py-0.5 decoration-clone;
 }
 
-@plugin "tailwindcss-animate";
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

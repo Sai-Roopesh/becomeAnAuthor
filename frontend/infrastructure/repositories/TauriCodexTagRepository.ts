@@ -14,6 +14,9 @@ import {
     deleteCodexEntryTag
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriCodexTagRepository');
 
 export class TauriCodexTagRepository implements ICodexTagRepository {
     async get(id: string): Promise<CodexTag | undefined> {
@@ -24,7 +27,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
             const tags = await listCodexTags(projectPath);
             return tags.find(t => t.id === id);
         } catch (error) {
-            console.error('Failed to get codex tag:', error);
+            log.error('Failed to get codex tag:', error);
             return undefined;
         }
     }
@@ -37,7 +40,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         try {
             return await listCodexTags(projectPath);
         } catch (error) {
-            console.error('Failed to list codex tags:', error);
+            log.error('Failed to list codex tags:', error);
             return [];
         }
     }
@@ -63,7 +66,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
             await saveCodexTag(projectPath, newTag);
             return newTag;
         } catch (error) {
-            console.error('Failed to create codex tag:', error);
+            log.error('Failed to create codex tag:', error);
             throw error;
         }
     }
@@ -79,7 +82,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         try {
             await saveCodexTag(projectPath, updated);
         } catch (error) {
-            console.error('Failed to update codex tag:', error);
+            log.error('Failed to update codex tag:', error);
             throw error;
         }
     }
@@ -91,7 +94,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         try {
             await deleteCodexTag(projectPath, id);
         } catch (error) {
-            console.error('Failed to delete codex tag:', error);
+            log.error('Failed to delete codex tag:', error);
             throw error;
         }
     }
@@ -110,7 +113,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
         try {
             await saveCodexEntryTag(projectPath, entryTag);
         } catch (error) {
-            console.error('Failed to add tag to entry:', error);
+            log.error('Failed to add tag to entry:', error);
             throw error;
         }
     }
@@ -126,7 +129,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
                 await deleteCodexEntryTag(projectPath, toDelete.id);
             }
         } catch (error) {
-            console.error('Failed to remove tag from entry:', error);
+            log.error('Failed to remove tag from entry:', error);
             throw error;
         }
     }
@@ -139,7 +142,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
             const entryTags = await listCodexEntryTags(projectPath);
             return entryTags.filter(et => et.tagId === tagId).map(et => et.entryId);
         } catch (error) {
-            console.error('Failed to get entries by tag:', error);
+            log.error('Failed to get entries by tag:', error);
             return [];
         }
     }
@@ -154,7 +157,7 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
             const tagIds = entryTags.filter(et => et.entryId === entryId).map(et => et.tagId);
             return allTags.filter(t => tagIds.includes(t.id));
         } catch (error) {
-            console.error('Failed to get tags by entry:', error);
+            log.error('Failed to get tags by entry:', error);
             return [];
         }
     }

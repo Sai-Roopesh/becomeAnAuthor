@@ -169,13 +169,13 @@ export function usePrompt() {
         setState(prev => ({ ...prev, inputValue: value, errorMessage: null }));
     }, []);
 
+    // Memoized dialog component to maintain stable reference for consumers using <PromptDialog />
     const PromptDialog = useCallback(() => (
         <Dialog
             open={state.isOpen}
             onOpenChange={(open) => {
                 if (!open) {
                     handleCancel();
-                    // Process next in queue after dialog animation completes
                     processNextInQueue();
                 }
             }}
@@ -216,7 +216,9 @@ export function usePrompt() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    ), [state, handleConfirm, handleCancel, handleInputChange]);
+    ), [state, handleConfirm, handleCancel, handleInputChange, processNextInQueue]);
 
     return { prompt, PromptDialog };
 }
+
+

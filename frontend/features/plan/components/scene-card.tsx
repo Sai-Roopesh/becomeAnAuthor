@@ -9,7 +9,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SceneCodexBadges } from './scene-codex-badges';
@@ -49,7 +48,6 @@ export function SceneCard({ scene, seriesId }: SceneCardProps) {
             <div className="mb-2" onClick={(e) => e.stopPropagation()}>
                 <SceneCodexBadges
                     sceneId={scene.id}
-                    projectId={scene.projectId}
                     seriesId={seriesId}
                     maxBadges={4}
                     size="sm"
@@ -78,16 +76,6 @@ export function SceneCard({ scene, seriesId }: SceneCardProps) {
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setLinkPanelOpen(true); }}>
                             <Link2 className="h-3.5 w-3.5 mr-2" />
                             Link Codex
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                            Set POV
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                            Add Subtitle
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                            Delete Scene
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

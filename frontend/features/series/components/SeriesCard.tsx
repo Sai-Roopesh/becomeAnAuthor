@@ -31,8 +31,11 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { MoreHorizontal, Pencil, Trash2, BookOpen } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/utils/toast-service';
 import { EditSeriesDialog } from './EditSeriesDialog';
+
+/** Maximum number of projects to show in the series card before truncating */
+const MAX_VISIBLE_PROJECTS = 5;
 
 interface SeriesCardProps {
     series: Series;
@@ -125,7 +128,7 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                 <CardContent>
                     {projects.length > 0 ? (
                         <ul className="space-y-2">
-                            {projects.slice(0, 5).map((project, index) => (
+                            {projects.slice(0, MAX_VISIBLE_PROJECTS).map((project, index) => (
                                 <li
                                     key={project.id}
                                     className="flex items-center gap-2 text-sm text-muted-foreground"
@@ -137,9 +140,9 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                                     <span className="truncate">{project.title}</span>
                                 </li>
                             ))}
-                            {projects.length > 5 && (
+                            {projects.length > MAX_VISIBLE_PROJECTS && (
                                 <li className="text-sm text-muted-foreground italic">
-                                    ...and {projects.length - 5} more
+                                    ...and {projects.length - MAX_VISIBLE_PROJECTS} more
                                 </li>
                             )}
                         </ul>
@@ -163,11 +166,11 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                                         ⚠️ This will PERMANENTLY DELETE {projectCount} book(s):
                                     </p>
                                     <ul className="list-disc pl-5 text-sm">
-                                        {projects.slice(0, 5).map(p => (
+                                        {projects.slice(0, MAX_VISIBLE_PROJECTS).map(p => (
                                             <li key={p.id}>{p.title}</li>
                                         ))}
-                                        {projects.length > 5 && (
-                                            <li className="italic">...and {projects.length - 5} more</li>
+                                        {projects.length > MAX_VISIBLE_PROJECTS && (
+                                            <li className="italic">...and {projects.length - MAX_VISIBLE_PROJECTS} more</li>
                                         )}
                                     </ul>
                                     <p className="text-sm">

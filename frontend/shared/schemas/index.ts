@@ -66,7 +66,7 @@ export const SceneSchema = BaseNodeSchema.extend({
     subtitle: z.string().max(200).optional(),
     labels: z.array(z.string().max(50)).max(20, 'Too many labels').optional(),
     excludeFromAI: z.boolean().optional(),
-    content: z.any(), // Tiptap JSON - complex validation done by Tiptap
+    content: z.unknown(), // Tiptap JSON - validated separately by Tiptap editor
     summary: z.string().max(1000, 'Summary too long').optional().default(''),
     status: z.enum(['draft', 'revised', 'final']).default('draft'),
     wordCount: z.number().int().min(0).default(0),
@@ -102,7 +102,7 @@ export const CodexEntrySchema = z.object({
     references: z.array(z.string().uuid()).max(50, 'Too many references').default([]),
     image: z.string().optional(),
     thumbnail: z.string().optional(),
-    customDetails: z.record(z.string(), z.any()).optional(),
+    customDetails: z.record(z.string(), z.unknown()).optional(),
     aiContext: z.enum(['always', 'detected', 'exclude', 'never']).optional(),
     trackMentions: z.boolean().optional(),
     notes: z.string().max(10000, 'Notes too long').optional(),
@@ -127,7 +127,7 @@ export const SnippetSchema = z.object({
         .min(1, 'Title is required')
         .max(200, 'Title must be less than 200 characters')
         .trim(),
-    content: z.any(), // Tiptap JSON
+    content: z.unknown(), // Tiptap JSON - validated separately by Tiptap editor
     pinned: z.boolean().default(false),
     createdAt: z.number().int().positive(),
     updatedAt: z.number().int().positive(),

@@ -15,7 +15,7 @@ export function SeriesList() {
     const [showCreateDialog, setShowCreateDialog] = React.useState(false);
 
     const series = useLiveQuery(
-        () => seriesRepo.list(),
+        () => seriesRepo.getAll(),
         [seriesRepo]
     );
 

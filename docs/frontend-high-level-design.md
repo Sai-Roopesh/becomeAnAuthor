@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Next.js 16 frontend.**  
-> Last updated: 2025-12-28
+> Last updated: 2026-01-03
 
 ---
 
@@ -128,7 +128,9 @@ frontend/
 │
 ├── domain/                    # Clean Architecture - Domain Layer
 │   ├── entities/
-│   │   └── types.ts           # All domain entities (402 lines)
+│   │   ├── types.ts           # All domain entities (402 lines)
+│   │   ├── analysis-types.ts  # AI analysis response types
+│   │   └── index.ts           # Barrel export
 │   ├── repositories/          # Repository interfaces (Abstractions)
 │   │   ├── IProjectRepository.ts
 │   │   ├── INodeRepository.ts
@@ -141,13 +143,21 @@ frontend/
 │   │   ├── ICodexTemplateRepository.ts
 │   │   ├── ICodexRelationRepository.ts
 │   │   ├── ICodexRelationTypeRepository.ts
-│   │   └── ISceneCodexLinkRepository.ts
-│   └── services/              # Domain services
-│       ├── IAnalysisService.ts
-│       ├── IChatService.ts
-│       ├── IExportService.ts
-│       ├── IModelDiscoveryService.ts  # Dynamic model fetching
-│       └── NodeDeletionService.ts
+│   │   ├── ISceneCodexLinkRepository.ts
+│   │   ├── ICollaborationRepository.ts
+│   │   ├── IMentionRepository.ts
+│   │   └── index.ts           # Barrel export (19 repositories)
+│   ├── services/              # Domain service interfaces
+│   │   ├── IAnalysisService.ts
+│   │   ├── IChatService.ts
+│   │   ├── IExportService.ts
+│   │   ├── IModelDiscoveryService.ts
+│   │   ├── INodeDeletionService.ts  # Interface only
+│   │   └── index.ts           # Barrel export
+│   ├── types/
+│   │   ├── export-types.ts    # Export configuration types
+│   │   └── index.ts           # Barrel export
+│   └── index.ts               # Domain layer barrel export
 │
 ├── infrastructure/            # Implementations
 │   ├── di/
@@ -156,12 +166,13 @@ frontend/
 │   │   ├── codexArcsMigration.ts
 │   │   └── codexSeriesMigration.ts
 │   ├── repositories/          # Tauri implementations
-│   │   └── Tauri*.ts          # 12 repository implementations
+│   │   └── Tauri*.ts          # 14 repository implementations
 │   └── services/
 │       ├── AnalysisService.ts
 │       ├── ChatService.ts
 │       ├── DocumentExportService.ts
-│       └── ModelDiscoveryService.ts  # Fetches models from 12 provider APIs
+│       ├── ModelDiscoveryService.ts
+│       └── NodeDeletionService.ts  # Concrete implementation
 │
 ├── features/                  # Feature-Sliced Design (17 features)
 │   ├── editor/               # Scene editor (23 components)
@@ -328,7 +339,8 @@ export interface IRepository<T> {
 | `IAnalysisService` | Orchestrate AI analysis workflows |
 | `IChatService` | Manage chat context assembly |
 | `IExportService` | Handle manuscript export |
-| `NodeDeletionService` | Cascade delete nodes with children |
+| `IModelDiscoveryService` | Dynamic model fetching from providers |
+| `INodeDeletionService` | Cascade delete nodes with children (interface; impl in infrastructure) |
 
 ### 3.4 Type Guards
 
@@ -726,43 +738,57 @@ app/
 ├── auth/
 │   └── callback/
 │       └── page.tsx           # OAuth callback handler
-└── project/
-    └── [id]/
-        ├── page.tsx           # Project workspace (main editor)
-        └── client.tsx         # Client-side logic
+├── (workspace)/
+│   └── review/
+│       └── page.tsx           # Standalone review placeholder
+└── project/                   # CANONICAL: /project?id=xxx
+    ├── layout.tsx             # Project layout wrapper
+    └── page.tsx               # Project workspace (reads id from query params)
 ```
+
+> [!IMPORTANT]
+> **Never use `/project/[id]` dynamic segments.** Query parameters are required for Tauri static export compatibility. All navigation must use `/project?id=xxx`.
 
 ### 8.2 Route Patterns
 
-**Static Export Workaround** (for Tauri):
+**Query Parameter Pattern** (for Tauri static export):
 
 ```typescript
-// app/project/[id]/page.tsx
-export function generateStaticParams() {
-    return [{ id: '_' }];  // Placeholder for static export
-}
-
-export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-    return <ProjectPageClient id={id} />;
-}
-```
-
-**Client-Side Routing**:
-
-```typescript
-// app/project/[id]/client.tsx
+// app/project/page.tsx
 'use client';
 
-export function ProjectPageClient({ id }: { id: string }) {
-    const { data: project } = useLiveQuery(
-        () => projectRepo.get(id),
-        [id]
+import { useSearchParams } from 'next/navigation';
+
+function ProjectContent() {
+    const searchParams = useSearchParams();
+    const projectId = searchParams.get('id') || '';
+    
+    // Fetch project and render workspace
+    const project = useLiveQuery(
+        () => projectRepo.get(projectId),
+        [projectId]
     );
+    
+    if (!projectId) {
+        return <NoProjectSelected />;
+    }
     
     return <WorkspaceLayout project={project} />;
 }
 ```
+
+**Navigation Examples**:
+
+```typescript
+// ✅ Correct - use query parameters
+router.push(`/project?id=${projectId}`);
+<Link href={`/project?id=${project.id}`}>Open Project</Link>
+
+// ❌ Wrong - dynamic segments don't work with static export
+router.push(`/project/${projectId}`);
+<Link href={`/project/${project.id}`}>Open Project</Link>
+```
+
 
 ### 8.3 View Mode State Machine
 
@@ -1230,7 +1256,7 @@ The frontend architecture is a **well-structured, scalable system** built on mod
 ---
 
 **Document Status**: ✅ Complete  
-**Last Updated**: 2025-12-25  
+**Last Updated**: 2026-01-03  
 **Total Features Documented**: 17/17  
 **Total Hooks Documented**: 39/39  
 **Total Stores Documented**: 4/4

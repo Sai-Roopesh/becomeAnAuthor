@@ -78,7 +78,7 @@ Handles **all business logic**, UI state management, and AI orchestration.
 
 
 #### UI Feedback
-- **Notifications**: `sonner` (Toast notifications)
+- **Notifications**: `sonner` (wrapped via `@/shared/utils/toast-service` - always use wrapper)
 - **Alerts**: `react-hot-toast`
 
 #### Drag & Drop

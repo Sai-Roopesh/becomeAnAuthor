@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
-import { Settings, Trash2, Archive, Upload } from 'lucide-react';
+import { Settings, Trash2, Archive, Upload, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useRouter } from 'next/navigation';
@@ -22,11 +22,12 @@ import { useSeriesRepository } from '@/hooks/use-series-repository';
 
 export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const router = useRouter();
     const { projectRepository: projectRepo } = useAppServices();
     const seriesRepo = useSeriesRepository();
     const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
-    const allSeries = useLiveQuery(() => seriesRepo.list(), [seriesRepo]);
+    const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -52,15 +53,20 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
 
     const handleSave = async () => {
         if (!project) return;
-        await projectRepo.update(projectId, {
-            title: formData.title,
-            author: formData.author,
-            language: formData.language,
-            coverImage: formData.coverImage,
-            seriesId: formData.seriesId,
-            seriesIndex: formData.seriesIndex,
-        });
-        setOpen(false);
+        setIsSaving(true);
+        try {
+            await projectRepo.update(projectId, {
+                title: formData.title,
+                author: formData.author,
+                language: formData.language,
+                coverImage: formData.coverImage,
+                seriesId: formData.seriesId,
+                seriesIndex: formData.seriesIndex,
+            });
+            setOpen(false);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -212,7 +218,10 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
                     </div>
 
                     <DialogFooter>
-                        <Button onClick={handleSave}>Save Changes</Button>
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Save Changes
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

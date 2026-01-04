@@ -1,3 +1,9 @@
+import type {
+    ExportPreset,
+    ExportConfig,
+    PreviewPage
+} from '@/domain/types/export-types';
+
 /**
  * Export options for document generation
  */
@@ -47,8 +53,8 @@ export interface IExportService {
      */
     exportWithPreset(
         projectId: string,
-        preset: import('@/domain/types/export-types').ExportPreset,
-        customConfig?: Partial<import('@/domain/types/export-types').ExportConfig>
+        preset: ExportPreset,
+        customConfig?: Partial<ExportConfig>
     ): Promise<Blob>;
 
     /**
@@ -57,7 +63,7 @@ export interface IExportService {
      */
     exportToEpub(
         projectId: string,
-        config: import('@/domain/types/export-types').ExportConfig
+        config: ExportConfig
     ): Promise<Blob>;
 
     /**
@@ -66,13 +72,12 @@ export interface IExportService {
      */
     generatePreview(
         projectId: string,
-        preset: import('@/domain/types/export-types').ExportPreset,
-        customConfig?: Partial<import('@/domain/types/export-types').ExportConfig>
-    ): Promise<import('@/domain/types/export-types').PreviewPage[]>;
+        preset: ExportPreset,
+        customConfig?: Partial<ExportConfig>
+    ): Promise<PreviewPage[]>;
 
     /**
      * Get available built-in export presets
      */
-    getPresets(): import('@/domain/types/export-types').ExportPreset[];
+    getPresets(): ExportPreset[];
 }
-

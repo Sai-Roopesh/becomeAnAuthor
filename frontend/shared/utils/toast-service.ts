@@ -1,9 +1,9 @@
 /**
  * Toast notification service
- * Wrapper around react-hot-toast for consistent notifications across the app
+ * Wrapper around sonner for consistent notifications across the app
  */
 
-import toast from 'react-hot-toast';
+import { toast as sonnerToast } from 'sonner';
 
 interface ToastOptions {
     description?: string;
@@ -16,37 +16,47 @@ interface ToastOptions {
 
 const toastService = {
     success: (message: string, options?: ToastOptions) => {
-        return toast.success(message, {
+        return sonnerToast.success(message, {
+            description: options?.description,
             duration: options?.duration || 4000,
+            action: options?.action ? {
+                label: options.action.label,
+                onClick: options.action.onClick,
+            } : undefined,
         });
     },
 
     error: (message: string, options?: ToastOptions) => {
-        return toast.error(message, {
+        return sonnerToast.error(message, {
+            description: options?.description,
             duration: options?.duration || 5000,
+            action: options?.action ? {
+                label: options.action.label,
+                onClick: options.action.onClick,
+            } : undefined,
         });
     },
 
     warning: (message: string, options?: ToastOptions) => {
-        return toast(message, {
-            icon: '⚠️',
+        return sonnerToast.warning(message, {
+            description: options?.description,
             duration: options?.duration || 4000,
         });
     },
 
     info: (message: string, options?: ToastOptions) => {
-        return toast(message, {
-            icon: 'ℹ️',
+        return sonnerToast.info(message, {
+            description: options?.description,
             duration: options?.duration || 4000,
         });
     },
 
     loading: (message: string) => {
-        return toast.loading(message);
+        return sonnerToast.loading(message);
     },
 
-    dismiss: (toastId?: string) => {
-        toast.dismiss(toastId);
+    dismiss: (toastId?: string | number) => {
+        sonnerToast.dismiss(toastId);
     },
 };
 

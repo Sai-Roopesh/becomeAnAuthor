@@ -25,7 +25,6 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
     let project_path_buf = PathBuf::from(&project_path);
     
     // Load the codex entry to get name and aliases
-    let codex_dir = project_path_buf.join("codex");
     let meta_codex_dir = project_path_buf.join(".meta/codex");
     
     // Find the codex entry file
@@ -49,28 +48,6 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
                 }
             }
             break;
-        }
-    }
-    
-    // Also check legacy codex directory
-    if entry_name.is_empty() {
-        for category in &["characters", "locations", "items", "lore", "subplots"] {
-            let entry_path = codex_dir.join(category).join(format!("{}.json", codex_entry_id));
-            if entry_path.exists() {
-                if let Ok(content) = fs::read_to_string(&entry_path) {
-                    if let Ok(entry) = serde_json::from_str::<serde_json::Value>(&content) {
-                        if let Some(name) = entry.get("name").and_then(|v| v.as_str()) {
-                            entry_name = name.to_string();
-                        }
-                        if let Some(alias_arr) = entry.get("aliases").and_then(|v| v.as_array()) {
-                            aliases = alias_arr.iter()
-                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                .collect();
-                        }
-                    }
-                }
-                break;
-            }
         }
     }
     

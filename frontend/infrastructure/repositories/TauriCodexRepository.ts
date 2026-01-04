@@ -12,6 +12,9 @@ import {
     saveSeriesCodexEntry,
     deleteSeriesCodexEntry
 } from '@/core/tauri';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriCodexRepository');
 
 /**
  * Tauri-based Codex Repository
@@ -25,7 +28,7 @@ export class TauriCodexRepository implements ICodexRepository {
             const entry = await getSeriesCodexEntry(seriesId, id);
             return entry ?? undefined;
         } catch (error) {
-            console.error('Failed to get codex entry:', error);
+            log.error('Failed to get codex entry:', error);
             return undefined;
         }
     }
@@ -36,7 +39,7 @@ export class TauriCodexRepository implements ICodexRepository {
         try {
             return await listSeriesCodexEntries(seriesId);
         } catch (error) {
-            console.error('Failed to list codex entries:', error);
+            log.error('Failed to list codex entries:', error);
             return [];
         }
     }
@@ -47,7 +50,7 @@ export class TauriCodexRepository implements ICodexRepository {
         try {
             return await listSeriesCodexEntries(seriesId, category);
         } catch (error) {
-            console.error('Failed to list codex entries by category:', error);
+            log.error('Failed to list codex entries by category:', error);
             return [];
         }
     }
@@ -91,7 +94,7 @@ export class TauriCodexRepository implements ICodexRepository {
             invalidateQueries();
             return newEntry;
         } catch (error) {
-            console.error('Failed to save codex entry:', error);
+            log.error('Failed to save codex entry:', error);
             throw error;
         }
     }
@@ -114,7 +117,7 @@ export class TauriCodexRepository implements ICodexRepository {
             const { invalidateQueries } = await import('@/hooks/use-live-query');
             invalidateQueries();
         } catch (error) {
-            console.error('Failed to update codex entry:', error);
+            log.error('Failed to update codex entry:', error);
             throw error;
         }
     }
@@ -128,7 +131,7 @@ export class TauriCodexRepository implements ICodexRepository {
             const { invalidateQueries } = await import('@/hooks/use-live-query');
             invalidateQueries();
         } catch (error) {
-            console.error('Failed to delete codex entry:', error);
+            log.error('Failed to delete codex entry:', error);
             throw error;
         }
     }

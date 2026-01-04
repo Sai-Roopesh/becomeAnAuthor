@@ -8,7 +8,7 @@
  * Follows responsive design guidelines from CODING_GUIDELINES.md.
  */
 
-import { useCallback, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSceneNote } from '../hooks/use-scene-note';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -61,8 +61,10 @@ export function SceneNotesPanel({ sceneId, projectId, className }: SceneNotesPan
         },
     }, [note?.sceneId]); // Re-create when scene changes
 
-    // Sync editor content when note loads
-    const handleEditorMount = useCallback(() => {
+
+
+    // Effect to sync content when note changes
+    useEffect(() => {
         if (editor && note?.content) {
             const currentJson = JSON.stringify(editor.getJSON());
             const noteJson = JSON.stringify(note.content);
@@ -71,11 +73,6 @@ export function SceneNotesPanel({ sceneId, projectId, className }: SceneNotesPan
             }
         }
     }, [editor, note?.content]);
-
-    // Effect to sync content
-    if (editor && note?.content) {
-        handleEditorMount();
-    }
 
     // No scene selected
     if (!sceneId) {

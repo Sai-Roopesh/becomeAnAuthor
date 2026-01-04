@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{Scene, SceneMeta, YamlSceneMeta};
-use crate::utils::{project_dir, validate_file_size, count_words, MAX_SCENE_SIZE, timestamp};
+use crate::utils::{project_dir, validate_file_size, count_words, atomic_write, MAX_SCENE_SIZE, timestamp};
 
 #[tauri::command]
 pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, String> {
@@ -145,10 +145,8 @@ pub fn save_scene(project_path: String, scene_file: String, content: String, tit
     
     let full_content = frontmatter + &content;
     
-    // Atomic write
-    let temp_path = file_path.with_extension("md.tmp");
-    fs::write(&temp_path, &full_content).map_err(|e| e.to_string())?;
-    fs::rename(&temp_path, &file_path).map_err(|e| e.to_string())?;
+    // Atomic write using utility
+    atomic_write(&file_path, &full_content)?;
     
     Ok(meta)
 }

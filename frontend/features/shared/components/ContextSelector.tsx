@@ -14,7 +14,6 @@ import {
     DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Plus, FileText, BookOpen, X, Layers, Hash, Book, User, MapPin, Box, Scroll, HelpCircle } from 'lucide-react';
-// ScrollArea removed - unused
 import { Act, Chapter, Scene, CodexEntry } from '@/domain/entities/types';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 

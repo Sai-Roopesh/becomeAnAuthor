@@ -3,19 +3,26 @@
 import { useRouter } from 'next/navigation';
 import { Project } from '@/domain/entities/types';
 import { ProjectCard } from './ProjectCard';
-import { CreateProjectDialog } from '@/features/project';
 import { Plus, FolderOpen } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useOpenProject } from '@/hooks/use-open-project';
-import { toast } from 'sonner';
+import { toast } from '@/shared/utils/toast-service';
 
 interface ProjectGridProps {
     projects: Project[];
-    seriesMap: Map<string, string>;  // seriesId -> series title
+    seriesMap: Map<string, string>;
     onDeleteProject: (e: React.MouseEvent, projectId: string) => void;
+    createProjectSlot?: React.ReactNode;
+    renderExportButton?: (projectId: string) => React.ReactNode;
 }
 
-export function ProjectGrid({ projects, seriesMap, onDeleteProject }: ProjectGridProps) {
+export function ProjectGrid({
+    projects,
+    seriesMap,
+    onDeleteProject,
+    createProjectSlot,
+    renderExportButton
+}: ProjectGridProps) {
     const router = useRouter();
     const { openFromPicker, isOpening } = useOpenProject();
 
@@ -27,23 +34,24 @@ export function ProjectGrid({ projects, seriesMap, onDeleteProject }: ProjectGri
         }
     };
 
+    // Default create project card content
+    const defaultCreateCard = (
+        <div className="h-full cursor-pointer group">
+            <Card className="h-full min-h-72 flex flex-col items-center justify-center border-dashed border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300">
+                <div className="p-4 rounded-full bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 mb-4">
+                    <Plus className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="font-heading font-semibold text-lg text-primary">Create New Novel</h3>
+                <p className="text-sm text-muted-foreground mt-2">Start your next masterpiece</p>
+            </Card>
+        </div>
+    );
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {/* New Project Card */}
             <div className="animate-in fade-in zoom-in duration-500 fill-mode-backwards" style={{ animationDelay: '0ms' }}>
-                <CreateProjectDialog
-                    trigger={
-                        <div className="h-full cursor-pointer group">
-                            <Card className="h-full min-h-72 flex flex-col items-center justify-center border-dashed border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300">
-                                <div className="p-4 rounded-full bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 mb-4">
-                                    <Plus className="w-8 h-8 text-primary" />
-                                </div>
-                                <h3 className="font-heading font-semibold text-lg text-primary">Create New Novel</h3>
-                                <p className="text-sm text-muted-foreground mt-2">Start your next masterpiece</p>
-                            </Card>
-                        </div>
-                    }
-                />
+                {createProjectSlot || defaultCreateCard}
             </div>
 
             {/* Open Existing Project Card */}
@@ -71,6 +79,7 @@ export function ProjectGrid({ projects, seriesMap, onDeleteProject }: ProjectGri
                         project={project}
                         seriesName={seriesMap.get(project.seriesId)}
                         onDelete={onDeleteProject}
+                        renderExportButton={renderExportButton}
                     />
                 </div>
             ))}

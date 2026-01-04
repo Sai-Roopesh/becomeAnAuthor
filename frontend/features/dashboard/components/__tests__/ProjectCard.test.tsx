@@ -234,7 +234,7 @@ describe('ProjectCard Component', () => {
         it('MUST show "Book X" when part of series', () => {
             render(
                 <ProjectCard
-                    project={createMockProject({ seriesIndex: 3 })}
+                    project={createMockProject({ seriesIndex: 'Book 3' })}
                     onDelete={mockOnDelete}
                 />
             );

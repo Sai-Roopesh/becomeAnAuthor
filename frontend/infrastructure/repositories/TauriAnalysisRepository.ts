@@ -11,6 +11,9 @@ import {
     deleteAnalysis
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriAnalysisRepository');
 
 export class TauriAnalysisRepository implements IAnalysisRepository {
     private async getAllAnalyses(): Promise<StoryAnalysis[]> {
@@ -20,7 +23,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         try {
             return await listAnalyses(projectPath) as unknown as StoryAnalysis[];
         } catch (error) {
-            console.error('Failed to list analyses:', error);
+            log.error('Failed to list analyses:', error);
             return [];
         }
     }
@@ -61,7 +64,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
             await saveAnalysis(projectPath, newAnalysis);
             return newAnalysis;
         } catch (error) {
-            console.error('Failed to create analysis:', error);
+            log.error('Failed to create analysis:', error);
             throw error;
         }
     }
@@ -77,7 +80,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         try {
             await saveAnalysis(projectPath, updated);
         } catch (error) {
-            console.error('Failed to update analysis:', error);
+            log.error('Failed to update analysis:', error);
             throw error;
         }
     }
@@ -108,7 +111,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
         try {
             await deleteAnalysis(projectPath, id);
         } catch (error) {
-            console.error('Failed to delete analysis:', error);
+            log.error('Failed to delete analysis:', error);
             throw error;
         }
     }
@@ -124,7 +127,7 @@ export class TauriAnalysisRepository implements IAnalysisRepository {
                 await deleteAnalysis(projectPath, analysis.id);
             }
         } catch (error) {
-            console.error('Failed to delete analyses by project:', error);
+            log.error('Failed to delete analyses by project:', error);
             throw error;
         }
     }

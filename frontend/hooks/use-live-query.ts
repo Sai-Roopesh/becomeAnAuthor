@@ -9,6 +9,9 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('useLiveQuery');
 
 // Global refresh counter - incrementing this triggers all useLiveQuery hooks to refetch
 // globalRefreshCounter removed - unused
@@ -61,7 +64,7 @@ export function useLiveQuery<T>(
                 }
             } catch (err) {
                 if (mountedRef.current) {
-                    console.error('useLiveQuery error:', err);
+                    log.error('Query execution failed', err);
                     setError(err instanceof Error ? err : new Error(String(err)));
                     setResult(undefined);
                 }
@@ -77,10 +80,9 @@ export function useLiveQuery<T>(
     }, [...deps, refreshKey]);
 
     if (error) {
-        console.warn('useLiveQuery encountered an error:', error.message);
+        log.warn('Query encountered an error', { message: error.message });
     }
 
     return result;
 }
 
-export default useLiveQuery;

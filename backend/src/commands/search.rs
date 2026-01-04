@@ -31,7 +31,7 @@ pub fn search_project(project_path: String, query: String) -> Result<Vec<serde_j
     }
     
     // Search in codex
-    let codex_dir = PathBuf::from(&project_path).join("codex");
+    let codex_dir = PathBuf::from(&project_path).join(".meta/codex");
     if codex_dir.exists() {
         for entry in WalkDir::new(&codex_dir).min_depth(2).max_depth(2) {
             if let Ok(entry) = entry {

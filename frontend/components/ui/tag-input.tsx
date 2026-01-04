@@ -4,6 +4,7 @@ import { Input } from './input';
 import { Badge } from './badge';
 import { X } from 'lucide-react';
 import { useState, KeyboardEvent } from 'react';
+import { cn } from '@/lib/utils';
 
 interface TagInputProps {
     values: string[];
@@ -34,12 +35,8 @@ export function TagInput({ values, onChange, placeholder, className }: TagInputP
         }
     };
 
-    const removeTag = (index: number) => {
-        onChange(values.filter((_, i) => i !== index));
-    };
-
     return (
-        <div className={`space-y-2 ${className || ''}`}>
+        <div className={cn('space-y-2', className)}>
             <Input
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
@@ -49,12 +46,12 @@ export function TagInput({ values, onChange, placeholder, className }: TagInputP
             />
             {values.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                    {values.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="gap-1 pr-1">
+                    {values.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="gap-1 pr-1">
                             <span>{tag}</span>
                             <button
                                 type="button"
-                                onClick={() => removeTag(index)}
+                                onClick={() => onChange(values.filter(t => t !== tag))}
                                 className="ml-1 hover:text-destructive transition-colors"
                                 aria-label={`Remove ${tag}`}
                             >

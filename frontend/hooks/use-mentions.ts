@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Mention } from '@/domain/entities/types';
 import { getMentionRepository } from '@/infrastructure/repositories/TauriMentionRepository';
 import { useProjectStore } from '@/store/use-project-store';
-import { logger } from '@/core/logger';
+import { logger } from '@/shared/utils/logger';
 
 /**
  * Hook for accessing mention tracking data for a codex entry

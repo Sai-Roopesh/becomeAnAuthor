@@ -7,6 +7,9 @@ import {
 } from '@/core/tauri';
 import type { ISeriesRepository } from '@/domain/repositories/ISeriesRepository';
 import type { Series } from '@/domain/entities/types';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriSeriesRepository');
 
 /**
  * Tauri filesystem-based implementation of Series Repository
@@ -14,28 +17,28 @@ import type { Series } from '@/domain/entities/types';
  */
 export class TauriSeriesRepository implements ISeriesRepository {
 
-    async list(): Promise<Series[]> {
+    async getAll(): Promise<Series[]> {
         try {
             return await listSeries() as unknown as Series[];
         } catch (error) {
-            console.error('Failed to list series:', error);
+            log.error('Failed to list series:', error);
             return [];
         }
     }
 
     async get(id: string): Promise<Series | undefined> {
         try {
-            const all = await this.list();
-            return all.find(s => s.id === id);
+            const all = await this.getAll();
+            return all.find((s: Series) => s.id === id);
         } catch (error) {
-            console.error('Failed to get series:', error);
+            log.error('Failed to get series:', error);
             return undefined;
         }
     }
 
     async getByName(name: string): Promise<Series | undefined> {
-        const all = await this.list();
-        return all.find(s => s.title.toLowerCase() === name.toLowerCase());
+        const all = await this.getAll();
+        return all.find((s: Series) => s.title.toLowerCase() === name.toLowerCase());
     }
 
     async create(series: Omit<Series, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
@@ -43,7 +46,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
             const result = await createSeries({ title: series.title });
             return result.id;
         } catch (error) {
-            console.error('Failed to create series:', error);
+            log.error('Failed to create series:', error);
             throw error;
         }
     }
@@ -52,7 +55,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
         try {
             return await updateSeries(id, updates);
         } catch (error) {
-            console.error('Failed to update series:', error);
+            log.error('Failed to update series:', error);
             throw error;
         }
     }
@@ -61,7 +64,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
         try {
             await deleteSeries(id);
         } catch (error) {
-            console.error('Failed to delete series:', error);
+            log.error('Failed to delete series:', error);
             throw error;
         }
     }
@@ -70,7 +73,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
         try {
             return await deleteSeriesCascade(id);
         } catch (error) {
-            console.error('Failed to cascade delete series:', error);
+            log.error('Failed to cascade delete series:', error);
             throw error;
         }
     }

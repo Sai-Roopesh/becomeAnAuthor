@@ -11,6 +11,9 @@ import {
     deleteCodexTemplate
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriCodexTemplateRepository');
 
 export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     async get(id: string): Promise<CodexTemplate | undefined> {
@@ -21,7 +24,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
             const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.find(t => t.id === id);
         } catch (error) {
-            console.error('Failed to get codex template:', error);
+            log.error('Failed to get codex template:', error);
             return undefined;
         }
     }
@@ -34,7 +37,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
             const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.filter(t => t.category === category);
         } catch (error) {
-            console.error('Failed to list codex templates by category:', error);
+            log.error('Failed to list codex templates by category:', error);
             return [];
         }
     }
@@ -47,7 +50,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
             const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.filter(t => t.isBuiltIn);
         } catch (error) {
-            console.error('Failed to get built-in templates:', error);
+            log.error('Failed to get built-in templates:', error);
             return [];
         }
     }
@@ -61,7 +64,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
             const templates = await listCodexTemplates(projectPath) as unknown as CodexTemplate[];
             return templates.filter(t => !t.isBuiltIn);
         } catch (error) {
-            console.error('Failed to get custom templates:', error);
+            log.error('Failed to get custom templates:', error);
             return [];
         }
     }
@@ -80,7 +83,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
             await saveCodexTemplate(projectPath, newTemplate);
             return newTemplate;
         } catch (error) {
-            console.error('Failed to create codex template:', error);
+            log.error('Failed to create codex template:', error);
             throw error;
         }
     }
@@ -96,7 +99,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         try {
             await saveCodexTemplate(projectPath, updated);
         } catch (error) {
-            console.error('Failed to update codex template:', error);
+            log.error('Failed to update codex template:', error);
             throw error;
         }
     }
@@ -108,7 +111,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
         try {
             await deleteCodexTemplate(projectPath, id);
         } catch (error) {
-            console.error('Failed to delete codex template:', error);
+            log.error('Failed to delete codex template:', error);
             throw error;
         }
     }

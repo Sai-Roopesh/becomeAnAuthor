@@ -11,6 +11,9 @@ import {
     deleteSceneCodexLink
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriSceneCodexLinkRepository');
 
 export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository {
     private async getAllLinks(): Promise<SceneCodexLink[]> {
@@ -20,7 +23,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         try {
             return await listSceneCodexLinks(projectPath);
         } catch (error) {
-            console.error('Failed to list scene codex links:', error);
+            log.error('Failed to list scene codex links:', error);
             return [];
         }
     }
@@ -66,7 +69,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
             await saveSceneCodexLink(projectPath, newLink);
             return newLink;
         } catch (error) {
-            console.error('Failed to create scene codex link:', error);
+            log.error('Failed to create scene codex link:', error);
             throw error;
         }
     }
@@ -97,7 +100,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         try {
             await saveSceneCodexLink(projectPath, updated);
         } catch (error) {
-            console.error('Failed to update scene codex link:', error);
+            log.error('Failed to update scene codex link:', error);
             throw error;
         }
     }
@@ -109,7 +112,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
         try {
             await deleteSceneCodexLink(projectPath, id);
         } catch (error) {
-            console.error('Failed to delete scene codex link:', error);
+            log.error('Failed to delete scene codex link:', error);
             throw error;
         }
     }
@@ -124,7 +127,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
                 await deleteSceneCodexLink(projectPath, link.id);
             }
         } catch (error) {
-            console.error('Failed to delete links by scene:', error);
+            log.error('Failed to delete links by scene:', error);
             throw error;
         }
     }
@@ -139,7 +142,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
                 await deleteSceneCodexLink(projectPath, link.id);
             }
         } catch (error) {
-            console.error('Failed to delete links by codex:', error);
+            log.error('Failed to delete links by codex:', error);
             throw error;
         }
     }
@@ -154,7 +157,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
                 await deleteSceneCodexLink(projectPath, link.id);
             }
         } catch (error) {
-            console.error('Failed to delete auto-detected links:', error);
+            log.error('Failed to delete auto-detected links:', error);
             throw error;
         }
     }

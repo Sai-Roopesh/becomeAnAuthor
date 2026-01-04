@@ -29,7 +29,8 @@ export class ErrorBoundary extends Component<Props, State> {
     public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
 
-        // ✅ CRASH REPORTING: Store crash details for debugging
+        // ✅ CRASH REPORTING: Store crash details for debugging (keep last 10)
+        const MAX_CRASH_REPORTS = 10;
         try {
             const existingReports = storage.getItem<Array<{ error: string; stack: string | null | undefined; timestamp: string }>>('crash_reports', []);
             const report = {
@@ -37,8 +38,9 @@ export class ErrorBoundary extends Component<Props, State> {
                 stack: errorInfo.componentStack,
                 timestamp: new Date().toISOString(),
             };
-            existingReports.push(report);
-            storage.setItem('crash_reports', existingReports);
+            // Keep only the most recent reports to prevent localStorage overflow
+            const updatedReports = [...existingReports, report].slice(-MAX_CRASH_REPORTS);
+            storage.setItem('crash_reports', updatedReports);
         } catch (storageError) {
             console.error('Failed to store crash report:', storageError);
         }

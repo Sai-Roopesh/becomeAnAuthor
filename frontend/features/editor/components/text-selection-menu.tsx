@@ -2,7 +2,7 @@
 
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
-import { Expand, RefreshCw, Minimize2, Sparkles } from 'lucide-react';
+import { Expand, RefreshCw, Minimize2 } from 'lucide-react';
 import { useEffect, useRef, memo } from 'react';
 import { TextReplaceDialog } from './text-replace-dialog';
 import {
@@ -11,6 +11,7 @@ import {
     initialTextSelectionState
 } from '@/hooks/use-dialog-state';
 import type { EditorStateManager } from '@/lib/core/editor-state-manager';
+import { EDITOR_CONSTANTS } from '@/lib/config/constants';
 
 interface TextSelectionMenuProps {
     editor: Editor;
@@ -37,7 +38,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, proje
                 const text = editor.state.doc.textBetween(from, to);
                 const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
 
-                if (wordCount >= 4) {
+                if (wordCount >= EDITOR_CONSTANTS.MIN_SELECTION_WORDS) {
                     // Get the DOM position of the selection
                     const { view } = editor;
                     const start = view.coordsAtPos(from);
@@ -50,7 +51,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, proje
                         payload: {
                             text,
                             position: {
-                                top: start.top - 50, // 50px above selection
+                                top: start.top - EDITOR_CONSTANTS.MENU_OFFSET_PX,
                                 left: centerX,
                             }
                         }
@@ -131,16 +132,6 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, proje
                     >
                         <Minimize2 className="h-4 w-4 mr-1.5" />
                         Shorten
-                    </Button>
-                    <div className="h-4 w-px bg-border mx-1" />
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAction('expand')}
-                        className="h-8 px-3 text-primary"
-                    >
-                        <Sparkles className="h-4 w-4 mr-1.5" />
-                        Tweak & Generate
                     </Button>
                 </div>
             )}

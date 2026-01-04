@@ -11,6 +11,9 @@ import {
     deleteCodexRelationType
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriCodexRelationTypeRepository');
 
 export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepository {
     async get(id: string): Promise<CodexRelationType | undefined> {
@@ -21,7 +24,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
             const types = await listCodexRelationTypes(projectPath) as unknown as CodexRelationType[];
             return types.find(t => t.id === id);
         } catch (error) {
-            console.error('Failed to get codex relation type:', error);
+            log.error('Failed to get codex relation type:', error);
             return undefined;
         }
     }
@@ -33,7 +36,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         try {
             return await listCodexRelationTypes(projectPath);
         } catch (error) {
-            console.error('Failed to list codex relation types:', error);
+            log.error('Failed to list codex relation types:', error);
             return [];
         }
     }
@@ -61,7 +64,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
             await saveCodexRelationType(projectPath, newType);
             return newType;
         } catch (error) {
-            console.error('Failed to create codex relation type:', error);
+            log.error('Failed to create codex relation type:', error);
             throw error;
         }
     }
@@ -77,7 +80,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         try {
             await saveCodexRelationType(projectPath, updated);
         } catch (error) {
-            console.error('Failed to update codex relation type:', error);
+            log.error('Failed to update codex relation type:', error);
             throw error;
         }
     }
@@ -89,7 +92,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
         try {
             await deleteCodexRelationType(projectPath, id);
         } catch (error) {
-            console.error('Failed to delete codex relation type:', error);
+            log.error('Failed to delete codex relation type:', error);
             throw error;
         }
     }

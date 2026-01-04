@@ -3,7 +3,7 @@
  * Prevents app crashes from localStorage quota exceeded, malformed JSON, or disabled storage
  */
 
-import { toast } from '@/shared/utils/toast-service';
+import { toast } from '@/core/toast';
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';

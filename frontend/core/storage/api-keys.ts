@@ -8,10 +8,10 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { AIProvider } from '@/lib/config/ai-vendors';
-import { logger } from '@/shared/utils/logger';
+import { logger } from '@/core/logger';
 
 const log = logger.scope('APIKeys');
-import { toast } from '@/shared/utils/toast-service';
+import { toast } from '@/core/toast';
 
 /**
  * Store an API key securely in OS keychain

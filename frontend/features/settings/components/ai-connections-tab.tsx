@@ -8,6 +8,9 @@ import { useAIConnections } from '../hooks/useAIConnections';
 import { useConnectionValidation } from '../hooks/useConnectionValidation';
 import { ConnectionList } from './ai-connections/ConnectionList';
 import { ConnectionForm } from './ai-connections/ConnectionForm';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('AIConnectionsTab');
 
 /**
  * AI Connections Tab - Refactored
@@ -56,7 +59,7 @@ export function AIConnectionsTab() {
             });
         } catch (err) {
             // Error already handled by hook
-            console.error('Failed to refresh models:', err);
+            log.error('Failed to refresh models:', err);
         }
     };
 

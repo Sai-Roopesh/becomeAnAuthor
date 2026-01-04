@@ -14,6 +14,9 @@ import {
     type ProjectMeta
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriProjectRepository');
 
 /**
  * Convert Tauri ProjectMeta to app's Project type
@@ -61,7 +64,7 @@ export class TauriProjectRepository implements IProjectRepository {
             const projects = await listProjects();
             return projects.map(projectMetaToProject);
         } catch (error) {
-            console.error('Failed to list projects:', error);
+            log.error('Failed to list projects:', error);
             return [];
         }
     }

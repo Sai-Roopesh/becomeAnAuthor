@@ -12,20 +12,25 @@ import {
     deleteIdea
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriIdeaRepository');
 
 /**
  * Tauri-based Idea Repository
  * Stores ideas as a JSON array in ~/BecomeAnAuthor/Projects/{project}/ideas.json
  */
 export class TauriIdeaRepository implements IIdeaRepository {
-    async list(): Promise<Idea[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async list(_projectId: string): Promise<Idea[]> {
+        // projectId is for interface consistency; actual path comes from singleton
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return [];
 
         try {
             return await listIdeas(projectPath);
         } catch (error) {
-            console.error('Failed to list ideas:', error);
+            log.error('Failed to list ideas:', error);
             return [];
         }
     }
@@ -47,7 +52,7 @@ export class TauriIdeaRepository implements IIdeaRepository {
         try {
             return await createIdea(projectPath, idea);
         } catch (error) {
-            console.error('Failed to create idea:', error);
+            log.error('Failed to create idea:', error);
             throw error;
         }
     }
@@ -64,7 +69,7 @@ export class TauriIdeaRepository implements IIdeaRepository {
                 updatedAt: Date.now(),
             });
         } catch (error) {
-            console.error('Failed to update idea:', error);
+            log.error('Failed to update idea:', error);
             throw error;
         }
     }
@@ -76,7 +81,7 @@ export class TauriIdeaRepository implements IIdeaRepository {
         try {
             await deleteIdea(projectPath, ideaId);
         } catch (error) {
-            console.error('Failed to delete idea:', error);
+            log.error('Failed to delete idea:', error);
             throw error;
         }
     }

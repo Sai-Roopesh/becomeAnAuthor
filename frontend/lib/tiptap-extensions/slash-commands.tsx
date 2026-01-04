@@ -143,16 +143,11 @@ export const SlashCommands = Extension.create({
                     let popup: TippyInstance[] | null = null;
 
                     interface SlashCommandProps {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        items: any[];
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        command: (item: any) => void;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        editor: any;
+                        items: SlashCommandItem[];
+                        command: (item: SlashCommandItem) => void;
+                        editor: Editor;
                         clientRect?: () => DOMRect;
                         event?: KeyboardEvent;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        [key: string]: any;
                     }
 
                     return {

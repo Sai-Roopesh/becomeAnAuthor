@@ -7,7 +7,7 @@ export interface ISeriesRepository {
     /**
      * Get all series
      */
-    list(): Promise<Series[]>;
+    getAll(): Promise<Series[]>;
 
     /**
      * Get a series by ID

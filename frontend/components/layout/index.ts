@@ -5,7 +5,6 @@
  */
 
 export { PanelGroup } from './panel-group';
-export type { } from './panel-group';
 
 export { StatusBar } from './status-bar';
 export type { StatusBarItem } from './status-bar';

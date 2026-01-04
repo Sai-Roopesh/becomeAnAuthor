@@ -6,6 +6,9 @@ import { isElementNode } from '@/shared/types/tiptap';
  * AI Prompt Templates for Story Analysis
  */
 
+/** Maximum characters to include from scene content */
+const MAX_SCENE_CONTENT_LENGTH = 2000;
+
 export interface AnalysisContext {
   scenes: Scene[];
   codex: CodexEntry[];
@@ -25,8 +28,9 @@ function formatSceneContent(scene: Scene): string {
     })
     .join('\n');
 
-  return `## ${scene.title}\n${text.substring(0, 2000)}\n`;
+  return `## ${scene.title}\n${text.substring(0, MAX_SCENE_CONTENT_LENGTH)}\n`;
 }
+
 
 /**
  * Synopsis Generation Prompt

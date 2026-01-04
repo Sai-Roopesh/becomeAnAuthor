@@ -22,6 +22,9 @@ import {
     ALPHA_READER_PROMPT,
     BETA_READER_PROMPT,
 } from '@/shared/prompts/analysis-prompts';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('AnalysisService');
 
 /**
  * Service for running AI-powered story analyses
@@ -88,7 +91,7 @@ export class AnalysisService implements IAnalysisService {
                 const created = await this.analysisRepo.create(analysis);
                 results.push(created);
             } catch (error) {
-                console.error(`Analysis failed for type ${type}:`, error);
+                log.error(`Analysis failed for type ${type}:`, error);
                 throw error;
             }
         }
@@ -190,7 +193,7 @@ export class AnalysisService implements IAnalysisService {
                 parsed = JSON.parse(jsonStr);
             } catch (parseError) {
                 // If sanitization didn't work, try a more aggressive approach
-                console.warn('First parse attempt failed, trying aggressive sanitization:', parseError);
+                log.warn('First parse attempt failed, trying aggressive sanitization', { error: parseError });
                 const aggressiveClean = jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
                 parsed = JSON.parse(aggressiveClean);
             }
@@ -212,8 +215,8 @@ export class AnalysisService implements IAnalysisService {
                 ...(metrics && { metrics }),
             };
         } catch (error) {
-            console.error('Failed to parse AI response:', error);
-            console.error('Response text:', responseText.substring(0, 500)); // Log first 500 chars
+            log.error('Failed to parse AI response', { error });
+            log.debug('Response text preview', { preview: responseText.substring(0, 500) });
             // Fallback: treat entire response as summary
             return {
                 summary: responseText,

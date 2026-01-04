@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]  
 > **Comprehensive audit of the Tauri IPC boundary between Rust backend and TypeScript frontend.**  
-> Last audited: 2025-12-25
+> Last audited: 2026-01-03
 
 ---
 

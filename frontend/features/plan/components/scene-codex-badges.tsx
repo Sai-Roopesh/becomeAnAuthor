@@ -12,7 +12,6 @@ import {
 
 interface SceneCodexBadgesProps {
     sceneId: string;
-    projectId: string;
     seriesId: string;  // Required - series-first architecture
     /** Maximum number of badges to show before "+N more" */
     maxBadges?: number;
@@ -36,7 +35,6 @@ const CATEGORY_CONFIG: Record<CodexCategory, { icon: typeof User; color: string;
  */
 export function SceneCodexBadges({
     sceneId,
-    // projectId removed - unused
     seriesId,
     maxBadges = 4,
     size = 'sm'

@@ -4,6 +4,9 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from '@/shared/utils/toast-service';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('ErrorBoundary');
 
 interface Props {
     children: ReactNode;
@@ -26,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('Uncaught error:', error, errorInfo);
+        log.error('Uncaught error:', error, errorInfo);
         toast.error('Something went wrong', {
             description: error.message,
         });

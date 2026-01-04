@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
-import { ModelCombobox } from '@/features/ai';
+import { ModelSelector } from '@/features/ai';
 
 export interface ChatSettings {
     model: string;
@@ -50,7 +50,7 @@ export function ChatSettingsDialog({ open, onClose, settings, onSettingsChange }
                     {/* Model Selector */}
                     <div>
                         <Label className="text-sm font-medium">Model</Label>
-                        <ModelCombobox
+                        <ModelSelector
                             value={settings.model}
                             onValueChange={(value) => updateSetting('model', value)}
                             className="mt-2"

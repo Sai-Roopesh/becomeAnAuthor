@@ -8,11 +8,13 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
-import { useGoogleDrive } from '@/features/google-drive/hooks/use-google-drive';
+import { useGoogleAuth, useGoogleDrive } from '@/features/google-drive';
 import { Cloud } from 'lucide-react';
 import { toast } from '@/shared/utils/toast-service';
 import { DriveQuota } from '@/domain/entities/types';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('GoogleDriveConnection');
 
 export function GoogleDriveConnection() {
     const { isAuthenticated, user, isLoading, signIn, signOut } = useGoogleAuth();
@@ -29,7 +31,7 @@ export function GoogleDriveConnection() {
                     const driveQuota = await getQuota();
                     setQuota(driveQuota);
                 } catch (error) {
-                    console.error('Failed to fetch quota:', error);
+                    log.error('Failed to fetch quota:', error);
                 } finally {
                     setLoadingQuota(false);
                 }

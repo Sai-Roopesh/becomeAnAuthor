@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { MoreVertical, Trash2, BookOpen, Clock, Globe, User } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -9,16 +11,16 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { ExportProjectButton } from '@/features/data-management';
 import type { Project } from '@/domain/entities/types';
 
 interface ProjectCardProps {
     project: Project;
-    seriesName?: string | undefined;  // Optional series name for display
+    seriesName?: string | undefined;
     onDelete: (e: React.MouseEvent, projectId: string) => void;
+    renderExportButton?: ((projectId: string) => React.ReactNode) | undefined;
 }
 
-export function ProjectCard({ project, seriesName, onDelete }: ProjectCardProps) {
+export function ProjectCard({ project, seriesName, onDelete, renderExportButton }: ProjectCardProps) {
     // Format the series label: "{Series Name} Book 1" or just "Book 1" or "Novel"
     const getSeriesLabel = () => {
         if (!project.seriesIndex) return 'Novel';
@@ -94,7 +96,7 @@ export function ProjectCard({ project, seriesName, onDelete }: ProjectCardProps)
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <ExportProjectButton projectId={project.id} />
+                            {renderExportButton?.(project.id)}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 className="text-destructive focus:text-destructive focus:bg-destructive/10"

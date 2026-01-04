@@ -1,7 +1,7 @@
 /**
  * Tauri Node Repository
  * Implements INodeRepository using file system through Tauri commands
- * Falls back to IndexedDB when not running in Tauri
+ * Desktop-only application - uses Tauri backend for all storage operations
  */
 
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';

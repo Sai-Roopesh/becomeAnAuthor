@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useChatRepository } from '@/features/chat/hooks/use-chat-repository';
-import { useChatService } from '@/features/chat/hooks/use-chat-service';
+import { useAI } from '@/hooks/use-ai';
+import { useContextAssembly } from '@/hooks/use-context-assembly';
 import { ChatSettingsDialog, ChatSettings } from './chat-settings-dialog';
 import { useChatStore } from '@/store/use-chat-store';
 import { type ContextItem } from '@/features/shared/components';
@@ -12,6 +13,7 @@ import { toast } from '@/shared/utils/toast-service';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { storage } from '@/core/storage/safe-storage';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import { getPromptTemplate } from '@/shared/prompts/templates';
 
 // Import child components
 import { ChatHeader } from './chat-header';
@@ -24,20 +26,19 @@ interface ChatThreadProps {
 }
 
 /**
- * Chat Thread  - Main Coordinator Component
+ * Chat Thread - Main Coordinator Component
  * Orchestrates child components and manages state
  * Series-first: fetches project to get seriesId for context selection
+ * Uses streaming AI responses via useAI hook
  */
 export function ChatThread({ threadId }: ChatThreadProps) {
     const chatRepo = useChatRepository();
-    const chatService = useChatService();
     const { setActiveThreadId } = useChatStore();
     const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
     const { projectRepository: projectRepo } = useAppServices();
 
     // State
     const [message, setMessage] = useState('');
-    const [isSending, setIsSending] = useState(false);
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
     const [selectedPromptId, setSelectedPromptId] = useState('general');
     const [selectedModel, setSelectedModel] = useState('');
@@ -52,39 +53,64 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         presencePenalty: 0,
     });
 
+    // Streaming state
+    const [streamingContent, setStreamingContent] = useState('');
+    const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+
+    // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const isMountedRef = useRef(true);
 
     // Data Queries
-    const thread = useLiveQuery(() => chatRepo.getThread(threadId), [threadId]);
+    const thread = useLiveQuery(() => chatRepo.get(threadId), [threadId]);
     const messages = useLiveQuery(
         () => chatRepo.getMessagesByThread(threadId),
         [threadId]
     );
 
-    // Fetch project to get seriesId
+    // Fetch project to get seriesId for context assembly
     const project = useLiveQuery(
         () => thread?.projectId ? projectRepo.get(thread.projectId) : Promise.resolve(undefined),
         [thread?.projectId, projectRepo]
     );
 
-    // Effects
+    // Use unified AI hook for streaming
+    const { generateStream, isGenerating, cancel, setModel } = useAI({
+        system: 'You are a creative writing assistant helping authors craft their stories.',
+        persistModel: true,
+        operationName: 'Chat',
+    });
+
+    // Use context assembly hook
+    const { assembleContext } = useContextAssembly(thread?.projectId || '');
+
+    // Cleanup on unmount
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
+
+    // Load saved model
     useEffect(() => {
         if (thread) {
             const savedModel = thread.defaultModel || storage.getItem<string>('last_used_model', '');
             if (savedModel) {
                 setSelectedModel(savedModel);
+                setModel(savedModel);
                 setSettings(prev => ({ ...prev, model: savedModel }));
             }
         }
-    }, [thread]);
+    }, [thread, setModel]);
 
+    // Auto-scroll to bottom on new messages
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, streamingContent]);
 
     // Handlers
-    const handleSend = async () => {
-        if (!message.trim() || isSending) return;
+    const handleSend = async (directMessage?: string) => {
+        const messageToSend = directMessage || message;
+        if (!messageToSend.trim() || isGenerating) return;
 
         const effectiveModel = selectedModel || settings.model;
         if (!effectiveModel) {
@@ -119,7 +145,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             id: crypto.randomUUID(),
             threadId,
             role: 'user' as const,
-            content: message.trim(),
+            content: messageToSend.trim(),
             ...(Object.keys(context).length > 0 && { context }),
             timestamp: Date.now(),
         };
@@ -127,51 +153,87 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         setMessage('');
         await chatRepo.createMessage(userMessage);
 
-        // Generate AI response
-        setIsSending(true);
+        // Create AI message placeholder for streaming
+        const aiMessageId = crypto.randomUUID();
+        const aiMessage = {
+            id: aiMessageId,
+            threadId,
+            role: 'assistant' as const,
+            content: '',
+            model: effectiveModel,
+            timestamp: Date.now(),
+        };
+        await chatRepo.createMessage(aiMessage);
+        setStreamingMessageId(aiMessageId);
+        setStreamingContent('');
+
         try {
-            const { responseText, model: usedModel } = await chatService.generateResponse({
-                message: userMessage.content,
-                threadId,
-                projectId: thread?.projectId || '',
-                ...(userMessage.context && { context: userMessage.context }),
-                model: effectiveModel,
-                settings,
-                promptId: selectedPromptId,
-            });
+            // Build context text
+            const contextText = await assembleContext(selectedContexts);
+            const template = getPromptTemplate(selectedPromptId);
 
-            await chatRepo.createMessage({
-                id: crypto.randomUUID(),
-                threadId,
-                role: 'assistant',
-                content: responseText,
-                model: usedModel,
-                timestamp: Date.now(),
-            });
+            // Build system prompt with context
+            let systemPrompt = template?.systemPrompt || 'You are a creative writing assistant.';
+            if (contextText) {
+                systemPrompt += `
 
-            await chatRepo.updateThread(threadId, {
-                updatedAt: Date.now(),
-                defaultModel: usedModel
-            });
+=== CONTEXT ===
+${contextText}`;
+            }
 
-            // Save last used model for other features
-            storage.setItem('last_used_model', usedModel);
+            // Stream the response
+            let fullText = '';
+            await generateStream(
+                {
+                    prompt: messageToSend.trim(),
+                    context: systemPrompt,
+                    maxTokens: settings.maxTokens,
+                    temperature: settings.temperature,
+                },
+                {
+                    onChunk: (chunk) => {
+                        if (isMountedRef.current) {
+                            fullText += chunk;
+                            setStreamingContent(fullText);
+                        }
+                    },
+                    onComplete: async (completedText) => {
+                        if (isMountedRef.current) {
+                            await chatRepo.updateMessage(aiMessageId, { content: completedText });
+                            setStreamingMessageId(null);
+                            setStreamingContent('');
+
+                            await chatRepo.updateThread(threadId, {
+                                updatedAt: Date.now(),
+                                defaultModel: effectiveModel
+                            });
+                        }
+                    },
+                    onError: async (error) => {
+                        if (isMountedRef.current) {
+                            await chatRepo.updateMessage(aiMessageId, {
+                                content: `Error: ${error.message}`
+                            });
+                            setStreamingMessageId(null);
+                            setStreamingContent('');
+                        }
+                    },
+                }
+            );
         } catch (error) {
             console.error('Chat error:', error);
-            await chatRepo.createMessage({
-                id: crypto.randomUUID(),
-                threadId,
-                role: 'assistant',
-                content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
-                timestamp: Date.now(),
-            });
-        } finally {
-            setIsSending(false);
+            if (isMountedRef.current) {
+                await chatRepo.updateMessage(aiMessageId, {
+                    content: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`
+                });
+                setStreamingMessageId(null);
+                setStreamingContent('');
+            }
         }
     };
 
     const handleRegenerateFrom = async (timestamp: number) => {
-        if (!messages) return;
+        if (!messages || isGenerating) return;
 
         const allMessages = await chatRepo.getMessagesByThread(threadId);
         const messagesToDelete = allMessages.filter(m => m.timestamp >= timestamp);
@@ -182,33 +244,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             .sort((a, b) => b.timestamp - a.timestamp)[0];
 
         if (lastUserMessage) {
-            setIsSending(true);
-            try {
-                const effectiveModel = selectedModel || settings.model;
-                const { responseText, model: usedModel } = await chatService.generateResponse({
-                    message: lastUserMessage.content,
-                    threadId,
-                    projectId: thread?.projectId || '',
-                    ...(lastUserMessage.context && { context: lastUserMessage.context }),
-                    model: effectiveModel,
-                    settings,
-                    promptId: selectedPromptId,
-                });
-
-                await chatRepo.createMessage({
-                    id: crypto.randomUUID(),
-                    threadId,
-                    role: 'assistant',
-                    content: responseText,
-                    model: usedModel,
-                    timestamp: Date.now(),
-                });
-            } catch (error) {
-                console.error('Regeneration error:', error);
-                toast.error('Failed to regenerate response');
-            } finally {
-                setIsSending(false);
-            }
+            await handleSend(lastUserMessage.content);
         }
     };
 
@@ -255,6 +291,14 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         URL.revokeObjectURL(url);
     };
 
+    const handleSuggestionClick = (suggestion: string) => {
+        setMessage(suggestion);
+        // Send on next tick after state update
+        queueMicrotask(() => {
+            handleSend(suggestion);
+        });
+    };
+
     if (!thread) return null;
 
     return (
@@ -283,6 +327,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
                     selectedModel={selectedModel}
                     onModelChange={(model) => {
                         setSelectedModel(model);
+                        setModel(model);
                         setSettings(prev => ({ ...prev, model }));
                     }}
                     showControls={showControls}
@@ -293,26 +338,23 @@ export function ChatThread({ threadId }: ChatThreadProps) {
             {/* Message List Component */}
             <ChatMessageList
                 messages={messages}
-                isLoading={isSending}
+                isLoading={isGenerating}
                 threadId={threadId}
                 onRegenerateFrom={handleRegenerateFrom}
                 messagesEndRef={messagesEndRef}
-                onSuggestionClick={(suggestion) => {
-                    setMessage(suggestion);
-                    // Auto-send after a short delay for better UX
-                    setTimeout(() => {
-                        const sendBtn = document.querySelector('[data-chat-send]') as HTMLButtonElement;
-                        sendBtn?.click();
-                    }, 100);
-                }}
+                streamingMessageId={streamingMessageId}
+                streamingContent={streamingContent}
+                onSuggestionClick={handleSuggestionClick}
             />
 
             {/* Input Component */}
             <ChatInput
                 value={message}
                 onChange={setMessage}
-                onSend={handleSend}
-                disabled={isSending}
+                onSend={() => handleSend()}
+                disabled={isGenerating}
+                isGenerating={isGenerating}
+                onCancel={cancel}
             />
 
             {/* Settings Dialog */}

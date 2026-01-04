@@ -10,7 +10,6 @@ import {
 import {
     Tooltip,
     TooltipContent,
-    TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { PanelLeft, PanelLeftClose, PanelRight, PanelRightClose } from 'lucide-react';
@@ -118,111 +117,109 @@ export function PanelGroup({
     }, [isRightCollapsed, right]);
 
     return (
-        <TooltipProvider delayDuration={300}>
-            <div className={cn("h-full flex overflow-hidden relative", className)}>
-                {/* Toggle buttons */}
-                {showToggles && (
-                    <>
-                        {/* Left toggle */}
-                        {left?.collapsible && (
-                            <div className="absolute top-2 left-2 z-30">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 bg-background/80 backdrop-blur-sm border border-border/50"
-                                            onClick={toggleLeft}
-                                        >
-                                            {isLeftCollapsed ? (
-                                                <PanelLeft className="h-4 w-4" />
-                                            ) : (
-                                                <PanelLeftClose className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom">
-                                        {isLeftCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </div>
-                        )}
+        <div className={cn("h-full flex overflow-hidden relative", className)}>
+            {/* Toggle buttons */}
+            {showToggles && (
+                <>
+                    {/* Left toggle */}
+                    {left?.collapsible && (
+                        <div className="absolute top-2 left-2 z-30">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 bg-background/80 backdrop-blur-sm border border-border/50"
+                                        onClick={toggleLeft}
+                                    >
+                                        {isLeftCollapsed ? (
+                                            <PanelLeft className="h-4 w-4" />
+                                        ) : (
+                                            <PanelLeftClose className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    {isLeftCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    )}
 
-                        {/* Right toggle */}
-                        {right?.collapsible && (
-                            <div className="absolute top-2 right-2 z-30">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 bg-background/80 backdrop-blur-sm border border-border/50"
-                                            onClick={toggleRight}
-                                        >
-                                            {isRightCollapsed ? (
-                                                <PanelRight className="h-4 w-4" />
-                                            ) : (
-                                                <PanelRightClose className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom">
-                                        {isRightCollapsed ? 'Show panel' : 'Hide panel'}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </div>
-                        )}
+                    {/* Right toggle */}
+                    {right?.collapsible && (
+                        <div className="absolute top-2 right-2 z-30">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 bg-background/80 backdrop-blur-sm border border-border/50"
+                                        onClick={toggleRight}
+                                    >
+                                        {isRightCollapsed ? (
+                                            <PanelRight className="h-4 w-4" />
+                                        ) : (
+                                            <PanelRightClose className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    {isRightCollapsed ? 'Show panel' : 'Hide panel'}
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Panel layout */}
+            <ResizablePanelGroup direction="horizontal" className="flex-1">
+                {/* Left panel */}
+                {left && !isLeftCollapsed && (
+                    <>
+                        <ResizablePanel
+                            defaultSize={left.defaultSize ?? 20}
+                            minSize={left.minSize ?? 15}
+                            maxSize={left.maxSize ?? 30}
+                            className={cn(
+                                "bg-background/50 backdrop-blur-sm border-r border-border/50",
+                                left.className
+                            )}
+                        >
+                            {left.content}
+                        </ResizablePanel>
+                        <ResizableHandle className="w-1 bg-transparent hover:bg-primary/20 transition-colors" />
                     </>
                 )}
 
-                {/* Panel layout */}
-                <ResizablePanelGroup direction="horizontal" className="flex-1">
-                    {/* Left panel */}
-                    {left && !isLeftCollapsed && (
-                        <>
-                            <ResizablePanel
-                                defaultSize={left.defaultSize ?? 20}
-                                minSize={left.minSize ?? 15}
-                                maxSize={left.maxSize ?? 30}
-                                className={cn(
-                                    "bg-background/50 backdrop-blur-sm border-r border-border/50",
-                                    left.className
-                                )}
-                            >
-                                {left.content}
-                            </ResizablePanel>
-                            <ResizableHandle className="w-1 bg-transparent hover:bg-primary/20 transition-colors" />
-                        </>
-                    )}
+                {/* Center panel */}
+                <ResizablePanel
+                    defaultSize={calculateCenterSize(left, right, isLeftCollapsed, isRightCollapsed)}
+                    className="bg-background/30"
+                >
+                    {center}
+                </ResizablePanel>
 
-                    {/* Center panel */}
-                    <ResizablePanel
-                        defaultSize={calculateCenterSize(left, right, isLeftCollapsed, isRightCollapsed)}
-                        className="bg-background/30"
-                    >
-                        {center}
-                    </ResizablePanel>
-
-                    {/* Right panel */}
-                    {right && !isRightCollapsed && (
-                        <>
-                            <ResizableHandle className="w-1 bg-transparent hover:bg-primary/20 transition-colors" />
-                            <ResizablePanel
-                                defaultSize={right.defaultSize ?? 22}
-                                minSize={right.minSize ?? 18}
-                                maxSize={right.maxSize ?? 30}
-                                className={cn(
-                                    "bg-background/50 backdrop-blur-sm border-l border-border/50",
-                                    right.className
-                                )}
-                            >
-                                {right.content}
-                            </ResizablePanel>
-                        </>
-                    )}
-                </ResizablePanelGroup>
-            </div>
-        </TooltipProvider>
+                {/* Right panel */}
+                {right && !isRightCollapsed && (
+                    <>
+                        <ResizableHandle className="w-1 bg-transparent hover:bg-primary/20 transition-colors" />
+                        <ResizablePanel
+                            defaultSize={right.defaultSize ?? 22}
+                            minSize={right.minSize ?? 18}
+                            maxSize={right.maxSize ?? 30}
+                            className={cn(
+                                "bg-background/50 backdrop-blur-sm border-l border-border/50",
+                                right.className
+                            )}
+                        >
+                            {right.content}
+                        </ResizablePanel>
+                    </>
+                )}
+            </ResizablePanelGroup>
+        </div>
     );
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,7 +9,25 @@ import { useExportPreview } from '../hooks/use-export-preview';
 import { useDocumentExport } from '@/hooks/use-document-export';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useLiveQuery } from '@/hooks/use-live-query';
+import { logger } from '@/shared/utils/logger';
+import DOMPurify from 'dompurify';
 import type { ExportConfig } from '@/domain/types/export-types';
+
+const log = logger.scope('ExportDialog');
+
+/**
+ * Safe HTML preview component that sanitizes content with DOMPurify
+ */
+function SafePreviewContent({ html }: { html: string }) {
+    const sanitizedHtml = useMemo(() => {
+        return DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'strong', 'em', 'u', 'blockquote', 'ul', 'ol', 'li', 'a', 'span', 'div'],
+            ALLOWED_ATTR: ['class', 'id', 'style', 'href'],
+        });
+    }, [html]);
+
+    return <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
+}
 
 interface ExportDialogProps {
     projectId: string;
@@ -32,6 +50,7 @@ export function ExportDialog({ projectId, open, onOpenChange }: ExportDialogProp
         totalPages,
         canGoNext,
         canGoPrevious,
+        error: previewError,
         generatePreview,
         nextPage,
         previousPage,
@@ -73,7 +92,7 @@ export function ExportDialog({ projectId, open, onOpenChange }: ExportDialogProp
             setCustomConfig({});
             clearPreview();
         } catch (error) {
-            console.error('Export failed:', error);
+            log.error('Export failed:', error);
         }
     };
 
@@ -230,16 +249,19 @@ export function ExportDialog({ projectId, open, onOpenChange }: ExportDialogProp
                                         </Button>
                                     </div>
                                     <div className="flex-1 overflow-y-auto border rounded-lg p-4 bg-white">
-                                        <div
-                                            dangerouslySetInnerHTML={{
-                                                __html: preview[currentPage]?.content || '',
-                                            }}
-                                        />
+                                        <SafePreviewContent html={preview[currentPage]?.content || ''} />
                                     </div>
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center h-full">
-                                    <p className="text-muted-foreground">No preview available</p>
+                                    {previewError ? (
+                                        <div className="text-center">
+                                            <p className="text-destructive font-medium">Preview Error</p>
+                                            <p className="text-sm text-muted-foreground mt-1">{previewError}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted-foreground">No preview available</p>
+                                    )}
                                 </div>
                             )}
                         </TabsContent>

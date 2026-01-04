@@ -1,12 +1,17 @@
+'use client';
+
 /**
  * Google OAuth 2.0 Service with PKCE Flow
  * Implements secure authentication for Single Page Applications
  * No backend required - follows OAuth 2.0 best practices
  */
 
-import { GOOGLE_CONFIG, STORAGE_KEYS } from '@/lib/config/constants';
+import { GOOGLE_CONFIG, STORAGE_KEYS, INFRASTRUCTURE } from '@/lib/config/constants';
 import { GoogleTokens, GoogleUser } from '@/domain/entities/types';
 import { storage } from '@/core/storage/safe-storage';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('GoogleAuthService');
 
 /**
  * Generate cryptographically secure random string for PKCE
@@ -65,7 +70,7 @@ class GoogleAuthService {
             // Redirect to Google OAuth
             window.location.href = `${GOOGLE_CONFIG.AUTH_ENDPOINT}?${params}`;
         } catch (error) {
-            console.error('OAuth sign-in error:', error);
+            log.error('OAuth sign-in error:', error);
             throw new Error('Failed to initiate Google sign-in');
         }
     }
@@ -123,7 +128,7 @@ class GoogleAuthService {
             localStorage.removeItem(STORAGE_KEYS.GOOGLE_PKCE_VERIFIER);
 
         } catch (error) {
-            console.error('OAuth callback error:', error);
+            log.error('OAuth callback error:', error);
             throw new Error('Failed to complete Google sign-in');
         }
     }
@@ -173,7 +178,7 @@ class GoogleAuthService {
                 });
             }
         } catch (error) {
-            console.error('Sign-out error:', error);
+            log.error('Sign-out error:', error);
             // Continue even if revoke fails
         } finally {
             // Clear local storage
@@ -194,7 +199,7 @@ class GoogleAuthService {
         }
 
         // Check if token is expired (with 5 minute buffer)
-        const isExpired = tokens.expiresAt < Date.now() + (5 * 60 * 1000);
+        const isExpired = tokens.expiresAt < Date.now() + INFRASTRUCTURE.TOKEN_REFRESH_BUFFER_MS;
 
         if (isExpired && tokens.refreshToken) {
             // Refresh access token
@@ -245,7 +250,7 @@ class GoogleAuthService {
             storage.setItem(STORAGE_KEYS.GOOGLE_TOKENS, newTokens);
 
         } catch (error) {
-            console.error('Token refresh error:', error);
+            log.error('Token refresh error:', error);
             // Clear invalid tokens
             await this.signOut();
             throw new Error('Session expired. Please sign in again.');

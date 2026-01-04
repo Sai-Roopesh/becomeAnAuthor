@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils';
 import { useProjectStore } from '@/store/use-project-store';
 import { FileText } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface StatusBarItem {
     id: string;
@@ -63,93 +63,84 @@ export function StatusBar({
     const rightItems = items.filter(item => item.position === 'right');
 
     return (
-        <TooltipProvider delayDuration={300}>
-            <div
-                className={cn(
-                    "flex-shrink-0 h-8 border-t border-border/50",
-                    "bg-muted/30 backdrop-blur-sm",
-                    "px-4 flex items-center gap-4 text-xs",
-                    "transition-all duration-200",
-                    className
+        <div
+            className={cn(
+                "flex-shrink-0 h-8 border-t border-border/50",
+                "bg-muted/30 backdrop-blur-sm",
+                "px-4 flex items-center gap-4 text-xs",
+                "transition-all duration-200",
+                className
+            )}
+        >
+            {/* Left section: Word counts */}
+            <div className="flex items-center gap-4">
+                {/* Scene word count */}
+                {sceneWordCount !== undefined && (
+                    <StatusItem
+                        icon={<FileText className="h-3 w-3" />}
+                        label="Scene"
+                        value={sceneWordCount.toLocaleString()}
+                        tooltip="Words in current scene"
+                    />
                 )}
-            >
-                {/* Left section: Word counts */}
-                <div className="flex items-center gap-4">
-                    {/* Scene word count */}
-                    {sceneWordCount !== undefined && (
-                        <StatusItem
-                            icon={<FileText className="h-3 w-3" />}
-                            label="Scene"
-                            value={sceneWordCount.toLocaleString()}
-                            tooltip="Words in current scene"
-                        />
-                    )}
 
-                    {/* Project word count */}
-                    {projectWordCount !== undefined && (
-                        <StatusItem
-                            icon={<FileText className="h-3 w-3" />}
-                            label="Total"
-                            value={projectWordCount.toLocaleString()}
-                            tooltip="Total words in project"
-                        />
-                    )}
+                {/* Project word count */}
+                {projectWordCount !== undefined && (
+                    <StatusItem
+                        icon={<FileText className="h-3 w-3" />}
+                        label="Total"
+                        value={projectWordCount.toLocaleString()}
+                        tooltip="Total words in project"
+                    />
+                )}
 
-                    {/* Custom left items */}
-                    {leftItems.map(item => (
-                        <div
-                            key={item.id}
-                            onClick={item.onClick}
-                            className={cn(item.onClick && "cursor-pointer hover:text-foreground")}
-                        >
-                            {item.tooltip ? (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span>{item.content}</span>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">{item.tooltip}</TooltipContent>
-                                </Tooltip>
-                            ) : (
-                                item.content
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Right section: Sprint, goals, etc. */}
-                <div className="flex items-center gap-4">
-                    {/* Custom right items */}
-                    {rightItems.map(item => (
-                        <div
-                            key={item.id}
-                            onClick={item.onClick}
-                            className={cn(item.onClick && "cursor-pointer hover:text-foreground")}
-                        >
-                            {item.tooltip ? (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span>{item.content}</span>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">{item.tooltip}</TooltipContent>
-                                </Tooltip>
-                            ) : (
-                                item.content
-                            )}
-                        </div>
-                    ))}
-
-                    {/* Placeholder for future features */}
-                    {/* Sprint timer slot - Phase 5 */}
-                    {/* <SprintTimer /> */}
-
-                    {/* Goal progress slot - Phase 5 */}
-                    {/* <GoalProgress /> */}
-                </div>
+                {/* Custom left items */}
+                {leftItems.map(item => (
+                    <div
+                        key={item.id}
+                        onClick={item.onClick}
+                        className={cn(item.onClick && "cursor-pointer hover:text-foreground")}
+                    >
+                        {item.tooltip ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span>{item.content}</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">{item.tooltip}</TooltipContent>
+                            </Tooltip>
+                        ) : (
+                            item.content
+                        )}
+                    </div>
+                ))}
             </div>
-        </TooltipProvider>
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Right section: Sprint, goals, etc. */}
+            <div className="flex items-center gap-4">
+                {/* Custom right items */}
+                {rightItems.map(item => (
+                    <div
+                        key={item.id}
+                        onClick={item.onClick}
+                        className={cn(item.onClick && "cursor-pointer hover:text-foreground")}
+                    >
+                        {item.tooltip ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span>{item.content}</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">{item.tooltip}</TooltipContent>
+                            </Tooltip>
+                        ) : (
+                            item.content
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 

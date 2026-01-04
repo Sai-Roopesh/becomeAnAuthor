@@ -1,5 +1,7 @@
+'use client';
+
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
-import { NodeDeletionService } from '@/domain/services/NodeDeletionService';
+import { NodeDeletionService } from '@/infrastructure/services/NodeDeletionService';
 import { useConfirmation } from '@/hooks/use-confirmation';
 import { toast } from '@/shared/utils/toast-service';
 import { saveCoordinator } from '@/lib/core/save-coordinator';

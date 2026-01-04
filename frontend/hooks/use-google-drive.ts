@@ -5,17 +5,12 @@
 
 'use client';
 
-import { useState } from 'react';
 import { googleDriveService } from '@/infrastructure/services/google-drive-service';
-import { DriveFile, DriveQuota } from '@/lib/config/types';
+import { DriveFile, DriveQuota } from '@/domain/entities/types';
 import { useGoogleAuth } from './use-google-auth';
 
 export function useGoogleDrive() {
     const { isAuthenticated } = useGoogleAuth();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [isUploading, _setIsUploading] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [isDownloading, _setIsDownloading] = useState(false);
 
     const listBackups = async (): Promise<DriveFile[]> => {
         if (!isAuthenticated) {
@@ -42,8 +37,6 @@ export function useGoogleDrive() {
     };
 
     return {
-        isUploading,
-        isDownloading,
         listBackups,
         deleteBackup,
         getQuota,

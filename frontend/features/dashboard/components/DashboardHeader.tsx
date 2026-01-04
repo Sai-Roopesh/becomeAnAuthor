@@ -1,14 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { BookOpen, Sparkles } from 'lucide-react';
-
-const QUOTES = [
-    "The scariest moment is always just before you start.",
-    "You can always edit a bad page. You can't edit a blank page.",
-    "Start writing, no matter what. The water does not flow until the faucet is turned on.",
-    "Every secret of a writer's soul is written large in his works.",
-    "There is no greater agony than bearing an untold story inside you.",
-];
+import { DASHBOARD_QUOTES } from '@/lib/config/constants';
 
 export function DashboardHeader() {
     const [greeting, setGreeting] = useState('Welcome back');
@@ -20,7 +13,7 @@ export function DashboardHeader() {
         else if (hour < 18) setGreeting('Good afternoon');
         else setGreeting('Good evening');
 
-        setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)] ?? '');
+        setQuote(DASHBOARD_QUOTES[Math.floor(Math.random() * DASHBOARD_QUOTES.length)] ?? '');
     }, []);
 
     return (

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { Copy, History, Sparkles, Plus, Trash2 } from 'lucide-react';
+import { Sparkles, Plus, Trash2 } from 'lucide-react';
 import { useAI } from '@/hooks/use-ai';
 import { toast } from '@/shared/utils/toast-service';
 
@@ -157,18 +157,10 @@ Generate now for: ${entity.name} (${entity.category})`;
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
                     <label className="text-sm font-medium">Description</label>
-                    <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
-                            <History className="h-3 w-3 mr-1" /> History
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                            <Copy className="h-3 w-3 mr-1" /> Copy
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={generateDescription} disabled={isGenerating}>
-                            <Sparkles className="h-3 w-3 mr-1" />
-                            {isGenerating ? 'Generating...' : 'Auto-Generate'}
-                        </Button>
-                    </div>
+                    <Button variant="outline" size="sm" onClick={generateDescription} disabled={isGenerating}>
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        {isGenerating ? 'Generating...' : 'Auto-Generate'}
+                    </Button>
                 </div>
                 <Textarea
                     className="flex-1 font-mono text-sm"

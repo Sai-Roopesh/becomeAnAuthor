@@ -6,6 +6,7 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect, useState } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
+import type { TiptapContent } from '@/shared/types/tiptap';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Pin, PinOff, Trash2, MoreVertical } from 'lucide-react';
@@ -22,7 +23,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
     const snippetRepo = useSnippetRepository();
     const [title, setTitle] = useState('');
     const [pinned, setPinned] = useState(false);
-    const [initialContent, setInitialContent] = useState<import('@/shared/types/tiptap').TiptapContent | null>(null);
+    const [initialContent, setInitialContent] = useState<TiptapContent | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -56,7 +57,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
     }, [initialContent]); // Re-create editor when initialContent changes (loaded)
 
     const debouncedTitle = useDebounce(title, 500);
-    const [content, setContent] = useState<import('@/shared/types/tiptap').TiptapContent | null>(null);
+    const [content, setContent] = useState<TiptapContent | null>(null);
     const debouncedContent = useDebounce(content, 1000);
 
     // Sync Title
@@ -69,7 +70,7 @@ export function SnippetEditor({ snippetId, onClose }: { snippetId: string, onClo
     // Sync Content
     useEffect(() => {
         if (editor) {
-            const updateHandler = () => setContent(editor.getJSON() as import('@/shared/types/tiptap').TiptapContent);
+            const updateHandler = () => setContent(editor.getJSON() as TiptapContent);
             editor.on('update', updateHandler);
             return () => { editor.off('update', updateHandler); };
         }

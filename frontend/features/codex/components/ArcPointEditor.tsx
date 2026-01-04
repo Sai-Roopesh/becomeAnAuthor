@@ -14,10 +14,11 @@ import { useState, useEffect } from 'react';
 import type { ArcPoint } from '@/domain/entities/types';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import { toast } from '@/shared/utils/toast-service';
+import { DEFAULT_CHARACTER_STATS } from '@/lib/config/codex-constants';
 
 interface ArcPointEditorProps {
     seriesId: string;
-    entryId: string;
     entryName: string;
     existingPoint?: ArcPoint | undefined;
     open: boolean;
@@ -32,7 +33,6 @@ interface ArcPointEditorProps {
  */
 export function ArcPointEditor({
     seriesId,
-    // entryId removed - unused
     entryName,
     existingPoint,
     open,
@@ -113,8 +113,13 @@ export function ArcPointEditor({
     );
 
     const handleSave = async () => {
-        if (!formData.eventLabel || !formData.description) {
-            return; // Validation
+        if (!formData.eventLabel?.trim()) {
+            toast.error('Event label is required');
+            return;
+        }
+        if (!formData.description?.trim()) {
+            toast.error('Description is required');
+            return;
         }
 
         await onSave(formData as Omit<ArcPoint, 'id' | 'createdAt' | 'updatedAt'>);
@@ -147,18 +152,21 @@ export function ArcPointEditor({
                     {/* Book Selection */}
                     <div className="space-y-2">
                         <Label>Book</Label>
-                        <select
-                            className="w-full  p-2 border rounded-md"
-                            value={formData.bookId}
-                            onChange={e => setFormData(prev => ({ ...prev, bookId: e.target.value }))}
+                        <Select
+                            value={formData.bookId || ''}
+                            onValueChange={value => setFormData(prev => ({ ...prev, bookId: value }))}
                         >
-                            <option value="">Choose book...</option>
-                            {books?.map(book => (
-                                <option key={book.id} value={book.id}>
-                                    {book.title} ({book.seriesIndex || 'No index'})
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Choose book..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {books?.map(book => (
+                                    <SelectItem key={book.id} value={book.id}>
+                                        {book.title} ({book.seriesIndex || 'No index'})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* Scene Selection (Optional - for finer granularity) */}
@@ -222,8 +230,8 @@ export function ArcPointEditor({
                     {/* Stats (Phase 4) */}
                     <div className="space-y-3">
                         <Label className="text-base font-semibold">Stats (for graphing)</Label>
-                        <p className="text-xs text-muted-foreground">Add custom stats or use common ones like magic, confidence, leadership</p>
-                        {['magic', 'confidence', 'leadership'].map(stat => (
+                        <p className="text-xs text-muted-foreground">Track character attributes over time</p>
+                        {DEFAULT_CHARACTER_STATS.map(stat => (
                             <div key={stat} className="space-y-2">
                                 <div className="flex justify-between">
                                     <Label className="capitalize">{stat}</Label>

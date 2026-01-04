@@ -6,6 +6,7 @@ import { Book, Folder, FileText, ChevronRight, ChevronDown } from 'lucide-react'
 import { useState } from 'react';
 import type { DocumentNode, Scene } from '@/domain/entities/types';
 import { useManuscriptNodes } from '../hooks/use-manuscript-nodes';
+import { TREE_INDENT_PX, TREE_BASE_PADDING_PX } from '../constants';
 
 interface ManuscriptTreeSelectorProps {
     projectId: string;
@@ -47,7 +48,7 @@ export function ManuscriptTreeSelector({ projectId, selected, onSelect }: Manusc
             <div key={node.id}>
                 <div
                     className="flex items-center gap-2 py-1.5 px-2 hover:bg-accent rounded cursor-pointer"
-                    style={{ paddingLeft: `${level * 16 + 8}px` }}
+                    style={{ paddingLeft: `${level * TREE_INDENT_PX + TREE_BASE_PADDING_PX}px` }}
                 >
                     {hasChildren && (
                         <button

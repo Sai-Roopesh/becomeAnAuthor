@@ -1,8 +1,11 @@
 'use client';
 
-import { check, Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
 import { useState, useCallback } from 'react';
+import { check, type Update } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('AppUpdater');
 
 /**
  * Hook for checking and installing app updates.
@@ -26,7 +29,7 @@ export function useAppUpdater() {
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to check for updates';
             setError(message);
-            console.error('Update check failed:', err);
+            log.error('Failed to check for updates:', err);
             return null;
         } finally {
             setChecking(false);
@@ -66,7 +69,7 @@ export function useAppUpdater() {
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to install update';
             setError(message);
-            console.error('Update installation failed:', err);
+            log.error('Update installation failed:', err);
         } finally {
             setDownloading(false);
         }
@@ -108,7 +111,7 @@ export async function checkForAppUpdates(options?: { silent?: boolean }): Promis
             alert('You are running the latest version!');
         }
     } catch (err) {
-        console.error('Update check failed:', err);
+        log.error('Update check failed:', err);
         if (!options?.silent) {
             alert('Failed to check for updates. Please try again later.');
         }

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Tab Leader Service
  * 
@@ -7,15 +9,18 @@
  * This prevents the critical issue of multiple tabs overwriting each other's changes.
  */
 
-import { logger } from '@/core/logger';
+import { logger } from '@/shared/utils/logger';
+import { TIMEOUTS, INFRASTRUCTURE } from '@/lib/config/constants';
+
+const log = logger.scope('TabLeaderService');
 
 export class TabLeaderService {
     private channel: BroadcastChannel;
     private tabId: string;
     private isLeader: boolean = false;
     private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-    private readonly HEARTBEAT_MS = 2000;
-    private readonly LEADER_TIMEOUT_MS = 5000;
+    private readonly HEARTBEAT_MS = TIMEOUTS.TAB_HEARTBEAT_MS;
+    private readonly LEADER_TIMEOUT_MS = TIMEOUTS.TAB_LEADER_TIMEOUT_MS;
     private lastLeaderHeartbeat: number = 0;
 
     private listeners: Set<(isLeader: boolean) => void> = new Set();
@@ -69,7 +74,7 @@ export class TabLeaderService {
             if (Date.now() - this.lastLeaderHeartbeat > this.LEADER_TIMEOUT_MS) {
                 this.claimLeadership();
             }
-        }, 500);
+        }, INFRASTRUCTURE.TAB_ELECTION_DELAY_MS);
     }
 
     private claimLeadership(): void {
@@ -81,7 +86,7 @@ export class TabLeaderService {
         });
         this.startHeartbeat();
         this.notifyListeners();
-        logger.debug(`[TabLeaderService] This tab (${this.tabId}) is now the leader`);
+        log.debug(`This tab (${this.tabId}) is now the leader`);
     }
 
     private stepDown(): void {
@@ -91,7 +96,7 @@ export class TabLeaderService {
             this.heartbeatInterval = null;
         }
         this.notifyListeners();
-        logger.debug(`[TabLeaderService] This tab (${this.tabId}) stepped down from leader`);
+        log.debug(`This tab (${this.tabId}) stepped down from leader`);
     }
 
     private startHeartbeat(): void {

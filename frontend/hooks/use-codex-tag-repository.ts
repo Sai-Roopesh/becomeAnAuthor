@@ -1,11 +1,12 @@
-import { useAppServices } from '@/infrastructure/di/AppContext';
+'use client';
+
+import { useRepository } from './use-repository';
 import type { ICodexTagRepository } from '@/domain/repositories/ICodexTagRepository';
 
 /**
  * Hook to access Codex Tag Repository
- * 
- * ✅ ARCHITECTURE: Repository pattern - NEVER import db directly in components
+ * Uses generic repository factory to eliminate code duplication
  */
 export function useCodexTagRepository(): ICodexTagRepository {
-    return useAppServices().codexTagRepository;
+    return useRepository<ICodexTagRepository>('codexTagRepository');
 }

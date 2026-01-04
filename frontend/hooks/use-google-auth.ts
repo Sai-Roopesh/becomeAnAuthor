@@ -7,7 +7,10 @@
 
 import { useState, useEffect } from 'react';
 import { googleAuthService } from '@/infrastructure/services/google-auth-service';
-import { GoogleUser } from '@/lib/config/types';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('GoogleAuth');
+import { GoogleUser } from '@/domain/entities/types';
 
 export function useGoogleAuth() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -36,7 +39,7 @@ export function useGoogleAuth() {
             await googleAuthService.signIn();
             // User will be redirected to Google
         } catch (error) {
-            console.error('Sign-in error:', error);
+            log.error('Sign-in failed', error);
             throw error;
         }
     };
@@ -47,7 +50,7 @@ export function useGoogleAuth() {
             setIsAuthenticated(false);
             setUser(null);
         } catch (error) {
-            console.error('Sign-out error:', error);
+            log.error('Sign-out failed', error);
             throw error;
         }
     };

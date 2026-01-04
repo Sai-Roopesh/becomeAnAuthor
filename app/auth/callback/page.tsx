@@ -1,19 +1,19 @@
 /**
  * OAuth 2.0 Callback Handler
  * Handles redirect from Google after user authorization
+ * 
+ * Uses Suspense boundary for static export compatibility (Tauri).
+ * useSearchParams() requires a Suspense boundary when using static export.
  */
 
 'use client';
 
-// Force dynamic rendering to prevent pre-render errors with window/searchParams
-export const dynamic = 'force-dynamic';
-
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { googleAuthService } from '@/infrastructure/services/google-auth-service';
 import { toast } from '@/shared/utils/toast-service';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -104,5 +104,24 @@ export default function AuthCallbackPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+function LoadingFallback() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="max-w-md w-full p-6 space-y-4 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                <h1 className="text-xl font-semibold">Loading...</h1>
+            </div>
+        </div>
+    );
+}
+
+export default function AuthCallbackPage() {
+    return (
+        <Suspense fallback={<LoadingFallback />}>
+            <AuthCallbackContent />
+        </Suspense>
     );
 }

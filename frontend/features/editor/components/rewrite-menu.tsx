@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Wand2, Minimize2, Maximize2, RefreshCw, Eye, X } from 'lucide-react';
 import { useState, memo } from 'react';
 import { useAI } from '@/hooks/use-ai';
-import { ModelCombobox } from '@/features/ai';
+import { ModelSelector } from '@/components/model-selector';
 import { TinkerMode } from './tinker-mode';
 import type { EditorStateManager } from '@/lib/core/editor-state-manager';
 
@@ -174,7 +174,7 @@ Now rewrite:
             <div className="flex items-center gap-2 p-2 bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-700">
                 {/* Model Selector */}
                 <div className="w-48">
-                    <ModelCombobox
+                    <ModelSelector
                         value={model}
                         onValueChange={setModel}
                     />

@@ -5,15 +5,17 @@ import { EditorContainer } from '@/features/editor/components/EditorContainer';
 import { PlanView } from '@/features/plan/components/plan-view';
 import { ChatInterface } from '@/features/chat/components/chat-interface';
 import { ReviewDashboard } from '@/features/review/components/ReviewDashboard';
-import { MultiTabWarning } from '@/components/multi-tab-warning';
 import { SearchPalette } from '@/features/search/components/SearchPalette';
-import { TopNavigation } from '@/components/top-navigation';
+import { ModelSelector } from '@/features/ai';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useProjectStore } from '@/store/use-project-store';
-import { getTabCoordinator } from '@/core/tab-coordinator';
+
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 function ProjectContent() {
     const searchParams = useSearchParams();
@@ -21,28 +23,26 @@ function ProjectContent() {
     const { projectRepository: projectRepo } = useAppServices();
 
     const { viewMode } = useProjectStore();
-    const [multiTabCount, setMultiTabCount] = useState(0);
     const [searchOpen, setSearchOpen] = useState(false);
 
     // Fetch project to get seriesId
     const project = useLiveQuery(() => projectId ? projectRepo.get(projectId) : Promise.resolve(undefined), [projectId, projectRepo]);
 
+    // Dynamic document title based on project name and view mode
     useEffect(() => {
-        if (!projectId) return;
-
-        const coordinator = getTabCoordinator();
-        coordinator.notifyProjectOpened(projectId);
-
-        coordinator.onMultiTab((pid, tabCount) => {
-            if (pid === projectId) {
-                setMultiTabCount(tabCount);
-            }
-        });
+        if (project?.title) {
+            const modeLabel = viewMode.charAt(0).toUpperCase() + viewMode.slice(1);
+            document.title = `${project.title} - ${modeLabel} | Novel Writer`;
+        } else {
+            document.title = 'Project | Novel Writer';
+        }
 
         return () => {
-            coordinator.notifyProjectClosed(projectId);
+            document.title = 'OpenSource Novel Writer';
         };
-    }, [projectId]);
+    }, [project?.title, viewMode]);
+
+
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -59,9 +59,17 @@ function ProjectContent() {
     if (!projectId) {
         return (
             <div className="flex items-center justify-center h-screen text-muted-foreground">
-                <div className="text-center">
-                    <h2 className="text-xl font-semibold mb-2">No Project Selected</h2>
-                    <p>Please select a project from the dashboard.</p>
+                <div className="text-center space-y-4">
+                    <h2 className="text-xl font-semibold">No Project Selected</h2>
+                    <p className="text-muted-foreground">
+                        Please select a project from the dashboard.
+                    </p>
+                    <Link href="/">
+                        <Button variant="outline" className="gap-2">
+                            <ArrowLeft className="h-4 w-4" />
+                            Go to Dashboard
+                        </Button>
+                    </Link>
                 </div>
             </div>
         );
@@ -77,17 +85,7 @@ function ProjectContent() {
 
     return (
         <div className="h-screen overflow-hidden flex flex-col">
-            {/* Top Navigation Bar */}
-            <TopNavigation projectId={projectId} />
 
-            {/* Multi-tab warning banner */}
-            {multiTabCount > 1 && (
-                <MultiTabWarning
-                    projectId={projectId}
-                    tabCount={multiTabCount}
-                    onDismiss={() => setMultiTabCount(0)}
-                />
-            )}
 
             <SearchPalette
                 projectId={projectId}
@@ -104,7 +102,12 @@ function ProjectContent() {
                 ) : viewMode === 'chat' ? (
                     <ChatInterface projectId={projectId} />
                 ) : viewMode === 'review' ? (
-                    <ReviewDashboard projectId={projectId} />
+                    <ReviewDashboard
+                        projectId={projectId}
+                        renderModelSelector={(props) => (
+                            <ModelSelector value={props.value} onValueChange={props.onValueChange} />
+                        )}
+                    />
                 ) : (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
                         Unknown view mode

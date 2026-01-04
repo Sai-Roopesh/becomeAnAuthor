@@ -9,6 +9,9 @@ import { useState, useCallback, useRef } from 'react';
 import { stream, generate } from '@/lib/ai';
 import { storage } from '@/core/storage/safe-storage';
 import { toast } from '@/shared/utils/toast-service';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('useAI');
 
 export interface UseAIOptions {
     /** Initial model to use */
@@ -80,7 +83,7 @@ export function useAI(options: UseAIOptions = {}) {
      */
     const generateText = useCallback(async (genOptions: GenerateOptions): Promise<string> => {
         if (isGenerating) {
-            console.warn('[useAI] Generation already in progress');
+            log.warn('Generation already in progress');
             return '';
         }
 
@@ -131,7 +134,7 @@ export function useAI(options: UseAIOptions = {}) {
         callbacks: StreamCallbacks = {}
     ): Promise<string> => {
         if (isGenerating) {
-            console.warn('[useAI] Generation already in progress');
+            log.warn('Generation already in progress');
             return '';
         }
 

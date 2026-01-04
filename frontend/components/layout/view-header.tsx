@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import {
     Tooltip,
     TooltipContent,
-    TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Search, X } from 'lucide-react';
@@ -104,121 +103,119 @@ export function ViewHeader({
     };
 
     return (
-        <TooltipProvider delayDuration={300}>
-            <div
-                className={cn(
-                    "sticky top-0 z-20",
-                    "border-b border-border/50",
-                    "p-4 sm:p-6",
-                    "bg-background/80 backdrop-blur-md",
-                    "supports-[backdrop-filter]:bg-background/60",
-                    className
-                )}
-            >
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    {/* Left: Title and subtitle */}
-                    <div className="flex items-center gap-3 min-w-0">
-                        {icon && (
-                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
-                                {icon}
-                            </div>
-                        )}
-                        <div className="min-w-0">
-                            <h1 className="text-xl sm:text-2xl font-heading font-bold text-foreground truncate">
-                                {title}
-                            </h1>
-                            {subtitle && (
-                                <p className="text-sm text-muted-foreground truncate">
-                                    {subtitle}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Center: View Switcher */}
-                    {viewSwitcher && viewSwitcher.length > 0 && (
-                        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg overflow-x-auto scrollbar-hide">
-                            {viewSwitcher.map((item) => (
-                                <Tooltip key={item.id}>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            disabled={item.disabled}
-                                            onClick={() => onViewChange?.(item.id)}
-                                            className={cn(
-                                                "min-h-9 px-3 gap-2 transition-all",
-                                                "flex-shrink-0",
-                                                activeView === item.id
-                                                    ? "bg-background shadow-sm text-foreground"
-                                                    : "text-muted-foreground hover:text-foreground"
-                                            )}
-                                        >
-                                            {item.icon}
-                                            <span className="hidden sm:inline text-sm">
-                                                {item.label}
-                                            </span>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="sm:hidden">
-                                        {item.label}
-                                        {item.disabled && " (Coming soon)"}
-                                    </TooltipContent>
-                                </Tooltip>
-                            ))}
+        <div
+            className={cn(
+                "sticky top-0 z-20",
+                "border-b border-border/50",
+                "p-4 sm:p-6",
+                "bg-background/80 backdrop-blur-md",
+                "supports-[backdrop-filter]:bg-background/60",
+                className
+            )}
+        >
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Left: Title and subtitle */}
+                <div className="flex items-center gap-3 min-w-0">
+                    {icon && (
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                            {icon}
                         </div>
                     )}
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-heading font-bold text-foreground truncate">
+                            {title}
+                        </h1>
+                        {subtitle && (
+                            <p className="text-sm text-muted-foreground truncate">
+                                {subtitle}
+                            </p>
+                        )}
+                    </div>
+                </div>
 
-                    {/* Spacer */}
-                    <div className="flex-1" />
+                {/* Center: View Switcher */}
+                {viewSwitcher && viewSwitcher.length > 0 && (
+                    <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg overflow-x-auto scrollbar-hide">
+                        {viewSwitcher.map((item) => (
+                            <Tooltip key={item.id}>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={item.disabled}
+                                        onClick={() => onViewChange?.(item.id)}
+                                        className={cn(
+                                            "min-h-9 px-3 gap-2 transition-all",
+                                            "flex-shrink-0",
+                                            activeView === item.id
+                                                ? "bg-background shadow-sm text-foreground"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        {item.icon}
+                                        <span className="hidden sm:inline text-sm">
+                                            {item.label}
+                                        </span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="sm:hidden">
+                                    {item.label}
+                                    {item.disabled && " (Coming soon)"}
+                                </TooltipContent>
+                            </Tooltip>
+                        ))}
+                    </div>
+                )}
 
-                    {/* Right: Search and Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* Search */}
-                        {searchEnabled && (
-                            <div className="flex items-center">
-                                {searchOpen ? (
-                                    <div className="flex items-center gap-1 animate-in slide-in-from-right-2 duration-200">
-                                        <Input
-                                            type="text"
-                                            placeholder={searchPlaceholder}
-                                            value={searchValue}
-                                            onChange={(e) => onSearchChange?.(e.target.value)}
-                                            className="h-9 w-48 sm:w-64"
-                                            autoFocus
-                                        />
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Right: Search and Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Search */}
+                    {searchEnabled && (
+                        <div className="flex items-center">
+                            {searchOpen ? (
+                                <div className="flex items-center gap-1 animate-in slide-in-from-right-2 duration-200">
+                                    <Input
+                                        type="text"
+                                        placeholder={searchPlaceholder}
+                                        value={searchValue}
+                                        onChange={(e) => onSearchChange?.(e.target.value)}
+                                        className="h-9 w-48 sm:w-64"
+                                        autoFocus
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleSearchToggle}
+                                        className="h-9 w-9"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             onClick={handleSearchToggle}
                                             className="h-9 w-9"
                                         >
-                                            <X className="h-4 w-4" />
+                                            <Search className="h-4 w-4" />
                                         </Button>
-                                    </div>
-                                ) : (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={handleSearchToggle}
-                                                className="h-9 w-9"
-                                            >
-                                                <Search className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="bottom">Search</TooltipContent>
-                                    </Tooltip>
-                                )}
-                            </div>
-                        )}
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">Search</TooltipContent>
+                                </Tooltip>
+                            )}
+                        </div>
+                    )}
 
-                        {/* Actions */}
-                        {actions}
-                    </div>
+                    {/* Actions */}
+                    {actions}
                 </div>
             </div>
-        </TooltipProvider>
+        </div>
     );
 }

@@ -1,3 +1,5 @@
+'use client';
+
 import { useRepository } from './use-repository';
 import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 

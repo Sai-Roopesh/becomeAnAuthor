@@ -14,7 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+import { toast } from '@/shared/utils/toast-service';
 
 interface CreateSeriesDialogProps {
     open: boolean;
@@ -101,7 +102,12 @@ export function CreateSeriesDialog({ open, onOpenChange, onCreated }: CreateSeri
                         Cancel
                     </Button>
                     <Button onClick={handleCreate} disabled={isCreating || !title.trim()}>
-                        {isCreating ? 'Creating...' : 'Create Series'}
+                        {isCreating ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Creating...
+                            </>
+                        ) : 'Create Series'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

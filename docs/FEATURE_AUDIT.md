@@ -1,7 +1,7 @@
 # Become An Author - Complete Feature Audit
 
 > **Document Generated**: December 21, 2025  
-> **Last Updated**: December 21, 2025  
+> **Last Updated**: January 3, 2026  
 > **Project**: Become An Author - Local-first, AI-assisted desktop application for novelists
 
 ---
@@ -319,9 +319,8 @@ This audit covers **every feature** across the following categories:
 
 | Component | File | Description |
 |-----------|------|-------------|
-| **AIChat** | `AIChat.tsx` | Main chat interface |
-| **ChatInterface** | `chat-interface.tsx` (10KB) | Full chat UI |
-| **ChatThread** | `chat-thread.tsx` (11KB) | Conversation thread display |
+| **ChatInterface** | `chat-interface.tsx` (10KB) | Full chat UI with sidebar |
+| **ChatThread** | `chat-thread.tsx` (11KB) | Main coordinator with streaming via `useAI` |
 | **ChatMessage** | `chat-message.tsx` (13KB) | Individual message rendering |
 | **ChatInput** | `chat-input.tsx` | Message input with submit |
 | **ChatControls** | `chat-controls.tsx` | Thread management controls |
@@ -334,8 +333,7 @@ This audit covers **every feature** across the following categories:
 
 | Component | File | Description |
 |-----------|------|-------------|
-| **ModelSelector** | `model-selector.tsx` | AI model dropdown |
-| **ModelCombobox** | `model-combobox.tsx` | Searchable model picker |
+| **ModelSelector** | `model-selector.tsx` | AI model dropdown with dynamic discovery |
 
 ---
 

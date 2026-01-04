@@ -13,6 +13,8 @@ interface ChatMessageListProps {
     onRegenerateFrom: (timestamp: number) => void;
     messagesEndRef: RefObject<HTMLDivElement | null>;
     onSuggestionClick?: (suggestion: string) => void;
+    streamingMessageId?: string | null;
+    streamingContent?: string;
 }
 
 const QUICK_SUGGESTIONS = [
@@ -32,7 +34,9 @@ export function ChatMessageList({
     threadId,
     onRegenerateFrom,
     messagesEndRef,
-    onSuggestionClick
+    onSuggestionClick,
+    streamingMessageId,
+    streamingContent,
 }: ChatMessageListProps) {
     if (!messages || messages.length === 0) {
         return (
@@ -74,6 +78,8 @@ export function ChatMessageList({
                     message={msg}
                     threadId={threadId}
                     onRegenerate={() => onRegenerateFrom(msg.timestamp)}
+                    isStreaming={streamingMessageId === msg.id}
+                    streamingContent={streamingMessageId === msg.id ? streamingContent : undefined}
                 />
             ))}
             {isLoading && (
@@ -88,7 +94,7 @@ export function ChatMessageList({
                     </div>
                 </div>
             )}
-            <div ref={messagesEndRef as React.RefObject<HTMLDivElement>} className="h-4" /></div>
+            <div ref={messagesEndRef} className="h-4" /></div>
     );
 }
 

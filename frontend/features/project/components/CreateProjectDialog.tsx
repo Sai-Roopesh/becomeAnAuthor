@@ -12,14 +12,16 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Sparkles, Plus, BookOpen, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { useSeriesRepository } from '@/hooks/use-series-repository';
 import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
-import { toast } from 'sonner';
-// Series import removed - unused
+import { toast } from '@/shared/utils/toast-service';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('CreateProjectDialog');
 
 const TITLES = [
     "The Last Starship", "Whispers in the Dark", "The Clockwork Heart", "Echoes of Eternity",
@@ -48,7 +50,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
 
     // Fetch existing series for the dropdown
     const existingSeries = useLiveQuery(
-        () => seriesRepo.list(),
+        () => seriesRepo.getAll(),
         [seriesRepo]
     );
 
@@ -65,14 +67,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
     const [isCreatingNewSeries, setIsCreatingNewSeries] = useState(false);
     const [newSeriesName, setNewSeriesName] = useState('');
 
-    // Auto-suggest next book number when series is selected
-    useEffect(() => {
-        if (formData.seriesId && existingSeries) {
-            // Count existing projects in this series to suggest next book number
-            // For now, just default to "Book 1" - in production, query project count
-            // This could be enhanced to auto-calculate
-        }
-    }, [formData.seriesId, existingSeries]);
+
 
     const handleChooseLocation = async () => {
         try {
@@ -86,7 +81,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
                 setFormData(prev => ({ ...prev, savePath: selected }));
             }
         } catch (error) {
-            console.error('Failed to open directory picker:', error);
+            log.error('Failed to open directory picker:', error);
             toast.error('Failed to open directory picker');
         }
     };
@@ -125,7 +120,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
             setIsCreatingNewSeries(false);
             setNewSeriesName('');
         } catch (error) {
-            console.error('Failed to create series:', error);
+            log.error('Failed to create series:', error);
             toast.error('Failed to create series');
         }
     };
@@ -203,7 +198,7 @@ export function CreateProjectDialog({ trigger }: CreateProjectDialogProps) {
             setOpen(false);
             setFormData({ title: '', author: '', language: 'English (US)', seriesId: '', seriesIndex: 'Book 1', savePath: '' });
         } catch (error) {
-            console.error('Failed to create project:', error);
+            log.error('Failed to create project:', error);
             const message = error instanceof Error ? error.message : 'Unknown error occurred';
             toast.error(`Failed to create project: ${message}`);
         }

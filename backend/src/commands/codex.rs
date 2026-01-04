@@ -8,7 +8,7 @@ use crate::models::{CodexEntry, CodexRelation, CodexTag, CodexEntryTag, CodexTem
 
 #[tauri::command]
 pub fn list_codex_entries(project_path: String) -> Result<Vec<CodexEntry>, String> {
-    let codex_dir = PathBuf::from(&project_path).join("codex");
+    let codex_dir = PathBuf::from(&project_path).join(".meta/codex");
     let mut entries = Vec::new();
     
     if !codex_dir.exists() {

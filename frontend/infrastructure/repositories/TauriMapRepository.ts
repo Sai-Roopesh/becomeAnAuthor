@@ -12,6 +12,9 @@ import {
     uploadMapImage
 } from '@/core/tauri/commands';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriMapRepository');
 
 export class TauriMapRepository implements IMapRepository {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -22,7 +25,7 @@ export class TauriMapRepository implements IMapRepository {
         try {
             return await listMaps(projectPath);
         } catch (error) {
-            console.error('Failed to list maps:', error);
+            log.error('Failed to list maps:', error);
             return [];
         }
     }
@@ -39,7 +42,7 @@ export class TauriMapRepository implements IMapRepository {
                 updatedAt: Date.now()
             });
         } catch (error) {
-            console.error('Failed to save map:', error);
+            log.error('Failed to save map:', error);
             throw error;
         }
     }
@@ -51,7 +54,7 @@ export class TauriMapRepository implements IMapRepository {
         try {
             await deleteMap(projectPath, mapId);
         } catch (error) {
-            console.error('Failed to delete map:', error);
+            log.error('Failed to delete map:', error);
             throw error;
         }
     }
@@ -65,7 +68,7 @@ export class TauriMapRepository implements IMapRepository {
         try {
             return await uploadMapImage(projectPath, mapId, imageData, fileName);
         } catch (error) {
-            console.error('Failed to upload map image:', error);
+            log.error('Failed to upload map image:', error);
             throw error;
         }
     }

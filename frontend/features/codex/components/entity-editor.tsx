@@ -1,6 +1,6 @@
 'use client';
 
-import { useLiveQuery } from '@/hooks/use-live-query';
+import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
 import { useCodexRepository } from '@/hooks/use-codex-repository';
 import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
 import { useMentions } from '@/hooks/use-mentions';
@@ -63,7 +63,9 @@ export function EntityEditor({ entityId, seriesId, onBack }: EntityEditorProps) 
 
     useEffect(() => {
         if (debouncedData && debouncedData.id === entityId && Object.keys(debouncedData).length > 0) {
-            codexRepo.update(seriesId, entityId, debouncedData);
+            codexRepo.update(seriesId, entityId, debouncedData).then(() => {
+                invalidateQueries();
+            });
         }
     }, [debouncedData, entityId, seriesId, codexRepo]);
 

@@ -1,6 +1,9 @@
 "use client";
 import { useCallback } from 'react';
 import { toast } from '@/shared/utils/toast-service';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('ErrorHandler');
 
 interface UseErrorHandlerOptions {
     showToast?: boolean;
@@ -20,9 +23,9 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}) {
             const errorObj = error instanceof Error ? error : new Error(String(error));
             const message = errorObj.message || 'An unexpected error occurred';
 
-            // Log to console in development
-            if (logToConsole && process.env.NODE_ENV === 'development') {
-                console.error(`Error${context ? ` in ${context}` : ''}:`, errorObj);
+            // Always log errors via structured logger
+            if (logToConsole) {
+                log.error(`Error${context ? ` in ${context}` : ''}`, errorObj);
             }
 
             // Show toast notification

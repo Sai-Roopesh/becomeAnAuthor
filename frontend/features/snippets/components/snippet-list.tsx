@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, FileText, Trash2, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
-// uuidv4 removed - unused
 import {
     DropdownMenu,
     DropdownMenuContent,

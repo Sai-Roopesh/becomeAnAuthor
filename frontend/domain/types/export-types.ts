@@ -155,34 +155,3 @@ export type TemplateVariable = {
     placeholder: string;
     value?: string;
 };
-
-/**
- * Available template variables
- */
-export const TEMPLATE_VARIABLES: Record<string, TemplateVariable> = {
-    title: {
-        key: '{{title}}',
-        label: 'Project Title',
-        placeholder: 'My Novel',
-    },
-    author: {
-        key: '{{author}}',
-        label: 'Author Name',
-        placeholder: 'John Doe',
-    },
-    year: {
-        key: '{{year}}',
-        label: 'Current Year',
-        placeholder: new Date().getFullYear().toString(),
-    },
-    date: {
-        key: '{{date}}',
-        label: 'Current Date',
-        placeholder: new Date().toLocaleDateString(),
-    },
-    wordCount: {
-        key: '{{wordCount}}',
-        label: 'Total Word Count',
-        placeholder: '0',
-    },
-};

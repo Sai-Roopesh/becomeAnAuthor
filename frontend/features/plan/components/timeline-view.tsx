@@ -10,7 +10,6 @@ import { TimelineHeader } from './timeline/TimelineHeader';
 import { TimelineLane } from './timeline/TimelineLane';
 import { TimelineControls, type LaneCategory } from './timeline/TimelineControls';
 import { useProjectStore } from '@/store/use-project-store';
-import { useRouter } from 'next/navigation';
 
 interface TimelineViewProps {
     projectId: string;
@@ -26,7 +25,6 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQ
         sceneCodexLinkRepository: linkRepo
     } = useAppServices();
 
-    const router = useRouter();
     const { setActiveSceneId, setShowSidebar } = useProjectStore();
     const [visibleCategories, setVisibleCategories] = useState<LaneCategory[]>(['character', 'subplot', 'location']);
 
@@ -74,8 +72,12 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQ
         setActiveSceneId(sceneId);
         // Ensure UI is ready for editing
         setShowSidebar(true);
-        router.push(`/project/editor`);
+        // Switch to write mode - we're already on /project?id=xxx
+        // No navigation needed, just change the view mode
+        const { setViewMode } = useProjectStore.getState();
+        setViewMode('write');
     };
+
 
     if (!codexEntries) return <div className="p-8 text-center text-muted-foreground">Loading timeline...</div>;
 

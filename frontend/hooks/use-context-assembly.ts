@@ -6,7 +6,10 @@
 
 import { useCallback, useRef } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
-import { logger } from '@/core/logger';
+import { logger } from '@/shared/utils/logger';
+import { CACHE_CONSTANTS } from '@/lib/config/constants';
+
+const log = logger.scope('ContextAssembly');
 import type { ContextItem } from '@/features/shared/components';
 import type { Scene, Act, Chapter, BaseNode } from '@/domain/entities/types';
 
@@ -50,7 +53,7 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
                 .join('|');
 
             if (cacheRef.current.has(cacheKey)) {
-                logger.debug('[ContextAssembly] Cache hit', { cacheKey });
+                log.debug('Cache hit', { cacheKey });
                 return cacheRef.current.get(cacheKey)!;
             }
 
@@ -61,7 +64,8 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
                 effectiveSeriesId = project?.seriesId;
             }
 
-            const { contextAssembler } = await import('@/shared/utils/context-assembler');
+            const { getContextAssembler } = await import('@/shared/utils/context-assembler');
+            const contextAssembler = getContextAssembler();
             const contexts: string[] = [];
 
             for (const context of selectedContexts) {
@@ -119,7 +123,7 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
                         }
                     }
                 } catch (error) {
-                    console.error(`[ContextAssembly] Failed to load ${context.label}:`, error);
+                    log.error(`Failed to load ${context.label}`, error);
                     contexts.push(`[${context.label}]: Failed to load content`);
                 }
             }
@@ -130,7 +134,7 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
             cacheRef.current.set(cacheKey, result);
 
             // Limit cache size to prevent memory issues
-            if (cacheRef.current.size > 50) {
+            if (cacheRef.current.size > CACHE_CONSTANTS.CONTEXT_CACHE_SIZE) {
                 const firstKey = cacheRef.current.keys().next().value;
                 if (firstKey !== undefined) {
                     cacheRef.current.delete(firstKey);

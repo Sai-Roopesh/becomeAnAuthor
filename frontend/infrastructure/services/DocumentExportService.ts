@@ -86,7 +86,7 @@ export class DocumentExportService implements IExportService {
         }
         blockquote {
             border-left: 3px solid #ccc;
-            padding-left: 15f;
+            padding-left: 15px;
             margin-left: 0;
             color: #666;
             font-style: italic;
@@ -378,9 +378,8 @@ ${htmlContent}
     /**
      * Export to ePub format
      * 
-     * NOTE: ePub export is handled directly by the useDocumentExport hook
-     * which calls the Rust backend command with a native file save dialog.
-     * This method is deprecated - use exportToEpub from useDocumentExport hook instead.
+     * @deprecated Use useDocumentExport hook for ePub export, which calls the Rust backend
+     * with a native file save dialog.
      */
     async exportToEpub(): Promise<Blob> {
         throw new Error(
@@ -476,8 +475,8 @@ ${htmlContent}
         if (config.frontMatter?.titlePage) {
             chapters.push({
                 title: 'Title Page',
-                data: `<h1 style="text-align: center; margin-top: 30%;">${config.epubMetadata?.title || 'Untitled'}</h1>
-                       <p style="text-align: center;">by ${config.epubMetadata?.author || 'Unknown'}</p>`,
+                data: `< h1 style = "text-align: center; margin-top: 30%;" > ${config.epubMetadata?.title || 'Untitled'} </h1>
+                    < p style = "text-align: center;" > by ${config.epubMetadata?.author || 'Unknown'} </p>`,
             });
         }
 

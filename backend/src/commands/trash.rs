@@ -15,9 +15,9 @@ pub fn move_to_trash(project_path: String, item_id: String, item_type: String, t
     let source_path = match item_type.as_str() {
         "scene" => project_dir.join("manuscript").join(format!("{}.md", item_id)),
         "codex" => {
-            let codex_dir = project_dir.join("codex");
+            let codex_dir = project_dir.join(".meta/codex");
             let mut found_path = None;
-            for category in &["characters", "locations", "items", "lore", "subplots"] {
+            for category in &["character", "location", "item", "lore", "subplot"] {
                 let path = codex_dir.join(category).join(format!("{}.json", item_id));
                 if path.exists() {
                     found_path = Some(path);
@@ -81,8 +81,8 @@ pub fn restore_from_trash(project_path: String, item_id: String, item_type: Stri
             } else {
                 serde_json::Value::Null
             };
-            let category = meta.get("category").and_then(|v| v.as_str()).unwrap_or("characters");
-            project_dir.join("codex").join(category).join(trashed_file.file_name())
+            let category = meta.get("category").and_then(|v| v.as_str()).unwrap_or("character");
+            project_dir.join(".meta/codex").join(category).join(trashed_file.file_name())
         },
         "snippet" => project_dir.join("snippets").join(trashed_file.file_name()),
         _ => return Err(format!("Unknown item type: {}", item_type)),

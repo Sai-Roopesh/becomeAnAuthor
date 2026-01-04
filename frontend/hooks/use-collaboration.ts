@@ -13,19 +13,9 @@ import { collaborationRepository } from '@/infrastructure/repositories/TauriColl
 import type { CollaborationStatus, CollaborationPeer } from '@/domain/entities/types';
 import { logger } from '@/shared/utils/logger';
 import { TIMING } from '@/lib/config/timing';
+import { COLLABORATION } from '@/lib/config/constants';
 
 const log = logger.scope('Collaboration');
-
-// Public signaling servers (for development, replace with self-hosted for production)
-const SIGNALING_SERVERS = [
-    'wss://signaling.yjs.dev',
-    'wss://y-webrtc-signaling-eu.herokuapp.com',
-    'wss://y-webrtc-signaling-us.herokuapp.com',
-];
-
-// Reconnection settings
-const MAX_RECONNECT_ATTEMPTS = 3;
-const BASE_RECONNECT_DELAY_MS = 2000;
 
 interface UseCollaborationOptions {
     sceneId: string;
@@ -100,7 +90,7 @@ export function useCollaboration({
 
         try {
             const provider = new WebrtcProvider(roomId, doc, {
-                signaling: SIGNALING_SERVERS,
+                signaling: [...COLLABORATION.SIGNALING_SERVERS],
             });
 
             // Set up awareness (user presence)
@@ -127,13 +117,13 @@ export function useCollaboration({
                     setStatus('connecting');
 
                     // Attempt reconnection
-                    if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                    if (reconnectAttemptsRef.current < COLLABORATION.MAX_RECONNECT_ATTEMPTS) {
                         isReconnectingRef.current = true;
-                        const delay = BASE_RECONNECT_DELAY_MS * (reconnectAttemptsRef.current + 1);
+                        const delay = COLLABORATION.BASE_RECONNECT_DELAY_MS * (reconnectAttemptsRef.current + 1);
 
                         reconnectTimeoutRef.current = setTimeout(() => {
                             reconnectAttemptsRef.current++;
-                            log.debug(`Reconnection attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS}`, { roomId });
+                            log.debug(`Reconnection attempt ${reconnectAttemptsRef.current}/${COLLABORATION.MAX_RECONNECT_ATTEMPTS}`, { roomId });
 
                             // Destroy old provider and create new one
                             provider.destroy();

@@ -2,6 +2,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 import type { CodexEntry } from '@/domain/entities/types';
 import type { Scene } from '@/core/tauri/commands';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('ContextEngine');
 
 // Structure node type from Tauri backend
 interface StructureNode {
@@ -146,7 +149,7 @@ export async function assembleContext(
             const sceneNode = allNodes.find(n => n.id === sceneId);
 
             if (!sceneNode?.file) {
-                console.warn(`[ContextEngine] Scene ${sceneId} has no file path`);
+                log.warn('Scene has no file path', { sceneId });
                 return context;
             }
 
@@ -192,7 +195,7 @@ export async function assembleContext(
                         mentionedEntries = allCodex.filter(e => mentionedIds.includes(e.id));
                     }
                 } catch (error) {
-                    console.warn('Failed to load codex entries for mentions:', error);
+                    log.warn('Failed to load codex entries for mentions', { error });
                 }
             }
 
@@ -253,7 +256,7 @@ export async function assembleContext(
             context += `## CURRENT SCENE\n${sceneText}\n\n`;
 
         } catch (error) {
-            console.error('Failed to load scene for context:', error);
+            log.error('Failed to load scene for context', error);
         }
     }
 
@@ -273,7 +276,7 @@ async function extractTextFromTiptap(content: unknown, depth: number = 0): Promi
 
     // Prevent stack overflow from deeply nested structures
     if (depth > MAX_DEPTH) {
-        console.warn('Max recursion depth reached in extractTextFromTiptap');
+        log.warn('Max recursion depth reached in extractTextFromTiptap');
         return '';
     }
 

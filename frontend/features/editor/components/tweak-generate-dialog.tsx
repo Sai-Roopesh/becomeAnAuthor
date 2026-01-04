@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 // ScrollArea, Checkbox imports removed - unused
 import { Expand, Copy } from 'lucide-react';
-import { ModelCombobox } from '@/features/ai';
+import { ModelSelector } from '@/components/model-selector';
 import type { ChatContext } from '@/domain/entities/types';
 import { storage } from '@/core/storage/safe-storage';
 import {
@@ -20,7 +20,7 @@ import {
 
 type GenerationMode = 'scene-beat' | 'continue-writing' | 'codex-progression';
 
-import { ContextSelector, type ContextItem } from '@/features/shared/components';
+import { ContextSelector, type ContextItem } from '@/components/context-selector';
 
 interface TweakGenerateDialogProps {
     open: boolean;
@@ -47,7 +47,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
         createInitialTweakGenerateState(defaultWordCount),
         tweakGenerateReducer
     );
-    const [context, setContext] = useState<ChatContext>({});
+
 
     useEffect(() => {
         // Load default model from AI connections with safe parsing
@@ -70,7 +70,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
         onGenerate({
             wordCount: parseInt(state.wordCount) || 400,
             instructions: state.instructions,
-            context,
+            context: {},  // Context selection handled via selectedContexts
             model: state.model || storage.getItem<string>('last_used_model', 'openai/gpt-3.5-turbo'),
             selectedContexts: state.selectedContexts
         });
@@ -79,7 +79,6 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
 
     const handleReset = () => {
         dispatch({ type: 'RESET', payload: { wordCount: defaultWordCount.toString() } });
-        setContext({});
     };
 
     return (
@@ -192,7 +191,7 @@ export function TweakGenerateDialog({ open, onOpenChange, onGenerate, defaultWor
 
                         {/* Model Selection */}
                         <div className="flex items-center justify-between pt-4 border-t">
-                            <ModelCombobox
+                            <ModelSelector
                                 value={state.model}
                                 onValueChange={(value) => dispatch({ type: 'SET_MODEL', payload: value })}
                                 className="w-[300px]"

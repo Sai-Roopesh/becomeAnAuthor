@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
+import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { CodexCategory, CodexEntry } from '@/domain/entities/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CodexFilterBarProps {
-    projectId: string;
     seriesId: string;  // Required - series-first architecture
     /** Currently selected codex entry IDs */
     selectedIds: string[];
@@ -50,7 +49,7 @@ export function CodexFilterBar({
 }: CodexFilterBarProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [popoverOpen, setPopoverOpen] = useState(false);
-    const codexRepo = useCodexRepository();
+    const { codexRepository: codexRepo } = useAppServices();
 
     // Get all codex entries for the series (series-first architecture)
     const entries = useLiveQuery(

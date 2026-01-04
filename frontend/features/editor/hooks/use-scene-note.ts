@@ -88,6 +88,12 @@ export function useSceneNote({
     const saveNote = useCallback(async () => {
         if (!note || !sceneId) return;
 
+        // Cancel any pending debounced save to prevent double-saves
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = null;
+        }
+
         const contentToSave = pendingContentRef.current ?? note.content;
         pendingContentRef.current = null;
 

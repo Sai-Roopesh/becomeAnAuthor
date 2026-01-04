@@ -8,6 +8,19 @@ import { useGoogleAuth } from '@/features/google-drive/hooks/use-google-auth';
 import { useImportExport } from '@/hooks/use-import-export';
 import { DriveFile } from '@/domain/entities/types';
 import { toast } from '@/shared/utils/toast-service';
+import { logger } from '@/shared/utils/logger';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+const log = logger.scope('DriveBackupBrowser');
 
 interface DriveBackupBrowserProps {
     onRestore: (fileId: string) => void;
@@ -20,6 +33,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
     const [backups, setBackups] = useState<DriveFile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRestoring, setIsRestoring] = useState<string | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
     useEffect(() => {
         // Only load backups if authenticated
@@ -36,7 +50,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
             const files = await listBackups();
             setBackups(files);
         } catch (error) {
-            console.error('Failed to load backups:', error);
+            log.error('Failed to load backups:', error);
             toast.error('Failed to load backups from Google Drive');
         } finally {
             setIsLoading(false);
@@ -49,25 +63,29 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
             await restoreFromGoogleDrive(fileId);
             onRestore(fileId);
         } catch (error) {
-            console.error('Restore failed:', error);
+            log.error('Restore failed:', error);
             toast.error(error instanceof Error ? error.message : 'Failed to restore backup');
         } finally {
             setIsRestoring(null);
         }
     };
 
-    const handleDelete = async (fileId: string, fileName: string) => {
-        if (!confirm(`Delete backup "${fileName}"? This cannot be undone.`)) {
-            return;
-        }
+    const handleDeleteClick = (fileId: string, fileName: string) => {
+        setDeleteConfirm({ id: fileId, name: fileName });
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteConfirm) return;
 
         try {
-            await deleteBackup(fileId);
+            await deleteBackup(deleteConfirm.id);
             toast.success('Backup deleted');
             loadBackups(); // Refresh list
         } catch (error) {
-            console.error('Delete failed:', error);
+            log.error('Delete failed:', error);
             toast.error('Failed to delete backup');
+        } finally {
+            setDeleteConfirm(null);
         }
     };
 
@@ -148,7 +166,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleDelete(backup.id, backup.name)}
+                                    onClick={() => handleDeleteClick(backup.id, backup.name)}
                                 >
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -157,6 +175,24 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
                     </div>
                 ))}
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Backup</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete &quot;{deleteConfirm?.name}&quot;? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

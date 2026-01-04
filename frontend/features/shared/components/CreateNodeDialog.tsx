@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { invalidateQueries } from '@/hooks/use-live-query';
-// DocumentNode removed - unused
+import { logger } from '@/shared/utils/logger';
+import { toast } from '@/shared/utils/toast-service';
+
+const log = logger.scope('CreateNodeDialog');
 
 interface CreateNodeDialogProps {
     open: boolean;
@@ -53,10 +56,10 @@ export function CreateNodeDialog({ open, onOpenChange, projectId, parentId, type
             setTitle('');
             onOpenChange(false);
         } catch (error) {
-            console.error('[CreateNodeDialog] Failed to create node:', error);
-            // Replace with logger once I confirm logger import, for now keeping minimally invasive change
-            // User requested removing console.LOG statements specifically, keeping error for safety unless logger is available
-            alert(`Failed to create ${type}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            log.error('Failed to create node:', error);
+            toast.error(`Failed to create ${type}`, {
+                description: error instanceof Error ? error.message : 'Unknown error'
+            });
         }
     };
 

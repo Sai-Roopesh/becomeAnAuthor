@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { SectionComponent } from '@/features/editor';
+import { SECTION_COLORS } from '@/lib/config/constants';
 
 export interface SectionAttributes {
     title: string;
@@ -28,7 +29,7 @@ export const Section = Node.create({
                 }),
             },
             color: {
-                default: '#3b82f6',
+                default: SECTION_COLORS[0].value, // Blue
                 parseHTML: element => element.getAttribute('data-color'),
                 renderHTML: attributes => ({
                     'data-color': attributes['color'],

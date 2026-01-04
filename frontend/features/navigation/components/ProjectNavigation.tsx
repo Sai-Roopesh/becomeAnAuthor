@@ -5,21 +5,39 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProjectStore } from '@/store/use-project-store';
 import { cn } from '@/lib/utils';
 import { DocumentNode } from '@/domain/entities/types';
-import { Plus, FileText, Folder, Book, Users } from 'lucide-react';
-import { useState } from 'react';
+import { Plus, FileText, Folder, Book, Users, MoreHorizontal } from 'lucide-react';
+import { useState, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreateNodeDialog } from '@/features/shared/components';
-import { SnippetList } from '../../snippets/components/snippet-list';
-import { CodexList } from '../../codex/components/codex-list';
 import { IdeasSection } from '../components/ideas-section';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from '@/shared/utils/toast-service';
-import { NodeActionsMenu } from '../../editor/components/NodeActionsMenu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProjectSettingsDialog } from '../../project/components/ProjectSettingsDialog';
 import { useAppServices } from '@/infrastructure/di/AppContext';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: string, onSelectSnippet?: (id: string) => void }) {
+interface ProjectNavigationProps {
+    projectId: string;
+    onSelectSnippet?: (id: string) => void;
+    // Slot props for cross-feature components
+    renderSnippetList?: (props: { projectId: string; onSelect: (id: string) => void }) => ReactNode;
+    renderCodexList?: (props: { seriesId: string }) => ReactNode;
+    renderNodeActionsMenu?: (props: { nodeId: string; nodeType: 'act' | 'chapter' | 'scene'; onDelete: (id: string, type: 'act' | 'chapter' | 'scene') => void }) => ReactNode;
+}
+
+export function ProjectNavigation({
+    projectId,
+    onSelectSnippet,
+    renderSnippetList,
+    renderCodexList,
+    renderNodeActionsMenu,
+}: ProjectNavigationProps) {
     const { projectRepository: projectRepo, nodeRepository: nodeRepo } = useAppServices();
 
     const project = useLiveQuery(() => projectRepo.get(projectId), [projectId, projectRepo]);
@@ -112,11 +130,30 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                         )}
 
                         <div className="opacity-40 group-hover:opacity-100 transition-opacity">
-                            <NodeActionsMenu
-                                nodeId={node.id}
-                                nodeType={node.type as 'act' | 'chapter' | 'scene'}
-                                onDelete={confirmDeleteNode}
-                            />
+                            {renderNodeActionsMenu ? (
+                                renderNodeActionsMenu({
+                                    nodeId: node.id,
+                                    nodeType: node.type as 'act' | 'chapter' | 'scene',
+                                    onDelete: confirmDeleteNode,
+                                })
+                            ) : (
+                                // Fallback minimal menu if no slot provided
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                                            <MoreHorizontal className="h-3 w-3" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onClick={() => confirmDeleteNode(node.id, node.type as 'act' | 'chapter' | 'scene')}
+                                            className="text-destructive"
+                                        >
+                                            Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -175,11 +212,23 @@ export function ProjectNavigation({ projectId, onSelectSnippet }: { projectId: s
                 </TabsContent>
 
                 <TabsContent value="codex" className="flex-1 overflow-hidden m-0">
-                    <CodexList projectId={projectId} seriesId={project.seriesId} />
+                    {renderCodexList ? (
+                        renderCodexList({ seriesId: project.seriesId })
+                    ) : (
+                        <div className="p-4 text-center text-muted-foreground text-sm">
+                            Codex component not provided
+                        </div>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="snippets" className="flex-1 overflow-hidden m-0">
-                    <SnippetList projectId={projectId} onSelect={(id) => onSelectSnippet?.(id)} />
+                    {renderSnippetList ? (
+                        renderSnippetList({ projectId, onSelect: (id) => onSelectSnippet?.(id) })
+                    ) : (
+                        <div className="p-4 text-center text-muted-foreground text-sm">
+                            Snippets component not provided
+                        </div>
+                    )}
                 </TabsContent>
             </Tabs>
 

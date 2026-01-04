@@ -1,6 +1,7 @@
 import Fuse from 'fuse.js';
 import type { FuseResultMatch } from 'fuse.js';
 import type { TiptapContent } from '@/shared/types/tiptap';
+import { SEARCH_CONSTANTS } from '@/lib/config/constants';
 
 /**
  * Search Service using Fuse.js for fuzzy searching
@@ -45,10 +46,10 @@ class SearchService {
         { name: 'summary', weight: 1.5 },
         { name: 'content', weight: 1 },
       ],
-      threshold: 0.4, // 0 = exact match, 1 = match anything
+      threshold: SEARCH_CONSTANTS.FUSE_THRESHOLD,
       includeScore: true,
       includeMatches: true,
-      minMatchCharLength: 2,
+      minMatchCharLength: SEARCH_CONSTANTS.MIN_MATCH_CHARS,
     });
   }
 
@@ -62,10 +63,10 @@ class SearchService {
         { name: 'category', weight: 1.5 },
         { name: 'description', weight: 1 },
       ],
-      threshold: 0.4,
+      threshold: SEARCH_CONSTANTS.FUSE_THRESHOLD,
       includeScore: true,
       includeMatches: true,
-      minMatchCharLength: 2,
+      minMatchCharLength: SEARCH_CONSTANTS.MIN_MATCH_CHARS,
     });
   }
 
@@ -131,5 +132,31 @@ class SearchService {
   }
 }
 
-// Singleton instance
-export const searchService = new SearchService();
+// Singleton instance with SSR guard
+let _searchService: SearchService | null = null;
+
+/**
+ * Get the search service singleton.
+ * Lazily initialized on first access.
+ * @throws Error if called during SSR
+ */
+export function getSearchService(): SearchService {
+  if (typeof window === 'undefined') {
+    throw new Error('searchService is client-only and cannot be used during SSR');
+  }
+  if (!_searchService) {
+    _searchService = new SearchService();
+  }
+  return _searchService;
+}
+
+// Backwards-compatible export (safe for client-side use)
+// During SSR, this evaluates to a proxy that throws on access
+export const searchService: SearchService = typeof window !== 'undefined'
+  ? getSearchService()
+  : new Proxy({} as SearchService, {
+    get() {
+      throw new Error('searchService is client-only and cannot be used during SSR');
+    },
+  });
+

@@ -1,3 +1,3 @@
 // Public API for AI feature
 // Components
-export { ModelCombobox } from './components/model-combobox';
+export { ModelSelector } from './components/model-selector';

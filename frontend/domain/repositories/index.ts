@@ -15,7 +15,5 @@ export type { ICodexRelationTypeRepository } from './ICodexRelationTypeRepositor
 export type { ICodexTagRepository } from './ICodexTagRepository';
 export type { ICodexTemplateRepository } from './ICodexTemplateRepository';
 export type { ISceneCodexLinkRepository } from './ISceneCodexLinkRepository';
-
-// Re-export types that might be needed
-export type { SceneCodexLink } from '../entities/types';
-
+export type { ICollaborationRepository } from './ICollaborationRepository';
+export type { IMentionRepository } from './IMentionRepository';

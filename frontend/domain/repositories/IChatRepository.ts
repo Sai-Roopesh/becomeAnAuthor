@@ -8,7 +8,7 @@ export interface IChatRepository {
     /**
      * Get a single thread by ID
      */
-    getThread(id: string): Promise<ChatThread | undefined>;
+    get(id: string): Promise<ChatThread | undefined>;
 
     /**
      * Get all threads for a project

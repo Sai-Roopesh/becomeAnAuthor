@@ -1,3 +1,8 @@
+/**
+ * Chat Store
+ * Manages chat UI state: active thread selection
+ */
+
 import { create } from 'zustand';
 
 interface ChatStore {

@@ -7,6 +7,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { WorldEvent } from '@/domain/entities/types';
 import { toast } from '@/shared/utils/toast-service';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('WorldTimeline');
 
 interface UseWorldTimelineProps {
     projectId: string;
@@ -24,7 +27,7 @@ export function useWorldTimeline({ projectId }: UseWorldTimelineProps) {
             const data = await worldTimelineRepository.list(projectId);
             setEvents(data);
         } catch (error) {
-            console.error('Failed to fetch world events:', error);
+            log.error('Failed to fetch world events:', error);
             toast.error('Failed to load world timeline');
         } finally {
             setLoading(false);
@@ -41,7 +44,7 @@ export function useWorldTimeline({ projectId }: UseWorldTimelineProps) {
             await fetchEvents();
             toast.success('Event saved successfully');
         } catch (error) {
-            console.error('Failed to save event:', error);
+            log.error('Failed to save event:', error);
             toast.error('Failed to save event');
             throw error;
         }
@@ -53,7 +56,7 @@ export function useWorldTimeline({ projectId }: UseWorldTimelineProps) {
             await fetchEvents();
             toast.success('Event deleted successfully');
         } catch (error) {
-            console.error('Failed to delete event:', error);
+            log.error('Failed to delete event:', error);
             toast.error('Failed to delete event');
             throw error;
         }

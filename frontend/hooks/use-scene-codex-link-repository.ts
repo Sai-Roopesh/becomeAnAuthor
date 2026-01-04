@@ -1,3 +1,5 @@
+'use client';
+
 import { useRepository } from './use-repository';
 import type { ISceneCodexLinkRepository } from '@/domain/repositories/ISceneCodexLinkRepository';
 

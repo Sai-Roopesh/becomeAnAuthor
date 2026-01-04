@@ -11,6 +11,9 @@ import {
     deleteWorldEvent
 } from '@/core/tauri/commands';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriWorldTimelineRepository');
 
 export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -21,7 +24,7 @@ export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
         try {
             return await listWorldEvents(projectPath);
         } catch (error) {
-            console.error('Failed to list world events:', error);
+            log.error('Failed to list world events:', error);
             return [];
         }
     }
@@ -38,7 +41,7 @@ export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
                 updatedAt: Date.now()
             });
         } catch (error) {
-            console.error('Failed to save world event:', error);
+            log.error('Failed to save world event:', error);
             throw error;
         }
     }
@@ -50,7 +53,7 @@ export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
         try {
             await deleteWorldEvent(projectPath, eventId);
         } catch (error) {
-            console.error('Failed to delete world event:', error);
+            log.error('Failed to delete world event:', error);
             throw error;
         }
     }

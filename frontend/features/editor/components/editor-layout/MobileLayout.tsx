@@ -4,10 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { PanelLeft, PanelRight, PenTool } from 'lucide-react';
 import { TiptapEditor } from '../tiptap-editor';
-import { SnippetEditor } from '../../../snippets/components/snippet-editor';
-import { ProjectNavigation } from '../../../navigation/components/ProjectNavigation';
 import { StoryTimeline } from '../story-timeline';
 import type { DocumentNode } from '@/domain/entities/types';
+import type { ReactNode } from 'react';
 
 interface MobileLayoutProps {
     projectId: string;
@@ -22,6 +21,9 @@ interface MobileLayoutProps {
     onWordCountChange: (count: number) => void;
     onSnippetSelect: (id: string) => void;
     onCloseSnippet: () => void;
+    // Slot components - avoid cross-feature imports
+    renderSidebar: () => ReactNode;
+    renderSnippetEditor: (props: { snippetId: string; onClose: () => void }) => ReactNode;
 }
 
 /**
@@ -39,8 +41,9 @@ export function MobileLayout({
     onSetShowSidebar,
     onSetShowTimeline,
     onWordCountChange,
-    onSnippetSelect,
     onCloseSnippet,
+    renderSidebar,
+    renderSnippetEditor,
 }: MobileLayoutProps) {
     return (
         <div className="h-full flex flex-col relative bg-background/95 backdrop-blur-sm">
@@ -60,7 +63,7 @@ export function MobileLayout({
             {/* Main Content Area */}
             <div className="flex-1 overflow-hidden relative">
                 {activeSnippetId ? (
-                    <SnippetEditor snippetId={activeSnippetId} onClose={onCloseSnippet} />
+                    renderSnippetEditor({ snippetId: activeSnippetId, onClose: onCloseSnippet })
                 ) : activeScene && activeScene.type === 'scene' ? (
                     <TiptapEditor
                         sceneId={activeScene.id}
@@ -80,7 +83,7 @@ export function MobileLayout({
             {/* Left Sidebar Sheet */}
             <Sheet open={showSidebar} onOpenChange={onSetShowSidebar}>
                 <SheetContent side="left" className="p-0 w-[85vw] max-w-[350px]">
-                    <ProjectNavigation projectId={projectId} onSelectSnippet={onSnippetSelect} />
+                    {renderSidebar()}
                 </SheetContent>
             </Sheet>
 
@@ -93,3 +96,4 @@ export function MobileLayout({
         </div>
     );
 }
+

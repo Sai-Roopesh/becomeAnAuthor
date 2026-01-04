@@ -15,6 +15,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { EDITOR_CONSTANTS } from '@/lib/config/constants';
 
 export function FormatMenu() {
     const {
@@ -114,8 +115,8 @@ export function FormatMenu() {
                                 <Slider
                                     value={[fontSize]}
                                     onValueChange={([v]) => v !== undefined && updateSettings({ fontSize: v })}
-                                    min={12}
-                                    max={24}
+                                    min={EDITOR_CONSTANTS.FONT_SIZE_MIN}
+                                    max={EDITOR_CONSTANTS.FONT_SIZE_MAX}
                                     step={1}
                                 />
                             </div>
@@ -156,8 +157,8 @@ export function FormatMenu() {
                                 <Slider
                                     value={[pageWidth]}
                                     onValueChange={([v]) => v !== undefined && updateSettings({ pageWidth: v })}
-                                    min={400}
-                                    max={1000}
+                                    min={EDITOR_CONSTANTS.PAGE_WIDTH_MIN}
+                                    max={EDITOR_CONSTANTS.PAGE_WIDTH_MAX}
                                     step={50}
                                 />
                             </div>

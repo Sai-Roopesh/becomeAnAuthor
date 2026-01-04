@@ -11,6 +11,9 @@ import {
     deleteSnippet
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('TauriSnippetRepository');
 
 /**
  * Tauri-based Snippet Repository
@@ -33,7 +36,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
         try {
             return await listSnippets(projectPath) as unknown as Snippet[];
         } catch (error) {
-            console.error('Failed to list snippets:', error);
+            log.error('Failed to list snippets:', error);
             return [];
         }
     }
@@ -64,7 +67,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
             await saveSnippet(projectPath, newSnippet);
             return newSnippet;
         } catch (error) {
-            console.error('Failed to create snippet:', error);
+            log.error('Failed to create snippet:', error);
             throw error;
         }
     }
@@ -85,7 +88,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
         try {
             await saveSnippet(projectPath, updated);
         } catch (error) {
-            console.error('Failed to update snippet:', error);
+            log.error('Failed to update snippet:', error);
             throw error;
         }
     }
@@ -104,7 +107,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
         try {
             await deleteSnippet(projectPath, id);
         } catch (error) {
-            console.error('Failed to delete snippet:', error);
+            log.error('Failed to delete snippet:', error);
             throw error;
         }
     }

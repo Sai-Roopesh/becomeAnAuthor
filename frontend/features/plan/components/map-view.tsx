@@ -7,7 +7,7 @@
  * Allows uploading map images and placing markers linked to Location codex entries.
  */
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,16 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
     Popover,
     PopoverContent,
@@ -45,6 +55,9 @@ import { useMaps } from '../hooks/use-maps';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import type { ProjectMap, MapMarker } from '@/domain/entities/types';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { logger } from '@/shared/utils/logger';
+
+const log = logger.scope('MapView');
 
 interface MapViewProps {
     projectId: string;
@@ -93,6 +106,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [newMapName, setNewMapName] = useState('');
     const [zoom, setZoom] = useState(1);
+    const [deleteMapConfirm, setDeleteMapConfirm] = useState<{ id: string; name: string } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -112,9 +126,11 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
     }, [maps, selectedMapId]);
 
     // Auto-select first map
-    if (maps && maps.length > 0 && !selectedMapId && maps[0]) {
-        setSelectedMapId(maps[0].id);
-    }
+    useEffect(() => {
+        if (maps && maps.length > 0 && !selectedMapId && maps[0]) {
+            setSelectedMapId(maps[0].id);
+        }
+    }, [maps, selectedMapId]);
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -178,11 +194,17 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
         await saveMap({ ...selectedMap, markers: updatedMarkers });
     };
 
-    const handleDeleteMap = async (mapId: string) => {
-        await deleteMap(mapId);
-        if (selectedMapId === mapId) {
+    const handleDeleteMapClick = (mapId: string, mapName: string) => {
+        setDeleteMapConfirm({ id: mapId, name: mapName });
+    };
+
+    const handleDeleteMapConfirm = async () => {
+        if (!deleteMapConfirm) return;
+        await deleteMap(deleteMapConfirm.id);
+        if (selectedMapId === deleteMapConfirm.id) {
             setSelectedMapId(null);
         }
+        setDeleteMapConfirm(null);
     };
 
     if (!maps) {
@@ -226,7 +248,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
                                     className="h-4 w-4 ml-1 opacity-0 group-hover:opacity-100"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDeleteMap(map.id);
+                                        handleDeleteMapClick(map.id, map.name);
                                     }}
                                 >
                                     <Trash2 className="h-3 w-3" />
@@ -305,7 +327,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
                                             className="max-w-none"
                                             draggable={false}
                                             onError={(e) => {
-                                                console.error('Failed to load map image:', fullPath);
+                                                log.error('Failed to load map image:', fullPath);
                                                 e.currentTarget.style.display = 'none';
                                             }}
                                         />
@@ -452,6 +474,24 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Map Confirmation */}
+            <AlertDialog open={!!deleteMapConfirm} onOpenChange={(open) => !open && setDeleteMapConfirm(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Map</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete &quot;{deleteMapConfirm?.name}&quot;? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteMapConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

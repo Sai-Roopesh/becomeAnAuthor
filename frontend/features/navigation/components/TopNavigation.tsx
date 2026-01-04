@@ -12,8 +12,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function TopNavigation({ projectId: _projectId }: { projectId: string }) {
+export function TopNavigation() {
     const { viewMode, setViewMode } = useProjectStore();
 
     const modes: { id: ViewMode; label: string; icon: React.ElementType }[] = [
@@ -60,14 +59,6 @@ export function TopNavigation({ projectId: _projectId }: { projectId: string }) 
                     ))}
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => { }}
-                        className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
-                        aria-label="Open search"
-                    >
-                        <span>Search</span>
-                        <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">⌘K</kbd>
-                    </button>
                     <SettingsDialog />
                 </div>
             </div>
