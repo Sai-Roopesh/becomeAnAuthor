@@ -1,6 +1,6 @@
 /**
  * ErrorBoundary Component Specification Tests
- * 
+ *
  * SPECIFICATIONS:
  * 1. MUST catch errors thrown by child components
  * 2. MUST display fallback UI when error occurs
@@ -9,41 +9,47 @@
  * 5. MUST provide retry functionality
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { ErrorBoundary } from '../error-boundary';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import React from "react";
+import { render, screen } from "@testing-library/react";
+import { ErrorBoundary } from "../error-boundary";
 
 // ============================================
 // Mock Dependencies
 // ============================================
 
-vi.mock('@/shared/utils/toast-service', () => ({
-    toast: {
-        error: vi.fn(),
-    },
+vi.mock("@/shared/utils/toast-service", () => ({
+  toast: {
+    error: vi.fn(),
+  },
 }));
 
-vi.mock('@/core/storage/safe-storage', () => ({
-    storage: {
-        getItem: vi.fn().mockReturnValue([]),
-        setItem: vi.fn(),
-    },
+vi.mock("@/core/storage/safe-storage", () => ({
+  storage: {
+    getItem: vi.fn().mockReturnValue([]),
+    setItem: vi.fn(),
+  },
 }));
 
-vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, onClick, ...props }: React.PropsWithChildren<{ onClick?: () => void }>) => (
-        <button onClick={onClick} {...props}>{children}</button>
-    ),
+vi.mock("@/components/ui/button", () => ({
+  Button: ({
+    children,
+    onClick,
+    ...props
+  }: React.PropsWithChildren<{ onClick?: () => void }>) => (
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
+  ),
 }));
 
-vi.mock('lucide-react', () => ({
-    AlertTriangle: () => <span data-testid="alert-icon">⚠️</span>,
-    RefreshCw: () => <span data-testid="refresh-icon">🔄</span>,
+vi.mock("lucide-react", () => ({
+  AlertTriangle: () => <span data-testid="alert-icon">⚠️</span>,
+  RefreshCw: () => <span data-testid="refresh-icon">🔄</span>,
 }));
 
-import { toast } from '@/shared/utils/toast-service';
-import { storage } from '@/core/storage/safe-storage';
+import { toast } from "@/shared/utils/toast-service";
+import { storage } from "@/core/storage/safe-storage";
 
 // ============================================
 // Test Helpers
@@ -51,165 +57,169 @@ import { storage } from '@/core/storage/safe-storage';
 
 // Component that throws an error
 const ThrowError = ({ error }: { error: Error }) => {
-    throw error;
+  throw error;
 };
 
 // Suppress console.error for cleaner test output
 const originalError = console.error;
 beforeEach(() => {
-    console.error = vi.fn();
-    vi.clearAllMocks();
+  console.error = vi.fn();
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
-    console.error = originalError;
+  console.error = originalError;
 });
 
 // ============================================
 // Specification Tests
 // ============================================
 
-describe('ErrorBoundary Component', () => {
-    // ========================================
-    // SPECIFICATION: Normal Rendering
-    // ========================================
+describe("ErrorBoundary Component", () => {
+  // ========================================
+  // SPECIFICATION: Normal Rendering
+  // ========================================
 
-    describe('SPEC: Normal Operation', () => {
-        it('MUST render children when no error', () => {
-            render(
-                <ErrorBoundary>
-                    <div data-testid="child">Hello World</div>
-                </ErrorBoundary>
-            );
+  describe("SPEC: Normal Operation", () => {
+    it("MUST render children when no error", () => {
+      render(
+        <ErrorBoundary>
+          <div data-testid="child">Hello World</div>
+        </ErrorBoundary>,
+      );
 
-            expect(screen.getByTestId('child')).toBeInTheDocument();
-            expect(screen.getByText('Hello World')).toBeInTheDocument();
-        });
-
-        it('MUST NOT show error UI when no error', () => {
-            render(
-                <ErrorBoundary>
-                    <div>Normal content</div>
-                </ErrorBoundary>
-            );
-
-            expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
-        });
+      expect(screen.getByTestId("child")).toBeInTheDocument();
+      expect(screen.getByText("Hello World")).toBeInTheDocument();
     });
 
-    // ========================================
-    // SPECIFICATION: Error Catching
-    // ========================================
+    it("MUST NOT show error UI when no error", () => {
+      render(
+        <ErrorBoundary>
+          <div>Normal content</div>
+        </ErrorBoundary>,
+      );
 
-    describe('SPEC: Error Catching', () => {
-        it('MUST catch errors from child components', () => {
-            const error = new Error('Test error');
+      expect(
+        screen.queryByText("Something went wrong"),
+      ).not.toBeInTheDocument();
+    });
+  });
 
-            render(
-                <ErrorBoundary>
-                    <ThrowError error={error} />
-                </ErrorBoundary>
-            );
+  // ========================================
+  // SPECIFICATION: Error Catching
+  // ========================================
 
-            // Should display error UI
-            expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-        });
+  describe("SPEC: Error Catching", () => {
+    it("MUST catch errors from child components", () => {
+      const error = new Error("Test error");
 
-        it('MUST display error message in UI', () => {
-            const error = new Error('Specific error message');
+      render(
+        <ErrorBoundary>
+          <ThrowError error={error} />
+        </ErrorBoundary>,
+      );
 
-            render(
-                <ErrorBoundary>
-                    <ThrowError error={error} />
-                </ErrorBoundary>
-            );
-
-            expect(screen.getByText('Specific error message')).toBeInTheDocument();
-        });
+      // Should display error UI
+      expect(screen.getByText("Something went wrong")).toBeInTheDocument();
     });
 
-    // ========================================
-    // SPECIFICATION: Fallback UI
-    // ========================================
+    it("MUST display error message in UI", () => {
+      const error = new Error("Specific error message");
 
-    describe('SPEC: Fallback UI', () => {
-        it('MUST use custom fallback when provided', () => {
-            const error = new Error('Test error');
-            const customFallback = <div data-testid="custom-fallback">Custom Error UI</div>;
+      render(
+        <ErrorBoundary>
+          <ThrowError error={error} />
+        </ErrorBoundary>,
+      );
 
-            render(
-                <ErrorBoundary fallback={customFallback}>
-                    <ThrowError error={error} />
-                </ErrorBoundary>
-            );
+      expect(screen.getByText("Specific error message")).toBeInTheDocument();
+    });
+  });
 
-            expect(screen.getByTestId('custom-fallback')).toBeInTheDocument();
-            expect(screen.getByText('Custom Error UI')).toBeInTheDocument();
-        });
+  // ========================================
+  // SPECIFICATION: Fallback UI
+  // ========================================
 
-        it('MUST show default error UI when no fallback provided', () => {
-            const error = new Error('Test error');
+  describe("SPEC: Fallback UI", () => {
+    it("MUST use custom fallback when provided", () => {
+      const error = new Error("Test error");
+      const customFallback = (
+        <div data-testid="custom-fallback">Custom Error UI</div>
+      );
 
-            render(
-                <ErrorBoundary>
-                    <ThrowError error={error} />
-                </ErrorBoundary>
-            );
+      render(
+        <ErrorBoundary fallback={customFallback}>
+          <ThrowError error={error} />
+        </ErrorBoundary>,
+      );
 
-            expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-            expect(screen.getByText('Reload Application')).toBeInTheDocument();
-        });
-
-        it('MUST show warning icon in error UI', () => {
-            const error = new Error('Test error');
-
-            render(
-                <ErrorBoundary>
-                    <ThrowError error={error} />
-                </ErrorBoundary>
-            );
-
-            expect(screen.getByTestId('alert-icon')).toBeInTheDocument();
-        });
+      expect(screen.getByTestId("custom-fallback")).toBeInTheDocument();
+      expect(screen.getByText("Custom Error UI")).toBeInTheDocument();
     });
 
-    // ========================================
-    // SPECIFICATION: Crash Reporting
-    // ========================================
+    it("MUST show default error UI when no fallback provided", () => {
+      const error = new Error("Test error");
 
-    describe('SPEC: Crash Reporting', () => {
-        it('MUST store crash report to storage', () => {
-            const error = new Error('Crash error');
+      render(
+        <ErrorBoundary>
+          <ThrowError error={error} />
+        </ErrorBoundary>,
+      );
 
-            render(
-                <ErrorBoundary>
-                    <ThrowError error={error} />
-                </ErrorBoundary>
-            );
-
-            expect(storage.setItem).toHaveBeenCalledWith(
-                'crash_reports',
-                expect.arrayContaining([
-                    expect.objectContaining({
-                        error: 'Error: Crash error',
-                        timestamp: expect.any(String),
-                    }),
-                ])
-            );
-        });
-
-        it('MUST show toast notification on error', () => {
-            const error = new Error('Toast error');
-
-            render(
-                <ErrorBoundary>
-                    <ThrowError error={error} />
-                </ErrorBoundary>
-            );
-
-            expect(toast.error).toHaveBeenCalledWith('Something went wrong', {
-                description: 'Toast error',
-            });
-        });
+      expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+      expect(screen.getByText("Reload Application")).toBeInTheDocument();
     });
+
+    it("MUST show warning icon in error UI", () => {
+      const error = new Error("Test error");
+
+      render(
+        <ErrorBoundary>
+          <ThrowError error={error} />
+        </ErrorBoundary>,
+      );
+
+      expect(screen.getByTestId("alert-icon")).toBeInTheDocument();
+    });
+  });
+
+  // ========================================
+  // SPECIFICATION: Crash Reporting
+  // ========================================
+
+  describe("SPEC: Crash Reporting", () => {
+    it("MUST store crash report to storage", () => {
+      const error = new Error("Crash error");
+
+      render(
+        <ErrorBoundary>
+          <ThrowError error={error} />
+        </ErrorBoundary>,
+      );
+
+      expect(storage.setItem).toHaveBeenCalledWith(
+        "crash_reports",
+        expect.arrayContaining([
+          expect.objectContaining({
+            error: "Error: Crash error",
+            timestamp: expect.any(String),
+          }),
+        ]),
+      );
+    });
+
+    it("MUST show toast notification on error", () => {
+      const error = new Error("Toast error");
+
+      render(
+        <ErrorBoundary>
+          <ThrowError error={error} />
+        </ErrorBoundary>,
+      );
+
+      expect(toast.error).toHaveBeenCalledWith("Something went wrong", {
+        description: "Toast error",
+      });
+    });
+  });
 });
