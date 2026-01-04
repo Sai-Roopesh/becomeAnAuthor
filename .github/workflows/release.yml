@@ -1,77 +1,135 @@
-name: Release
+name: Release App
 
 on:
-  push:
-    tags:
-      - 'v*'
-
-permissions:
-  contents: write
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: 'Release Type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
 
 jobs:
   release:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: macos-latest
-            args: --target aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
-          - platform: ubuntu-22.04
-            args: ''
-          - platform: windows-latest
-            args: ''
-
-    runs-on: ${{ matrix.platform }}
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node
+      - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-action@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './backend -> target'
-
-      - name: Install dependencies (Linux only)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: install dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install frontend dependencies
-        run: npm ci
+      - name: install rust stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: Build and release
+      # 1. Bump Version (Only run this on ONE runner, e.g., ubuntu, to avoid race conditions/multiple commits)
+      # We need to coordinate: One runner bumps & commits, others wait or pull?
+      # Actually, standard matrix strategy runs parallel.
+      # Solution: Break into two jobs.
+      # Job 1: Bump & Tag (runs on ubuntu)
+      # Job 2: Build & Release (runs on matrix, depends on Job 1)
+      
+    # Breaking simple flow into multi-job for safety
+  
+  bump-version:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.NEW_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump Version
+        id: bump
+        run: |
+          node scripts/update-version.js ${{ inputs.releaseType }}
+          # The script prints ::set-output name=NEW_VERSION::x.y.z (old syntax)
+          # We should update to new GITHUB_OUTPUT syntax in the script or here
+          # Let's handle it here for safety using the output from script logs if needed, 
+          # BUT easier: have script write to version.txt or just grep it.
+          # Or update script to use GITHUB_OUTPUT.
+          
+          # Let's fix script output in next step or regex it here.
+          # Re-reading package.json is safest.
+          VERSION=$(node -p "require('./package.json').version")
+          echo "NEW_VERSION=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Commit and Tag
+          git add package.json backend/tauri.conf.json backend/Cargo.toml
+          git commit -m "chore: release v$VERSION"
+          git tag v$VERSION
+          git push
+          git push origin v$VERSION
+
+  build-release:
+    needs: bump-version
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.bump-version.outputs.new_version }}
+      
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: install rust stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: install frontend dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          projectPath: backend
-          tagName: v__VERSION__
-          releaseName: 'Become An Author v__VERSION__'
-          releaseBody: |
-            ## What's New
-            See the commits for changes in this release.
-            
-            ## Installation
-            - **macOS**: Download the `.dmg` file, open it, and drag the app to Applications
-            - **Windows**: Download the `.msi` installer and run it
-            - **Linux**: Download the `.AppImage` or `.deb` file
-            
-            > **Note**: On macOS, you may need to right-click the app and select "Open" the first time.
+          tagName: v${{ needs.bump-version.outputs.new_version }}
+          releaseName: "Release v${{ needs.bump-version.outputs.new_version }}"
+          releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
