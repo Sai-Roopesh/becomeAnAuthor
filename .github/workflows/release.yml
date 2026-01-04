@@ -12,6 +12,7 @@ on:
         - patch
         - minor
         - major
+        - none
 
 jobs:
   release:
@@ -84,11 +85,17 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "NEW_VERSION=$VERSION" >> $GITHUB_OUTPUT
           
-          # Commit and Tag
-          git add package.json backend/tauri.conf.json backend/Cargo.toml
-          git commit -m "chore: release v$VERSION"
+          # Commit only if there are changes
+          if [[ -n $(git status --porcelain) ]]; then
+            git add package.json backend/tauri.conf.json backend/Cargo.toml
+            git commit -m "chore: release v$VERSION"
+            git push
+          else
+            echo "No changes to commit (skipping commit for 'none' release type)"
+          fi
+          
+          # Tag and Push
           git tag v$VERSION
-          git push
           git push origin v$VERSION
 
   build-release:

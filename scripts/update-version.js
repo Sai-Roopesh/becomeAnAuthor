@@ -2,9 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const releaseType = process.argv[2]; // 'major', 'minor', or 'patch'
-if (!['major', 'minor', 'patch'].includes(releaseType)) {
-    console.error('Usage: node update-version.js <major|minor|patch>');
+const releaseType = process.argv[2]; // 'major', 'minor', 'patch', or 'none'
+if (!['major', 'minor', 'patch', 'none'].includes(releaseType)) {
+    console.error('Usage: node update-version.js <major|minor|patch|none>');
     process.exit(1);
 }
 
@@ -15,6 +15,7 @@ const oldVersion = packageJson.version;
 
 // Helper to bump version
 const bump = (v, type) => {
+    if (type === 'none') return v;
     const parts = v.split('.').map(Number);
     if (type === 'major') { parts[0]++; parts[1] = 0; parts[2] = 0; }
     else if (type === 'minor') { parts[1]++; parts[2] = 0; }
@@ -23,7 +24,11 @@ const bump = (v, type) => {
 };
 
 const newVersion = bump(oldVersion, releaseType);
-console.log(`Bumping version: ${oldVersion} -> ${newVersion}`);
+if (releaseType === 'none') {
+    console.log(`Keeping current version: ${newVersion}`);
+} else {
+    console.log(`Bumping version: ${oldVersion} -> ${newVersion}`);
+}
 
 packageJson.version = newVersion;
 fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
