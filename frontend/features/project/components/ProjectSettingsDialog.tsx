@@ -265,15 +265,6 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setOpen(false);
-                router.push("/");
-              }}
-            >
-              Close Project
-            </Button>
             <Button onClick={handleSave} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save Changes
