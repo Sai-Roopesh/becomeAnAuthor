@@ -1,11 +1,11 @@
 // Text utilities
 
+use slug::slugify as slug_slugify;
+
 /// Convert a string to a URL-safe slug
+/// Uses the `slug` crate for proper Unicode/i18n handling
 pub fn slugify(s: &str) -> String {
-    s.chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '_' })
-        .collect::<String>()
-        .to_lowercase()
+    slug_slugify(s)
 }
 
 /// Count words in text

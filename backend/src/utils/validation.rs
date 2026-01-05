@@ -170,35 +170,15 @@ pub fn validate_no_null_bytes(input: &str, field_name: &str) -> Result<(), Strin
     Ok(())
 }
 
-/// Validate UUID format (basic check)
-pub fn validate_uuid_format(uuid: &str) -> Result<(), String> {
-    if uuid.is_empty() {
+/// Validate UUID format using the uuid crate
+pub fn validate_uuid_format(uuid_str: &str) -> Result<(), String> {
+    if uuid_str.is_empty() {
         return Err("UUID cannot be empty".to_string());
     }
 
-    // Basic UUID format: 8-4-4-4-12 hexadecimal characters
-    let parts: Vec<&str> = uuid.split('-').collect();
-    if parts.len() != 5 {
-        return Err("Invalid UUID format".to_string());
-    }
-
-    if parts[0].len() != 8
-        || parts[1].len() != 4
-        || parts[2].len() != 4
-        || parts[3].len() != 4
-        || parts[4].len() != 12
-    {
-        return Err("Invalid UUID format".to_string());
-    }
-
-    // Check all parts are hexadecimal
-    for part in parts {
-        if !part.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
-            return Err("UUID contains non-hexadecimal characters".to_string());
-        }
-    }
-
-    Ok(())
+    uuid::Uuid::parse_str(uuid_str)
+        .map(|_| ())
+        .map_err(|e| format!("Invalid UUID format: {}", e))
 }
 
 /// Validate that a path is within the allowed app directory

@@ -1,6 +1,6 @@
 /**
  * AI Module - Unified exports
- * 
+ *
  * Provides multi-vendor AI generation using Vercel AI SDK:
  * - 14 providers: OpenAI, Anthropic, Google, Mistral, DeepSeek, Groq, etc.
  * - Streaming support via streamText
@@ -9,15 +9,18 @@
 
 // AI client exports
 export {
-    generate,
-    stream,
-    generateText,  // Alias for backwards compatibility
-    generateTextStream,  // Alias for backwards compatibility
-    getEnabledConnections,
-    getConnectionForModel,
-    fetchModelsForConnection,
-    type GenerateOptions,
-} from './client';
+  generate,
+  stream,
+  object,
+  generateText, // Alias for backwards compatibility
+  generateTextStream, // Alias for backwards compatibility
+  generateObject, // Alias for backwards compatibility
+  getEnabledConnections,
+  getConnectionForModel,
+  fetchModelsForConnection,
+  type GenerateOptions,
+  type GenerateObjectOptions,
+} from "./client";
 
 // Provider exports
-export { getModel } from './providers';
+export { getModel } from "./providers";
