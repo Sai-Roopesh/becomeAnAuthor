@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Detailed implementation specifications for the Rust/Tauri backend.**  
-> Last updated: 2026-01-03
+> Last updated: 2026-01-05
 
 ---
 

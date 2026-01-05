@@ -1,9 +1,9 @@
 # User Acceptance Test Cases
 
 > **Document**: Comprehensive UAT for Become An Author  
-> **Version**: 1.0  
-> **Date**: December 22, 2025  
-> **Total Test Cases**: 200+
+> **Version**: 1.1  
+> **Date**: January 5, 2026  
+> **Total Test Cases**: 300+
 
 ---
 

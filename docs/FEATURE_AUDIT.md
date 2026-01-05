@@ -1,7 +1,7 @@
 # Become An Author - Complete Feature Audit
 
 > **Document Generated**: December 21, 2025  
-> **Last Updated**: January 3, 2026  
+> **Last Updated**: January 5, 2026  
 > **Project**: Become An Author - Local-first, AI-assisted desktop application for novelists
 
 ---
@@ -497,13 +497,31 @@ Scenes support the following metadata:
 |---------|-----------------|-------------|
 | **Export Text** | `export_manuscript_text(project_path)` | Export as plain text |
 | **Export DOCX** | `export_manuscript_docx(project_path, output_path)` | Export as Word document |
+| **Export EPUB** | `export_manuscript_epub(project_path, output_path)` | Export as eBook format |
 | **Export Backup** | `export_project_backup(project_path, output_path)` | Full JSON backup |
 | **Export as JSON** | `export_project_as_json(project_path)` | JSON string for cloud services |
+| **Write Export File** | `write_export_file(path, content)` | Write exported content to file |
 
-**DOCX Export:**
+**DOCX/EPUB Export:**
 - Preserves heading hierarchy (Act/Chapter/Scene)
 - Extracts plain text from Tiptap JSON
-- Uses `docx` Rust crate
+- Uses `docx` Rust crate for DOCX
+
+### 8.2.1 Custom Export Presets
+
+| Feature | Backend Command | Description |
+|---------|-----------------|-------------|
+| **List Presets** | `list_custom_presets` | Get all saved export presets |
+| **Save Preset** | `save_custom_preset(preset)` | Create/update export preset |
+| **Delete Preset** | `delete_custom_preset(preset_id)` | Remove export preset |
+
+**Frontend Hook**: `use-export-presets.ts`
+
+**Preset Options:**
+- Page size and margins
+- Font family and size  
+- Chapter/scene formatting
+- Include/exclude codex entries
 
 ### 8.3 Import Features
 

@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Next.js 16 frontend.**  
-> Last updated: 2026-01-03
+> Last updated: 2026-01-05
 
 ---
 
@@ -11,11 +11,11 @@
 This document provides an exhaustive analysis of the frontend architecture for the "Become An Author" application—a **local-first, AI-assisted writing studio** built with **Next.js 16**, **React 19**, and **Tauri v2**.
 
 ### Key Statistics
-- **192 Files** across **82 Directories**
+- **200+ Files** across **85+ Directories**
 - **18 Features** (Feature-Sliced Design)
-- **18 Repository Interfaces** (Clean Architecture)
-- **40+ Custom Hooks** (Business Logic Layer)
-- **4 Zustand Stores** (State Management)
+- **19 Repository Interfaces** (Clean Architecture)
+- **42+ Custom Hooks** (Business Logic Layer)
+- **3 Zustand Stores** (State Management)
 - **35+ Domain Entities** (Type-Safe Data Model)
 
 
@@ -310,7 +310,7 @@ export interface IRepository<T> {
 }
 ```
 
-**18 Repository Interfaces**:
+**19 Repository Interfaces**:
 1. `IProjectRepository` — Project CRUD (requires `seriesId`, `seriesIndex`)
 2. `INodeRepository` — Acts/Chapters/Scenes
 3. `ICodexRepository` — Codex entries **(series-scoped via `seriesId`)**
@@ -326,9 +326,10 @@ export interface IRepository<T> {
 13. `IIdeaRepository` — Brainstorm/Ideas storage
 14. `IMapRepository` — Story world maps
 15. `IMentionRepository` — Cross-reference tracking
-16. `ICollaborationRepository` — Multi-user collaboration features
+16. `ICollaborationRepository` — Real-time collaboration (Yjs state)
 17. `ISceneNoteRepository` — Scene annotations
 18. `IWorldTimelineRepository` — Timeline events
+19. *(Index file exports all interfaces)*
 
 **Location**: `frontend/domain/repositories/`
 

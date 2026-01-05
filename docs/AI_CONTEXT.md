@@ -226,43 +226,74 @@ frontend/
 ├── domain/                  # Clean Architecture - Domain Layer
 │   ├── entities/            # Zod schemas, TypeScript types
 │   │   └── types.ts         # All domain entities (9959 bytes)
-│   ├── repositories/        # 12 Repository Interfaces
+│   ├── repositories/        # 19 Repository Interfaces
 │   │   ├── IProjectRepository.ts
 │   │   ├── INodeRepository.ts
 │   │   ├── ICodexRepository.ts
 │   │   ├── IChatRepository.ts
 │   │   ├── IAnalysisRepository.ts
-│   │   └── ... (7 more)
-│   └── services/            # Domain services\n│       └── IModelDiscoveryService.ts  # Dynamic model fetching
+│   │   ├── ISnippetRepository.ts
+│   │   ├── ISeriesRepository.ts
+│   │   ├── ICodexTagRepository.ts
+│   │   ├── ICodexTemplateRepository.ts
+│   │   ├── ICodexRelationRepository.ts
+│   │   ├── ICodexRelationTypeRepository.ts
+│   │   ├── ISceneCodexLinkRepository.ts
+│   │   ├── ICollaborationRepository.ts
+│   │   ├── IMentionRepository.ts
+│   │   ├── IIdeaRepository.ts
+│   │   ├── IMapRepository.ts
+│   │   ├── ISceneNoteRepository.ts
+│   │   └── IWorldTimelineRepository.ts
+│   └── services/            # Domain services (6 interfaces)
+│       ├── IAnalysisService.ts
+│       ├── IChatService.ts
+│       ├── IExportService.ts
+│       ├── IModelDiscoveryService.ts
+│       └── INodeDeletionService.ts
 ├── infrastructure/          # Implementation Layer
-│   ├── repositories/        # 12 Tauri Repository Implementations
+│   ├── repositories/        # 18 Tauri Repository Implementations
 │   │   ├── TauriProjectRepository.ts
 │   │   ├── TauriNodeRepository.ts
 │   │   ├── TauriCodexRepository.ts
-│   │   └── ... (9 more)
-│   ├── services/            # Concrete service implementations
+│   │   ├── TauriCodexTagRepository.ts
+│   │   ├── TauriCodexTemplateRepository.ts
+│   │   ├── TauriCodexRelationRepository.ts
+│   │   ├── TauriCodexRelationTypeRepository.ts
+│   │   ├── TauriSceneCodexLinkRepository.ts
+│   │   └── ... (10 more)
+│   ├── services/            # 10 Concrete service implementations
 │   └── migrations/          # Data migration scripts
-├── features/                # Feature-Sliced Design
-│   ├── editor/              # Scene editor (23 files)
-│   ├── codex/               # World-building wiki (18 files)
-│   ├── chat/                # AI chat interface (16 files)
-│   ├── plan/                # Story planning tools (14 files)
-│   ├── review/              # Manuscript review (11 files)
-│   ├── ai/                  # AI integration components
-│   ├── search/              # Global search
-│   ├── settings/            # User preferences
-│   ├── google-drive/        # Google Drive integration
-│   ├── migration/           # Data migration UI
-│   ├── snippets/            # Reusable text snippets
-│   ├── series/              # Multi-book series management
-│   └── dashboard/           # Project dashboard
-├── hooks/                   # 39 Custom React Hooks
+├── features/                # Feature-Sliced Design (18 features)
+│   ├── editor/              # Scene editor (30 files)
+│   ├── codex/               # World-building wiki (19 files)
+│   ├── chat/                # AI chat interface (17 files)
+│   ├── plan/                # Story planning tools (19 files)
+│   ├── review/              # Manuscript review (15 files)
+│   ├── ai/                  # AI integration components (2 files)
+│   ├── search/              # Global search (8 files)
+│   ├── settings/            # User preferences (11 files)
+│   ├── google-drive/        # Google Drive integration (5 files)
+│   ├── migration/           # Data migration UI (4 files)
+│   ├── snippets/            # Reusable text snippets (4 files)
+│   ├── series/              # Multi-book series management (6 files)
+│   ├── dashboard/           # Project dashboard (7 files)
+│   ├── navigation/          # Tree navigation (5 files)
+│   ├── project/             # Project CRUD (3 files)
+│   ├── export/              # Document export (6 files)
+│   ├── collaboration/       # Real-time collaboration (2 files)
+│   ├── data-management/     # Import/export flows (4 files)
+│   └── shared/              # Shared feature utilities (6 files)
+├── hooks/                   # 42+ Custom React Hooks
 │   ├── use-ai.ts            # AI interaction hook
 │   ├── use-auto-save.ts     # Auto-save coordinator
 │   ├── use-context-assembly.ts  # AI context builder
 │   ├── use-confirmation.tsx # Confirmation dialogs
 │   ├── use-dialog-state.ts  # Dialog state management
-│   └── ... (34 more)
+│   ├── use-model-discovery.ts # Dynamic model fetching
+│   ├── use-collaboration.ts # Real-time collaboration
+│   ├── use-mentions.ts      # Codex mention tracking
+│   └── ... (34+ more)
 ├── lib/                     # Shared libraries
 │   ├── services/            # Business logic services
 │   ├── integrations/        # External integrations (Google Drive)
@@ -276,7 +307,7 @@ frontend/
 
 ### 3.3 Backend Architecture (Detailed)
 
-#### Command Modules (13 Total)
+#### Command Modules (19 Total)
 
 | Module | File | Purpose | Key Commands |
 |--------|------|---------|--------------|
@@ -290,8 +321,14 @@ frontend/
 | **Search** | `search.rs` | Full-text project search | `search_project` |
 | **Trash** | `trash.rs` | Soft-delete system | `move_to_trash`, `restore_from_trash`, `empty_trash` |
 | **Series** | `series.rs` | Multi-book series management | `list_series`, `create_series`, `update_series` |
-| **Seed** | `seed.rs` | Built-in templates/relation types | `seed_built_in_data` |
 | **Security** | `security.rs` | API key storage (OS Keychain) | `store_api_key`, `get_api_key`, `delete_api_key` |
+| **Idea** | `idea.rs` | Brainstorming storage | `list_ideas`, `create_idea`, `update_idea`, `delete_idea` |
+| **Mention** | `mention.rs` | Cross-reference tracking | `find_mentions`, `count_mentions` |
+| **Collaboration** | `collaboration.rs` | Yjs real-time sync state | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
+| **Scene Note** | `scene_note.rs` | Scene annotations | `get_scene_note`, `save_scene_note`, `delete_scene_note` |
+| **World Map** | `world_map.rs` | Story world maps | `list_maps`, `save_map`, `delete_map`, `upload_map_image` |
+| **World Timeline** | `world_timeline.rs` | Timeline events | `list_world_events`, `save_world_event`, `delete_world_event` |
+| **Preset** | `preset.rs` | Custom export presets | `list_custom_presets`, `save_custom_preset`, `delete_custom_preset` |
 | **Core** | `lib.rs` | App entry point, command registry | `get_app_info` |
 
 #### Data Models (Rust Structs)
@@ -312,7 +349,11 @@ frontend/
 | `ChatMessage` | `chat.rs` | Individual chat messages |
 | `Snippet` | `snippet.rs` | Reusable text blocks |
 | `Analysis` | `analysis.rs` | AI-generated analysis results |
-| `EmergencyBackup` | (backup.rs) | Auto-saved draft backups |
+| `Idea` | `idea.rs` | Brainstorming ideas |
+| `SceneNote` | `scene_note.rs` | Scene annotations |
+| `WorldMap` + `MapMarker` | `world_map.rs` | Story world maps |
+| `WorldEvent` | `world_timeline.rs` | Timeline events |
+| `EmergencyBackup` | `backup.rs` | Auto-saved draft backups |
 
 ---
 
@@ -827,6 +868,6 @@ graph TB
 
 ---
 
-**Last Updated**: 2025-12-25  
-**Document Version**: 2.1
+**Last Updated**: 2026-01-05  
+**Document Version**: 2.2
 

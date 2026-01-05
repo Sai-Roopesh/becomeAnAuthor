@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Rust/Tauri backend.**  
-> Last updated: 2026-01-03
+> Last updated: 2026-01-05
 
 ---
 
@@ -11,7 +11,7 @@
 This document provides an exhaustive analysis of the backend architecture for the "Become An Author" application—a **Rust-based Tauri backend** providing secure, local-first file system operations for a writing studio.
 
 ### Key Statistics
-- **18 Command Modules** (105 commands total)
+- **19 Command Modules** (110+ commands total)
 - **11 Data Model Files** (25+ structs)
 - **7 Utility Modules** (validation, security, I/O, timestamp)
 - **1 Main Binary** (`lib.rs` + `main.rs`)
@@ -148,7 +148,7 @@ backend/
 │   ├── main.rs                    # Binary entry point (4 lines)
 │   ├── lib.rs                     # Library + command registration (176 lines)
 │   │
-│   ├── commands/                  # Command modules (18 modules, 105 commands)
+│   ├── commands/                  # Command modules (19 modules, 110+ commands)
 │   │   ├── mod.rs                 # Module declarations
 │   │   ├── project.rs             # Project CRUD (19KB, 15 commands)
 │   │   ├── scene.rs               # Scene CRUD (7.4KB, 4 commands)
@@ -167,7 +167,8 @@ backend/
 │   │   ├── collaboration.rs       # Yjs state (2.1KB, 4 commands)
 │   │   ├── scene_note.rs          # Scene annotations (1.5KB, 3 commands)
 │   │   ├── world_map.rs           # Story maps (2.8KB, 4 commands)
-│   │   └── world_timeline.rs      # Timeline events (1.7KB, 3 commands)
+│   │   ├── world_timeline.rs      # Timeline events (1.7KB, 3 commands)
+│   │   └── preset.rs              # Custom export presets (1.9KB, 3 commands)
 │   │
 │   ├── models/                    # Data models (11 files, 25+ structs)
 │   │   ├── mod.rs                 # Module exports
@@ -220,6 +221,7 @@ pub mod idea;
 pub mod scene_note;
 pub mod world_map;
 pub mod world_timeline;
+pub mod preset;
 ```
 
 **Pattern**: Each module exports `#[tauri::command]` functions that are registered in `lib.rs`.
@@ -228,7 +230,7 @@ pub mod world_timeline;
 
 ## 3. Command Modules
 
-### 3.1 Command Inventory (67 Total)
+### 3.1 Command Inventory (110+ Total)
 
 #### Project Commands (11 commands)
 
@@ -427,6 +429,14 @@ pub mod world_timeline;
 | `list_world_events` | List timeline events |
 | `save_world_event` | Save timeline event |
 | `delete_world_event` | Delete timeline event |
+
+#### Preset Commands (3 commands)
+
+| Command | Purpose |
+|---------|---------|
+| `list_custom_presets` | List custom export presets |
+| `save_custom_preset` | Save custom preset |
+| `delete_custom_preset` | Delete custom preset |
 
 ---
 

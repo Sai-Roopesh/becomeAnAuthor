@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]  
 > **Comprehensive audit of the Tauri IPC boundary between Rust backend and TypeScript frontend.**  
-> Last audited: 2026-01-03
+> Last audited: 2026-01-05
 
 ---
 
@@ -11,10 +11,10 @@
 This document provides an exhaustive audit of how the **Rust backend** (Tauri v2) connects to the **TypeScript frontend** (Next.js 16) in the "Become An Author" application.
 
 ### Key Statistics
-- **67 Tauri Commands** registered in `backend/src/lib.rs`
-- **13 Backend Modules** (`project.rs`, `scene.rs`, `codex.rs`, `chat.rs`, etc.)
-- **12 Frontend Repository Interfaces** in `frontend/domain/repositories/`
-- **12 Tauri Repository Implementations** in `frontend/infrastructure/repositories/`
+- **110+ Tauri Commands** registered in `backend/src/lib.rs`
+- **19 Backend Modules** (`project.rs`, `scene.rs`, `codex.rs`, `chat.rs`, `preset.rs`, etc.)
+- **19 Frontend Repository Interfaces** in `frontend/domain/repositories/`
+- **18 Tauri Repository Implementations** in `frontend/infrastructure/repositories/`
 - **1 Commands Wrapper Module** in `frontend/core/tauri/commands.ts` (502 lines)
 
 ### Architecture Pattern

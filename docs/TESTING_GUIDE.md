@@ -1,6 +1,6 @@
 # Test-Driven Development Guide
 
-> **Last Updated**: December 28, 2025  
+> **Last Updated**: January 5, 2026  
 > **Purpose**: Comprehensive guide for implementing TDD in the Become An Author codebase
 
 ---
@@ -25,6 +25,7 @@
 ```
 frontend/
 ├── hooks/
+│   ├── __tests__/               # Test folder for hooks
 │   ├── use-ai.test.ts           ← ⚠️ Co-located
 │   ├── use-debounce.test.ts
 │   ├── use-dialog-state.test.ts
@@ -32,7 +33,6 @@ frontend/
 │   ├── use-context-assembly.test.ts
 │   ├── use-live-query.test.ts
 │   ├── use-mobile.test.ts
-│   ├── use-storage-quota.test.ts
 │   └── use-tab-leader.test.ts
 ├── lib/__tests__/
 │   └── ai-utils.test.ts         ← ⚠️ __tests__ folder
@@ -40,16 +40,25 @@ frontend/
 │   └── token-counter.test.ts    ← ⚠️ __tests__ folder
 ├── features/codex/utils/__tests__/
 │   └── arcContextUtils.test.ts  ← ⚠️ __tests__ folder
-└── infrastructure/repositories/__tests__/
-    └── (empty)                   ← ⚠️ Repository tests missing!
+├── features/search/components/__tests__/
+│   └── search-components.test.tsx
+├── components/__tests__/
+│   └── error-boundary.test.tsx
+└── infrastructure/
+    ├── repositories/__tests__/
+    │   └── TauriAnalysisRepository.test.ts
+    └── services/__tests__/
+        ├── document-export-service.test.ts
+        ├── emergency-backup-service.test.ts
+        └── model-discovery-service.test.ts
 ```
 
 ### Current Test Statistics
 
 | Metric | Value |
 |--------|-------|
-| Test Files | 12 |
-| Total Tests | 93 |
+| Test Files | 15+ |
+| Total Tests | 100+ |
 | All Passing | ✅ Yes |
 | Coverage | Not measured |
 
@@ -59,10 +68,10 @@ frontend/
 |-------|-----------|----------|
 | **Domain Entities** | ❌ No | High |
 | **Repository Interfaces** | ❌ No | High |
-| **Tauri Repositories** | ❌ No | **Critical** |
-| **Custom Hooks** | ✅ Partial (9/41) | Medium |
-| **Services** | ❌ No | High |
-| **UI Components** | ❌ No | Medium |
+| **Tauri Repositories** | ⚠️ Partial (1/18) | **Critical** |
+| **Custom Hooks** | ✅ Partial (9/42+) | Medium |
+| **Services** | ✅ Partial (3/10) | High |
+| **UI Components** | ⚠️ Partial | Medium |
 | **Rust Commands** | ❌ No | High |
 | **E2E** | ⚠️ 1 file | Low |
 
