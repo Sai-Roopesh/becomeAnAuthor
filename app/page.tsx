@@ -9,14 +9,18 @@ import type { ISeriesRepository } from "@/domain/repositories/ISeriesRepository"
 import { DashboardHeader } from "@/features/dashboard/components/DashboardHeader";
 import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
 import { EmptyState } from "@/features/dashboard/components/EmptyState";
-import { DataManagementMenu } from "@/features/data-management";
+import {
+  DataManagementMenu,
+  RestoreProjectDialog,
+} from "@/features/data-management";
 import { SeriesList } from "@/features/series";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Library } from "lucide-react";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { BookOpen, Library, FileDown } from "lucide-react";
 import { toast } from "@/shared/utils/toast-service";
 import { CreateProjectDialog } from "@/features/project";
-import { RestoreProjectDialog } from "@/features/data-management";
+import { ExportDialog } from "@/features/export";
 
 export default function Dashboard() {
   const projectRepo = useRepository<IProjectRepository>("projectRepository");
@@ -25,6 +29,8 @@ export default function Dashboard() {
   const series = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
   const { confirm, ConfirmationDialog } = useConfirmation();
   const [viewMode, setViewMode] = useState<"projects" | "series">("projects");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportProjectId, setExportProjectId] = useState<string | null>(null);
 
   // Create a map of seriesId -> series title for quick lookups
   const seriesMap = useMemo(() => {
@@ -111,6 +117,21 @@ export default function Dashboard() {
             projects={projects}
             seriesMap={seriesMap}
             onDeleteProject={handleDeleteProject}
+            createProjectSlot={<CreateProjectDialog />}
+            restoreProjectSlot={<RestoreProjectDialog />}
+            renderExportButton={(projectId) => (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExportProjectId(projectId);
+                  setExportDialogOpen(true);
+                }}
+              >
+                <FileDown className="h-4 w-4 mr-2" />
+                Export
+              </DropdownMenuItem>
+            )}
           />
         )
       ) : (
@@ -118,6 +139,18 @@ export default function Dashboard() {
       )}
 
       <ConfirmationDialog />
+
+      {/* Export Dialog - rendered at root level for proper portal behavior */}
+      {exportProjectId && (
+        <ExportDialog
+          projectId={exportProjectId}
+          open={exportDialogOpen}
+          onOpenChange={(open) => {
+            setExportDialogOpen(open);
+            if (!open) setExportProjectId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
