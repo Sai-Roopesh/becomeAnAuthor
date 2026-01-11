@@ -1,9 +1,9 @@
 # User Acceptance Test Cases
 
 > **Document**: Comprehensive UAT for Become An Author  
-> **Version**: 1.1  
-> **Date**: January 5, 2026  
-> **Total Test Cases**: 300+
+> **Version**: 2.0  
+> **Date**: January 10, 2026  
+> **Total Test Cases**: 375+
 
 ---
 
@@ -269,16 +269,21 @@
 | AI-007 | Regenerate | 1. Generate 2. Click Regenerate | New generation replaces old | P2 |
 | AI-008 | Custom prompt for continue | 1. Enter custom instructions | AI follows instructions | P2 |
 
-## 5.2 Rewrite Selection
+## 5.2 Text Transformation (Selection Menu)
+
+> **✅ STATUS: FIXED** - Menu now appears when any text is selected (1+ words).
 
 | ID | Test Case | Steps | Expected Result | Priority |
 |----|-----------|-------|-----------------|----------|
-| AI-010 | Rewrite button visible | 1. Select text | Rewrite option in menu | P1 |
-| AI-011 | Rewrite selected text | 1. Select 2. Click Rewrite | AI rewrites selection | P1 |
-| AI-012 | Rewrite preview | 1. Rewrite | Shows original vs. rewrite | P1 |
-| AI-013 | Accept rewrite | 1. Click Accept | Selection replaced with rewrite | P1 |
-| AI-014 | Reject rewrite | 1. Click Reject | Original text preserved | P1 |
-| AI-015 | Rewrite with style options | 1. Select style (more formal, simpler, etc.) | Rewrite reflects style | P2 |
+| AI-010 | Selection menu visible | 1. Select any text | Menu appears above selection with Expand/Rephrase/Shorten buttons | P1 |
+| AI-011 | Expand selected text | 1. Select 2. Click Expand | AI expands selection with more detail | P1 |
+| AI-012 | Rephrase selected text | 1. Select 2. Click Rephrase | AI rephrases while keeping meaning | P1 |
+| AI-013 | Shorten selected text | 1. Select 2. Click Shorten | AI condenses selection | P1 |
+| AI-014 | Preview tab shows before/after | 1. Generate | Shows original vs. transformed text | P1 |
+| AI-015 | Apply transformation | 1. Click Apply | Selection replaced with transformed text | P1 |
+| AI-016 | Discard transformation | 1. Click Discard | Original text preserved | P1 |
+| AI-017 | Regenerate with different options | 1. Generate 2. Switch to Tweak tab 3. Change options 4. Regenerate | New transformation with new options | P2 |
+| AI-018 | Transformation style options | 1. Select style (e.g., "Show don't tell", "Add inner thoughts") | Transformation reflects style | P2 |
 
 ## 5.3 AI Context
 
@@ -663,13 +668,25 @@
 
 ## 17.1 Slash Command Usage
 
+> **✅ STATUS: FIXED** - SlashCommands extension now included in editor.
+
 | ID | Test Case | Steps | Expected Result | Priority |
 |----|-----------|-------|-----------------|----------|
-| SLH-001 | Trigger slash menu | 1. Type / at line start | Command palette appears | P2 |
-| SLH-002 | Insert heading | 1. Type / 2. Select Heading 1 | H1 inserted | P2 |
-| SLH-003 | Insert section break | 1. Type / 2. Select Section | Section break inserted | P2 |
-| SLH-004 | Filter commands | 1. Type /hea | Shows only heading commands | P2 |
-| SLH-005 | Cancel with Escape | 1. Type / 2. Press Escape | Menu closes | P2 |
+| SLH-001 | Trigger slash menu | 1. Type / anywhere in editor | Command palette appears | P2 |
+| SLH-002 | Insert Spark Ideas | 1. Type / 2. Select "Spark Ideas" | AI writing prompts dialog opens | P2 |
+| SLH-003 | Insert Scene Beat | 1. Type / 2. Select "Scene Beat" | Scene beat marker dialog opens | P2 |
+| SLH-004 | Insert Section | 1. Type / 2. Select "Section" | Colored section block inserted | P2 |
+| SLH-005 | Insert Divider | 1. Type / 2. Select "Divider" | Horizontal rule inserted | P2 |
+| SLH-006 | Continue Writing | 1. Type / 2. Select "Continue Writing" | AI generation menu opens | P2 |
+| SLH-007 | Filter commands | 1. Type /spa | Shows only matching commands | P2 |
+| SLH-008 | Cancel with Escape | 1. Type / 2. Press Escape | Menu closes | P2 |
+
+> **Available Commands:**
+> - `/spark` - AI writing prompts
+> - `/beat` - Scene beat marker  
+> - `/continue` - AI continuation
+> - `/section` - Colored section block
+> - `/divider` - Horizontal rule
 
 ---
 
@@ -731,6 +748,167 @@
 
 ---
 
+# 21. MAP VIEW (WORLDBUILDING)
+
+## 21.1 Map Management
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| MAP-001 | Open map view | 1. Click Plan tab 2. Select Map view | Map view displays | P2 |
+| MAP-002 | Upload map image | 1. Click "Upload Map" 2. Select image file | Map image displays in viewer | P2 |
+| MAP-003 | Create multiple maps | 1. Upload second map 2. Switch between maps | Multiple maps managed | P2 |
+| MAP-004 | Delete map | 1. Click delete on map 2. Confirm | Map removed with markers | P2 |
+| MAP-005 | Rename map | 1. Edit map name 2. Save | Map name updated | P3 |
+
+## 21.2 Map Markers
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| MAP-010 | Add marker to map | 1. Click on map location | Marker created at click position | P2 |
+| MAP-011 | Link marker to codex | 1. Create marker 2. Select Location entry | Marker linked to codex entry | P2 |
+| MAP-012 | Edit marker | 1. Click marker 2. Change properties | Marker updated | P2 |
+| MAP-013 | Delete marker | 1. Click delete on marker | Marker removed | P2 |
+| MAP-014 | Marker colors | 1. Select marker color | Marker displays in selected color | P3 |
+| MAP-015 | Click marker opens codex | 1. Click linked marker | Associated codex entry opens | P3 |
+
+---
+
+# 22. WORLD TIMELINE
+
+## 22.1 World Events
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| WTL-001 | Open world timeline | 1. Click Plan tab 2. Select World Timeline | World timeline displays | P2 |
+| WTL-002 | Add world event | 1. Click "Add Event" 2. Fill form | Event created on timeline | P2 |
+| WTL-003 | Event with year and era | 1. Enter year 2. Enter era name | Event positioned chronologically | P2 |
+| WTL-004 | Event categories | 1. Select category (Political/Natural/Magical/Tech/Conflict) | Event displays with category icon | P2 |
+| WTL-005 | Event importance levels | 1. Set importance (minor/moderate/major/world-changing) | Event styled by importance | P3 |
+| WTL-006 | Edit world event | 1. Click event 2. Edit details | Event updated | P2 |
+| WTL-007 | Delete world event | 1. Click delete 2. Confirm | Event removed | P2 |
+| WTL-008 | Group events by era | 1. Create events in different eras | Events grouped by era on timeline | P3 |
+
+---
+
+# 23. CHARACTER ARCS
+
+## 23.1 Arc Timeline
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| ARC-001 | View arc timeline | 1. Open character codex entry 2. View Arcs section | Arc timeline with graph displays | P2 |
+| ARC-002 | Arc stats graph | 1. View arc with points | Character stats visualized in line chart | P2 |
+| ARC-003 | Add arc point | 1. Click "Add Point" 2. Fill form 3. Save | Arc point added to timeline | P2 |
+| ARC-004 | Arc point event types | 1. Select event type (book/scene) | Point linked to book or scene | P2 |
+| ARC-005 | Edit arc point | 1. Click arc point 2. Edit details | Point updated | P2 |
+| ARC-006 | Delete arc point | 1. Click delete on point 2. Confirm | Point removed | P2 |
+
+## 23.2 Arc Point Details
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| ARC-010 | Knowledge state | 1. Add what character knows/doesn't know | Knowledge state saved | P3 |
+| ARC-011 | Emotional state | 1. Add dominant emotion, trauma | Emotional state tracked | P3 |
+| ARC-012 | Goals and motivations | 1. Add primary goal, fears, desires | Goals tracked per point | P3 |
+| ARC-013 | Character stats | 1. Adjust stat sliders | Stats reflected in graph | P2 |
+
+---
+
+# 24. SCENE NOTES
+
+## 24.1 Scene Notes Panel
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| SNT-001 | View scene notes panel | 1. Open scene 2. View right sidebar | Scene notes panel visible | P2 |
+| SNT-002 | Add notes to scene | 1. Type in notes editor | Notes saved with rich text | P2 |
+| SNT-003 | Notes auto-save | 1. Edit notes 2. Wait | "Saving..." then "Saved" indicator | P2 |
+| SNT-004 | Notes per scene | 1. Switch scenes | Each scene has separate notes | P2 |
+| SNT-005 | Delete scene notes | 1. Click trash 2. Confirm | Notes cleared | P2 |
+| SNT-006 | Notes formatting | 1. Apply bold/italic/headings | Formatting preserved | P3 |
+| SNT-007 | Notes timestamp | 1. View notes | Last updated timestamp shown | P3 |
+
+---
+
+# 25. SCENE LINKS
+
+## 25.1 Scene-Codex Linking
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| SLK-001 | Open scene link panel | 1. Open scene 2. Click link icon | Scene link panel opens | P2 |
+| SLK-002 | Link codex entry to scene | 1. Click entry 2. Entry linked | Entry appears in scene links | P2 |
+| SLK-003 | Link with role | 1. Link entry 2. Select role (Appears/Mentioned/POV/Location/Plot) | Role saved | P2 |
+| SLK-004 | Change link role | 1. Click role dropdown 2. Change role | Role updated | P2 |
+| SLK-005 | Remove link | 1. Click X on linked entry | Entry unlinked from scene | P2 |
+| SLK-006 | Filter by category | 1. Select category tab | Only entries of that category shown | P3 |
+| SLK-007 | View linked entries in scene | 1. View scene card in plan view | Linked entries shown as badges | P2 |
+
+---
+
+# 26. STORY BEATS
+
+## 26.1 Beat Management
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| BET-001 | View story beats panel | 1. Open scene 2. View beats section | Story beats panel visible | P2 |
+| BET-002 | Add beat to scene | 1. Click "Add" 2. Select beat type | Beat added (Opening, Inciting Incident, etc.) | P2 |
+| BET-003 | Beat types available | 1. Open add dropdown | See: Opening, Inciting Incident, Lock-In, Midpoint, Dark Night, Climax, Resolution, Setup, Payoff | P2 |
+| BET-004 | Toggle beat completion | 1. Click on beat | Beat marked complete/incomplete | P2 |
+| BET-005 | Remove beat from scene | 1. Click X on beat | Beat removed | P2 |
+| BET-006 | Beat prevents duplicates | 1. Add "Opening" beat 2. Try to add again | Option not available | P3 |
+| BET-007 | Beats shown in timeline | 1. View timeline with beats | Beat icons visible on scene cards | P3 |
+
+---
+
+# 27. TINKER MODE (CUSTOM AI MODIFICATIONS)
+
+## 27.1 Tinker Mode Usage
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| TNK-001 | Open tinker mode | 1. Select text 2. Open Tinker/Tweak menu | Tinker mode dialog opens | P2 |
+| TNK-002 | Enter custom instruction | 1. Type instruction (e.g., "Make more dramatic") | Instruction field accepts input | P2 |
+| TNK-003 | Select model | 1. Choose AI model from selector | Model selected | P2 |
+| TNK-004 | Generate modification | 1. Enter instruction 2. Click Generate | AI generates modified text with streaming | P2 |
+| TNK-005 | Streaming preview | 1. Generate | Preview shows text streaming in real-time | P2 |
+| TNK-006 | Accept modification | 1. Wait for generation | Text replaced in editor | P2 |
+| TNK-007 | Cancel generation | 1. Click Cancel during generation | Generation stops, original preserved | P2 |
+| TNK-008 | Auto-save after modification | 1. Accept modification | Scene auto-saves with changes | P2 |
+
+---
+
+# 28. CODEX AI CONTEXT SETTINGS
+
+## 28.1 AI Context Per Entry
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| CTX-001 | View tracking tab | 1. Open codex entry 2. Click Tracking tab | AI context settings visible | P2 |
+| CTX-002 | Always include | 1. Select "Always include" | Entry always in AI context | P2 |
+| CTX-003 | Include when detected | 1. Select "Include when detected" (default) | Entry added when mentioned | P2 |
+| CTX-004 | Don't include when detected | 1. Select "Don't include when detected" | Entry excluded unless manually added | P2 |
+| CTX-005 | Never include | 1. Select "Never include" | Entry never shown to AI | P2 |
+| CTX-006 | Track mentions toggle | 1. Toggle "Track this entry" | Mention tracking enabled/disabled | P2 |
+
+---
+
+# 29. CODEX RESEARCH TAB
+
+## 29.1 Research Management
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| RSH-001 | View research tab | 1. Open codex entry 2. Click Research tab | Research panel visible | P2 |
+| RSH-002 | Add research notes | 1. Type in notes field | Notes saved (private, not seen by AI) | P2 |
+| RSH-003 | Add external link | 1. Click "Add Link" 2. Enter URL | Link added to entry | P2 |
+| RSH-004 | Open external link | 1. Click on saved link | Link opens in browser | P2 |
+| RSH-005 | Remove external link | 1. Click X on link | Link removed | P2 |
+| RSH-006 | Multiple links | 1. Add multiple links | All links visible and accessible | P3 |
+
+---
+
 ## Test Case Summary
 
 | Category | Count |
@@ -749,13 +927,22 @@
 | Export/Backup | 15 |
 | Trash | 5 |
 | Settings | 15 |
-| Series | 5 |
+| Series | 15 |
 | Collaboration | 5 |
 | Slash Commands | 5 |
 | Navigation | 10 |
 | Keyboard Shortcuts | 6 |
 | Error Handling | 5 |
-| **TOTAL** | **~304** |
+| Map View | 11 |
+| World Timeline | 8 |
+| Character Arcs | 10 |
+| Scene Notes | 7 |
+| Scene Links | 7 |
+| Story Beats | 7 |
+| Tinker Mode | 8 |
+| AI Context Settings | 6 |
+| Research Tab | 6 |
+| **TOTAL** | **~375** |
 
 ---
 
@@ -764,8 +951,8 @@
 | Priority | Count | Description |
 |----------|-------|-------------|
 | P1 (Critical) | ~100 | Core functionality, must work |
-| P2 (High) | ~120 | Important features, should work |
-| P3 (Medium) | ~85 | Nice-to-have, can have bugs |
+| P2 (High) | ~185 | Important features, should work |
+| P3 (Medium) | ~90 | Nice-to-have, can have bugs |
 
 ---
 

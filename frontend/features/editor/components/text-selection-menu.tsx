@@ -1,153 +1,166 @@
-'use client';
+"use client";
 
-import { Editor } from '@tiptap/react';
-import { Button } from '@/components/ui/button';
-import { Expand, RefreshCw, Minimize2 } from 'lucide-react';
-import { useEffect, useRef, memo } from 'react';
-import { TextReplaceDialog } from './text-replace-dialog';
-import {
-    useDialogState,
-    textSelectionReducer,
-    initialTextSelectionState
-} from '@/hooks/use-dialog-state';
-import type { EditorStateManager } from '@/lib/core/editor-state-manager';
-import { EDITOR_CONSTANTS } from '@/lib/config/constants';
+import { Editor } from "@tiptap/react";
+import { Button } from "@/components/ui/button";
+import { Expand, RefreshCw, Minimize2 } from "lucide-react";
+import { useEffect, useState, useRef, memo, useCallback } from "react";
+import { TextReplaceDialog } from "./text-replace-dialog";
+import type { EditorStateManager } from "@/lib/core/editor-state-manager";
+import tippy, { type Instance as TippyInstance } from "tippy.js";
+import "tippy.js/dist/tippy.css";
 
 interface TextSelectionMenuProps {
-    editor: Editor;
-    projectId: string;
-    seriesId: string;  // Required - series-first architecture
-    sceneId: string;  // Required for save tracking
-    editorStateManager: EditorStateManager | null;  // Required for immediate save
+  editor: Editor;
+  projectId: string;
+  seriesId: string;
+  sceneId: string;
+  editorStateManager: EditorStateManager | null;
 }
 
-type ReplaceAction = 'expand' | 'rephrase' | 'shorten' | null;
+type ReplaceAction = "expand" | "rephrase" | "shorten" | null;
 
-export const TextSelectionMenu = memo(function TextSelectionMenu({ editor, projectId, seriesId, sceneId, editorStateManager }: TextSelectionMenuProps) {
-    // Replace 4 useState calls with single useReducer
-    const [state, dispatch] = useDialogState(
-        initialTextSelectionState,
-        textSelectionReducer
-    );
-    const menuRef = useRef<HTMLDivElement>(null);
+export const TextSelectionMenu = memo(function TextSelectionMenu({
+  editor,
+  projectId,
+  seriesId,
+  sceneId,
+  editorStateManager,
+}: TextSelectionMenuProps) {
+  const [action, setAction] = useState<ReplaceAction>(null);
+  const [selectedText, setSelectedText] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+  const tippyRef = useRef<TippyInstance | null>(null);
 
-    useEffect(() => {
-        const updateMenu = () => {
-            const { from, to } = editor.state.selection;
-            if (from !== to) {
-                const text = editor.state.doc.textBetween(from, to);
-                const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  const handleAction = useCallback(
+    (actionType: ReplaceAction) => {
+      const { from, to } = editor.state.selection;
+      const text = editor.state.doc.textBetween(from, to);
+      setSelectedText(text);
+      setAction(actionType);
+      // Hide tippy when action is taken
+      tippyRef.current?.hide();
+    },
+    [editor],
+  );
 
-                if (wordCount >= EDITOR_CONSTANTS.MIN_SELECTION_WORDS) {
-                    // Get the DOM position of the selection
-                    const { view } = editor;
-                    const start = view.coordsAtPos(from);
-                    const end = view.coordsAtPos(to);
+  const handleClose = useCallback(() => {
+    setAction(null);
+    setSelectedText("");
+  }, []);
 
-                    // Position menu above the selection, centered
-                    const centerX = (start.left + end.right) / 2;
-                    dispatch({
-                        type: 'SHOW_MENU',
-                        payload: {
-                            text,
-                            position: {
-                                top: start.top - EDITOR_CONSTANTS.MENU_OFFSET_PX,
-                                left: centerX,
-                            }
-                        }
-                    });
-                } else {
-                    dispatch({ type: 'HIDE_MENU' });
-                }
-            } else {
-                dispatch({ type: 'HIDE_MENU' });
-            }
-        };
+  useEffect(() => {
+    if (!menuRef.current) return;
 
-        editor.on('selectionUpdate', updateMenu);
-        editor.on('update', updateMenu);
-
-        return () => {
-            editor.off('selectionUpdate', updateMenu);
-            editor.off('update', updateMenu);
-        };
-    }, [editor, dispatch]);
-
-    const handleAction = (actionType: ReplaceAction) => {
+    // Create tippy instance attached to the editor view
+    const tippyInstance = tippy(document.body, {
+      getReferenceClientRect: () => {
         const { from, to } = editor.state.selection;
-        const text = editor.state.doc.textBetween(from, to);
-
-        const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-        if (wordCount < 4) {
-            return;
+        if (from === to) {
+          return new DOMRect(-1000, -1000, 0, 0); // Hide when no selection
         }
+        const start = editor.view.coordsAtPos(from);
+        const end = editor.view.coordsAtPos(to);
 
-        // Set the action to open dialog
-        dispatch({ type: 'SET_ACTION', payload: actionType });
+        // Return bounding rect of selection
+        return new DOMRect(
+          start.left,
+          start.top,
+          end.right - start.left,
+          end.bottom - start.top,
+        );
+      },
+      appendTo: () => document.body,
+      content: menuRef.current,
+      showOnCreate: false,
+      interactive: true,
+      trigger: "manual",
+      placement: "top-start",
+      offset: [0, 10],
+      animation: "fade",
+      duration: 150,
+    });
+
+    tippyRef.current = tippyInstance;
+
+    const updateVisibility = () => {
+      const { from, to } = editor.state.selection;
+      if (from !== to && !action) {
+        tippyInstance.setProps({
+          getReferenceClientRect: () => {
+            const start = editor.view.coordsAtPos(from);
+            const end = editor.view.coordsAtPos(to);
+            return new DOMRect(
+              start.left,
+              start.top,
+              end.right - start.left,
+              end.bottom - start.top,
+            );
+          },
+        });
+        tippyInstance.show();
+      } else {
+        tippyInstance.hide();
+      }
     };
 
-    const handleClose = () => {
-        dispatch({ type: 'SET_ACTION', payload: null });
+    editor.on("selectionUpdate", updateVisibility);
+    editor.on("blur", () => tippyInstance.hide());
+
+    return () => {
+      editor.off("selectionUpdate", updateVisibility);
+      tippyInstance.destroy();
+      tippyRef.current = null;
     };
+  }, [editor, action]);
 
-    if (!state.showMenu && !state.action) {
-        return null;
-    }
+  return (
+    <>
+      {/* Hidden menu template for tippy */}
+      <div
+        ref={menuRef}
+        className="bg-background border rounded-lg shadow-lg flex items-center gap-1 p-1"
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleAction("expand")}
+          className="h-8 px-3"
+        >
+          <Expand className="h-4 w-4 mr-1.5" />
+          Expand
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleAction("rephrase")}
+          className="h-8 px-3"
+        >
+          <RefreshCw className="h-4 w-4 mr-1.5" />
+          Rephrase
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleAction("shorten")}
+          className="h-8 px-3"
+        >
+          <Minimize2 className="h-4 w-4 mr-1.5" />
+          Shorten
+        </Button>
+      </div>
 
-    return (
-        <>
-            {state.showMenu && !state.action && (
-                <div
-                    ref={menuRef}
-                    className="fixed z-50 bg-background border rounded-lg shadow-lg flex items-center gap-1 p-1"
-                    style={{
-                        top: `${state.menuPosition.top}px`,
-                        left: `${state.menuPosition.left}px`,
-                        transform: 'translateX(-50%)', // Center horizontally
-                    }}
-                >
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAction('expand')}
-                        className="h-8 px-3"
-                    >
-                        <Expand className="h-4 w-4 mr-1.5" />
-                        Expand
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAction('rephrase')}
-                        className="h-8 px-3"
-                    >
-                        <RefreshCw className="h-4 w-4 mr-1.5" />
-                        Rephrase
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAction('shorten')}
-                        className="h-8 px-3"
-                    >
-                        <Minimize2 className="h-4 w-4 mr-1.5" />
-                        Shorten
-                    </Button>
-                </div>
-            )}
-
-            {state.action && (
-                <TextReplaceDialog
-                    action={state.action}
-                    selectedText={state.selectedText}
-                    editor={editor}
-                    onClose={handleClose}
-                    projectId={projectId}
-                    seriesId={seriesId}
-                    sceneId={sceneId}
-                    editorStateManager={editorStateManager}
-                />
-            )}
-        </>
-    );
+      {action && (
+        <TextReplaceDialog
+          action={action}
+          selectedText={selectedText}
+          editor={editor}
+          onClose={handleClose}
+          projectId={projectId}
+          seriesId={seriesId}
+          sceneId={sceneId}
+          editorStateManager={editorStateManager}
+        />
+      )}
+    </>
+  );
 });

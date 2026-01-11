@@ -13,6 +13,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Settings, Trash2, Archive, Upload, Loader2 } from "lucide-react";
 import {
   Select,
@@ -26,6 +29,17 @@ import { useRouter } from "next/navigation";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useSeriesRepository } from "@/hooks/use-series-repository";
 
+const projectSettingsSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  author: z.string().default(""),
+  language: z.string().default("English (US)"),
+  coverImage: z.string().default(""),
+  seriesId: z.string().min(1, "Series is required"),
+  seriesIndex: z.string().default(""),
+});
+
+type ProjectSettingsFormData = z.infer<typeof projectSettingsSchema>;
+
 export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -38,18 +52,31 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
   );
   const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    author: "",
-    language: "English (US)",
-    coverImage: "",
-    seriesId: "",
-    seriesIndex: "",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ProjectSettingsFormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(projectSettingsSchema) as any,
+    defaultValues: {
+      title: "",
+      author: "",
+      language: "English (US)",
+      coverImage: "",
+      seriesId: "",
+      seriesIndex: "",
+    },
   });
 
+  const coverImage = watch("coverImage");
+
   useEffect(() => {
-    if (project) {
-      setFormData({
+    if (project && open) {
+      reset({
         title: project.title,
         author: project.author || "",
         language: project.language || "English (US)",
@@ -58,19 +85,19 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
         seriesIndex: project.seriesIndex || "",
       });
     }
-  }, [project, open]);
+  }, [project, open, reset]);
 
-  const handleSave = async () => {
+  const onSubmit = async (data: ProjectSettingsFormData) => {
     if (!project) return;
     setIsSaving(true);
     try {
       await projectRepo.update(projectId, {
-        title: formData.title,
-        author: formData.author,
-        language: formData.language,
-        coverImage: formData.coverImage,
-        seriesId: formData.seriesId,
-        seriesIndex: formData.seriesIndex,
+        title: data.title,
+        author: data.author,
+        language: data.language,
+        coverImage: data.coverImage,
+        seriesId: data.seriesId,
+        seriesIndex: data.seriesIndex,
       });
       setOpen(false);
     } finally {
@@ -83,10 +110,7 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData((prev) => ({
-          ...prev,
-          coverImage: reader.result as string,
-        }));
+        setValue("coverImage", reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -106,15 +130,11 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
 
   const executeAction = async () => {
     if (confirmationAction === "archive") {
-      // ✅ Use repository method
       await projectRepo.archive(projectId);
-
       setOpen(false);
       router.push("/");
     } else if (confirmationAction === "delete") {
-      // ✅ Use repository method with atomic transaction
       await projectRepo.delete(projectId);
-
       setOpen(false);
       router.push("/");
     }
@@ -131,7 +151,7 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
             <Settings className="h-5 w-5" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:w-dialog-lg">
           <DialogHeader>
             <DialogTitle>Novel Settings</DialogTitle>
             <DialogDescription>
@@ -139,137 +159,133 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Author</Label>
-                <Input
-                  value={formData.author}
-                  onChange={(e) =>
-                    setFormData({ ...formData, author: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Language</Label>
-                <Select
-                  value={formData.language}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, language: val })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="English (US)">English (US)</SelectItem>
-                    <SelectItem value="English (UK)">English (UK)</SelectItem>
-                    <SelectItem value="Spanish">Spanish</SelectItem>
-                    <SelectItem value="French">French</SelectItem>
-                    <SelectItem value="German">German</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Series</Label>
-                <Select
-                  value={formData.seriesId}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, seriesId: val })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select series" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allSeries?.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Book Number</Label>
-                <Input
-                  value={formData.seriesIndex}
-                  onChange={(e) =>
-                    setFormData({ ...formData, seriesIndex: e.target.value })
-                  }
-                  placeholder="e.g., Book 1"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Cover Image</Label>
-              <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center h-[200px] relative overflow-hidden bg-muted/50">
-                {formData.coverImage ? (
-                  <img
-                    src={formData.coverImage}
-                    alt="Cover"
-                    className="absolute inset-0 w-full h-full object-cover"
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Title</Label>
+                  <Input {...register("title")} />
+                  {errors.title && (
+                    <p className="text-xs text-destructive">
+                      {errors.title.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Author</Label>
+                  <Input {...register("author")} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select
+                    value={watch("language")}
+                    onValueChange={(val) => setValue("language", val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="English (US)">English (US)</SelectItem>
+                      <SelectItem value="English (UK)">English (UK)</SelectItem>
+                      <SelectItem value="Spanish">Spanish</SelectItem>
+                      <SelectItem value="French">French</SelectItem>
+                      <SelectItem value="German">German</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Series</Label>
+                  <Select
+                    value={watch("seriesId")}
+                    onValueChange={(val) => setValue("seriesId", val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select series" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allSeries?.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Book Number</Label>
+                  <Input
+                    {...register("seriesIndex")}
+                    placeholder="e.g., Book 1"
                   />
-                ) : (
-                  <div className="text-center text-muted-foreground">
-                    <Upload className="h-8 w-8 mx-auto mb-2" />
-                    <span className="text-xs">Upload Cover (1.6:1)</span>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  onChange={handleImageUpload}
-                />
+                </div>
               </div>
-              {formData.coverImage && (
+
+              <div className="space-y-2">
+                <Label>Cover Image</Label>
+                <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center h-scroll-sm relative overflow-hidden bg-muted/50">
+                  {coverImage ? (
+                    <img
+                      src={coverImage}
+                      alt="Cover"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <Upload className="h-8 w-8 mx-auto mb-2" />
+                      <span className="text-xs">Upload Cover (1.6:1)</span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={handleImageUpload}
+                  />
+                </div>
+                {coverImage && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setValue("coverImage", "")}
+                  >
+                    Remove Cover
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-medium text-destructive mb-2">
+                Danger Zone
+              </h3>
+              <div className="flex gap-2">
                 <Button
+                  type="button"
                   variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setFormData({ ...formData, coverImage: "" })}
+                  className="text-destructive hover:text-destructive"
+                  onClick={handleArchive}
                 >
-                  Remove Cover
+                  <Archive className="h-4 w-4 mr-2" /> Archive Novel
                 </Button>
-              )}
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete Forever
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <div className="border-t pt-4 mt-4">
-            <h3 className="text-sm font-medium text-destructive mb-2">
-              Danger Zone
-            </h3>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={handleArchive}
-              >
-                <Archive className="h-4 w-4 mr-2" /> Archive Novel
+            <DialogFooter className="mt-4">
+              <Button type="submit" disabled={isSaving}>
+                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Changes
               </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                <Trash2 className="h-4 w-4 mr-2" /> Delete Forever
-              </Button>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Changes
-            </Button>
-          </DialogFooter>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

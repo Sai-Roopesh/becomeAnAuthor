@@ -1,14 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { useConfirmation } from "@/hooks/use-confirmation";
 import { useRepository } from "@/hooks/use-repository";
+import { useOpenProject } from "@/hooks/use-open-project";
 import type { IProjectRepository } from "@/domain/repositories/IProjectRepository";
 import type { ISeriesRepository } from "@/domain/repositories/ISeriesRepository";
 import { DashboardHeader } from "@/features/dashboard/components/DashboardHeader";
 import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
 import { EmptyState } from "@/features/dashboard/components/EmptyState";
+import { ErrorBoundary } from "@/features/shared/components";
 import {
   DataManagementMenu,
   RestoreProjectDialog,
@@ -17,20 +20,41 @@ import { SeriesList } from "@/features/series";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { BookOpen, Library, FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  BookOpen,
+  Library,
+  FileDown,
+  Plus,
+  FolderOpen,
+  Download,
+  Loader2,
+} from "lucide-react";
 import { toast } from "@/shared/utils/toast-service";
 import { CreateProjectDialog } from "@/features/project";
 import { ExportDialog } from "@/features/export";
 
 export default function Dashboard() {
+  const router = useRouter();
   const projectRepo = useRepository<IProjectRepository>("projectRepository");
   const seriesRepo = useRepository<ISeriesRepository>("seriesRepository");
   const projects = useLiveQuery(() => projectRepo.getAll(), [projectRepo]);
   const series = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
   const { confirm, ConfirmationDialog } = useConfirmation();
+  const { openFromPicker, isOpening } = useOpenProject();
   const [viewMode, setViewMode] = useState<"projects" | "series">("projects");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportProjectId, setExportProjectId] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+
+  const handleOpenNovel = async () => {
+    const project = await openFromPicker();
+    if (project) {
+      router.push(`/project?id=${project.id}`);
+      toast.success(`Opened "${project.title}"`);
+    }
+  };
 
   // Create a map of seriesId -> series title for quick lookups
   const seriesMap = useMemo(() => {
@@ -101,42 +125,82 @@ export default function Dashboard() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <DataManagementMenu />
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setCreateDialogOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            New Novel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenNovel}
+            disabled={isOpening}
+          >
+            {isOpening ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <FolderOpen className="w-4 h-4 mr-1" />
+            )}
+            {isOpening ? "Opening..." : "Open"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRestoreDialogOpen(true)}
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Restore
+          </Button>
+          <DataManagementMenu />
+        </div>
       </div>
 
       <DashboardHeader />
 
       {viewMode === "projects" ? (
         !hasProjects ? (
-          <EmptyState
-            createProjectSlot={<CreateProjectDialog />}
-            restoreProjectSlot={<RestoreProjectDialog />}
-          />
+          <EmptyState />
         ) : (
-          <ProjectGrid
-            projects={projects}
-            seriesMap={seriesMap}
-            onDeleteProject={handleDeleteProject}
-            createProjectSlot={<CreateProjectDialog />}
-            restoreProjectSlot={<RestoreProjectDialog />}
-            renderExportButton={(projectId) => (
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setExportProjectId(projectId);
-                  setExportDialogOpen(true);
-                }}
-              >
-                <FileDown className="h-4 w-4 mr-2" />
-                Export
-              </DropdownMenuItem>
-            )}
-          />
+          <ErrorBoundary name="Project Grid" maxRetries={3}>
+            <ProjectGrid
+              projects={projects}
+              seriesMap={seriesMap}
+              onDeleteProject={handleDeleteProject}
+              renderExportButton={(projectId) => (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setExportProjectId(projectId);
+                    setExportDialogOpen(true);
+                  }}
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export
+                </DropdownMenuItem>
+              )}
+            />
+          </ErrorBoundary>
         )
       ) : (
-        <SeriesList />
+        <ErrorBoundary name="Series List" maxRetries={3}>
+          <SeriesList />
+        </ErrorBoundary>
       )}
+
+      <CreateProjectDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
+      <RestoreProjectDialog
+        open={restoreDialogOpen}
+        onOpenChange={setRestoreDialogOpen}
+      />
 
       <ConfirmationDialog />
 

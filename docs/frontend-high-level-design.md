@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Next.js 16 frontend.**  
-> Last updated: 2026-01-05
+> Last updated: 2026-01-11
 
 ---
 
@@ -840,17 +840,44 @@ Shared Components (frontend/components/)
 | `Button` | `@radix-ui/react-slot` | Action triggers |
 | `Dialog` | `@radix-ui/react-dialog` | Modals, confirmations |
 | `DropdownMenu` | `@radix-ui/react-dropdown-menu` | Context menus |
-| `Popover` | `@radix-ui/react-popover` | Inline popovers |
+| `TippyPopover` | `tippy.js` | **Standardized popovers** (replaces Radix Popover) |
 | `Select` | `@radix-ui/react-select` | Dropdowns |
 | `Tooltip` | `@radix-ui/react-tooltip` | Hover hints |
 | `Tabs` | `@radix-ui/react-tabs` | Tab panels |
 | `Slider` | `@radix-ui/react-slider` | Range inputs |
 | `Switch` | `@radix-ui/react-switch` | Toggles |
 | `ScrollArea` | `@radix-ui/react-scroll-area` | Custom scrollbars |
+| `ErrorBoundary` | Custom React | Auto-retry with exponential backoff |
 
 **Accessibility**: All Radix primitives are WAI-ARIA compliant.
 
-### 9.3 Tiptap Editor Architecture
+### 9.3 Form Management
+
+> [!IMPORTANT]
+> **All forms with submission use `react-hook-form` + `zod` validation.**
+
+**Centralized Schemas**: `frontend/shared/schemas/forms.ts`
+
+| Schema | Purpose |
+|--------|---------|
+| `createSeriesSchema` | Series creation |
+| `createNodeSchema` | Act/Chapter/Scene creation |
+| `codexAttributeSchema` | Codex custom attributes |
+| `joinRoomSchema` | Collaboration room joining |
+| `projectSettingsSchema` | Project settings form |
+
+**Pattern**: See `CODING_GUIDELINES.md` for implementation examples.
+
+### 9.4 List Virtualization
+
+For performance with large lists, `@tanstack/react-virtual` is used:
+
+| Component | Implementation |
+|-----------|----------------|
+| `CodexList` | Virtualized with 60px item height |
+| `OutlineView` | Hierarchical (not virtualized due to complexity) |
+
+### 9.5 Tiptap Editor Architecture
 
 **Extensions**:
 - `@tiptap/starter-kit` (basic formatting)

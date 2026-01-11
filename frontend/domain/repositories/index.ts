@@ -1,19 +1,24 @@
+/**
+ * Domain Repository Interfaces
+ * Defines contracts for data access operations.
+ * @see CODING_GUIDELINES.md - 8-Layer Architecture, Layer 4 (Repository Interface)
+ */
 // Barrel export for domain repositories
-export type { INodeRepository } from './INodeRepository';
-export type { IIdeaRepository } from './IIdeaRepository';
-export type { ISceneNoteRepository } from './ISceneNoteRepository';
-export type { IMapRepository } from './IMapRepository';
-export type { IWorldTimelineRepository } from './IWorldTimelineRepository';
-export type { ICodexRepository } from './ICodexRepository';
-export type { IChatRepository } from './IChatRepository';
-export type { IProjectRepository } from './IProjectRepository';
-export type { IAnalysisRepository } from './IAnalysisRepository';
-export type { ISeriesRepository } from './ISeriesRepository';
-export type { ISnippetRepository } from './ISnippetRepository';
-export type { ICodexRelationRepository } from './ICodexRelationRepository';
-export type { ICodexRelationTypeRepository } from './ICodexRelationTypeRepository';
-export type { ICodexTagRepository } from './ICodexTagRepository';
-export type { ICodexTemplateRepository } from './ICodexTemplateRepository';
-export type { ISceneCodexLinkRepository } from './ISceneCodexLinkRepository';
-export type { ICollaborationRepository } from './ICollaborationRepository';
-export type { IMentionRepository } from './IMentionRepository';
+export type { INodeRepository } from "./INodeRepository";
+export type { IIdeaRepository } from "./IIdeaRepository";
+export type { ISceneNoteRepository } from "./ISceneNoteRepository";
+export type { IMapRepository } from "./IMapRepository";
+export type { IWorldTimelineRepository } from "./IWorldTimelineRepository";
+export type { ICodexRepository } from "./ICodexRepository";
+export type { IChatRepository } from "./IChatRepository";
+export type { IProjectRepository } from "./IProjectRepository";
+export type { IAnalysisRepository } from "./IAnalysisRepository";
+export type { ISeriesRepository } from "./ISeriesRepository";
+export type { ISnippetRepository } from "./ISnippetRepository";
+export type { ICodexRelationRepository } from "./ICodexRelationRepository";
+export type { ICodexRelationTypeRepository } from "./ICodexRelationTypeRepository";
+export type { ICodexTagRepository } from "./ICodexTagRepository";
+export type { ICodexTemplateRepository } from "./ICodexTemplateRepository";
+export type { ISceneCodexLinkRepository } from "./ISceneCodexLinkRepository";
+export type { ICollaborationRepository } from "./ICollaborationRepository";
+export type { IMentionRepository } from "./IMentionRepository";

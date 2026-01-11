@@ -47,7 +47,7 @@ const PlotThreadSchema = z.object({
   development: z.array(PlotThreadDevelopmentSchema),
   resolution: PlotThreadResolutionSchema,
   status: z.enum(["resolved", "unresolved"]),
-  severity: z.number().min(1).max(3),
+  severity: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 
 export const PlotThreadsSchema = z.object({
@@ -94,7 +94,7 @@ const TimelineInconsistencySchema = z.object({
   type: z.enum(["contradiction", "unclear"]),
   sceneIndices: z.array(z.number()),
   description: z.string(),
-  severity: z.number().min(1).max(3),
+  severity: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 
 export const TimelineSchema = z.object({
@@ -112,7 +112,7 @@ const ContradictionSchema = z.object({
   type: z.enum(["character", "world-building", "plot", "logic"]),
   sceneIndices: z.array(z.number()),
   description: z.string(),
-  severity: z.number().min(1).max(3),
+  severity: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   suggestion: z.string().optional(),
 });
 

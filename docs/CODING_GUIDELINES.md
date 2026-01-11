@@ -2,7 +2,8 @@
 
 Best practices and conventions for the Become An Author codebase.
 
-> **Last Updated**: January 5, 2026
+> **Last Updated**: January 11, 2026
+
 
 ---
 
@@ -168,26 +169,46 @@ import { toast } from 'sonner';
 > [!CAUTION]
 > **Features should NOT directly import from other features.** Use composition patterns.
 
-```typescript
-// ❌ WRONG - Direct cross-feature import
-import { CreateProjectDialog } from '@/features/project';
-import { ExportProjectButton } from '@/features/data-management';
+**Pattern 1: Controlled Dialog (Preferred for top-level actions)**
 
-// ✅ CORRECT - Accept as props (slots pattern)
+```typescript
+// Dialog supports both controlled and uncontrolled modes
+interface CreateProjectDialogProps {
+    trigger?: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+}
+
+// Parent controls the dialog state
+const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+<Button onClick={() => setCreateDialogOpen(true)}>
+    New Novel
+</Button>
+<CreateProjectDialog
+    open={createDialogOpen}
+    onOpenChange={setCreateDialogOpen}
+/>
+```
+
+**Pattern 2: Slot Pattern (For embedded components)**
+
+```typescript
+// Accept as props (slots pattern)
 interface EmptyStateProps {
     createProjectSlot?: React.ReactNode;
     restoreProjectSlot?: React.ReactNode;
 }
 
-// ✅ CORRECT - Accept as render prop
+// Accept as render prop
 interface ProjectCardProps {
     renderExportButton?: (projectId: string) => React.ReactNode;
 }
 
 // Parent (app layer) composes features:
 <EmptyState
-    createProjectSlot={<CreateProjectDialog />}
-    restoreProjectSlot={<RestoreProjectDialog />}
+    createProjectSlot={<CreateProjectDialog trigger={<Card>...</Card>} />}
+    restoreProjectSlot={<RestoreProjectDialog trigger={<Card>...</Card>} />}
 />
 ```
 
@@ -624,3 +645,148 @@ When components need codex access, pass `seriesId` as a prop:
 ### Removed Dead Code
 - `ensure_default_series` references removed from migration hook
 - `updateMessage()` documented as intentional no-op
+
+---
+
+## Architecture Patterns (January 2026)
+
+### Form Management (react-hook-form + Zod)
+
+> [!IMPORTANT]
+> **All forms with submission should use `react-hook-form` with `zod` validation.**
+
+**Pattern:**
+
+```typescript
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createSeriesSchema, type CreateSeriesFormData } from '@/shared/schemas/forms';
+
+function MyForm() {
+    const { register, handleSubmit, formState: { errors } } = useForm<CreateSeriesFormData>({
+        resolver: zodResolver(createSeriesSchema) as any,
+        defaultValues: { title: '', description: '' },
+    });
+
+    const onSubmit = (data: CreateSeriesFormData) => {
+        // Handle submission
+    };
+
+    return (
+        <form onSubmit={handleSubmit(onSubmit)}>
+            <Input {...register('title')} />
+            {errors.title && <span>{errors.title.message}</span>}
+        </form>
+    );
+}
+```
+
+**Centralized Schemas:** `frontend/shared/schemas/forms.ts`
+
+**Exceptions** (don't need react-hook-form):
+- Settings tabs with real-time store updates (no submission)
+- Search inputs with immediate filtering
+
+### Floating UI (TippyPopover)
+
+> [!IMPORTANT]
+> **Use `TippyPopover` for all popover needs.** Do not use Radix Popover directly.
+
+**Component:** `frontend/components/ui/tippy-popover.tsx`
+
+```typescript
+import { TippyPopover } from '@/components/ui/tippy-popover';
+
+<TippyPopover
+    content={<div>Popover content</div>}
+    placement="bottom-start"
+    interactive
+    maxWidth={256}
+>
+    <Button>Trigger</Button>
+</TippyPopover>
+```
+
+**Controlled Mode:**
+
+```typescript
+const [open, setOpen] = useState(false);
+
+<TippyPopover
+    content={<div>Content</div>}
+    open={open}
+    onOpenChange={setOpen}
+>
+    <Button>Trigger</Button>
+</TippyPopover>
+```
+
+### List Virtualization (@tanstack/react-virtual)
+
+For lists with 50+ items, use virtualization:
+
+```typescript
+import { useVirtualizer } from '@tanstack/react-virtual';
+
+const ITEM_HEIGHT = 60;
+const parentRef = useRef<HTMLDivElement>(null);
+
+const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ITEM_HEIGHT,
+    overscan: 5,
+});
+
+return (
+    <div ref={parentRef} className="overflow-y-auto">
+        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+            {virtualizer.getVirtualItems().map((row) => {
+                const item = items[row.index];
+                if (!item) return null;
+                return (
+                    <div
+                        key={item.id}
+                        style={{
+                            position: 'absolute',
+                            height: row.size,
+                            transform: `translateY(${row.start}px)`,
+                        }}
+                    >
+                        <ItemComponent item={item} />
+                    </div>
+                );
+            })}
+        </div>
+    </div>
+);
+```
+
+### Error Boundaries
+
+> [!IMPORTANT]
+> **Wrap major feature components with `ErrorBoundary`.**
+
+**Component:** `frontend/features/shared/components/ErrorBoundary.tsx`
+
+```typescript
+import { ErrorBoundary } from '@/features/shared/components';
+
+<ErrorBoundary name="Chat Feature" maxRetries={3}>
+    <ChatContainer />
+</ErrorBoundary>
+```
+
+**Features:**
+- Auto-retry with exponential backoff (1s, 2s, 4s)
+- Visual "retrying" state
+- Manual retry button after max retries
+- Optional error callback
+
+**HOC Pattern:**
+
+```typescript
+import { withErrorBoundary } from '@/features/shared/components';
+
+export default withErrorBoundary(MyComponent, 'My Feature');
+```

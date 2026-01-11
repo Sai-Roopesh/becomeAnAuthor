@@ -12,7 +12,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { ErrorBoundary } from "../error-boundary";
+import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 
 // ============================================
 // Mock Dependencies

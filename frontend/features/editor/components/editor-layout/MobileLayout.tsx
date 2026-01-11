@@ -63,7 +63,7 @@ export function MobileLayout({
           <PanelLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate max-w-[140px]">
+          <span className="text-sm font-medium truncate max-w-truncate-sm">
             {activeScene?.title || "No Scene Selected"}
           </span>
           <FocusModeToggle hasActiveScene={hasActiveScene} />
@@ -106,14 +106,14 @@ export function MobileLayout({
 
       {/* Left Sidebar Sheet */}
       <Sheet open={showSidebar} onOpenChange={onSetShowSidebar}>
-        <SheetContent side="left" className="p-0 w-[85vw] max-w-[350px]">
+        <SheetContent side="left" className="p-0 w-[85vw] max-w-mobile-sheet">
           {renderSidebar()}
         </SheetContent>
       </Sheet>
 
       {/* Right Timeline Sheet */}
       <Sheet open={showTimeline} onOpenChange={onSetShowTimeline}>
-        <SheetContent side="right" className="p-0 w-[85vw] max-w-[350px]">
+        <SheetContent side="right" className="p-0 w-[85vw] max-w-mobile-sheet">
           <StoryTimeline
             projectId={projectId}
             activeSceneWordCount={editorWordCount}

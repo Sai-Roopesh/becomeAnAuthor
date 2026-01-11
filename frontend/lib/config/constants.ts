@@ -227,7 +227,7 @@ export const DASHBOARD_QUOTES = [
  */
 export const EDITOR_CONSTANTS = {
   // Text Selection Menu
-  MIN_SELECTION_WORDS: 4,
+  MIN_SELECTION_WORDS: 1,
   MENU_OFFSET_PX: 50,
 
   // Format Settings

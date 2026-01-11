@@ -1,39 +1,85 @@
-'use client';
+"use client";
 
-import { useLiveQuery } from '@/hooks/use-live-query';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { MoreVertical, Eye, EyeOff, FileText, Copy, FileDown, Archive, History, Trash2, Pencil } from 'lucide-react';
-import { useState } from 'react';
-import { useAI } from '@/hooks/use-ai';
-import { toast } from '@/shared/utils/toast-service';
-import { isScene } from '@/domain/entities/types';
-import { extractTextFromTiptapJSON } from '@/shared/utils/editor';
-import { useAppServices } from '@/infrastructure/di/AppContext';
-import { logger } from '@/shared/utils/logger';
+import { useLiveQuery } from "@/hooks/use-live-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  MoreVertical,
+  Eye,
+  EyeOff,
+  FileText,
+  Copy,
+  FileDown,
+  Archive,
+  History,
+  Trash2,
+  Pencil,
+} from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  nodeActionsSchema,
+  type NodeActionsFormData,
+} from "@/shared/schemas/forms";
+import { useAI } from "@/hooks/use-ai";
+import { toast } from "@/shared/utils/toast-service";
+import { isScene } from "@/domain/entities/types";
+import { extractTextFromTiptapJSON } from "@/shared/utils/editor";
+import { useAppServices } from "@/infrastructure/di/AppContext";
+import { logger } from "@/shared/utils/logger";
 
-const log = logger.scope('NodeActionsMenu');
+const log = logger.scope("NodeActionsMenu");
 
 interface NodeActionsMenuProps {
-    nodeId: string;
-    nodeType: 'act' | 'chapter' | 'scene';
-    onDelete?: (nodeId: string, nodeType: 'act' | 'chapter' | 'scene') => void;
+  nodeId: string;
+  nodeType: "act" | "chapter" | "scene";
+  onDelete?: (nodeId: string, nodeType: "act" | "chapter" | "scene") => void;
 }
 
-export function NodeActionsMenu({ nodeId, nodeType, onDelete }: NodeActionsMenuProps) {
-    const { nodeRepository: nodeRepo } = useAppServices();
-    const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
-    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-    const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
-    const [isPovDialogOpen, setIsPovDialogOpen] = useState(false);
-    const [isSubtitleDialogOpen, setIsSubtitleDialogOpen] = useState(false);
-    const [renameValue, setRenameValue] = useState('');
-    const [povValue, setPovValue] = useState('');
-    const [subtitleValue, setSubtitleValue] = useState('');
-    const { generate, isGenerating } = useAI({
-        system: `You are an expert story analyst specializing in scene summarization.
+export function NodeActionsMenu({
+  nodeId,
+  nodeType,
+  onDelete,
+}: NodeActionsMenuProps) {
+  const { nodeRepository: nodeRepo } = useAppServices();
+  const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [isPovDialogOpen, setIsPovDialogOpen] = useState(false);
+  const [isSubtitleDialogOpen, setIsSubtitleDialogOpen] = useState(false);
+
+  const renameForm = useForm<NodeActionsFormData>({
+    resolver: zodResolver(nodeActionsSchema),
+    mode: "onChange",
+  });
+
+  const povForm = useForm<{ pov: string }>({
+    defaultValues: { pov: "" },
+  });
+
+  const subtitleForm = useForm<{ subtitle: string }>({
+    defaultValues: { subtitle: "" },
+  });
+
+  const { generate, isGenerating } = useAI({
+    system: `You are an expert story analyst specializing in scene summarization.
 
 SUMMARIZATION FRAMEWORK:
 1. Goal: What does the POV character want in this scene?
@@ -49,69 +95,72 @@ STYLE:
 
 EXAMPLE:
 "Marcus infiltrates the gala to steal classified files. Security recognizes him from surveillance footage, forcing an improvised escape through the kitchen. He escapes but without the files—and now they know he's onto them."`,
-        operationName: 'Scene Summarization',
-    });
+    operationName: "Scene Summarization",
+  });
 
-    if (!node) return null;
+  if (!node) return null;
 
-    // Scene-specific actions
-    const handleSetPOV = async () => {
-        if (!isScene(node)) return;
-        setPovValue(node.pov || '');
-        setIsPovDialogOpen(true);
-    };
+  const handleSetPOV = async () => {
+    if (!isScene(node)) return;
+    povForm.reset({ pov: node.pov || "" });
+    setIsPovDialogOpen(true);
+  };
 
-    const executePovUpdate = async () => {
-        if (!isScene(node)) return;
-        try {
-            await nodeRepo.updateMetadata(nodeId, { pov: povValue || '' });
-            const { invalidateQueries } = await import('@/hooks/use-live-query');
-            invalidateQueries();
-            toast.success(povValue ? `POV set to "${povValue}"` : 'POV cleared');
-            setIsPovDialogOpen(false);
-            setPovValue('');
-        } catch (error) {
-            log.error('Failed to update POV', error);
-            toast.error('Failed to update POV');
-        }
-    };
+  const executePovUpdate = async (data: { pov: string }) => {
+    if (!isScene(node)) return;
+    try {
+      await nodeRepo.updateMetadata(nodeId, { pov: data.pov || "" });
+      const { invalidateQueries } = await import("@/hooks/use-live-query");
+      invalidateQueries();
+      toast.success(data.pov ? `POV set to "${data.pov}"` : "POV cleared");
+      setIsPovDialogOpen(false);
+    } catch (error) {
+      log.error("Failed to update POV", error);
+      toast.error("Failed to update POV");
+    }
+  };
 
-    const handleAddSubtitle = async () => {
-        if (!isScene(node)) return;
-        setSubtitleValue(node.subtitle || '');
-        setIsSubtitleDialogOpen(true);
-    };
+  const handleAddSubtitle = async () => {
+    if (!isScene(node)) return;
+    subtitleForm.reset({ subtitle: node.subtitle || "" });
+    setIsSubtitleDialogOpen(true);
+  };
 
-    const executeSubtitleUpdate = async () => {
-        if (!isScene(node)) return;
-        try {
-            await nodeRepo.updateMetadata(nodeId, { subtitle: subtitleValue || '' });
-            const { invalidateQueries } = await import('@/hooks/use-live-query');
-            invalidateQueries();
-            toast.success(subtitleValue ? `Subtitle set to "${subtitleValue}"` : 'Subtitle cleared');
-            setIsSubtitleDialogOpen(false);
-            setSubtitleValue('');
-        } catch (error) {
-            log.error('Failed to update subtitle', error);
-            toast.error('Failed to update subtitle');
-        }
-    };
+  const executeSubtitleUpdate = async (data: { subtitle: string }) => {
+    if (!isScene(node)) return;
+    try {
+      await nodeRepo.updateMetadata(nodeId, { subtitle: data.subtitle || "" });
+      const { invalidateQueries } = await import("@/hooks/use-live-query");
+      invalidateQueries();
+      toast.success(
+        data.subtitle
+          ? `Subtitle set to "${data.subtitle}"`
+          : "Subtitle cleared",
+      );
+      setIsSubtitleDialogOpen(false);
+    } catch (error) {
+      log.error("Failed to update subtitle", error);
+      toast.error("Failed to update subtitle");
+    }
+  };
 
-    const handleToggleAIExclusion = async () => {
-        if (!isScene(node)) return;
-        const current = node.excludeFromAI || false;
-        await nodeRepo.updateMetadata(nodeId, { excludeFromAI: !current });
-        const { invalidateQueries } = await import('@/hooks/use-live-query');
-        invalidateQueries();
-        toast.success(current ? 'Included in AI context' : 'Excluded from AI context');
-    };
+  const handleToggleAIExclusion = async () => {
+    if (!isScene(node)) return;
+    const current = node.excludeFromAI || false;
+    await nodeRepo.updateMetadata(nodeId, { excludeFromAI: !current });
+    const { invalidateQueries } = await import("@/hooks/use-live-query");
+    invalidateQueries();
+    toast.success(
+      current ? "Included in AI context" : "Excluded from AI context",
+    );
+  };
 
-    const handleSummarizeScene = async () => {
-        if (!isScene(node)) return;
+  const handleSummarizeScene = async () => {
+    if (!isScene(node)) return;
 
-        const text = extractTextFromTiptapJSON(node.content);
-        const result = await generate({
-            prompt: `Summarize this scene using the framework:
+    const text = extractTextFromTiptapJSON(node.content);
+    const result = await generate({
+      prompt: `Summarize this scene using the framework:
 1. Goal (what character wants)
 2. Conflict (what opposes them)
 3. Outcome (success/failure/complication)
@@ -121,294 +170,305 @@ SCENE TEXT:
 ${text}
 
 SUMMARY (2-3 sentences, present tense):`,
-            maxTokens: 300,
-        });
+      maxTokens: 300,
+    });
 
-        if (result) {
-            await nodeRepo.updateMetadata(nodeId, { summary: result });
-            const { invalidateQueries } = await import('@/hooks/use-live-query');
-            invalidateQueries();
-        }
-    };
+    if (result) {
+      await nodeRepo.updateMetadata(nodeId, { summary: result });
+      const { invalidateQueries } = await import("@/hooks/use-live-query");
+      invalidateQueries();
+    }
+  };
 
-    const handleDuplicate = async () => {
-        if (!isScene(node)) return;
-        await nodeRepo.create({
-            ...node,
-            title: `${node.title} (Copy)`,
-            order: (node.order || 0) + 0.5,
-            type: 'scene',
-            projectId: node.projectId,
-        });
-        const { invalidateQueries } = await import('@/hooks/use-live-query');
+  const handleDuplicate = async () => {
+    if (!isScene(node)) return;
+    await nodeRepo.create({
+      ...node,
+      title: `${node.title} (Copy)`,
+      order: (node.order || 0) + 0.5,
+      type: "scene",
+      projectId: node.projectId,
+    });
+    const { invalidateQueries } = await import("@/hooks/use-live-query");
+    invalidateQueries();
+    toast.success("Scene duplicated");
+  };
+
+  const handleCopyProse = async () => {
+    if (!isScene(node)) return;
+    const text = extractTextFromTiptapJSON(node.content);
+    await navigator.clipboard.writeText(text);
+    toast.success("Prose copied to clipboard!");
+  };
+
+  const handleExport = () => {
+    if (!isScene(node)) return;
+    const text = extractTextFromTiptapJSON(node.content);
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${node.title}.txt`;
+    a.click();
+    toast.success("Scene exported");
+  };
+
+  const handleArchive = async () => {
+    if (!isScene(node)) return;
+    setIsArchiveDialogOpen(true);
+  };
+
+  const executeArchive = async () => {
+    await nodeRepo.update(nodeId, { archived: true });
+    const { invalidateQueries } = await import("@/hooks/use-live-query");
+    invalidateQueries();
+    toast.success("Scene archived");
+    setIsArchiveDialogOpen(false);
+  };
+
+  const handleRename = () => {
+    log.debug("Opening rename dialog", { nodeId, nodeType });
+    renameForm.reset({ name: node.title, pov: "", subtitle: "" });
+    setIsRenameDialogOpen(true);
+  };
+
+  const executeRename = async (data: NodeActionsFormData) => {
+    try {
+      log.debug("executeRename called", { name: data.name });
+
+      if (data.name && data.name !== node.title) {
+        await nodeRepo.update(nodeId, { title: data.name });
+        const { invalidateQueries } = await import("@/hooks/use-live-query");
         invalidateQueries();
-        toast.success('Scene duplicated');
-    };
+        toast.success(
+          `${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`,
+        );
+        setIsRenameDialogOpen(false);
+      }
+    } catch (error) {
+      log.error("Rename failed", error);
+      toast.error(
+        `Failed to rename ${nodeType}: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  };
 
-    const handleCopyProse = async () => {
-        if (!isScene(node)) return;
-        const text = extractTextFromTiptapJSON(node.content);
-        await navigator.clipboard.writeText(text);
-        toast.success('Prose copied to clipboard!');
-    };
+  const handleDeleteClick = () => {
+    if (onDelete) {
+      onDelete(nodeId, nodeType);
+    }
+  };
 
-    const handleExport = () => {
-        if (!isScene(node)) return;
-        const text = extractTextFromTiptapJSON(node.content);
-        const blob = new Blob([text], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${node.title}.txt`;
-        a.click();
-        toast.success('Scene exported');
-    };
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" className="h-6 w-6">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={handleRename}>
+            <Pencil className="h-4 w-4 mr-2" />
+            Rename
+          </DropdownMenuItem>
 
+          {nodeType === "scene" && isScene(node) && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSetPOV}>
+                <Eye className="h-4 w-4 mr-2" />
+                Set Custom POV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleToggleAIExclusion}>
+                <EyeOff className="h-4 w-4 mr-2" />
+                {node.excludeFromAI
+                  ? "Include in AI Context"
+                  : "Exclude from AI Context"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAddSubtitle}>
+                <FileText className="h-4 w-4 mr-2" />
+                Add Subtitle
+              </DropdownMenuItem>
 
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>AI Actions</DropdownMenuLabel>
 
-    const handleArchive = async () => {
-        if (!isScene(node)) return;
-        setIsArchiveDialogOpen(true);
-    };
+              <DropdownMenuItem
+                onClick={handleSummarizeScene}
+                disabled={isGenerating}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                {isGenerating ? "Summarizing..." : "Summarize Scene"}
+              </DropdownMenuItem>
 
-    const executeArchive = async () => {
-        await nodeRepo.update(nodeId, { archived: true });
-        const { invalidateQueries } = await import('@/hooks/use-live-query');
-        invalidateQueries();
-        toast.success('Scene archived');
-        setIsArchiveDialogOpen(false);
-    };
+              <DropdownMenuSeparator />
 
-    const handleRename = () => {
-        log.debug('Opening rename dialog', { nodeId, nodeType });
-        setRenameValue(node.title);
-        setIsRenameDialogOpen(true);
-    };
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicate Scene
+              </DropdownMenuItem>
 
-    const executeRename = async () => {
-        try {
-            log.debug('executeRename called', { renameValue });
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>History</DropdownMenuLabel>
 
-            if (renameValue && renameValue !== node.title) {
-                log.debug('Calling nodeRepo.update');
-                await nodeRepo.update(nodeId, { title: renameValue });
-                log.debug('Update completed, invalidating queries');
+              <DropdownMenuItem>
+                <History className="h-4 w-4 mr-2" />
+                Scene Summary
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <History className="h-4 w-4 mr-2" />
+                Scene Contents
+              </DropdownMenuItem>
 
-                // Refresh UI to show the new title
-                const { invalidateQueries } = await import('@/hooks/use-live-query');
-                invalidateQueries();
-                log.debug('Queries invalidated');
+              <DropdownMenuSeparator />
 
-                toast.success(`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`);
-                setIsRenameDialogOpen(false);
-            } else {
-                log.debug('Rename cancelled or same title');
-            }
-        } catch (error) {
-            log.error('Rename failed', error);
-            toast.error(`Failed to rename ${nodeType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    };
+              <DropdownMenuItem onClick={handleCopyProse}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Scene Prose
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Export Scene
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleArchive}>
+                <Archive className="h-4 w-4 mr-2" />
+                Archive Scene
+              </DropdownMenuItem>
+            </>
+          )}
 
-    const handleDeleteClick = () => {
-        if (onDelete) {
-            onDelete(nodeId, nodeType);
-        }
-    };
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleDeleteClick}
+            className="text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-    return (
-        <>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                        <MoreVertical className="h-4 w-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                    {/* Common actions for all node types */}
-                    <DropdownMenuItem onClick={handleRename}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Rename
-                    </DropdownMenuItem>
+      <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive Scene</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to archive this scene? It will be moved to
+              the archive list.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsArchiveDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={executeArchive}>Archive</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-                    {/* Scene-specific actions */}
-                    {nodeType === 'scene' && isScene(node) && (
-                        <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleSetPOV}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Set Custom POV
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleToggleAIExclusion}>
-                                <EyeOff className="h-4 w-4 mr-2" />
-                                {node.excludeFromAI ? 'Include in AI Context' : 'Exclude from AI Context'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleAddSubtitle}>
-                                <FileText className="h-4 w-4 mr-2" />
-                                Add Subtitle
-                            </DropdownMenuItem>
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent>
+          <form onSubmit={renameForm.handleSubmit(executeRename)}>
+            <DialogHeader>
+              <DialogTitle>
+                Rename {nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}
+              </DialogTitle>
+              <DialogDescription>
+                Enter a new name for this {nodeType}.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              {...renameForm.register("name")}
+              placeholder={`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} name`}
+              autoFocus
+              className="my-4"
+            />
+            {renameForm.formState.errors.name && (
+              <p className="text-sm text-destructive mb-4">
+                {renameForm.formState.errors.name.message}
+              </p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsRenameDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!renameForm.formState.isValid}>
+                Rename
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>AI Actions</DropdownMenuLabel>
+      <Dialog open={isPovDialogOpen} onOpenChange={setIsPovDialogOpen}>
+        <DialogContent>
+          <form onSubmit={povForm.handleSubmit(executePovUpdate)}>
+            <DialogHeader>
+              <DialogTitle>Set POV Character</DialogTitle>
+              <DialogDescription>
+                Enter the point-of-view character for this scene. Leave empty to
+                use the default.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              {...povForm.register("pov")}
+              placeholder="e.g., John Smith, Narrator, etc."
+              autoFocus
+              className="my-4"
+            />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsPovDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-                            <DropdownMenuItem onClick={handleSummarizeScene} disabled={isGenerating}>
-                                <FileText className="h-4 w-4 mr-2" />
-                                {isGenerating ? 'Summarizing...' : 'Summarize Scene'}
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem onClick={handleDuplicate}>
-                                <Copy className="h-4 w-4 mr-2" />
-                                Duplicate Scene
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>History</DropdownMenuLabel>
-
-                            <DropdownMenuItem>
-                                <History className="h-4 w-4 mr-2" />
-                                Scene Summary
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <History className="h-4 w-4 mr-2" />
-                                Scene Contents
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem onClick={handleCopyProse}>
-                                <Copy className="h-4 w-4 mr-2" />
-                                Copy Scene Prose
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExport}>
-                                <FileDown className="h-4 w-4 mr-2" />
-                                Export Scene
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleArchive}>
-                                <Archive className="h-4 w-4 mr-2" />
-                                Archive Scene
-                            </DropdownMenuItem>
-                        </>
-                    )}
-
-                    {/* Delete (for all types) */}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Archive Scene</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to archive this scene? It will be moved to the archive list.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsArchiveDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={executeArchive}>
-                            Archive
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Rename {nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}</DialogTitle>
-                        <DialogDescription>
-                            Enter a new name for this {nodeType}.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Input
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                executeRename();
-                            }
-                        }}
-                        placeholder={`${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} name`}
-                        autoFocus
-                    />
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={executeRename}>
-                            Rename
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isPovDialogOpen} onOpenChange={setIsPovDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Set POV Character</DialogTitle>
-                        <DialogDescription>
-                            Enter the point-of-view character for this scene. Leave empty to use the default.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Input
-                        value={povValue}
-                        onChange={(e) => setPovValue(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                executePovUpdate();
-                            }
-                        }}
-                        placeholder="e.g., John Smith, Narrator, etc."
-                        autoFocus
-                    />
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPovDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={executePovUpdate}>
-                            Save
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isSubtitleDialogOpen} onOpenChange={setIsSubtitleDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Set Subtitle</DialogTitle>
-                        <DialogDescription>
-                            Add a subtitle or description for this scene.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Input
-                        value={subtitleValue}
-                        onChange={(e) => setSubtitleValue(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                executeSubtitleUpdate();
-                            }
-                        }}
-                        placeholder="e.g., Three days later, In the abandoned warehouse..."
-                        autoFocus
-                    />
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsSubtitleDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={executeSubtitleUpdate}>
-                            Save
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
-    );
+      <Dialog
+        open={isSubtitleDialogOpen}
+        onOpenChange={setIsSubtitleDialogOpen}
+      >
+        <DialogContent>
+          <form onSubmit={subtitleForm.handleSubmit(executeSubtitleUpdate)}>
+            <DialogHeader>
+              <DialogTitle>Set Subtitle</DialogTitle>
+              <DialogDescription>
+                Add a subtitle or description for this scene.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              {...subtitleForm.register("subtitle")}
+              placeholder="e.g., Three days later, In the abandoned warehouse..."
+              autoFocus
+              className="my-4"
+            />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsSubtitleDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

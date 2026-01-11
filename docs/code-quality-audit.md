@@ -1,7 +1,7 @@
 # Code Quality Audit: Technical Debt & Anti-Patterns
 
 **Date:** 2025-12-20  
-**Last Updated:** 2026-01-05  
+**Last Updated:** 2026-01-11  
 **Scope:** Frontend (TypeScript/React), Backend (Rust/Tauri), Documentation  
 **Status:** 🟡 Critical Issues Resolved, High Priority Remaining
 
@@ -9,10 +9,10 @@
 
 ## Executive Summary
 
-This audit identified **10 major categories** of technical debt. **2 critical issues have been RESOLVED** (duplicate files and duplicate types). The remaining issues include unsafe Rust patterns, excessive debugging statements, and incomplete features.
+This audit identified **10 major categories** of technical debt. **3 critical issues have been RESOLVED** (duplicate files, duplicate types, architecture patterns). The remaining issues include unsafe Rust patterns, excessive debugging statements, and incomplete features.
 
 **Severity Breakdown:**
-- ✅ **Resolved:** 2 issues (Duplicate files, duplicate types)
+- ✅ **Resolved:** 3 issues (Duplicate files, duplicate types, architecture patterns)
 - 🔴 **Critical:** 1 issue (unwrap() calls in Rust)
 - 🟡 **High:** 4 issues (any types, console.log, excessive clone(), TODOs)
 - 🟢 **Medium:** 3 issues (Comments, hardcoded values, test coverage)
@@ -80,6 +80,48 @@ frontend/
 // ✅ CORRECT
 import { Scene, CodexEntry, Project } from '@/domain/entities/types';
 import { TiptapContent } from '@/shared/types/tiptap';
+```
+
+---
+
+## 2B. ✅ RESOLVED: Architecture Patterns Consolidated
+
+**Status:** ✅ RESOLVED (2026-01-11)  
+**Original Severity:** High
+
+### Resolution Summary
+
+Frontend architecture patterns have been **standardized**:
+
+| Area | Before | After |
+|------|--------|-------|
+| Form Management | Manual `useState` | `react-hook-form` + `zod` validation |
+| Floating UI | Mixed (Radix Popover, tippy.js) | `TippyPopover` component (standardized) |
+| List Rendering | Direct rendering | `@tanstack/react-virtual` for large lists |
+| Error Handling | Basic try/catch | `ErrorBoundary` with auto-retry |
+
+### Files Updated
+
+**Form Migrations (11 components):**
+- `CreateSeriesDialog`, `CreateNodeDialog`, `NewConnectionDialog`
+- `TagManager`, `NodeActionsMenu`, `TinkerMode`, `QuickCaptureModal`
+- `DetailsTab`, `CollaborationPanel`, `CodexFilterBar`, `ProjectSettingsDialog`
+
+**TippyPopover Migrations (4 components):**
+- `FormatMenu`, `CollaborationPanel`, `CodexFilterBar`, `MapView`
+
+**ErrorBoundary Wrappers (5 features):**
+- `EditorContainer` (Focus, Mobile, Desktop layouts)
+- Dashboard (`ProjectGrid`, `SeriesList`)
+
+### Current Architecture
+
+```
+frontend/
+├── shared/schemas/forms.ts       # ✅ Centralized Zod schemas
+├── components/ui/tippy-popover.tsx  # ✅ Standardized popover
+└── features/shared/components/
+    └── ErrorBoundary.tsx         # ✅ Auto-retry error boundary
 ```
 
 ---

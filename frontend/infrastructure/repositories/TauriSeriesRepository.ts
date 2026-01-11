@@ -1,80 +1,83 @@
 import {
-    listSeries,
-    createSeries,
-    updateSeries,
-    deleteSeries,
-    deleteSeriesCascade
-} from '@/core/tauri';
-import type { ISeriesRepository } from '@/domain/repositories/ISeriesRepository';
-import type { Series } from '@/domain/entities/types';
-import { logger } from '@/shared/utils/logger';
+  listSeries,
+  createSeries,
+  updateSeries,
+  deleteSeries,
+  deleteSeriesCascade,
+} from "@/core/tauri";
+import type { ISeriesRepository } from "@/domain/repositories/ISeriesRepository";
+import type { Series } from "@/domain/entities/types";
+import { logger } from "@/shared/utils/logger";
 
-const log = logger.scope('TauriSeriesRepository');
+const log = logger.scope("TauriSeriesRepository");
 
 /**
  * Tauri filesystem-based implementation of Series Repository
  * Stores series data in ~/.BecomeAnAuthor/.meta/series.json
  */
 export class TauriSeriesRepository implements ISeriesRepository {
-
-    async getAll(): Promise<Series[]> {
-        try {
-            return await listSeries() as unknown as Series[];
-        } catch (error) {
-            log.error('Failed to list series:', error);
-            return [];
-        }
+  async getAll(): Promise<Series[]> {
+    try {
+      return await listSeries();
+    } catch (error) {
+      log.error("Failed to list series:", error);
+      return [];
     }
+  }
 
-    async get(id: string): Promise<Series | undefined> {
-        try {
-            const all = await this.getAll();
-            return all.find((s: Series) => s.id === id);
-        } catch (error) {
-            log.error('Failed to get series:', error);
-            return undefined;
-        }
+  async get(id: string): Promise<Series | undefined> {
+    try {
+      const all = await this.getAll();
+      return all.find((s: Series) => s.id === id);
+    } catch (error) {
+      log.error("Failed to get series:", error);
+      return undefined;
     }
+  }
 
-    async getByName(name: string): Promise<Series | undefined> {
-        const all = await this.getAll();
-        return all.find((s: Series) => s.title.toLowerCase() === name.toLowerCase());
-    }
+  async getByName(name: string): Promise<Series | undefined> {
+    const all = await this.getAll();
+    return all.find(
+      (s: Series) => s.title.toLowerCase() === name.toLowerCase(),
+    );
+  }
 
-    async create(series: Omit<Series, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-        try {
-            const result = await createSeries({ title: series.title });
-            return result.id;
-        } catch (error) {
-            log.error('Failed to create series:', error);
-            throw error;
-        }
+  async create(
+    series: Omit<Series, "id" | "createdAt" | "updatedAt">,
+  ): Promise<string> {
+    try {
+      const result = await createSeries({ title: series.title });
+      return result.id;
+    } catch (error) {
+      log.error("Failed to create series:", error);
+      throw error;
     }
+  }
 
-    async update(id: string, updates: Partial<Series>): Promise<void> {
-        try {
-            return await updateSeries(id, updates);
-        } catch (error) {
-            log.error('Failed to update series:', error);
-            throw error;
-        }
+  async update(id: string, updates: Partial<Series>): Promise<void> {
+    try {
+      return await updateSeries(id, updates);
+    } catch (error) {
+      log.error("Failed to update series:", error);
+      throw error;
     }
+  }
 
-    async delete(id: string): Promise<void> {
-        try {
-            await deleteSeries(id);
-        } catch (error) {
-            log.error('Failed to delete series:', error);
-            throw error;
-        }
+  async delete(id: string): Promise<void> {
+    try {
+      await deleteSeries(id);
+    } catch (error) {
+      log.error("Failed to delete series:", error);
+      throw error;
     }
+  }
 
-    async deleteCascade(id: string): Promise<number> {
-        try {
-            return await deleteSeriesCascade(id);
-        } catch (error) {
-            log.error('Failed to cascade delete series:', error);
-            throw error;
-        }
+  async deleteCascade(id: string): Promise<number> {
+    try {
+      return await deleteSeriesCascade(id);
+    } catch (error) {
+      log.error("Failed to cascade delete series:", error);
+      throw error;
     }
+  }
 }

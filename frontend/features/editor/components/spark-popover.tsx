@@ -5,15 +5,16 @@
  *
  * AI-powered writing prompts popover for the Spark Engine.
  * Shows context-aware prompts with model selection.
- *
- * Features:
- * - Model selector from user's AI connections
- * - Category filters (dialogue, action, description)
- * - Click to insert prompt text
- * - Regenerate button
+ * Uses tippy.js for reliable positioning above cursor.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { logger } from "@/shared/utils/logger";
+import tippy, { type Instance as TippyInstance } from "tippy.js";
+import "tippy.js/dist/tippy.css";
+
+const log = logger.scope("SparkPopover");
+
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -83,7 +84,7 @@ const SparkPromptsSchema = z.array(
   }),
 );
 
-export function SparkPopover({
+export const SparkPopover = memo(function SparkPopover({
   isOpen,
   onClose,
   position,
@@ -97,6 +98,7 @@ export function SparkPopover({
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<SparkCategory>("all");
   const popoverRef = useRef<HTMLDivElement>(null);
+  const tippyRef = useRef<TippyInstance | null>(null);
 
   // Load connections and saved model on mount
   useEffect(() => {
@@ -117,14 +119,6 @@ export function SparkPopover({
       setSelectedModel(enabledConnections[0]?.models?.[0] ?? "");
     }
   }, []);
-
-  // Generate prompts when opened
-  useEffect(() => {
-    if (isOpen && selectedModel && prompts.length === 0) {
-      generatePrompts();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, selectedModel]);
 
   // Save model preference when changed
   useEffect(() => {
@@ -165,7 +159,7 @@ export function SparkPopover({
         })),
       );
     } catch (err) {
-      console.error("Spark generation error:", err);
+      log.error("Spark generation error:", err);
       setError(
         err instanceof Error ? err.message : "Failed to generate prompts",
       );
@@ -173,6 +167,58 @@ export function SparkPopover({
       setIsLoading(false);
     }
   }, [selectedModel, sceneContext]);
+
+  // Generate prompts when opened
+  useEffect(() => {
+    if (isOpen && selectedModel && prompts.length === 0) {
+      generatePrompts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, selectedModel]);
+
+  // Set up tippy.js for positioning
+  useEffect(() => {
+    if (!popoverRef.current) return;
+
+    const tippyInstance = tippy(document.body, {
+      getReferenceClientRect: () => {
+        if (!position) {
+          return new DOMRect(-1000, -1000, 0, 0);
+        }
+        return new DOMRect(position.x, position.y, 0, 0);
+      },
+      appendTo: () => document.body,
+      content: popoverRef.current,
+      showOnCreate: false,
+      interactive: true,
+      trigger: "manual",
+      placement: "bottom-start",
+      offset: [0, 8],
+      animation: "fade",
+      duration: 150,
+    });
+
+    tippyRef.current = tippyInstance;
+
+    return () => {
+      tippyInstance.destroy();
+      tippyRef.current = null;
+    };
+  }, [position]);
+
+  // Show/hide tippy based on isOpen
+  useEffect(() => {
+    if (!tippyRef.current) return;
+
+    if (isOpen && position) {
+      tippyRef.current.setProps({
+        getReferenceClientRect: () => new DOMRect(position.x, position.y, 0, 0),
+      });
+      tippyRef.current.show();
+    } else {
+      tippyRef.current.hide();
+    }
+  }, [isOpen, position]);
 
   const handleInsert = (prompt: SparkPrompt) => {
     onInsert(prompt.text);
@@ -187,18 +233,9 @@ export function SparkPopover({
   // Get all models from all connections
   const allModels = connections.flatMap((c) => c.models || []);
 
-  if (!isOpen || !position) return null;
-
   return (
-    <div
-      ref={popoverRef}
-      className="fixed z-50"
-      style={{
-        left: position.x,
-        top: position.y,
-      }}
-    >
-      <Card className="w-[380px] shadow-xl border overflow-hidden">
+    <div ref={popoverRef}>
+      <Card className="w-popover-lg shadow-xl border overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 bg-muted border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -274,7 +311,7 @@ export function SparkPopover({
         </div>
 
         {/* Prompts */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto max-h-64">
           {isLoading ? (
             <div className="p-8 text-center">
               <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin text-amber-500" />
@@ -326,4 +363,4 @@ export function SparkPopover({
       </Card>
     </div>
   );
-}
+});
