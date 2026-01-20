@@ -413,6 +413,10 @@ export async function createChatMessage(projectPath: string, message: Omit<ChatM
     return invoke<ChatMessage>('create_chat_message', { projectPath, message });
 }
 
+export async function updateChatMessage(projectPath: string, message: ChatMessage): Promise<void> {
+    return invoke('update_chat_message', { projectPath, message });
+}
+
 export async function deleteChatMessage(projectPath: string, threadId: string, messageId: string): Promise<void> {
     return invoke('delete_chat_message', { projectPath, threadId, messageId });
 }

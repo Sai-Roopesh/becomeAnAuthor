@@ -76,6 +76,7 @@ pub fn run() {
             delete_chat_thread,
             get_chat_messages,
             create_chat_message,
+            update_chat_message,
             delete_chat_message,
             // Codex enhancement commands
             list_codex_relations,

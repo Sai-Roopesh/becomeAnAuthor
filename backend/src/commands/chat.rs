@@ -129,6 +129,33 @@ pub fn create_chat_message(project_path: String, message: ChatMessage) -> Result
 }
 
 #[tauri::command]
+pub fn update_chat_message(project_path: String, message: ChatMessage) -> Result<(), String> {
+    // Validate message content
+    validate_no_null_bytes(&message.content, "Message content")?;
+    validate_json_size(&message.content)?;
+    
+    let messages_path = PathBuf::from(&project_path).join(".meta/chat/messages").join(format!("{}.json", message.thread_id));
+    if !messages_path.exists() {
+        return Err("Thread messages file not found".to_string());
+    }
+    
+    let content = fs::read_to_string(&messages_path).map_err(|e| e.to_string())?;
+    let mut messages: Vec<ChatMessage> = serde_json::from_str(&content).unwrap_or_default();
+    
+    // Find and update the message
+    if let Some(idx) = messages.iter().position(|m| m.id == message.id) {
+        messages[idx] = message;
+    } else {
+        return Err("Message not found".to_string());
+    }
+    
+    let json = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
+    fs::write(&messages_path, json).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
 pub fn delete_chat_message(project_path: String, thread_id: String, message_id: String) -> Result<(), String> {
     let messages_path = PathBuf::from(&project_path).join(".meta/chat/messages").join(format!("{}.json", thread_id));
     if !messages_path.exists() {

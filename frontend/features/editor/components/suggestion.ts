@@ -66,6 +66,24 @@ export const createCodexSuggestion = (seriesId: string, codexRepo: ICodexReposit
                     interactive: true,
                     trigger: 'manual',
                     placement: 'bottom-start',
+                    // Enable flip to reposition when near screen edges
+                    popperOptions: {
+                        modifiers: [
+                            {
+                                name: 'flip',
+                                options: {
+                                    fallbackPlacements: ['top-start', 'top', 'bottom'],
+                                },
+                            },
+                            {
+                                name: 'preventOverflow',
+                                options: {
+                                    boundary: 'viewport',
+                                    padding: 8,
+                                },
+                            },
+                        ],
+                    },
                 });
             },
 

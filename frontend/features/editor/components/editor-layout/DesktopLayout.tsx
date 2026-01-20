@@ -23,6 +23,7 @@ import {
 import { TiptapEditor } from "../tiptap-editor";
 import { WriteRightPanel } from "../write-right-panel";
 import { FocusModeToggle } from "../FocusModeToggle";
+import { SceneContextIndicator } from "../scene-context-indicator";
 import type { DocumentNode, Snippet } from "@/domain/entities/types";
 import type { ISnippetRepository } from "@/domain/repositories/ISnippetRepository";
 import { isElementNode } from "@/shared/types/tiptap";
@@ -170,6 +171,12 @@ export function DesktopLayout({
                               : { type: "doc", content: [] }
                           }
                           onWordCountChange={onWordCountChange}
+                        />
+                        {/* Floating context indicator for linked codex entries */}
+                        <SceneContextIndicator
+                          sceneId={activeScene.id}
+                          projectId={projectId}
+                          seriesId={seriesId}
                         />
                       </div>
                     </div>

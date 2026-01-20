@@ -1,22 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { logger } from "@/shared/utils/logger";
-
-const log = logger.scope("ChatThread");
-import { useLiveQuery } from "@/hooks/use-live-query";
+import { useLiveQuery, invalidateQueries } from "@/hooks/use-live-query";
 import { useChatRepository } from "@/features/chat/hooks/use-chat-repository";
-import { useAI } from "@/hooks/use-ai";
-import { useContextAssembly } from "@/hooks/use-context-assembly";
+import { useChat } from "@/hooks/use-chat";
 import { ChatSettingsDialog, ChatSettings } from "./chat-settings-dialog";
 import { useChatStore } from "@/store/use-chat-store";
-import { type ContextItem } from "@/features/shared/components";
-import type { ChatContext } from "@/domain/entities/types";
-import { toast } from "@/shared/utils/toast-service";
 import { useConfirmation } from "@/hooks/use-confirmation";
-import { storage } from "@/core/storage/safe-storage";
 import { useAppServices } from "@/infrastructure/di/AppContext";
-import { getPromptTemplate } from "@/shared/prompts/templates";
 
 // Import child components
 import { ChatHeader } from "./chat-header";
@@ -30,9 +21,8 @@ interface ChatThreadProps {
 
 /**
  * Chat Thread - Main Coordinator Component
- * Orchestrates child components and manages state
- * Series-first: fetches project to get seriesId for context selection
- * Uses streaming AI responses via useAI hook
+ * Orchestrates child components using the useChat hook for state management.
+ * Series-first: fetches project to get seriesId for context selection.
  */
 export function ChatThread({ threadId }: ChatThreadProps) {
   const chatRepo = useChatRepository();
@@ -40,11 +30,8 @@ export function ChatThread({ threadId }: ChatThreadProps) {
   const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
   const { projectRepository: projectRepo } = useAppServices();
 
-  // State
-  const [message, setMessage] = useState("");
-  const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
+  // UI state (not related to chat messages)
   const [selectedPromptId, setSelectedPromptId] = useState("general");
-  const [selectedModel, setSelectedModel] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [settings, setSettings] = useState<ChatSettings>({
@@ -56,22 +43,11 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     presencePenalty: 0,
   });
 
-  // Streaming state
-  const [streamingContent, setStreamingContent] = useState("");
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
-    null,
-  );
-
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isMountedRef = useRef(true);
 
   // Data Queries
   const thread = useLiveQuery(() => chatRepo.get(threadId), [threadId]);
-  const messages = useLiveQuery(
-    () => chatRepo.getMessagesByThread(threadId),
-    [threadId],
-  );
 
   // Fetch project to get seriesId for context assembly
   const project = useLiveQuery(
@@ -82,203 +58,60 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     [thread?.projectId, projectRepo],
   );
 
-  // Use unified AI hook for streaming
-  const { generateStream, isGenerating, cancel, setModel } = useAI({
-    system:
-      "You are a creative writing assistant helping authors craft their stories.",
-    persistModel: true,
-    operationName: "Chat",
+  // Use the new useChat hook for all chat state management
+  const {
+    messages,
+    input,
+    setInput,
+    handleSubmit,
+    append,
+    isLoading,
+    stop,
+    reload,
+    model,
+    setModel,
+    streamingContent,
+    streamingMessageId,
+    selectedContexts,
+    setSelectedContexts,
+  } = useChat({
+    threadId,
+    projectId: thread?.projectId,
+    seriesId: project?.seriesId,
+    initialModel: thread?.defaultModel,
+    promptId: selectedPromptId,
+    maxTokens: settings.maxTokens,
+    temperature: settings.temperature,
   });
 
-  // Use context assembly hook
-  const { assembleContext } = useContextAssembly(thread?.projectId || "");
-
-  // Cleanup on unmount
+  // Sync settings model with useChat model
   useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // Load saved model
-  useEffect(() => {
-    if (thread) {
-      const savedModel =
-        thread.defaultModel || storage.getItem<string>("last_used_model", "");
-      if (savedModel) {
-        setSelectedModel(savedModel);
-        setModel(savedModel);
-        setSettings((prev) => ({ ...prev, model: savedModel }));
-      }
+    if (model) {
+      setSettings((prev) => ({ ...prev, model }));
     }
-  }, [thread, setModel]);
+  }, [model]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent]);
 
-  // Handlers
-  const handleSend = async (directMessage?: string) => {
-    const messageToSend = directMessage || message;
-    if (!messageToSend.trim() || isGenerating) return;
-
-    const effectiveModel = selectedModel || settings.model;
-    if (!effectiveModel) {
-      toast.error("Please select a model to start chatting.");
-      return;
-    }
-
-    // Build context from selections
-    const context: ChatContext = {};
-    selectedContexts.forEach((item) => {
-      if (item.type === "novel") context.novelText = "full";
-      if (item.type === "outline") context.novelText = "outline";
-      if (item.type === "act" && item.id) {
-        if (!context.acts) context.acts = [];
-        context.acts.push(item.id);
-      }
-      if (item.type === "chapter" && item.id) {
-        if (!context.chapters) context.chapters = [];
-        context.chapters.push(item.id);
-      }
-      if (item.type === "scene" && item.id) {
-        if (!context.scenes) context.scenes = [];
-        context.scenes.push(item.id);
-      }
-      if (item.type === "codex" && item.id) {
-        if (!context.codexEntries) context.codexEntries = [];
-        context.codexEntries.push(item.id);
-      }
-    });
-
-    const userMessage = {
-      id: crypto.randomUUID(),
-      threadId,
-      role: "user" as const,
-      content: messageToSend.trim(),
-      ...(Object.keys(context).length > 0 && { context }),
-      timestamp: Date.now(),
-    };
-
-    setMessage("");
-    await chatRepo.createMessage(userMessage);
-
-    // Create AI message placeholder for streaming
-    const aiMessageId = crypto.randomUUID();
-    const aiMessage = {
-      id: aiMessageId,
-      threadId,
-      role: "assistant" as const,
-      content: "",
-      model: effectiveModel,
-      timestamp: Date.now(),
-    };
-    await chatRepo.createMessage(aiMessage);
-    setStreamingMessageId(aiMessageId);
-    setStreamingContent("");
-
-    try {
-      // Build context text
-      const contextText = await assembleContext(selectedContexts);
-      const template = getPromptTemplate(selectedPromptId);
-
-      // Build system prompt with context
-      let systemPrompt =
-        template?.systemPrompt || "You are a creative writing assistant.";
-      if (contextText) {
-        systemPrompt += `
-
-=== CONTEXT ===
-${contextText}`;
-      }
-
-      // Stream the response
-      let fullText = "";
-      await generateStream(
-        {
-          prompt: messageToSend.trim(),
-          context: systemPrompt,
-          maxTokens: settings.maxTokens,
-          temperature: settings.temperature,
-        },
-        {
-          onChunk: (chunk) => {
-            if (isMountedRef.current) {
-              fullText += chunk;
-              setStreamingContent(fullText);
-            }
-          },
-          onComplete: async (completedText) => {
-            if (isMountedRef.current) {
-              await chatRepo.updateMessage(aiMessageId, {
-                content: completedText,
-              });
-              setStreamingMessageId(null);
-              setStreamingContent("");
-
-              await chatRepo.updateThread(threadId, {
-                updatedAt: Date.now(),
-                defaultModel: effectiveModel,
-              });
-            }
-          },
-          onError: async (error) => {
-            if (isMountedRef.current) {
-              await chatRepo.updateMessage(aiMessageId, {
-                content: `Error: ${error.message}`,
-              });
-              setStreamingMessageId(null);
-              setStreamingContent("");
-            }
-          },
-        },
-      );
-    } catch (error) {
-      log.error("Chat error:", error);
-      if (isMountedRef.current) {
-        await chatRepo.updateMessage(aiMessageId, {
-          content: `Error: ${error instanceof Error ? error.message : "Failed to generate response"}`,
-        });
-        setStreamingMessageId(null);
-        setStreamingContent("");
-      }
-    }
-  };
-
-  const handleRegenerateFrom = async (timestamp: number) => {
-    if (!messages || isGenerating) return;
-
-    const allMessages = await chatRepo.getMessagesByThread(threadId);
-    const messagesToDelete = allMessages.filter(
-      (m) => m.timestamp >= timestamp,
-    );
-    await Promise.all(
-      messagesToDelete.map((m) => chatRepo.deleteMessage(m.id)),
-    );
-
-    const lastUserMessage = allMessages
-      .filter((m) => m.timestamp < timestamp && m.role === "user")
-      .sort((a, b) => b.timestamp - a.timestamp)[0];
-
-    if (lastUserMessage) {
-      await handleSend(lastUserMessage.content);
-    }
-  };
-
+  // Thread action handlers
   const handleNameChange = async (name: string) => {
     await chatRepo.updateThread(threadId, { name });
+    invalidateQueries();
   };
 
   const handlePin = async () => {
     if (thread) {
       await chatRepo.updateThread(threadId, { pinned: !thread.pinned });
+      invalidateQueries();
     }
   };
 
   const handleArchive = async () => {
     await chatRepo.updateThread(threadId, { archived: true });
+    invalidateQueries();
     setActiveThreadId(null);
   };
 
@@ -293,12 +126,13 @@ ${contextText}`;
 
     if (confirmed) {
       await chatRepo.deleteThread(threadId);
+      invalidateQueries();
       setActiveThreadId(null);
     }
   };
 
   const handleExport = () => {
-    if (!messages) return;
+    if (!messages || messages.length === 0) return;
     const markdown = messages
       .map((m) => `**${m.role === "user" ? "You" : "AI"}**: ${m.content}\n\n`)
       .join("");
@@ -311,12 +145,33 @@ ${contextText}`;
     URL.revokeObjectURL(url);
   };
 
+  const handleRegenerateFrom = async (timestamp: number) => {
+    if (isLoading) return;
+
+    // Delete messages from timestamp onwards
+    const messagesToDelete = messages.filter((m) => m.timestamp >= timestamp);
+    for (const m of messagesToDelete) {
+      await chatRepo.deleteMessage(m.id);
+    }
+    invalidateQueries();
+
+    // Find the last user message before the timestamp and resend
+    const lastUserMessage = messages
+      .filter((m) => m.timestamp < timestamp && m.role === "user")
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+    if (lastUserMessage) {
+      await append(lastUserMessage.content);
+    }
+  };
+
   const handleSuggestionClick = (suggestion: string) => {
-    setMessage(suggestion);
-    // Send on next tick after state update
-    queueMicrotask(() => {
-      handleSend(suggestion);
-    });
+    append(suggestion);
+  };
+
+  const handleModelChange = (newModel: string) => {
+    setModel(newModel);
+    setSettings((prev) => ({ ...prev, model: newModel }));
   };
 
   if (!thread) return null;
@@ -344,12 +199,8 @@ ${contextText}`;
           onContextChange={setSelectedContexts}
           selectedPromptId={selectedPromptId}
           onPromptChange={setSelectedPromptId}
-          selectedModel={selectedModel}
-          onModelChange={(model) => {
-            setSelectedModel(model);
-            setModel(model);
-            setSettings((prev) => ({ ...prev, model }));
-          }}
+          selectedModel={model}
+          onModelChange={handleModelChange}
           showControls={showControls}
           onToggleControls={() => setShowControls(!showControls)}
         />
@@ -358,7 +209,7 @@ ${contextText}`;
       {/* Message List Component */}
       <ChatMessageList
         messages={messages}
-        isLoading={isGenerating}
+        isLoading={isLoading}
         threadId={threadId}
         onRegenerateFrom={handleRegenerateFrom}
         messagesEndRef={messagesEndRef}
@@ -369,12 +220,12 @@ ${contextText}`;
 
       {/* Input Component */}
       <ChatInput
-        value={message}
-        onChange={setMessage}
-        onSend={() => handleSend()}
-        disabled={isGenerating}
-        isGenerating={isGenerating}
-        onCancel={cancel}
+        value={input}
+        onChange={setInput}
+        onSend={handleSubmit}
+        disabled={isLoading}
+        isGenerating={isLoading}
+        onCancel={stop}
       />
 
       {/* Settings Dialog */}

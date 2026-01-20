@@ -13,6 +13,7 @@ import {
     deleteChatThread,
     getChatMessages,
     createChatMessage,
+    updateChatMessage,
     deleteChatMessage
 } from '@/core/tauri';
 import { TauriNodeRepository } from './TauriNodeRepository';
@@ -171,11 +172,36 @@ export class TauriChatRepository implements IChatRepository {
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async updateMessage(_id: string, _data: Partial<ChatMessage>): Promise<void> {
-        // Message editing is not supported in the current UI.
-        // Messages are immutable once created.
-        // If editing is needed in the future, add a Rust command: update_chat_message
+    async updateMessage(id: string, data: Partial<ChatMessage>): Promise<void> {
+        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
+        if (!projectPath) return;
+
+        // Need to find the message first to get threadId
+        // Since we don't have an efficient single-message lookup, 
+        // we need the threadId from the caller (stored in data or found via context)
+        // For now, we'll fetch all threads and search
+        try {
+            const threads = await listChatThreads(projectPath);
+            for (const thread of threads) {
+                const messages = await getChatMessages(projectPath, thread.id);
+                const message = messages.find(m => m.id === id);
+                if (message) {
+                    // Found the message, update it
+                    const updatedMessage: ChatMessage = {
+                        ...message,
+                        ...data,
+                        id: message.id, // Ensure ID doesn't change
+                        threadId: message.threadId, // Ensure threadId doesn't change
+                    };
+                    await updateChatMessage(projectPath, updatedMessage);
+                    return;
+                }
+            }
+            log.warn('Message not found for update', { messageId: id });
+        } catch (error) {
+            log.error('Failed to update chat message:', error);
+            throw error;
+        }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
