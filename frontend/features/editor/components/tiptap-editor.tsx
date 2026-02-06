@@ -26,7 +26,6 @@ import { TypewriterExtension } from "../extensions/TypewriterExtension";
 
 import Mention from "@tiptap/extension-mention";
 import { createCodexSuggestion } from "./suggestion";
-import { useMentionHover } from "./use-mention-hover";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useContextAssembly } from "@/hooks/use-context-assembly";
 import { assembleContext as assembleCodexContext } from "@/shared/utils/context-engine";
@@ -136,9 +135,9 @@ export function TiptapEditor({
   // Empty objects {} cause "Unknown node type: undefined" errors
   const validatedContent =
     content &&
-      typeof content === "object" &&
-      content.type === "doc" &&
-      Array.isArray(content.content)
+    typeof content === "object" &&
+    content.type === "doc" &&
+    Array.isArray(content.content)
       ? content
       : { type: "doc", content: [{ type: "paragraph" }] };
 
@@ -211,14 +210,6 @@ export function TiptapEditor({
         return false;
       },
     },
-  });
-
-  // Enable hover tooltips on @mentions (after editor is created)
-  useMentionHover({
-    editor,
-    seriesId,
-    containerRef: editorContainerRef,
-    codexRepo,
   });
 
   useEffect(() => {
@@ -390,7 +381,7 @@ When continuing a story, extend the narrative naturally while honoring the estab
     const additionalContext =
       options.selectedContexts && options.selectedContexts.length > 0
         ? "\n\n=== ADDITIONAL CONTEXT ===\n" +
-        (await assembleContext(options.selectedContexts))
+          (await assembleContext(options.selectedContexts))
         : "";
 
     // Enhanced prompt with style guidelines and examples

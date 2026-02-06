@@ -11,8 +11,6 @@
 // AI & Generation
 export { useAI } from "./use-ai";
 export type { UseAIOptions, GenerateOptions, StreamCallbacks } from "./use-ai";
-export { useChat } from "./use-chat";
-export type { UseChatOptions, UseChatReturn } from "./use-chat";
 
 // Collaboration
 export { useCollaboration } from "./use-collaboration";

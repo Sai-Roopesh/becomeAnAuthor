@@ -1,21 +1,21 @@
 # Code Quality Audit: Technical Debt & Anti-Patterns
 
 **Date:** 2025-12-20  
-**Last Updated:** 2026-01-11  
+**Last Updated:** 2026-02-05  
 **Scope:** Frontend (TypeScript/React), Backend (Rust/Tauri), Documentation  
-**Status:** 🟡 Critical Issues Resolved, High Priority Remaining
+**Status:** 🟡 Critical crash risks resolved; type-safety and coverage improvements remain
 
 ---
 
 ## Executive Summary
 
-This audit identified **10 major categories** of technical debt. **3 critical issues have been RESOLVED** (duplicate files, duplicate types, architecture patterns). The remaining issues include unsafe Rust patterns, excessive debugging statements, and incomplete features.
+This audit tracks **10 major categories** of technical debt. Several previously critical issues have been resolved (duplicate files/types, architecture consolidation, unsafe Rust `unwrap` usage), while ongoing work remains around TypeScript `any` usage, clone reduction, TODO cleanup, and deeper test coverage.
 
 **Severity Breakdown:**
-- ✅ **Resolved:** 3 issues (Duplicate files, duplicate types, architecture patterns)
-- 🔴 **Critical:** 1 issue (unwrap() calls in Rust)
-- 🟡 **High:** 4 issues (any types, console.log, excessive clone(), TODOs)
-- 🟢 **Medium:** 3 issues (Comments, hardcoded values, test coverage)
+- ✅ **Resolved:** 5 issues (Duplicate files, duplicate types, architecture patterns, `console.log` cleanup, unsafe `unwrap`)
+- 🔴 **Critical:** 0
+- 🟡 **High:** 3 issues (`any` usage, excessive `clone()`, production TODOs)
+- 🟢 **Medium:** 2 issues (test coverage depth, docs drift)
 
 ---
 
@@ -126,65 +126,20 @@ frontend/
 
 ---
 
-## 3. 🟡 HIGH: Excessive `console.log` Statements
+## 3. ✅ RESOLVED: `console.log` Cleanup
 
-**Severity:** High  
-**Impact:** Performance, production logs pollution
+**Status:** Resolved  
+**Current Risk:** Low
 
-### Issue
-**47 console.log statements** found across the frontend, many in production code paths.
-
-### Examples
-```typescript
-// lib/core/save-coordinator.ts (9 console.log statements!)
-console.log(`[SaveCoordinator] scheduleSave called for scene: ${sceneId}`);
-console.log(`[SaveCoordinator] Waiting for existing save to complete: ${sceneId}`);
-console.log(`[SaveCoordinator] Got content for scene ${sceneId}, content type:`, typeof content);
-// ... 6 more
-
-// lib/core/ai-client.ts (4 console.log statements)
-console.log('[streamWithGoogle] Calling endpoint:', endpoint);
-console.log('[streamWithGoogle] Response status:', response.status, response.statusText);
-
-// features/editor/components/tiptap-editor.tsx (5 console.log statements)
-console.log(`[SceneSwitch] Switching from ${previousSceneIdRef.current} to ${sceneId}`);
-console.log(`[SceneSwitch] Captured content for scene ${oldSceneId}, has ${oldSceneContent.content?.length || 0} nodes`);
-```
-
-### Files with Most console.log
-| File | Count |
-|------|-------|
-| [save-coordinator.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/lib/core/save-coordinator.ts) | 9 |
-| [tiptap-editor.tsx](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/features/editor/components/tiptap-editor.tsx) | 5 |
-| [ai-client.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/lib/ai/client.ts) | 4 |
-| [emergency-backup-service.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/infrastructure/services/emergency-backup-service.ts) | 3 |
-| [tab-leader-service.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/infrastructure/services/tab-leader-service.ts) | 2 |
-
-### Impact
-- Pollutes browser console in production
-- May leak sensitive information (scene IDs, content previews)
-- Performance overhead (string interpolation, serialization)
+### Current State (2026-02-05)
+- `console.log` calls in runtime code have been removed from feature/service paths.
+- Remaining occurrences are expected:
+  - Logger wrapper implementation (`shared/utils/logger.ts`)
+  - One JSDoc example snippet in `hooks/use-ai.ts`
 
 ### Recommendation
-> [!IMPORTANT]
-> Replace all `console.log` with a proper logging system that can be disabled in production.
-
-```typescript
-// Create lib/utils/logger.ts
-export const logger = {
-  debug: (...args: any[]) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[DEBUG]', ...args);
-    }
-  },
-  info: (...args: any[]) => console.info('[INFO]', ...args),
-  warn: (...args: any[]) => console.warn('[WARN]', ...args),
-  error: (...args: any[]) => console.error('[ERROR]', ...args),
-};
-
-// Usage
-logger.debug(`[SaveCoordinator] scheduleSave called for scene: ${sceneId}`);
-```
+- Keep all logging routed through `shared/utils/logger.ts`.
+- Continue blocking ad-hoc `console.log` usage in production paths during review.
 
 ---
 
@@ -194,37 +149,24 @@ logger.debug(`[SaveCoordinator] scheduleSave called for scene: ${sceneId}`);
 **Impact:** Type safety violations, runtime errors
 
 ### Issue
-**226+ occurrences** of the `any` type across the frontend, defeating TypeScript's type checking.
+**21 explicit `any` patterns** remain across frontend code and tests (`: any`, `as any`, or `no-explicit-any` suppressions).
 
 ### Most Egregious Examples
 
-**[lib/utils/editor.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/lib/utils/editor.ts)**
+**[shared/types/tiptap.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/shared/types/tiptap.ts)**
 ```typescript
-// ❌ No type safety for Tiptap content
-export function extractTextFromContent(content: any): string { ... }
-export function extractTextFromTiptapJSON(content: any): string {
-    .map((node: any) => {          // ❌ any
-        return node.content.map((c: any) => c.text || '').join('');  // ❌ any
-    })
-}
+attrs?: Record<string, any>;
 ```
 
-**[domain/entities/types.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/domain/entities/types.ts)**
+**[shared/schemas/import-schema.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/shared/schemas/import-schema.ts)**
 ```typescript
-export interface Scene extends BaseNode {
-    content: any; // ❌ Tiptap JSON should have a proper type
-}
-
-export interface CodexEntry {
-    customDetails?: Record<string, any>; // ❌ Could be typed
-}
+const TiptapContentSchema: z.ZodType<any> = z.lazy(...)
+attrs: z.record(z.string(), z.any()).optional()
 ```
 
 **[infrastructure/services/AnalysisService.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/infrastructure/services/AnalysisService.ts)**
 ```typescript
-private getPromptForType(type: string, scenes: Scene[], codex: any[]): string { ... }
-private parseResponse(type: string, responseText: string): { summary?: string; insights: any[]; metrics?: any } { ... }
-private convertToInsights(type: string, parsed: any): any[] { ... }
+schema: schema as any
 ```
 
 ### Impact
@@ -235,7 +177,7 @@ private convertToInsights(type: string, parsed: any): any[] { ... }
 
 ### Recommendation
 > [!IMPORTANT]
-> Define proper types for Tiptap JSON content and eliminate `any` types.
+> Prioritize replacing production `any` usage in schemas/types before test-only `any`.
 
 ```typescript
 // Create domain/entities/tiptap-types.ts
@@ -271,70 +213,17 @@ export interface Scene extends BaseNode {
 
 ---
 
-## 5. 🔴 CRITICAL: Unsafe `unwrap()` Calls in Rust Backend
+## 5. ✅ RESOLVED: Unsafe `unwrap()` Calls in Rust Backend
 
-**Severity:** Critical  
-**Impact:** Potential panic crashes in production
+**Status:** Resolved in production code  
+**Current Risk:** Low (test-only `unwrap` remains acceptable)
 
-### Issue
-**5 `unwrap()` calls** found in non-test Rust code, which will **panic the entire application** if they fail.
-
-### Locations
-
-**[commands/trash.rs:40,44](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/commands/trash.rs#L40)**
-```rust
-// ❌ WILL PANIC if file_name() returns None
-let dest_path = trash_item_dir.join(source_path.file_name().unwrap());
-
-// ❌ WILL PANIC if serialization fails
-fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap())
-    .map_err(|e| e.to_string())?;
-```
-
-**[commands/backup.rs:256](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/commands/backup.rs#L256)**
-```rust
-// ❌ WILL PANIC if parent() returns None
-fs::create_dir_all(entry_path.parent().unwrap()).map_err(|e| e.to_string())?;
-```
-
-**[commands/codex.rs:40](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/commands/codex.rs#L40)**
-```rust
-// ❌ WILL PANIC if parent() returns None
-fs::create_dir_all(entry_path.parent().unwrap()).map_err(|e| e.to_string())?;
-```
-
-**[commands/security.rs:184](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/commands/security.rs#L184)** (Test code - OK)
-```rust
-// ✅ Test code - acceptable
-let retrieved = get_api_key(provider.clone()).unwrap();
-```
-
-### Impact
-- **Application Crashes:** Any unexpected `None` will crash the Tauri app
-- **Data Loss:** User loses unsaved work
-- **Bad UX:** No error message, just instant crash
+### Current State (2026-02-05)
+- Non-test backend code no longer uses `unwrap()`.
+- One `unwrap()` remains inside ignored integration test code in `commands/security.rs`, which is acceptable for test assertions.
 
 ### Recommendation
-> [!CAUTION]
-> **Replace all `unwrap()` with proper error handling using `?` operator or `map_err`.**
-
-```rust
-// ❌ BEFORE
-let dest_path = trash_item_dir.join(source_path.file_name().unwrap());
-
-// ✅ AFTER
-let dest_path = trash_item_dir.join(
-    source_path.file_name()
-        .ok_or("Invalid file path: missing file name")?
-);
-
-// ❌ BEFORE
-fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap())
-
-// ✅ AFTER
-fs::write(&meta_path, serde_json::to_string_pretty(&meta)
-    .map_err(|e| format!("Failed to serialize metadata: {}", e))?)
-```
+- Keep CI/static checks for non-test `unwrap()` usage in `backend/src`.
 
 ---
 
@@ -344,7 +233,7 @@ fs::write(&meta_path, serde_json::to_string_pretty(&meta)
 **Impact:** Performance degradation, memory overhead
 
 ### Issue
-**44 `.clone()` calls** found in backend commands, many of which are unnecessary.
+**41 `.clone()` calls** found in `backend/src` (includes a small number in tests); several are candidates for borrow-based refactors.
 
 ### Examples
 
@@ -399,68 +288,31 @@ updated_at: now,
 ## 7. 🟡 HIGH: Unimplemented TODOs in Production Code
 
 **Severity:** High  
-**Impact:** Incomplete features, user confusion
+**Impact:** Deferred export configuration completeness
 
 ### Issue
-**13 TODO comments** found, indicating incomplete features shipped to users.
+**4 TODO comments** found across frontend/backend, with **2 in production code** and **2 in tests**.
 
-### Critical TODOs
+### Production TODOs
 
 **[infrastructure/services/DocumentExportService.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/infrastructure/services/DocumentExportService.ts)**
 ```typescript
-async exportToPDF(projectId: string, options?: ExportOptions): Promise<Blob> {
-    // TODO: Integrate PDF generation library (jsPDF, pdfmake, etc.)
-    throw new Error('PDF export not yet implemented');
-}
-
-async exportToDOCX(projectId: string, options?: ExportOptions): Promise<Blob> {
-    // TODO: Integrate DOCX generation library (docx package)
-    throw new Error('DOCX export not yet implemented');
-}
+// TODO: Enhance to use config.fontFamily, config.margins, etc.
+// TODO: Enhance to use config.pageSize, config.margins, config.trimSize, etc.
 ```
 
-**[features/codex/components/entity-editor.tsx](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/features/codex/components/entity-editor.tsx#L112)**
-```typescript
-const mentionCount = 0; // TODO: Calculate based on actual mentions
-```
+### Test TODOs
 
-**[features/codex/components/mentions-tab.tsx](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/features/codex/components/mentions-tab.tsx#L9)**
-```typescript
-// TODO: Implement mention tracking across manuscript, summaries, codex, snippets, chats
-return <div>Mention tracking not implemented</div>;
-```
+**[infrastructure/services/__tests__/google-auth-service.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/infrastructure/services/__tests__/google-auth-service.test.ts)**  
+`// TODO: Complex async tests for PKCE flow`
 
-**[shared/utils/token-counter.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/shared/utils/token-counter.ts#L41)**
-```typescript
-// TODO: Make this async for true accuracy
-// Currently using synchronous fallback
-```
-
-### Impact
-- **Broken Features:** Users see "not implemented" errors
-- **Misleading UI:** Mention counts always show "0"
-- **Technical Debt:** TODOs accumulate and are forgotten
+**[hooks/__tests__/use-collaboration.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/__tests__/use-collaboration.test.ts)**  
+`// Complex Async Tests - TODO`
 
 ### Recommendation
-> [!WARNING]
-> **Either implement these features or remove/hide the UI elements.**
-
-For incomplete features:
-1. Remove from UI until implemented, OR
-2. Add explicit "Coming Soon" labels, OR
-3. Prioritize implementation
-
-For token-counter TODO:
-```typescript
-// Implement async version using dynamic import
-export async function countTokensAsync(text: string, model?: string): Promise<number> {
-  const tiktoken = await import('tiktoken');
-  const encoding = tiktoken.encodingForModel(model || 'gpt-4');
-  const tokens = encoding.encode(text).length;
-  encoding.free();
-  return tokens;
-}
-```
+- Track TODO ownership with issue IDs in comments.
+- Prioritize export-preset fidelity TODOs (they affect output customization accuracy).
+- Keep test TODOs as separate backlog items for reliability hardening.
 
 ---
 
@@ -554,7 +406,7 @@ export const TIMING = {
 **Impact:** Regression risk
 
 ### Issue
-**15+ test files** found for a large codebase (improved from 10):
+**33 test files** currently tracked (`32` frontend unit/integration + `1` e2e spec), but coverage still needs deeper backend and integration breadth:
 
 **Hook Tests:**
 1. [hooks/use-ai.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/use-ai.test.ts)
@@ -564,40 +416,37 @@ export const TIMING = {
 5. [hooks/use-error-handler.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/use-error-handler.test.ts)
 6. [hooks/use-live-query.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/use-live-query.test.ts)
 7. [hooks/use-mobile.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/use-mobile.test.ts)
-8. [hooks/use-storage-quota.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/use-storage-quota.test.ts)
-9. [hooks/use-tab-leader.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/use-tab-leader.test.ts)
+8. [hooks/use-tab-leader.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/hooks/use-tab-leader.test.ts)
 
-**Utility Tests:**
-10. [lib/__tests__/ai-utils.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/lib/__tests__/ai-utils.test.ts)
+**Core Reliability Tests:**
+9. [lib/core/__tests__/save-coordinator.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/lib/core/__tests__/save-coordinator.test.ts)
+10. [lib/core/__tests__/editor-state-manager.test.ts](file:///Users/sairoopesh/Documents/becomeAnAuthor/frontend/lib/core/__tests__/editor-state-manager.test.ts)
 
-**Backend Tests:** Only inline unit tests in [commands/security.rs](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/commands/security.rs) and [utils/validation.rs](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/utils/validation.rs).
+**Backend Tests:** Unit/integration coverage exists in [commands/security.rs](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/commands/security.rs), [utils/validation.rs](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/src/utils/validation.rs), and [backend/tests/security_tests.rs](file:///Users/sairoopesh/Documents/becomeAnAuthor/backend/tests/security_tests.rs).
 
 ### Missing Test Coverage
-- No tests for `SaveCoordinator` (critical!)
-- No tests for `ContextAssembler` (critical!)
-- No tests for `TiptapEditor` component
-- No tests for codex repositories
-- No integration tests
-- No E2E tests
+- Limited tests for Rust file I/O commands (scene/project/codex/trash paths)
+- Sparse repository coverage (only selected Tauri repositories tested)
+- No robust integration test suite for frontend↔backend command contracts
+- Only one E2E spec (`e2e/character-arc.spec.ts`)
 
 ### Recommendation
 > [!IMPORTANT]
 > **Prioritize tests for critical paths:**
 
-1. **SaveCoordinator Tests:**
-   - Test queue serialization
-   - Test emergency backup fallback
-   - Test concurrent save requests
-
-2. **ContextAssembler Tests:**
+1. **ContextAssembler Tests:**
    - Test token counting accuracy
    - Test prioritization logic
    - Test truncation behavior
 
-3. **Integration Tests:**
+2. **Repository Contract/Integration Tests:**
+   - Expand repository coverage beyond current subset
    - Test frontend-backend command flows
    - Test file system operations
    - Test API key storage/retrieval
+
+3. **Rust Command Tests:**
+   - Add scene/project/codex/trash command tests with temp dirs
 
 ---
 
@@ -610,20 +459,20 @@ export const TIMING = {
 
 ### 🔴 IMMEDIATE ACTIONS (Critical)
 
-3. **Fix unwrap() calls:** Replace all `unwrap()` in Rust backend with proper error handling
+3. ~~**Fix unwrap() calls:**~~ ✅ Non-test `unwrap()` usage removed from backend
 
 ### 🟡 HIGH PRIORITY (This Sprint)
 
-4. **Replace console.log:** Implement proper logging system with dev/prod modes
-5. **Type Tiptap content:** Create strong types for Tiptap JSON structure
+4. ~~**Replace console.log:**~~ ✅ Runtime usage migrated to logger wrapper
+5. **Reduce remaining `any` usage:** Prioritize production schema/type paths
 6. **Reduce .clone() calls:** Audit Rust backend for unnecessary clones
-7. **Complete or remove TODOs:** Either implement features or hide incomplete UI
+7. **Complete export config TODOs:** Finish preset-driven PDF/DOCX formatting support
 
 ### 🟢 MEDIUM PRIORITY (Next Sprint)
 
 8. **Clean up comments:** Remove excessive emoji/checkmark comments
 9. **Extract magic values:** Create centralized constants file
-10. **Add critical tests:** Test SaveCoordinator, ContextAssembler, and Tauri commands
+10. **Add critical tests:** Expand Rust command and repository integration coverage
 
 ---
 
@@ -633,12 +482,12 @@ export const TIMING = {
 |----------|-------|----------|--------|
 | Duplicate Files | ~~7 files (31 KB)~~ | ~~🔴 Critical~~ | ✅ **RESOLVED** |
 | Duplicate Types | ~~16 interfaces~~ | ~~🔴 Critical~~ | ✅ **RESOLVED** |
-| `console.log` | 47 occurrences | 🟡 High | Pending |
-| `any` types | 226+ occurrences | 🟡 High | Pending |
-| `unwrap()` calls | 5 in production code | 🔴 Critical | Pending |
-| `.clone()` calls | 44 occurrences | 🟡 High | Pending |
-| TODO comments | 13 occurrences | 🟡 High | Pending |
-| Test files | 10 (insufficient) | 🟢 Medium | Pending |
+| `console.log` | 2 occurrences (logger wrapper + JSDoc example) | 🟢 Low | ✅ **Resolved in runtime code** |
+| Explicit `any` patterns | 21 occurrences | 🟡 High | Pending |
+| `unwrap()` calls | 0 in production backend (`1` in ignored test) | 🟢 Low | ✅ **Resolved** |
+| `.clone()` calls | 41 occurrences in `backend/src` | 🟡 High | Pending |
+| TODO comments | 4 total (`2` production, `2` test) | 🟡 High | Pending |
+| Test files | 33 (`32` frontend + `1` e2e) | 🟢 Medium | Improving |
 
 ---
 
@@ -650,9 +499,9 @@ Progress has been made on the most critical issues:
 - ✅ **Legacy compatibility code** removed - series-first architecture enforced
 
 **Remaining work:**
-- Fix unsafe `unwrap()` calls in Rust backend (5 occurrences)
-- Replace `console.log` with proper logging system (47 occurrences)
-- Reduce `any` types (226+ occurrences)
-- Add more test coverage
+- Reduce remaining production `any` usage
+- Audit and trim unnecessary Rust `clone()` calls
+- Finish export configuration TODOs
+- Add deeper backend/repository integration tests
 
 **Estimated Remaining Remediation Time:** 1-2 weeks (1 developer)

@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]  
 > **Comprehensive audit of the Tauri IPC boundary between Rust backend and TypeScript frontend.**  
-> Last audited: 2026-01-05
+> Last audited: 2026-02-05
 
 ---
 
@@ -11,11 +11,11 @@
 This document provides an exhaustive audit of how the **Rust backend** (Tauri v2) connects to the **TypeScript frontend** (Next.js 16) in the "Become An Author" application.
 
 ### Key Statistics
-- **110+ Tauri Commands** registered in `backend/src/lib.rs`
+- **112 Tauri Commands** registered in `backend/src/lib.rs`
 - **19 Backend Modules** (`project.rs`, `scene.rs`, `codex.rs`, `chat.rs`, `preset.rs`, etc.)
-- **19 Frontend Repository Interfaces** in `frontend/domain/repositories/`
+- **18 Frontend Repository Interfaces** in `frontend/domain/repositories/`
 - **18 Tauri Repository Implementations** in `frontend/infrastructure/repositories/`
-- **1 Commands Wrapper Module** in `frontend/core/tauri/commands.ts` (502 lines)
+- **1 Commands Wrapper Module** in `frontend/core/tauri/commands.ts` (711 lines)
 
 ### Architecture Pattern
 Frontend repositories DO NOT call `invoke()` directly. Instead:
@@ -93,7 +93,7 @@ sequenceDiagram
 |---------------|-------------|------------------|------------|------------|-------------|
 | `load_scene` | `scene.rs` | `loadScene()` | `TauriNodeRepository` | `projectPath, sceneFile` | `Scene` |
 | `save_scene` | `scene.rs` | `saveScene()` | `TauriNodeRepository` | `projectPath, sceneFile, content, title?` | `SceneMeta` |
-| `save_scene_by_id` | `scene.rs` | N/A (unused) | N/A | `projectPath, sceneId, content` | `SceneMeta` |
+| `save_scene_by_id` | `scene.rs` | N/A (called via direct `invoke` in `save-coordinator.ts`) | SaveCoordinator | `projectPath, sceneId, content, wordCount` | `SceneMeta` |
 | `delete_scene` | `scene.rs` | `deleteScene()` | `TauriNodeRepository` | `projectPath, sceneFile` | `void` |
 
 ### 2.3 Codex Commands (21 commands)
@@ -698,8 +698,8 @@ let content = fs::read_to_string(&file_path)?;  // Entire file
 
 ### 10.2 Weaknesses ⚠️
 
-1. **Unused Commands**: 3 commands (`rename_node`, `delete_node`, `save_scene_by_id`) defined but never called
-2. **Type Inconsistency**: Timestamps are strings in Rust but numbers in TypeScript
+1. **Unused Commands**: 2 commands (`rename_node`, `delete_node`) defined but not called from frontend
+2. **Legacy Timestamp Transform**: `TauriProjectRepository` still uses `new Date(meta.created_at).getTime()` despite `created_at` now being numeric
 3. **No Batch Operations**: No support for batch mutations (e.g., delete 100 items)
 4. **State Management**: `currentProjectPath` relies on module-level state (fragile)
 5. **Large File Risk**: No streaming for large scene files
@@ -710,7 +710,7 @@ let content = fs::read_to_string(&file_path)?;  // Entire file
 |---------|--------|----------------|
 | **Pagination** | ❌ Not implemented | Add `list_scenes(offset, limit)` for large projects |
 | **Incremental Sync** | ❌ Not implemented | Track file `modified_at` to avoid re-reading unchanged files |
-| **Real-time Collaboration** | ❌ Not planned | Would require WebSocket bridge (complex) |
+| **Server-mediated Collaboration** | ❌ Not planned | Current implementation is P2P WebRTC + Yjs state persistence |
 | **Undo/Redo** | ❌ Not implemented | Could use event sourcing pattern |
 
 ### 10.4 Recommended Improvements
@@ -718,18 +718,16 @@ let content = fs::read_to_string(&file_path)?;  // Entire file
 #### Priority 1: Remove Unused Commands
 ```rust
 // Remove from lib.rs:
-rename_node,     // ❌ Unused
-delete_node,     // ❌ Unused (use TauriNodeRepository.delete instead)
-save_scene_by_id // ❌ Unused
+rename_node, // ❌ Unused
+delete_node, // ❌ Unused (use TauriNodeRepository.delete instead)
 ```
 
-#### Priority 2: Standardize Timestamps
-```rust
-// Change all timestamps to i64 (milliseconds since epoch)
-pub struct ProjectMeta {
-    pub created_at: i64,  // Instead of String
-    pub updated_at: i64,
-}
+#### Priority 2: Remove Legacy Timestamp Conversion
+```typescript
+// Current project timestamps are already numbers in commands.ts.
+// Remove unnecessary Date parsing in TauriProjectRepository transform.
+createdAt: meta.created_at,
+updatedAt: meta.updated_at,
 ```
 
 #### Priority 3: Add Batch Operations
@@ -832,12 +830,12 @@ The backend-frontend integration follows a **clean, type-safe architecture** wit
 - **Hooks**: Business logic orchestration
 
 **Strengths**: Type safety, security, clean architecture  
-**Weaknesses**: Unused commands, timestamp inconsistency, no batching  
-**Next Steps**: Remove unused commands, standardize types, add tests
+**Weaknesses**: Unused commands, no batching, module-level projectPath state  
+**Next Steps**: Remove unused commands, harden path-state handling, add tests
 
 ---
 
 **Document Status**: ✅ Complete  
-**Last Updated**: 2025-01-20  
-**Total Commands Documented**: 67/67  
-**Total Repositories Documented**: 12/12
+**Last Updated**: 2026-02-05  
+**Total Commands Documented**: 112/112  
+**Total Repositories Documented**: 18/18

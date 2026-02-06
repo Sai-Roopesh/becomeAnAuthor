@@ -6,6 +6,7 @@
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {
@@ -27,8 +28,7 @@
         "enable": true,
         "scope": [
           "$DOCUMENT/**",
-          "$HOME/Documents/**",
-          "**"
+          "$HOME/Documents/**"
         ]
       }
     }

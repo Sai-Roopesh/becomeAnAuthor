@@ -252,7 +252,7 @@ frontend/
 │       ├── IModelDiscoveryService.ts
 │       └── INodeDeletionService.ts
 ├── infrastructure/          # Implementation Layer
-│   ├── repositories/        # 18 Tauri Repository Implementations
+│   ├── repositories/        # Tauri Repository Implementations
 │   │   ├── TauriProjectRepository.ts
 │   │   ├── TauriNodeRepository.ts
 │   │   ├── TauriCodexRepository.ts
@@ -261,48 +261,50 @@ frontend/
 │   │   ├── TauriCodexRelationRepository.ts
 │   │   ├── TauriCodexRelationTypeRepository.ts
 │   │   ├── TauriSceneCodexLinkRepository.ts
-│   │   └── ... (10 more)
-│   ├── services/            # 10 Concrete service implementations
-│   └── migrations/          # Data migration scripts
+│   │   └── ... (12 more)
+│   ├── services/            # Service implementations
+│   ├── hooks/               # Infrastructure hooks (app updater, etc.)
+│   └── di/                  # Dependency injection context
 ├── features/                # Feature-Sliced Design (18 features)
-│   ├── editor/              # Scene editor (30 files)
-│   ├── codex/               # World-building wiki (19 files)
-│   ├── chat/                # AI chat interface (17 files)
-│   ├── plan/                # Story planning tools (19 files)
-│   ├── review/              # Manuscript review (15 files)
-│   ├── ai/                  # AI integration components (2 files)
-│   ├── search/              # Global search (8 files)
-│   ├── settings/            # User preferences (11 files)
-│   ├── google-drive/        # Google Drive integration (5 files)
-│   ├── migration/           # Data migration UI (4 files)
-│   ├── snippets/            # Reusable text snippets (4 files)
-│   ├── series/              # Multi-book series management (6 files)
-│   ├── dashboard/           # Project dashboard (7 files)
-│   ├── navigation/          # Tree navigation (5 files)
-│   ├── project/             # Project CRUD (3 files)
-│   ├── export/              # Document export (6 files)
-│   ├── collaboration/       # Real-time collaboration (2 files)
-│   ├── data-management/     # Import/export flows (4 files)
-│   └── shared/              # Shared feature utilities (6 files)
-├── hooks/                   # 42+ Custom React Hooks
+│   ├── editor/
+│   ├── codex/
+│   ├── chat/
+│   ├── plan/
+│   ├── review/
+│   ├── ai/
+│   ├── search/
+│   ├── settings/
+│   ├── google-drive/
+│   ├── snippets/
+│   ├── series/
+│   ├── dashboard/
+│   ├── navigation/
+│   ├── project/
+│   ├── export/
+│   ├── collaboration/
+│   ├── data-management/
+│   └── shared/
+├── hooks/                   # Custom React Hooks
 │   ├── use-ai.ts            # AI interaction hook
-│   ├── use-auto-save.ts     # Auto-save coordinator
 │   ├── use-context-assembly.ts  # AI context builder
+│   ├── use-live-query.ts    # Query cache + invalidation
+│   ├── use-open-project.ts  # Project initialization lifecycle
 │   ├── use-confirmation.tsx # Confirmation dialogs
 │   ├── use-dialog-state.ts  # Dialog state management
 │   ├── use-model-discovery.ts # Dynamic model fetching
 │   ├── use-collaboration.ts # Real-time collaboration
 │   ├── use-mentions.ts      # Codex mention tracking
-│   └── ... (34+ more)
+│   └── ... (20+ more)
 ├── lib/                     # Shared libraries
-│   ├── services/            # Business logic services
-│   ├── integrations/        # External integrations (Google Drive)
-│   ├── prompts/             # AI prompt templates
+│   ├── ai/                  # AI client + token calculator
+│   ├── config/              # Vendors, model specs, constants
+│   ├── core/                # Save coordinator + editor state manager
 │   ├── tiptap-extensions/   # Custom Tiptap extensions
-│   └── search-service.ts    # Fuse.js wrapper
+│   ├── search-service.ts    # Fuse.js wrapper
+│   └── utils.ts             # Shared utility helpers
 ├── components/              # Shared UI components
-├── store/                   # Zustand stores
-└── shared/                  # Shared utilities
+├── store/                   # Zustand stores (project/chat/format)
+└── shared/                  # Shared prompts/schemas/types/utils
 ```
 
 ### 3.3 Backend Architecture (Detailed)
@@ -452,7 +454,7 @@ Stored in OS-specific directories (via Rust `dirs` crate):
 | **Search** | `features/search` | `search.rs` | Full-text search across scenes and codex |
 | **Series Management** | `features/series` | `series.rs` | Multi-book series tracking |
 | **Export** | `features/data-management` | `backup.rs` | Export to .docx or JSON backup |
-| **Import** | `features/migration` | `backup.rs` | Import from JSON backup |
+| **Import** | `features/data-management` | `backup.rs` | Import from JSON backup |
 | **Google Drive Sync** | `features/google-drive` | N/A (OAuth client-side) | Cloud backup integration |
 | **Settings** | `features/settings` | N/A (localStorage) | Theme, auto-save, AI preferences |
 | **Dashboard** | `features/dashboard` | N/A | Project overview, word count stats |
@@ -472,11 +474,11 @@ Stored in OS-specific directories (via Rust `dirs` crate):
 
 | Feature | Purpose |
 |---------|---------|
-| **Auto-Save** | `use-auto-save.ts` debounces edits, saves to Rust |
+| **Auto-Save** | `EditorStateManager` + `save-coordinator.ts` serialize debounced saves |
 | **Multi-Tab Sync** | `tab-coordinator.ts` prevents concurrent edit conflicts |
 | **Emergency Backups** | Auto-saves drafts every N minutes (expires 24h) |
 | **Trash System** | Soft-delete with restore capability |
-| **Migration System** | Handles schema changes across app versions |
+| **Series Codex Migration** | `migrate_codex_to_series` command for legacy codex migration |
 | **Dependency Boundaries** | ESLint plugin enforces clean architecture |
 | **Circular Dependency Check** | `madge` prevents import cycles |
 
@@ -490,19 +492,19 @@ Stored in OS-specific directories (via Rust `dirs` crate):
 sequenceDiagram
     actor User
     participant UI as React Component
-    participant Hook as Custom Hook
+    participant Save as EditorStateManager
     participant Store as Zustand Store
-    participant Repo as TauriRepository
+    participant Repo as SaveCoordinator
     participant IPC as Tauri IPC
     participant Cmd as Rust Command
     participant FS as File System
 
     User->>UI: Types in editor
-    UI->>Hook: use-auto-save triggers
-    Hook->>Store: Update scene content
-    Store->>Repo: repo.saveScene()
-    Repo->>IPC: invoke('save_scene')
-    IPC->>Cmd: save_scene(path, content)
+    UI->>Store: Update scene content
+    UI->>Save: mark dirty + debounce
+    Save->>Repo: scheduleSave(sceneId, content)
+    Repo->>IPC: invoke('save_scene_by_id')
+    IPC->>Cmd: save_scene_by_id(path, sceneId, content)
     Cmd->>Cmd: Parse frontmatter
     Cmd->>Cmd: Update word count
     Cmd->>Cmd: Atomic write (.tmp → .md)
@@ -639,13 +641,13 @@ NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=xxx
 
 ### 8.2 Test Coverage
 
-- **39 test files** across `frontend/hooks/`
+- **33 test files** across frontend + e2e (`32` unit/integration + `1` e2e spec)
 - **Example tests**:
   - `use-ai.test.ts`: AI interaction mocking
-  - `use-auto-save.test.ts`: Debounce logic
   - `use-context-assembly.test.ts`: Context building
-  - `use-dialog-state.test.ts`: Dialog state machine
-  - `use-error-handler.test.ts`: Error boundaries
+  - `save-coordinator.test.ts`: Save queue serialization and cancellation
+  - `editor-state-manager.test.ts`: Dirty state and debounced save behavior
+  - `ai-connections-tab.test.tsx`: Settings UI behavior
 
 ### 8.3 E2E Testing
 
@@ -680,7 +682,7 @@ npm run tauri:build   # Compile Rust + bundle app (DMG/AppImage/MSI)
 | `tauri:build` | `tauri build` | Production desktop build |
 | `test` | `vitest` | Run tests |
 | `test:coverage` | `vitest --coverage` | Generate coverage report |
-| `lint` | `next lint` | ESLint check |
+| `lint` | `eslint frontend app --ext .ts,.tsx` | ESLint check |
 | `deps:check` | `depcruise` | Check dependency rules |
 | `deps:circular` | `madge --circular` | Find circular dependencies |
 
@@ -773,7 +775,7 @@ graph TB
     end
     
     subgraph "Feature Layer"
-        Editor --> EditorHook[use-auto-save]
+        Editor --> EditorHook[EditorStateManager]
         Codex --> CodexHook[use-codex-repository]
         Chat --> ChatHook[use-ai]
     end
@@ -868,6 +870,5 @@ graph TB
 
 ---
 
-**Last Updated**: 2026-01-05  
-**Document Version**: 2.2
-
+**Last Updated**: 2026-02-05  
+**Document Version**: 2.4

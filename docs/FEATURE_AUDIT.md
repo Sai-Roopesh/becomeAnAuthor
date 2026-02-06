@@ -1,7 +1,7 @@
 # Become An Author - Complete Feature Audit
 
 > **Document Generated**: December 21, 2025  
-> **Last Updated**: January 5, 2026  
+> **Last Updated**: February 5, 2026  
 > **Project**: Become An Author - Local-first, AI-assisted desktop application for novelists
 
 ---
@@ -110,8 +110,8 @@ This audit covers **every feature** across the following categories:
 | Feature | Backend Command | Frontend Hook | Description |
 |---------|-----------------|---------------|-------------|
 | **Load Scene** | `load_scene(project_path, scene_file)` | `TauriNodeRepository` | Load scene with YAML frontmatter + content |
-| **Save Scene** | `save_scene(project_path, scene_file, content, title)` | `useAutoSave` | Auto-saves with debouncing |
-| **Save by ID** | `save_scene_by_id(project_path, scene_id, content)` | `saveCoordinator` | Save using scene ID (looks up file) |
+| **Save Scene** | `save_scene(project_path, scene_file, content, title)` | `EditorStateManager` | Debounced save orchestration with dirty-state tracking |
+| **Save by ID** | `save_scene_by_id(project_path, scene_id, content)` | `saveCoordinator` | Serialized per-scene writes + emergency backup fallback |
 | **Delete Scene** | `delete_scene(project_path, scene_file)` | N/A | Remove scene file |
 
 ### 2.3 Editor Components
@@ -125,7 +125,6 @@ This audit covers **every feature** across the following categories:
 | **TextSelectionMenu** | `text-selection-menu.tsx` | Context menu on selection |
 | **MentionList** | `mention-list.tsx` | @mention autocomplete dropdown |
 | **NodeActionsMenu** | `NodeActionsMenu.tsx` | Scene/chapter actions |
-| **SceneActionMenu** | `scene-action-menu.tsx` | Scene-specific actions |
 | **StoryTimeline** | `story-timeline.tsx` | Visual timeline of scenes |
 | **SectionComponent** | `section-component.tsx` | Scene section dividers |
 | **TextReplaceDialog** | `text-replace-dialog.tsx` (17KB) | Find and replace functionality |
@@ -136,20 +135,20 @@ This audit covers **every feature** across the following categories:
 | Component | File | Description |
 |-----------|------|-------------|
 | **ContinueWritingMenu** | `continue-writing-menu.tsx` (12KB) | AI-powered text continuation |
-| **RewriteMenu** | `rewrite-menu.tsx` (10KB) | AI suggestions for rewriting |
+| **TextSelectionMenu** | `text-selection-menu.tsx` | AI-powered expand/rephrase/shorten actions |
 | **TweakGenerateDialog** | `tweak-generate-dialog.tsx` (10KB) | Fine-tune AI generation parameters |
 | **TinkerMode** | `tinker-mode.tsx` | Experimental AI writing features |
 
 ### 2.5 Auto-Save System
 
-**Hook**: `use-auto-save.ts`
+**Core**: `EditorStateManager` + `save-coordinator.ts`
 
 | Feature | Description |
 |---------|-------------|
-| **Debounced Saves** | Saves every 1 second if content changed |
-| **Emergency Backup** | Saves to IndexedDB on page unload |
-| **Backup Recovery** | Prompts to restore unsaved changes on mount |
-| **Backup Cleanup** | Auto-cleans expired backups (>1 hour old) |
+| **Debounced Saves** | Debounces editor updates (default 500ms via `TIMING.SAVE_DEBOUNCE_MS`) |
+| **Per-Scene Queue** | Serializes concurrent saves per scene to prevent race conditions |
+| **Emergency Backup** | Primary Tauri backup + localStorage fallback on save failures |
+| **Save Status** | Exposes `saved/saving/unsaved/error` state to UI (`SaveStatusIndicator`) |
 
 ### 2.6 Slash Commands
 
@@ -565,17 +564,15 @@ Scenes support the following metadata:
 - Token refresh handling
 - Scopes: `drive.file`
 
-### 8.6 Migration System
+### 8.6 Data Management UI
 
-**Location**: `frontend/features/migration/`
+**Location**: `frontend/features/data-management/`
 
 | Component | File | Description |
 |-----------|------|-------------|
-| **MigrationWizard** | `MigrationWizard.tsx` | Step-by-step wizard |
-| **WelcomeStep** | `WelcomeStep.tsx` | Introduction |
-| **PreviewStep** | `PreviewStep.tsx` | Preview changes |
-| **ProgressStep** | `ProgressStep.tsx` | Migration progress |
-| **CompleteStep** | `CompleteStep.tsx` | Success confirmation |
+| **DataManagementMenu** | `data-management-menu.tsx` | Unified entry point for backup/export/restore |
+| **ExportProjectButton** | `export-project-button.tsx` | Trigger JSON backup export flow |
+| **RestoreProjectDialog** | `RestoreProjectDialog.tsx` | Restore a project from local backup JSON |
 
 ---
 
@@ -749,7 +746,7 @@ All located in `frontend/components/ui/`:
 
 ### 13.3 Logging
 
-**Service**: `frontend/core/logger.ts`
+**Service**: `frontend/shared/utils/logger.ts`
 
 - Scoped logging with prefixes
 - Debug, info, warn, error levels
@@ -767,23 +764,23 @@ frontend/
 │   ├── api/           # API utilities
 │   ├── storage/       # Safe storage wrappers
 │   ├── tauri/         # Tauri type wrappers
-│   ├── logger.ts      # Logging service
 │   └── tab-coordinator.ts  # Multi-tab sync
 ├── domain/            # Clean Architecture - Domain Layer
 │   ├── entities/      # Zod schemas, TypeScript types
-│   ├── repositories/  # 16 Repository Interfaces
+│   ├── repositories/  # 18 Repository Interfaces
 │   └── services/      # Domain services
 ├── infrastructure/    # Implementation Layer
-│   ├── repositories/  # 15 Tauri Implementations
+│   ├── repositories/  # 18 Tauri Implementations
 │   ├── services/      # Concrete services
-│   └── migrations/    # Data migration scripts
+│   ├── hooks/         # Infrastructure hooks
+│   └── di/            # AppContext DI container
 ├── features/          # Feature-Sliced Design (18 features)
-├── hooks/             # 41 Custom React Hooks
+├── hooks/             # 29+ Custom React Hooks
 ├── lib/               # Shared libraries
 │   ├── config/        # Configuration
 │   └── tiptap-extensions/  # Editor extensions
 ├── components/        # Shared UI components (28+)
-├── store/             # Zustand stores (4)
+├── store/             # Zustand stores (3)
 └── shared/            # Shared utilities
 ```
 
@@ -791,7 +788,7 @@ frontend/
 
 ```
 backend/src/
-├── commands/          # Tauri Commands (15 modules)
+├── commands/          # Tauri Commands (19 modules)
 │   ├── project.rs     # Project CRUD
 │   ├── scene.rs       # Scene I/O
 │   ├── codex.rs       # World-building
@@ -861,7 +858,7 @@ MyNovel/
 
 ### 14.4 Repository Pattern
 
-**Interfaces** (16 total):
+**Interfaces** (18 total):
 - `IProjectRepository`
 - `INodeRepository`
 - `ICodexRepository`
@@ -876,6 +873,10 @@ MyNovel/
 - `ISceneCodexLinkRepository`
 - `ICollaborationRepository`
 - `IMentionRepository`
+- `IIdeaRepository`
+- `ISceneNoteRepository`
+- `IMapRepository`
+- `IWorldTimelineRepository`
 
 ---
 
@@ -883,63 +884,44 @@ MyNovel/
 
 | Category | Count |
 |----------|-------|
-| Backend Commands | **73** |
+| Backend Commands | **112** |
 | Frontend Features | **18** |
-| Custom Hooks | **41** |
-| Repository Interfaces | **16** |
+| Custom Hooks | **29+** |
+| Repository Interfaces | **18** |
 | UI Components | **28** |
-| AI Providers | **6** |
+| AI Providers | **12+** |
 | Codex Categories | **5** |
 | Analysis Types | **6** |
-| Export Formats | **3** (TXT, DOCX, JSON) |
+| Export Formats | **4+** (TXT, DOCX, EPUB, JSON backup) |
 
 ---
 
-## Appendix: Complete Command Reference
+## Appendix: Command Reference
 
-### Backend Commands (73 total)
+### Backend Commands (112 total)
 
-**Project (11)**:
-`get_projects_path`, `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`
+Authoritative source:
+- `backend/src/lib.rs` (`tauri::generate_handler!` list)
 
-**Scene (4)**:
-`load_scene`, `save_scene`, `save_scene_by_id`, `delete_scene`
-
-**Codex (17)**:
-`list_codex_entries`, `save_codex_entry`, `delete_codex_entry`, `list_codex_relations`, `save_codex_relation`, `delete_codex_relation`, `list_codex_tags`, `save_codex_tag`, `delete_codex_tag`, `list_codex_entry_tags`, `save_codex_entry_tag`, `delete_codex_entry_tag`, `list_codex_templates`, `save_codex_template`, `delete_codex_template`, `list_codex_relation_types`, `save_codex_relation_type`, `delete_codex_relation_type`, `list_scene_codex_links`, `save_scene_codex_link`, `delete_scene_codex_link`
-
-**Snippets (3)**:
-`list_snippets`, `save_snippet`, `delete_snippet`
-
-**Chat (8)**:
-`list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `delete_chat_message`
-
-**Analysis (3)**:
-`list_analyses`, `save_analysis`, `delete_analysis`
-
-**Backup/Export (8)**:
-`save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups`, `export_manuscript_text`, `export_manuscript_docx`, `export_project_backup`, `export_project_as_json`, `import_project_backup`
-
-**Search (1)**:
-`search_project`
-
-**Trash (5)**:
-`move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash`
-
-**Series (4)**:
-`list_series`, `create_series`, `update_series`, `delete_series`
-
-**Security (4)**:
-`store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers`
-
-**Mentions (2)**:
-`find_mentions`, `count_mentions`
-
-**Collaboration (4)**:
-`save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`
-
-**App (1)**:
-`get_app_info`
+Major command groups:
+- Project + Structure
+- Scene
+- Codex + Codex enhancements (tags/templates/relations/links)
+- Snippets
+- Chat
+- Analysis
+- Backup/Export/Import + Custom Presets
+- Search
+- Trash
+- Series + Series Codex + Migration
+- Security
+- Mentions
+- Collaboration (Yjs state persistence)
+- Ideas
+- Scene Notes
+- Maps
+- World Timeline
+- App metadata
 
 ---
 

@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **Comprehensive architectural documentation for the Next.js 16 frontend.**  
-> Last updated: 2026-01-11
+> Last updated: 2026-02-05
 
 ---
 
@@ -13,8 +13,8 @@ This document provides an exhaustive analysis of the frontend architecture for t
 ### Key Statistics
 - **200+ Files** across **85+ Directories**
 - **18 Features** (Feature-Sliced Design)
-- **19 Repository Interfaces** (Clean Architecture)
-- **42+ Custom Hooks** (Business Logic Layer)
+- **18 Repository Interfaces** (Clean Architecture)
+- **29+ Custom Hooks** (Business Logic Layer)
 - **3 Zustand Stores** (State Management)
 - **35+ Domain Entities** (Type-Safe Data Model)
 
@@ -52,23 +52,23 @@ The frontend follows a **Hybrid Architecture** combining:
 graph TB
     subgraph "Presentation Layer"
         App[App Router<br/>Next.js Pages]
-        Features[Features<br/>17 Feature Modules]
+        Features[Features<br/>18 Feature Modules]
         Components[Shared Components<br/>Radix UI + Custom]
     end
     
     subgraph "Logic Layer"
-        Hooks[Custom Hooks<br/>39 Hooks]
+        Hooks[Custom Hooks<br/>29+ Hooks]
         Stores[Zustand Stores<br/>State Management]
     end
     
     subgraph "Domain Layer (Clean Arch)"
         Entities[Domain Entities<br/>Types & Schemas]
-        IRepos[Repository Interfaces<br/>12 Abstractions]
+        IRepos[Repository Interfaces<br/>18 Abstractions]
         Services[Domain Services<br/>Business Logic]
     end
     
     subgraph "Infrastructure Layer"
-        TauriRepos[Tauri Repositories<br/>12 Implementations]
+        TauriRepos[Tauri Repositories<br/>18 Implementations]
         CoreServices[Core Services<br/>Save, Context, etc.]
         Integrations[External Integrations<br/>Google Drive, AI]
     end
@@ -146,7 +146,7 @@ frontend/
 │   │   ├── ISceneCodexLinkRepository.ts
 │   │   ├── ICollaborationRepository.ts
 │   │   ├── IMentionRepository.ts
-│   │   └── index.ts           # Barrel export (19 repositories)
+│   │   └── index.ts           # Barrel export (18 repositories)
 │   ├── services/              # Domain service interfaces
 │   │   ├── IAnalysisService.ts
 │   │   ├── IChatService.ts
@@ -162,11 +162,8 @@ frontend/
 ├── infrastructure/            # Implementations
 │   ├── di/
 │   │   └── AppContext.tsx     # Dependency injection provider
-│   ├── migrations/
-│   │   ├── codexArcsMigration.ts
-│   │   └── codexSeriesMigration.ts
 │   ├── repositories/          # Tauri implementations
-│   │   └── Tauri*.ts          # 14 repository implementations
+│   │   └── Tauri*.ts          # 18 repository implementations
 │   └── services/
 │       ├── AnalysisService.ts
 │       ├── ChatService.ts
@@ -174,7 +171,7 @@ frontend/
 │       ├── ModelDiscoveryService.ts
 │       └── NodeDeletionService.ts  # Concrete implementation
 │
-├── features/                  # Feature-Sliced Design (17 features)
+├── features/                  # Feature-Sliced Design (18 features)
 │   ├── editor/               # Scene editor (23 components)
 │   ├── codex/                # World-building wiki (18 components)
 │   ├── chat/                 # AI conversations (16 components)
@@ -187,15 +184,15 @@ frontend/
 │   ├── snippets/             # Text templates (4 components)
 │   ├── series/               # Multi-book management (5 components)
 │   ├── google-drive/         # Cloud backup (5 components)
-│   ├── migration/            # Data migration UI (7 components)
 │   ├── data-management/      # Import/Export (2 components)
 │   ├── project/              # Project CRUD (4 components)
 │   ├── ai/                   # AI integration components (3 components)
+│   ├── export/               # Export dialogs + presets (3+ components)
+│   ├── collaboration/        # Yjs + WebRTC collaboration (1+ components)
 │   └── shared/               # Shared feature utilities (6 components)
 │
-├── hooks/                    # Custom React Hooks (39 hooks)
+├── hooks/                    # Custom React Hooks (29+ hooks)
 │   ├── use-ai.ts             # AI interaction orchestration
-│   ├── use-auto-save.ts      # Debounced auto-save
 │   ├── use-context-assembly.ts  # AI context builder
 │   ├── use-live-query.ts     # Cache & query invalidation
 │   ├── use-dialog-state.ts   # Dialog state machine
@@ -203,7 +200,7 @@ frontend/
 │   ├── use-prompt.tsx        # Input prompts
 │   ├── use-*-repository.ts   # Repository hooks (12 files)
 │   ├── use-model-discovery.ts # Dynamic model fetching from provider APIs
-│   └── ... (27 more hooks)
+│   └── ... (20+ more hooks)
 │
 ├── lib/                      # Shared libraries
 │   ├── ai/                   # ✅ AI module (consolidated)
@@ -233,14 +230,14 @@ frontend/
 │   │   ├── ai-utils.ts
 │   │   ├── context-assembler.ts  # AI context prioritization
 │   │   ├── context-engine.ts
-│   │   ├── token-counter.ts      # Tiktoken integration
+│   │   ├── logger.ts
+│   │   ├── platform.ts
 │   │   ├── toast-service.ts
-│   │   └── type-guards.ts
+│   │   └── editor.ts
 │   └── validations.ts
 │
 ├── store/                    # Zustand state stores
 │   ├── use-project-store.ts  # Project-level state
-│   ├── editor-ui-store.ts    # Editor UI state
 │   ├── use-chat-store.ts     # Chat state
 │   └── use-format-store.ts   # Format preferences
 │
@@ -361,7 +358,7 @@ export function isScene(node: DocumentNode): node is Scene;
 
 | Feature | Components | Purpose | Key Dependencies |
 |---------|------------|---------|-----------------|
-| **editor** | 24 | Tiptap scene editor with AI tools | `use-auto-save`, `use-ai`, `TauriNodeRepository` |
+| **editor** | 24 | Tiptap scene editor with AI tools | `EditorStateManager`, `save-coordinator`, `use-ai`, `TauriNodeRepository` |
 | **codex** | 19 | World-building wiki system | `TauriCodexRepository`, `use-codex-repository` |
 | **chat** | 16 | AI chat interface | `use-ai`, `use-context-assembly`, `TauriChatRepository` |
 | **plan** | 19 | Story planning & outlining | `use-project-store`, `TauriNodeRepository` |
@@ -387,7 +384,7 @@ graph TD
     Dashboard[Dashboard] --> ProjectRepo[Project Repository]
     Dashboard --> NodeRepo[Node Repository]
     
-    Editor[Editor] --> AutoSave[use-auto-save]
+    Editor[Editor] --> SaveMgr[EditorStateManager]
     Editor --> AI[use-ai]
     Editor --> NodeRepo
     
@@ -477,10 +474,7 @@ export class TauriCodexRepository implements ICodexRepository {
 
 ```typescript
 export function useProjectRepository() {
-    if (isTauri()) {
-        return new TauriProjectRepository();
-    }
-    return new IndexedDBProjectRepository();  // Web fallback
+    return useRepository<IProjectRepository>('projectRepository');
 }
 ```
 
@@ -494,9 +488,9 @@ export function useProjectRepository() {
 | `EmergencyBackupService` | Auto-saves drafts every N minutes |
 | `GoogleAuthService` | OAuth 2.0 flow |
 | `GoogleDriveService` | Upload/download project backups |
-| `AIRateLimiter` | Rate-limits AI API calls |
 | `TabLeaderService` | Elects leader tab for sync |
-| `TrashService` | Soft-delete with restore |
+| `ModelDiscoveryService` | Fetches provider model catalogs dynamically |
+| `NodeDeletionService` | Cascade-delete nodes with save coordination |
 
 ---
 
@@ -509,7 +503,7 @@ export function useProjectRepository() {
 | **AI** | `use-ai`, `use-context-assembly` | AI interaction & context |
 | **Repository** | `use-*-repository` (12 hooks) | Dependency injection for repos |
 | **State** | `use-live-query`, `use-dialog-state` | Query caching, UI state machines |
-| **Save** | `use-auto-save` | Debounced save coordination |
+| **Save** | `EditorStateManager` + `save-coordinator` | Debounced and serialized save coordination |
 | **UI** | `use-confirmation`, `use-prompt` | Modal dialogs |
 | **Export** | `use-document-export`, `use-import-export` | File export/import |
 | **Google** | `use-google-auth`, `use-google-drive` | OAuth & Drive integration |
@@ -543,22 +537,26 @@ export function useLiveQuery<T>(
 }
 ```
 
-#### `use-auto-save.ts` — Debounced Save
+#### `editor-state-manager.ts` + `save-coordinator.ts` — Debounced Save
 
 ```typescript
-export function useAutoSave(sceneId: string, getContent: () => any) {
-    const debouncedSave = useMemo(
-        () => debounce(async () => {
-            await saveCoordinator.scheduleSave(sceneId, getContent);
-        }, 2000),
-        [sceneId]
-    );
-    
-    return { save: debouncedSave };
+const manager = new EditorStateManager(editor, sceneId, {
+    debounceMs: TIMING.SAVE_DEBOUNCE_MS,
+});
+
+manager.onStatusChange((status) => {
+    setSaveStatus(status); // saved | saving | unsaved | error
+});
+
+// SaveCoordinator serializes concurrent writes per scene
+await saveCoordinator.scheduleSave(sceneId, getContent, wordCount);
+
+// Flush when switching scenes
+await manager.flush();
 }
 ```
 
-**Flow**: User types → debounce 2s → save via `SaveCoordinator` → invalidate cache → UI updates
+**Flow**: User types → mark dirty → debounce (500ms default) → `save_scene_by_id` via `SaveCoordinator` → invalidate cache → UI updates
 
 #### `use-dialog-state.ts` — State Machine
 
@@ -640,34 +638,31 @@ export const useProjectStore = create<ProjectStore>()(
 
 **Persistence**: `localStorage` via Zustand middleware
 
-#### `editor-ui-store.ts` — Editor UI State
+#### `use-format-store.ts` — Editor Preferences + Focus Mode
 
 ```typescript
-export const useEditorUIStore = create<EditorUIState>()(
-    devtools(
-        persist(
-            (set) => ({
-                showLeftPanel: true,
-                showRightPanel: true,
-                focusMode: false,
-                
-                toggleFocusMode: () => set((state) => ({
-                    focusMode: !state.focusMode,
-                    showLeftPanel: state.focusMode,  // Restore panels
-                    showRightPanel: state.focusMode,
-                })),
-            }),
-            { name: 'editor-ui-storage' }
-        ),
-        { name: 'EditorUI' }  // Redux DevTools
+export const useFormatStore = create<FormatStore>()(
+    persist(
+        (set) => ({
+            focusMode: false,
+            typewriterMode: false,
+            fontFamily: 'Georgia',
+            fontSize: 16,
+            lineHeight: 1.8,
+
+            toggleFocusMode: () => set((state) => ({ focusMode: !state.focusMode })),
+            toggleTypewriterMode: () => set((state) => ({ typewriterMode: !state.typewriterMode })),
+            updateSettings: (settings) => set((state) => ({ ...state, ...settings })),
+        }),
+        { name: 'format-settings' }
     )
 );
 ```
 
 **Features**:
-- Focus Mode (hides all panels)
-- Per-panel visibility toggles
-- Redux DevTools integration
+- Focus Mode state shared across editor layout
+- Typewriter mode preferences
+- Persisted typography configuration
 
 #### `use-chat-store.ts` — Chat State
 
@@ -948,7 +943,7 @@ class SaveCoordinator {
 ```
 
 **Flow**:
-1. User types → `use-auto-save` debounces (2s)
+1. User types → `EditorStateManager` debounces (`TIMING.SAVE_DEBOUNCE_MS`, default 500ms)
 2. AI generates text → immediate save
 3. If collision: AI save waits for auto-save to complete
 4. Save → invalidate cache → UI updates
@@ -1073,7 +1068,7 @@ storage.setItem(`backup_scene_${sceneId}`, {
 
 ### 11.1 Why Feature-Sliced Design?
 
-**Problem**: Traditional folder-by-type (`components/`, `hooks/`, `utils/`) doesn't scale for 17 features.
+**Problem**: Traditional folder-by-type (`components/`, `hooks/`, `utils/`) doesn't scale for 18 features.
 
 **Solution**: Feature-Sliced Design (FSD)
 
@@ -1284,7 +1279,7 @@ The frontend architecture is a **well-structured, scalable system** built on mod
 ---
 
 **Document Status**: ✅ Complete  
-**Last Updated**: 2026-01-03  
-**Total Features Documented**: 17/17  
-**Total Hooks Documented**: 39/39  
-**Total Stores Documented**: 4/4
+**Last Updated**: 2026-02-05  
+**Total Features Documented**: 18/18  
+**Total Hooks Documented**: 29+  
+**Total Stores Documented**: 3/3

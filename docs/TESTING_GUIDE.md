@@ -1,6 +1,6 @@
 # Test-Driven Development Guide
 
-> **Last Updated**: January 5, 2026  
+> **Last Updated**: February 5, 2026  
 > **Purpose**: Comprehensive guide for implementing TDD in the Become An Author codebase
 
 ---
@@ -20,46 +20,47 @@
 
 ## 1. Current State Analysis
 
-### Current Test Locations (Scattered)
+### Current Test Locations
 
 ```
 frontend/
 ├── hooks/
-│   ├── __tests__/               # Test folder for hooks
-│   ├── use-ai.test.ts           ← ⚠️ Co-located
-│   ├── use-debounce.test.ts
-│   ├── use-dialog-state.test.ts
-│   ├── use-error-handler.test.ts
+│   ├── __tests__/                    # Hook tests folder
+│   │   ├── use-repository.test.ts
+│   │   └── use-collaboration.test.ts
+│   ├── use-ai.test.ts                # Co-located tests
 │   ├── use-context-assembly.test.ts
 │   ├── use-live-query.test.ts
-│   ├── use-mobile.test.ts
-│   └── use-tab-leader.test.ts
+│   ├── use-tab-leader.test.ts
+│   └── use-dialog-state.test.ts
+├── lib/core/__tests__/
+│   ├── save-coordinator.test.ts
+│   └── editor-state-manager.test.ts
 ├── lib/__tests__/
-│   └── ai-utils.test.ts         ← ⚠️ __tests__ folder
-├── shared/utils/__tests__/
-│   └── token-counter.test.ts    ← ⚠️ __tests__ folder
+│   └── ai-utils.test.ts
 ├── features/codex/utils/__tests__/
-│   └── arcContextUtils.test.ts  ← ⚠️ __tests__ folder
+│   └── arcContextUtils.test.ts
 ├── features/search/components/__tests__/
 │   └── search-components.test.tsx
 ├── components/__tests__/
 │   └── error-boundary.test.tsx
 └── infrastructure/
     ├── repositories/__tests__/
-    │   └── TauriAnalysisRepository.test.ts
+    │   └── TauriCodexRepository.test.ts
     └── services/__tests__/
         ├── document-export-service.test.ts
         ├── emergency-backup-service.test.ts
-        └── model-discovery-service.test.ts
+        └── google-auth-service.test.ts
 ```
 
 ### Current Test Statistics
 
 | Metric | Value |
 |--------|-------|
-| Test Files | 15+ |
-| Total Tests | 100+ |
-| All Passing | ✅ Yes |
+| Frontend/E2E Test Files | 33 |
+| Backend Test Modules | 3 (`security.rs`, `validation.rs`, `backend/tests/security_tests.rs`) |
+| Total Tests | 100+ (estimated) |
+| All Passing | Last known passing; re-verify before release |
 | Coverage | Not measured |
 
 ### Critical Gaps
@@ -69,7 +70,7 @@ frontend/
 | **Domain Entities** | ❌ No | High |
 | **Repository Interfaces** | ❌ No | High |
 | **Tauri Repositories** | ⚠️ Partial (1/18) | **Critical** |
-| **Custom Hooks** | ✅ Partial (9/42+) | Medium |
+| **Custom Hooks** | ✅ Partial (10/29+) | Medium |
 | **Services** | ✅ Partial (3/10) | High |
 | **UI Components** | ⚠️ Partial | Medium |
 | **Rust Commands** | ❌ No | High |
@@ -142,10 +143,10 @@ frontend/
 │               └── tauri-invoke.mock.ts
 ├── hooks/
 │   ├── use-ai.ts
-│   ├── use-auto-save.ts
+│   ├── use-live-query.ts
 │   └── __tests__/
 │       ├── use-ai.test.ts
-│       ├── use-auto-save.test.ts
+│       ├── use-live-query.test.ts
 │       └── fixtures/
 │           └── mock-editor.ts
 ├── features/
@@ -349,34 +350,12 @@ describe('TauriNodeRepository', () => {
 **What to test**: State management, side effects, callbacks
 
 ```typescript
-// frontend/hooks/__tests__/use-auto-save.test.ts
+// frontend/hooks/use-dialog-state.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { useAutoSave } from '../use-auto-save';
+import { renderHook, act } from '@testing-library/react';
+import { useDialogState } from './use-dialog-state';
 
-// Mock dependencies
-vi.mock('@/lib/core/save-coordinator', () => ({
-    saveCoordinator: {
-        scheduleSave: vi.fn().mockResolvedValue(undefined),
-    },
-}));
-
-vi.mock('@/infrastructure/services/emergency-backup-service', () => ({
-    emergencyBackupService: {
-        saveBackup: vi.fn(),
-        getBackup: vi.fn().mockResolvedValue(null),
-        deleteBackup: vi.fn(),
-        cleanupExpired: vi.fn(),
-    },
-}));
-
-describe('useAutoSave', () => {
-    const mockEditor = {
-        on: vi.fn(),
-        off: vi.fn(),
-        getJSON: vi.fn(() => ({ type: 'doc', content: [] })),
-        isDestroyed: false,
-    };
+describe('useDialogState', () => {
 
     beforeEach(() => {
         vi.useFakeTimers();
@@ -387,41 +366,16 @@ describe('useAutoSave', () => {
         vi.clearAllMocks();
     });
 
-    it('should register update listener on mount', () => {
-        renderHook(() => useAutoSave('scene-1', mockEditor as any));
-
-        expect(mockEditor.on).toHaveBeenCalledWith('update', expect.any(Function));
+    it('should start in closed state', () => {
+        const { result } = renderHook(() => useDialogState());
+        expect(result.current.isOpen).toBe(false);
     });
 
-    it('should debounce saves to 1 second intervals', async () => {
-        const { saveCoordinator } = await import('@/lib/core/save-coordinator');
-        
-        renderHook(() => useAutoSave('scene-1', mockEditor as any));
-
-        // Trigger update callback
-        const updateCallback = mockEditor.on.mock.calls[0][1];
-        act(() => updateCallback());
-
-        // Should not save immediately
-        expect(saveCoordinator.scheduleSave).not.toHaveBeenCalled();
-
-        // Fast-forward 1 second
-        act(() => vi.advanceTimersByTime(1000));
-
-        expect(saveCoordinator.scheduleSave).toHaveBeenCalledWith(
-            'scene-1',
-            expect.any(Function)
-        );
-    });
-
-    it('should cleanup listeners on unmount', () => {
-        const { unmount } = renderHook(() => 
-            useAutoSave('scene-1', mockEditor as any)
-        );
-
-        unmount();
-
-        expect(mockEditor.off).toHaveBeenCalledWith('update', expect.any(Function));
+    it('should transition to open state after open() call', () => {
+        const { result } = renderHook(() => useDialogState());
+        act(() => result.current.open());
+        act(() => vi.advanceTimersByTime(10));
+        expect(result.current.isOpen).toBe(true);
     });
 });
 ```
