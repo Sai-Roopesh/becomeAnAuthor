@@ -128,7 +128,7 @@ Rust backend focused on **secure file I/O** and OS integration.
 - **Git Hooks**: Husky + lint-staged
 
 ### 2.4 Build & Development
-- **Package Manager**: npm
+- **Package Manager**: pnpm
 - **Module Bundler**: Next.js Webpack (WebAssembly enabled)
 - **Dev Server**: Next.js Dev + Tauri Dev (Port 3000)
 - **Build Output**: Static HTML/CSS/JS exported to `out/`
@@ -661,15 +661,15 @@ NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=xxx
 ### 9.1 Development
 
 ```bash
-npm run dev           # Next.js dev server (localhost:3000)
-npm run tauri:dev     # Tauri dev mode (opens desktop window)
+pnpm run dev           # Next.js dev server (localhost:3000)
+pnpm run tauri:dev     # Tauri dev mode (opens desktop window)
 ```
 
 ### 9.2 Production Build
 
 ```bash
-npm run build         # Next.js static export → out/
-npm run tauri:build   # Compile Rust + bundle app (DMG/AppImage/MSI)
+pnpm run build         # Next.js static export → out/
+pnpm run tauri:build   # Compile Rust + bundle app (DMG/AppImage/MSI)
 ```
 
 ### 9.3 Scripts (package.json)

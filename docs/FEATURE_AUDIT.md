@@ -738,9 +738,9 @@ All located in `frontend/components/ui/`:
 
 | Tool | Command | Purpose |
 |------|---------|---------|
-| **ESLint** | `npm run lint` | Linting |
-| **Dependency Cruiser** | `npm run deps:check` | Dependency rules |
-| **Madge** | `npm run deps:circular` | Circular dependency detection |
+| **ESLint** | `pnpm run lint` | Linting |
+| **Dependency Cruiser** | `pnpm run deps:check` | Dependency rules |
+| **Madge** | `pnpm run deps:circular` | Circular dependency detection |
 | **Husky** | Pre-commit hooks | Automated quality checks |
 | **lint-staged** | On staged files | Pre-commit formatting |
 

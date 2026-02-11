@@ -11,12 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm ci --legacy-peer-deps
-      - run: npm run lint
-      - run: npx tsc --noEmit
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm exec tsc --noEmit
 
   rust-check:
     runs-on: ubuntu-latest
@@ -40,9 +44,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
       
       - name: install dependencies (ubuntu only)
         if: matrix.os == 'ubuntu-latest'
@@ -50,8 +58,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - run: npm ci --legacy-peer-deps
-      - run: npm run build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       

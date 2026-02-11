@@ -286,9 +286,9 @@ feature/
 ### Test Commands
 
 ```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode (TDD)  
-npm run test:coverage # Coverage report
+pnpm test              # Run all tests
+pnpm run test:watch    # Watch mode (TDD)  
+pnpm run test:coverage # Coverage report
 cd backend && cargo test  # Rust tests
 ```
 

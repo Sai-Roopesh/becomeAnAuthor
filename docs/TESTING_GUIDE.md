@@ -556,16 +556,16 @@ Step 3: REFACTOR
 
 ```bash
 # Watch mode for TDD (re-runs on file change)
-npm run test:watch
+pnpm run test:watch
 
 # Run specific test file
-npm test -- frontend/hooks/__tests__/use-ai.test.ts
+pnpm test -- frontend/hooks/__tests__/use-ai.test.ts
 
 # Run tests matching pattern
-npm test -- --grep "should save"
+pnpm test -- --grep "should save"
 
 # Generate coverage report
-npm run test:coverage
+pnpm run test:coverage
 
 # Run Rust tests
 cd backend && cargo test
@@ -898,19 +898,19 @@ Object.defineProperty(global, 'localStorage', {
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Watch mode (TDD)
-npm run test:watch
+pnpm run test:watch
 
 # Coverage report
-npm run test:coverage
+pnpm run test:coverage
 
 # Specific file
-npm test -- frontend/hooks/__tests__/use-ai.test.ts
+pnpm test -- frontend/hooks/__tests__/use-ai.test.ts
 
 # Pattern matching
-npm test -- --grep "Repository"
+pnpm test -- --grep "Repository"
 
 # Rust tests
 cd backend && cargo test
