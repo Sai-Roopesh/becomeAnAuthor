@@ -2,7 +2,7 @@
 
 import { Editor } from "@tiptap/react";
 import { Button } from "@/components/ui/button";
-import { Expand, RefreshCw, Minimize2 } from "lucide-react";
+import { Expand, RefreshCw, Minimize2, Wand2 } from "lucide-react";
 import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { TextReplaceDialog } from "./text-replace-dialog";
 import type { EditorStateManager } from "@/lib/core/editor-state-manager";
@@ -17,7 +17,7 @@ interface TextSelectionMenuProps {
   editorStateManager: EditorStateManager | null;
 }
 
-type ReplaceAction = "expand" | "rephrase" | "shorten" | null;
+type ReplaceAction = "expand" | "rephrase" | "shorten" | "tweak" | null;
 
 export const TextSelectionMenu = memo(function TextSelectionMenu({
   editor,
@@ -123,6 +123,15 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
         <Button
           variant="ghost"
           size="sm"
+          onClick={() => handleAction("tweak")}
+          className="h-8 px-3"
+        >
+          <Wand2 className="h-4 w-4 mr-1.5" />
+          Tweak & Generate
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleAction("expand")}
           className="h-8 px-3"
         >
@@ -151,7 +160,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
 
       {action && (
         <TextReplaceDialog
-          action={action}
+          action={action === "tweak" ? "rephrase" : action}
           selectedText={selectedText}
           editor={editor}
           onClose={handleClose}

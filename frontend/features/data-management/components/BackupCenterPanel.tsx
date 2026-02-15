@@ -22,9 +22,19 @@ import { InlineGoogleAuth } from "@/features/google-drive/components/InlineGoogl
 import { DriveBackupBrowser } from "@/features/google-drive/components/DriveBackupBrowser";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
+import { showSaveDialog } from "@/core/tauri/commands";
 
 const log = logger.scope("BackupCenterPanel");
 const LAST_BACKUP_KEY = "baa.lastBackup";
+
+function slugifyTitle(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
 
 type BackupSource = "local" | "cloud";
 
@@ -39,7 +49,7 @@ export function BackupCenterPanel({
 }: BackupCenterPanelProps) {
   const { exportSeries, importSeries, backupToGoogleDrive } = useImportExport();
   const seriesRepo = useSeriesRepository();
-  const { isAuthenticated } = useGoogleAuth();
+  const { isAuthenticated, signOut } = useGoogleAuth();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo], {
@@ -52,6 +62,7 @@ export function BackupCenterPanel({
   const [isExporting, setIsExporting] = useState(false);
   const [isCloudBackupRunning, setIsCloudBackupRunning] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
   const [lastBackupSource, setLastBackupSource] = useState<BackupSource | null>(
     null,
@@ -112,6 +123,38 @@ export function BackupCenterPanel({
     }
   };
 
+  const handleLocalExportAs = async () => {
+    if (!selectedSeriesId) {
+      toast.error("Choose a series to export");
+      return;
+    }
+
+    const seriesTitle = selectedSeries?.title || "series";
+    const date = new Date().toISOString().replace(/[:.]/g, "-");
+    const defaultName = `${slugifyTitle(seriesTitle)}_series_backup_${date}.json`;
+
+    const outputPath = await showSaveDialog({
+      defaultPath: defaultName,
+      filters: [{ name: "JSON Backup", extensions: ["json"] }],
+      title: "Choose Backup Destination",
+    });
+
+    if (!outputPath) {
+      toast.info("Backup export cancelled");
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      await exportSeries(selectedSeriesId, outputPath);
+      persistBackupStatus("local");
+    } catch (error) {
+      log.error("Local backup export (custom destination) failed", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleCloudBackup = async () => {
     if (!selectedSeriesId) {
       toast.error("Choose a series to back up");
@@ -128,6 +171,19 @@ export function BackupCenterPanel({
       log.error("Cloud backup failed", error);
     } finally {
       setIsCloudBackupRunning(false);
+    }
+  };
+
+  const handleCloudSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+      toast.success("Disconnected Google Drive");
+    } catch (error) {
+      log.error("Google Drive sign-out failed", error);
+      toast.error("Failed to disconnect Google Drive");
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -151,7 +207,8 @@ export function BackupCenterPanel({
     }
   };
 
-  const busy = isExporting || isCloudBackupRunning || isImporting;
+  const busy =
+    isExporting || isCloudBackupRunning || isImporting || isSigningOut;
 
   return (
     <div className={className}>
@@ -193,6 +250,24 @@ export function BackupCenterPanel({
               ? "Google Drive connected"
               : "Google Drive not connected"}
           </p>
+          {isAuthenticated && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCloudSignOut}
+              disabled={isSigningOut}
+              className="mt-2"
+            >
+              {isSigningOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Disconnecting...
+                </>
+              ) : (
+                "Disconnect Google Drive"
+              )}
+            </Button>
+          )}
         </Card>
       </div>
 
@@ -237,10 +312,19 @@ export function BackupCenterPanel({
               )}
               {isExporting ? "Exporting backup..." : "Export Backup (.json)"}
             </Button>
+            <Button
+              variant="outline"
+              onClick={handleLocalExportAs}
+              disabled={!selectedSeriesId || busy}
+              className="w-full"
+            >
+              Choose Destination...
+            </Button>
 
             <p className="text-xs text-muted-foreground">
               Creates a full series backup with novels, structure, codex, and
-              snippets.
+              snippets. Use "Choose Destination..." to control where local
+              backups are stored.
             </p>
           </Card>
         </TabsContent>
@@ -281,6 +365,21 @@ export function BackupCenterPanel({
                 {isCloudBackupRunning
                   ? "Uploading to Google Drive..."
                   : "Backup to Google Drive"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCloudSignOut}
+                disabled={isSigningOut}
+                className="w-full"
+              >
+                {isSigningOut ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Disconnecting...
+                  </>
+                ) : (
+                  "Disconnect Google Drive"
+                )}
               </Button>
             </Card>
           )}

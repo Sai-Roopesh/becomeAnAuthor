@@ -3,10 +3,18 @@
 use std::fs;
 use std::path::PathBuf;
 
+fn data_channel_dir() -> &'static str {
+    if cfg!(debug_assertions) {
+        "dev"
+    } else {
+        "release"
+    }
+}
+
 /// Get the application root directory
 pub fn get_app_dir() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("Could not find home directory")?;
-    let app_dir = home.join("BecomeAnAuthor");
+    let app_dir = home.join("BecomeAnAuthor").join(data_channel_dir());
     fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
     Ok(app_dir)
 }

@@ -28,7 +28,10 @@ export function useImportExport() {
     return importSeries(file);
   };
 
-  const exportSeries = async (seriesId: string): Promise<string> => {
+  const exportSeries = async (
+    seriesId: string,
+    outputPath?: string | null,
+  ): Promise<string> => {
     if (!seriesId) {
       throw new Error("Series ID is required for export.");
     }
@@ -36,7 +39,7 @@ export function useImportExport() {
     try {
       const backupPath = await invoke<string>("export_series_backup", {
         seriesId,
-        outputPath: null,
+        outputPath: outputPath ?? null,
       });
       toast.success(`Series backup exported to ${backupPath}`);
       return backupPath;
@@ -59,7 +62,10 @@ export function useImportExport() {
 
       const validationResult = ExportedSeriesSchema.safeParse(parsedData);
       if (!validationResult.success) {
-        log.error("Series backup validation errors", validationResult.error.issues);
+        log.error(
+          "Series backup validation errors",
+          validationResult.error.issues,
+        );
         throw new Error("Invalid series backup file format.");
       }
 
@@ -71,7 +77,9 @@ export function useImportExport() {
     } catch (error) {
       log.error("Series import failed", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to import series backup.",
+        error instanceof Error
+          ? error.message
+          : "Failed to import series backup.",
       );
       throw error;
     }
@@ -146,7 +154,10 @@ export function useImportExport() {
       const backupData = await googleDriveService.downloadBackup(fileId);
       const validationResult = ExportedSeriesSchema.safeParse(backupData);
       if (!validationResult.success) {
-        log.error("Drive backup validation failed", validationResult.error.issues);
+        log.error(
+          "Drive backup validation failed",
+          validationResult.error.issues,
+        );
         throw new Error("Invalid series backup file.");
       }
 
