@@ -18,7 +18,6 @@ import {
   type ProjectMeta,
 } from "@/core/tauri";
 import { TauriNodeRepository } from "./TauriNodeRepository";
-import { TauriAnalysisRepository } from "./TauriAnalysisRepository";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("TauriProjectRepository");
@@ -60,9 +59,6 @@ export class TauriProjectRepository implements IProjectRepository {
       const tauriProject = project as Project & { _tauriPath?: string };
       if (tauriProject._tauriPath) {
         TauriNodeRepository.getInstance().setProjectPath(
-          tauriProject._tauriPath,
-        );
-        TauriAnalysisRepository.getInstance().setProjectPath(
           tauriProject._tauriPath,
         );
       }
@@ -109,7 +105,6 @@ export class TauriProjectRepository implements IProjectRepository {
     );
     // Set the current project path so TauriNodeRepository can create nodes
     TauriNodeRepository.getInstance().setProjectPath(created.path);
-    TauriAnalysisRepository.getInstance().setProjectPath(created.path);
     return created.id;
   }
 
