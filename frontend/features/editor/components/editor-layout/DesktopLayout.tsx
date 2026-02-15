@@ -136,7 +136,7 @@ export function DesktopLayout({
                 defaultSize={20}
                 minSize={15}
                 maxSize={30}
-                className="bg-background/50 backdrop-blur-sm border-r border-border/50"
+                className="min-w-0 bg-background/50 backdrop-blur-sm border-r border-border/50"
               >
                 {renderSidebar()}
               </ResizablePanel>

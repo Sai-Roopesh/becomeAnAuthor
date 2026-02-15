@@ -3,7 +3,7 @@
 /**
  * useIdeas Hook
  *
- * Manages project-wide ideas with CRUD operations.
+ * Manages ideas with optional scene scoping and CRUD operations.
  * Follows the existing hook patterns in the codebase.
  */
 
@@ -13,6 +13,7 @@ import type { Idea, IdeaCategory } from "@/domain/entities/types";
 
 interface UseIdeasOptions {
   projectId: string;
+  sceneId?: string;
 }
 
 interface UseIdeasReturn {
@@ -32,7 +33,10 @@ interface UseIdeasReturn {
   refetch: () => Promise<void>;
 }
 
-export function useIdeas({ projectId }: UseIdeasOptions): UseIdeasReturn {
+export function useIdeas({
+  projectId,
+  sceneId,
+}: UseIdeasOptions): UseIdeasReturn {
   const { ideaRepository } = useAppServices();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,14 +49,18 @@ export function useIdeas({ projectId }: UseIdeasOptions): UseIdeasReturn {
 
     try {
       const allIdeas = await ideaRepository.list(projectId);
+      const scopedIdeas =
+        sceneId !== undefined
+          ? allIdeas.filter((idea) => idea.sceneId === sceneId)
+          : allIdeas;
       // Sort by createdAt descending (newest first)
-      setIdeas(allIdeas.sort((a, b) => b.createdAt - a.createdAt));
+      setIdeas(scopedIdeas.sort((a, b) => b.createdAt - a.createdAt));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load ideas");
     } finally {
       setIsLoading(false);
     }
-  }, [ideaRepository, projectId]);
+  }, [ideaRepository, projectId, sceneId]);
 
   // Load ideas on mount
   useEffect(() => {
@@ -74,6 +82,7 @@ export function useIdeas({ projectId }: UseIdeasOptions): UseIdeasReturn {
         const created = await ideaRepository.create({
           projectId,
           content: content.trim(),
+          sceneId,
           category,
           tags,
           archived: false,
@@ -85,7 +94,7 @@ export function useIdeas({ projectId }: UseIdeasOptions): UseIdeasReturn {
         return null;
       }
     },
-    [projectId, ideaRepository],
+    [projectId, sceneId, ideaRepository],
   );
 
   // Update idea

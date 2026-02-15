@@ -3,7 +3,7 @@
 /**
  * IdeasSection
  *
- * Collapsible section in left sidebar for project-wide ideas.
+ * Collapsible section in left sidebar for scene-scoped ideas.
  * Uses CollapsibleSection from Phase 0 and QuickCaptureModal.
  *
  * Features:
@@ -44,11 +44,13 @@ import type { Idea } from "@/domain/entities/types";
 
 interface IdeasSectionProps {
   projectId: string;
+  sceneId: string | null;
   defaultOpen?: boolean;
 }
 
 export function IdeasSection({
   projectId,
+  sceneId,
   defaultOpen = true,
 }: IdeasSectionProps) {
   const {
@@ -61,6 +63,7 @@ export function IdeasSection({
     restoreIdea,
   } = useIdeas({
     projectId,
+    sceneId: sceneId ?? undefined,
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -70,6 +73,7 @@ export function IdeasSection({
 
   // Use either keyboard shortcut or button click
   const handleOpenModal = () => {
+    if (!sceneId) return;
     setIsModalOpen(true);
   };
 
@@ -81,11 +85,12 @@ export function IdeasSection({
   };
 
   const handleSubmit = async (value: string) => {
+    if (!sceneId) return;
     await createIdea(value, "other");
   };
 
   // Sync modal state with keyboard shortcut
-  const modalOpen = isModalOpen || quickCapture.isOpen;
+  const modalOpen = !!sceneId && (isModalOpen || quickCapture.isOpen);
 
   // Suggestions for quick capture
   const suggestions = [
@@ -99,12 +104,16 @@ export function IdeasSection({
     <>
       <CollapsibleSection
         title="Ideas"
-        count={ideas.length}
+        count={sceneId ? ideas.length : 0}
         defaultOpen={defaultOpen}
-        onAdd={handleOpenModal}
-        addTooltip="Quick capture (⌘I)"
+        onAdd={sceneId ? handleOpenModal : undefined}
+        addTooltip={sceneId ? "Quick capture (⌘I)" : "Select a scene first"}
       >
-        {isLoading ? (
+        {!sceneId ? (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Select a scene to view and capture ideas.
+          </div>
+        ) : isLoading ? (
           <div className="p-4 text-center text-sm text-muted-foreground">
             Loading ideas...
           </div>

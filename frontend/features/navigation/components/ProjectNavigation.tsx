@@ -11,6 +11,8 @@ import {
   FileText,
   Folder,
   Book,
+  ChevronRight,
+  ChevronDown,
   Users,
   MoreHorizontal,
   RotateCcw,
@@ -19,7 +21,7 @@ import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("ProjectNavigation");
 
-import { useState, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { CreateNodeDialog } from "@/features/shared/components";
 import { IdeasSection } from "../components/ideas-section";
@@ -88,7 +90,9 @@ export function ProjectNavigation({
     activeCodexEntryId,
     setActiveCodexEntryId,
   } = useProjectStore();
-  // expanded state removed - unused
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const [dialogState, setDialogState] = useState<{
     open: boolean;
@@ -139,14 +143,6 @@ export function ProjectNavigation({
     }
   };
 
-  if (!project) {
-    return (
-      <div className="h-full flex items-center justify-center p-4 text-sm text-muted-foreground">
-        Open a project to load manuscript navigation.
-      </div>
-    );
-  }
-
   const allScenes =
     (nodes?.filter((node) => node.type === "scene") as Array<
       DocumentNode & { archived?: boolean }
@@ -162,6 +158,52 @@ export function ProjectNavigation({
   const getChildren = (parentId: string) =>
     visibleNodes.filter((n) => n.parentId === parentId);
 
+  useEffect(() => {
+    setExpandedNodes((prev) => {
+      let changed = false;
+      const next: Record<string, boolean> = {};
+
+      const branchNodeIds = new Set(
+        visibleNodes
+          .filter((node) => node.type !== "scene")
+          .map((node) => node.id),
+      );
+
+      // Keep existing expansion state for nodes still visible
+      for (const [nodeId, isExpanded] of Object.entries(prev)) {
+        if (branchNodeIds.has(nodeId)) {
+          next[nodeId] = isExpanded;
+        } else {
+          changed = true;
+        }
+      }
+
+      // Initialize expansion state for newly visible nodes
+      for (const node of visibleNodes) {
+        if (node.type === "scene" || node.id in next) continue;
+        next[node.id] = node.expanded ?? true;
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [visibleNodes]);
+
+  const toggleExpanded = (nodeId: string) => {
+    setExpandedNodes((prev) => ({
+      ...prev,
+      [nodeId]: !(prev[nodeId] ?? true),
+    }));
+  };
+
+  if (!project) {
+    return (
+      <div className="h-full flex items-center justify-center p-4 text-sm text-muted-foreground">
+        Open a project to load manuscript navigation.
+      </div>
+    );
+  }
+
   const restoreArchivedScene = async (sceneId: string) => {
     try {
       await nodeRepo.updateMetadata(sceneId, { archived: false });
@@ -176,28 +218,44 @@ export function ProjectNavigation({
   const renderNode = (node: DocumentNode, level: number) => {
     const children = getChildren(node.id);
     const isScene = node.type === "scene";
+    const isExpanded = isScene
+      ? false
+      : (expandedNodes[node.id] ?? node.expanded ?? true);
     const Icon = isScene ? FileText : node.type === "chapter" ? Folder : Book;
 
     return (
       <div key={node.id} className="select-none">
         <div
           className={cn(
-            "flex items-center gap-2 p-1 hover:bg-accent rounded cursor-pointer text-sm group pr-2",
+            "relative min-w-0 p-1 hover:bg-accent rounded cursor-pointer text-sm group pr-2",
             activeSceneId === node.id && "bg-accent font-medium",
           )}
           style={{ paddingLeft: `${level * 12 + 4}px` }}
-          onClick={() => isScene && setActiveSceneId(node.id)}
+          onClick={() =>
+            isScene ? setActiveSceneId(node.id) : toggleExpanded(node.id)
+          }
         >
-          <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          <span className="truncate flex-1">{node.title}</span>
+          <div className="flex min-w-0 items-center gap-2 pr-14">
+            {!isScene &&
+              (isExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              ))}
+            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="block w-0 flex-1 truncate">{node.title}</span>
+          </div>
 
           {/* Always show indicator, expand on hover */}
-          <div className="flex items-center">
+          <div
+            className="absolute right-1 top-1/2 flex -translate-y-1/2 shrink-0 items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             {!isScene && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 opacity-40 group-hover:opacity-100 transition-opacity"
+                className="h-6 w-6 opacity-100 lg:opacity-40 lg:group-hover:opacity-100 transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
                   openCreateDialog(
@@ -211,7 +269,7 @@ export function ProjectNavigation({
               </Button>
             )}
 
-            <div className="opacity-40 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-100 lg:opacity-40 lg:group-hover:opacity-100 transition-opacity">
               {renderNodeActionsMenu ? (
                 renderNodeActionsMenu({
                   nodeId: node.id,
@@ -245,13 +303,15 @@ export function ProjectNavigation({
           </div>
         </div>
 
-        {!isScene && children.map((child) => renderNode(child, level + 1))}
+        {!isScene &&
+          isExpanded &&
+          children.map((child) => renderNode(child, level + 1))}
       </div>
     );
   };
 
   return (
-    <div className="h-full flex flex-col bg-muted/10 border-r">
+    <div className="h-full min-w-0 flex flex-col bg-muted/10 border-r">
       {/* Header - with left padding to avoid sidebar toggle button overlap */}
       <div className="p-4 pt-12 border-b flex items-center justify-between">
         <div className="min-w-0 flex-1">
@@ -268,35 +328,35 @@ export function ProjectNavigation({
       <Tabs
         value={leftSidebarTab}
         onValueChange={(value) => setLeftSidebarTab(value as LeftSidebarTab)}
-        className="flex-1 flex flex-col overflow-hidden"
+        className="flex-1 min-h-0 flex flex-col overflow-hidden"
       >
-        <TabsList className="grid w-full grid-cols-3 rounded-none border-b bg-transparent p-0">
+        <TabsList className="grid w-full grid-cols-3 rounded-none border-b bg-transparent p-0 overflow-hidden">
           <TabsTrigger
             value="manuscript"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1.5 min-w-0 gap-1"
           >
-            <Book className="h-4 w-4 mr-2" />{" "}
-            <span className="hidden sm:inline">Manuscript</span>
+            <Book className="h-4 w-4 mr-0 lg:mr-2" />{" "}
+            <span className="hidden lg:inline truncate">Manuscript</span>
           </TabsTrigger>
           <TabsTrigger
             value="codex"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1.5 min-w-0 gap-1"
           >
-            <Users className="h-4 w-4 mr-2" />{" "}
-            <span className="hidden sm:inline">Codex</span>
+            <Users className="h-4 w-4 mr-0 lg:mr-2" />{" "}
+            <span className="hidden lg:inline truncate">Codex</span>
           </TabsTrigger>
           <TabsTrigger
             value="snippets"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1.5 min-w-0 gap-1"
           >
-            <FileText className="h-4 w-4 mr-2" />{" "}
-            <span className="hidden sm:inline">Snippets</span>
+            <FileText className="h-4 w-4 mr-0 lg:mr-2" />{" "}
+            <span className="hidden lg:inline truncate">Snippets</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent
           value="manuscript"
-          className="flex-1 overflow-hidden flex flex-col m-0"
+          className="flex-1 min-h-0 overflow-hidden flex flex-col m-0"
         >
           <div className="p-2 border-b flex justify-between items-center bg-background/50">
             <span className="text-xs font-medium text-muted-foreground">
@@ -311,7 +371,7 @@ export function ProjectNavigation({
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-2">
               {acts.map((act) => renderNode(act, 0))}
               {acts.length === 0 && (
@@ -350,12 +410,19 @@ export function ProjectNavigation({
 
             {/* Ideas Section - Collapsible below manuscript tree */}
             <div className="border-t mt-2">
-              <IdeasSection projectId={projectId} defaultOpen={false} />
+              <IdeasSection
+                projectId={projectId}
+                sceneId={activeSceneId}
+                defaultOpen={false}
+              />
             </div>
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="codex" className="flex-1 overflow-hidden m-0">
+        <TabsContent
+          value="codex"
+          className="flex-1 min-h-0 overflow-hidden m-0"
+        >
           {renderCodexList ? (
             renderCodexList({
               seriesId: project.seriesId,
@@ -369,7 +436,10 @@ export function ProjectNavigation({
           )}
         </TabsContent>
 
-        <TabsContent value="snippets" className="flex-1 overflow-hidden m-0">
+        <TabsContent
+          value="snippets"
+          className="flex-1 min-h-0 overflow-hidden m-0"
+        >
           {renderSnippetList ? (
             renderSnippetList({
               projectId,

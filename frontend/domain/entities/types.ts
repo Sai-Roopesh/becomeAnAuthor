@@ -78,6 +78,7 @@ export type IdeaCategory =
 export interface Idea {
   id: string;
   projectId: string;
+  sceneId?: string;
   content: string;
   category: IdeaCategory;
   tags: string[];

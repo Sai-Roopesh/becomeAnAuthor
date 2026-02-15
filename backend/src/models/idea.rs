@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Idea {
     pub id: String,
     pub project_id: String,
+    pub scene_id: Option<String>,
     pub content: String,
     pub category: String,
     pub tags: Vec<String>,
