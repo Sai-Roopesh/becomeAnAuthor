@@ -1,141 +1,142 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useErrorHandler } from './use-error-handler';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useErrorHandler } from "./use-error-handler";
+
+const mockLogError = vi.fn();
 
 // Mock toast service
-vi.mock('@/shared/utils/toast-service', () => ({
-    toast: {
-        error: vi.fn(),
-        success: vi.fn(),
-        info: vi.fn(),
-        warning: vi.fn(),
-    },
+vi.mock("@/shared/utils/toast-service", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock("@/shared/utils/logger", () => ({
+  logger: {
+    scope: () => ({
+      error: (...args: unknown[]) => mockLogError(...args),
+    }),
+  },
 }));
 
 // Get the mocked toast
-import { toast } from '@/shared/utils/toast-service';
+import { toast } from "@/shared/utils/toast-service";
 const mockToast = vi.mocked(toast);
 
-describe('useErrorHandler', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        vi.spyOn(console, 'error').mockImplementation(() => { });
+describe("useErrorHandler", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should return handleError function", () => {
+    const { result } = renderHook(() => useErrorHandler());
+    expect(result.current.handleError).toBeDefined();
+    expect(typeof result.current.handleError).toBe("function");
+  });
+
+  it("should handle Error objects", () => {
+    const { result } = renderHook(() => useErrorHandler());
+    const testError = new Error("Test error message");
+
+    act(() => {
+      result.current.handleError(testError);
     });
 
-    it('should return handleError function', () => {
-        const { result } = renderHook(() => useErrorHandler());
-        expect(result.current.handleError).toBeDefined();
-        expect(typeof result.current.handleError).toBe('function');
+    expect(mockToast.error).toHaveBeenCalledWith("Error", {
+      description: "Test error message",
+    });
+  });
+
+  it("should handle non-Error values", () => {
+    const { result } = renderHook(() => useErrorHandler());
+
+    act(() => {
+      result.current.handleError("String error");
     });
 
-    it('should handle Error objects', () => {
-        const { result } = renderHook(() => useErrorHandler());
-        const testError = new Error('Test error message');
+    expect(mockToast.error).toHaveBeenCalledWith("Error", {
+      description: "String error",
+    });
+  });
 
-        act(() => {
-            result.current.handleError(testError);
-        });
+  it("should log to console when enabled", () => {
+    const { result } = renderHook(() =>
+      useErrorHandler({ logToConsole: true }),
+    );
+    const testError = new Error("Console test");
 
-        expect(mockToast.error).toHaveBeenCalledWith('Error', {
-            description: 'Test error message',
-        });
+    act(() => {
+      result.current.handleError(testError, "TestContext");
     });
 
-    it('should handle non-Error values', () => {
-        const { result } = renderHook(() => useErrorHandler());
+    expect(mockLogError).toHaveBeenCalledWith(
+      "Error in TestContext",
+      testError,
+    );
+  });
 
-        act(() => {
-            result.current.handleError('String error');
-        });
+  it("should not show toast when disabled", () => {
+    const { result } = renderHook(() => useErrorHandler({ showToast: false }));
 
-        expect(mockToast.error).toHaveBeenCalledWith('Error', {
-            description: 'String error',
-        });
+    act(() => {
+      result.current.handleError(new Error("No toast"));
     });
 
-    it('should log to console when enabled', () => {
-        vi.stubEnv('NODE_ENV', 'development');
+    expect(mockToast.error).not.toHaveBeenCalled();
+  });
 
-        const { result } = renderHook(() =>
-            useErrorHandler({ logToConsole: true })
-        );
-        const testError = new Error('Console test');
+  it("should call custom onError callback", () => {
+    const customHandler = vi.fn();
+    const { result } = renderHook(() =>
+      useErrorHandler({ onError: customHandler }),
+    );
+    const testError = new Error("Custom handler test");
 
-        act(() => {
-            result.current.handleError(testError, 'TestContext');
-        });
-
-        expect(console.error).toHaveBeenCalledWith(
-            'Error in TestContext:',
-            testError
-        );
-
-        vi.unstubAllEnvs();
+    act(() => {
+      result.current.handleError(testError);
     });
 
-    it('should not show toast when disabled', () => {
-        const { result } = renderHook(() =>
-            useErrorHandler({ showToast: false })
-        );
+    expect(customHandler).toHaveBeenCalledWith(testError);
+  });
 
-        act(() => {
-            result.current.handleError(new Error('No toast'));
-        });
+  it("should return the error object", () => {
+    const { result } = renderHook(() => useErrorHandler({ showToast: false }));
+    const testError = new Error("Return test");
+    let returnedError: Error | undefined;
 
-        expect(mockToast.error).not.toHaveBeenCalled();
+    act(() => {
+      returnedError = result.current.handleError(testError);
     });
 
-    it('should call custom onError callback', () => {
-        const customHandler = vi.fn();
-        const { result } = renderHook(() =>
-            useErrorHandler({ onError: customHandler })
-        );
-        const testError = new Error('Custom handler test');
+    expect(returnedError).toBe(testError);
+  });
 
-        act(() => {
-            result.current.handleError(testError);
-        });
+  it("should handle errors with context string", () => {
+    const { result } = renderHook(() =>
+      useErrorHandler({ logToConsole: true }),
+    );
+    const testError = new Error("Context test");
 
-        expect(customHandler).toHaveBeenCalledWith(testError);
+    act(() => {
+      result.current.handleError(testError, "SaveOperation");
     });
 
-    it('should return the error object', () => {
-        const { result } = renderHook(() => useErrorHandler({ showToast: false }));
-        const testError = new Error('Return test');
-        let returnedError: Error | undefined;
+    expect(mockLogError).toHaveBeenCalledWith(
+      "Error in SaveOperation",
+      testError,
+    );
+  });
 
-        act(() => {
-            returnedError = result.current.handleError(testError);
-        });
+  it("should be memoized with useCallback", () => {
+    const { result, rerender } = renderHook(() => useErrorHandler());
+    const firstHandleError = result.current.handleError;
 
-        expect(returnedError).toBe(testError);
-    });
+    rerender();
+    const secondHandleError = result.current.handleError;
 
-    it('should handle errors with context string', () => {
-        vi.stubEnv('NODE_ENV', 'development');
-
-        const { result } = renderHook(() => useErrorHandler({ logToConsole: true }));
-        const testError = new Error('Context test');
-
-        act(() => {
-            result.current.handleError(testError, 'SaveOperation');
-        });
-
-        expect(console.error).toHaveBeenCalledWith(
-            'Error in SaveOperation:',
-            testError
-        );
-
-        vi.unstubAllEnvs();
-    });
-
-    it('should be memoized with useCallback', () => {
-        const { result, rerender } = renderHook(() => useErrorHandler());
-        const firstHandleError = result.current.handleError;
-
-        rerender();
-        const secondHandleError = result.current.handleError;
-
-        expect(firstHandleError).toBe(secondHandleError);
-    });
+    expect(firstHandleError).toBe(secondHandleError);
+  });
 });

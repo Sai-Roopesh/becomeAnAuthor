@@ -2,7 +2,7 @@
 
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Card } from "@/components/ui/card";
-import type { SlashCommandItem } from "./slash-commands";
+import type { SlashCommandItem } from "./slash-command-types";
 
 interface SlashCommandsListProps {
   items: SlashCommandItem[];

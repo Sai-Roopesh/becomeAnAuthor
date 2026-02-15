@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { useContextAssembly } from "./use-context-assembly";
 
 vi.mock("@/infrastructure/di/AppContext", () => ({
@@ -33,12 +33,9 @@ describe("useContextAssembly", () => {
   it("returns an empty context pack for empty selection", async () => {
     const { result } = renderHook(() => useContextAssembly("project-123"));
 
-    let pack: Awaited<ReturnType<typeof result.current.assembleContextPack>>;
-    await act(async () => {
-      pack = await result.current.assembleContextPack([], {
-        query: "test query",
-        model: "openai/gpt-4.1-mini",
-      });
+    const pack = await result.current.assembleContextPack([], {
+      query: "test query",
+      model: "openai/gpt-4.1-mini",
     });
 
     expect(pack.blocks).toEqual([]);

@@ -24,13 +24,6 @@ vi.mock("@/shared/utils/toast-service", () => ({
   },
 }));
 
-vi.mock("@/core/storage/safe-storage", () => ({
-  storage: {
-    getItem: vi.fn().mockReturnValue([]),
-    setItem: vi.fn(),
-  },
-}));
-
 vi.mock("@/components/ui/button", () => ({
   Button: ({
     children,
@@ -46,10 +39,10 @@ vi.mock("@/components/ui/button", () => ({
 vi.mock("lucide-react", () => ({
   AlertTriangle: () => <span data-testid="alert-icon">⚠️</span>,
   RefreshCw: () => <span data-testid="refresh-icon">🔄</span>,
+  Loader2: () => <span data-testid="loader-icon">⏳</span>,
 }));
 
 import { toast } from "@/shared/utils/toast-service";
-import { storage } from "@/core/storage/safe-storage";
 
 // ============================================
 // Test Helpers
@@ -114,7 +107,7 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Test error");
 
       render(
-        <ErrorBoundary>
+        <ErrorBoundary maxRetries={0}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -127,7 +120,7 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Specific error message");
 
       render(
-        <ErrorBoundary>
+        <ErrorBoundary maxRetries={0}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -148,7 +141,7 @@ describe("ErrorBoundary Component", () => {
       );
 
       render(
-        <ErrorBoundary fallback={customFallback}>
+        <ErrorBoundary fallback={customFallback} maxRetries={0}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -161,20 +154,20 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Test error");
 
       render(
-        <ErrorBoundary>
+        <ErrorBoundary maxRetries={0}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
 
       expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-      expect(screen.getByText("Reload Application")).toBeInTheDocument();
+      expect(screen.getByText("Reload Page")).toBeInTheDocument();
     });
 
     it("MUST show warning icon in error UI", () => {
       const error = new Error("Test error");
 
       render(
-        <ErrorBoundary>
+        <ErrorBoundary maxRetries={0}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -184,41 +177,34 @@ describe("ErrorBoundary Component", () => {
   });
 
   // ========================================
-  // SPECIFICATION: Crash Reporting
+  // SPECIFICATION: Error Reporting
   // ========================================
 
-  describe("SPEC: Crash Reporting", () => {
-    it("MUST store crash report to storage", () => {
+  describe("SPEC: Error Reporting", () => {
+    it("MUST invoke onError callback", () => {
       const error = new Error("Crash error");
+      const onError = vi.fn();
 
       render(
-        <ErrorBoundary>
+        <ErrorBoundary maxRetries={0} onError={onError}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
 
-      expect(storage.setItem).toHaveBeenCalledWith(
-        "crash_reports",
-        expect.arrayContaining([
-          expect.objectContaining({
-            error: "Error: Crash error",
-            timestamp: expect.any(String),
-          }),
-        ]),
-      );
+      expect(onError).toHaveBeenCalled();
     });
 
     it("MUST show toast notification on error", () => {
       const error = new Error("Toast error");
 
       render(
-        <ErrorBoundary>
+        <ErrorBoundary maxRetries={0}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
 
-      expect(toast.error).toHaveBeenCalledWith("Something went wrong", {
-        description: "Toast error",
+      expect(toast.error).toHaveBeenCalledWith("Component failed to load", {
+        description: "Please try refreshing the page.",
       });
     });
   });

@@ -47,7 +47,9 @@ module.exports = {
                     '\\.test\\.(ts|tsx)$',
                     '\\.spec\\.(ts|tsx)$',
                     'vitest\\.',
-                    '__tests__'
+                    '__tests__',
+                    '^frontend/test/',
+                    '^frontend/next\\.config\\.ts$'
                 ]
             },
             to: {

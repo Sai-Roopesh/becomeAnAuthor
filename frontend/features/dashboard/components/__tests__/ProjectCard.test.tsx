@@ -84,12 +84,6 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuSeparator: () => <hr data-testid="dropdown-separator" />,
 }));
 
-vi.mock("@/features/data-management", () => ({
-  ExportProjectButton: ({ projectId }: { projectId: string }) => (
-    <button data-testid="export-button">Export {projectId}</button>
-  ),
-}));
-
 vi.mock("lucide-react", () => ({
   MoreVertical: () => <span data-testid="more-icon">⋮</span>,
   Trash2: () => <span data-testid="trash-icon">🗑</span>,
@@ -293,6 +287,9 @@ describe("ProjectCard Component", () => {
         <ProjectCard
           project={createMockProject({ id: "proj-export" })}
           onDelete={mockOnDelete}
+          renderExportButton={(projectId) => (
+            <button data-testid="export-button">Export {projectId}</button>
+          )}
         />,
       );
 
@@ -308,9 +305,9 @@ describe("ProjectCard Component", () => {
       fireEvent.click(screen.getByTestId("more-icon"));
 
       // Click delete option
-      fireEvent.click(screen.getByText("Delete Project"));
+      fireEvent.click(screen.getByText("Move to Trash"));
 
-      expect(mockOnDelete).toHaveBeenCalled();
+      expect(mockOnDelete).toHaveBeenCalledWith(expect.any(Object), "proj-123");
     });
   });
 });

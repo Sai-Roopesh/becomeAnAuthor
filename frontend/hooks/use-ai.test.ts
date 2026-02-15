@@ -47,11 +47,12 @@ describe("useAI", () => {
   });
 
   it("prepends default system message when streaming", async () => {
-    vi.mocked(stream).mockResolvedValue({
+    const streamResult = {
       textStream: (async function* () {
         yield "hello";
       })(),
-    } as Awaited<ReturnType<typeof stream>>);
+    } as unknown as Awaited<ReturnType<typeof stream>>;
+    vi.mocked(stream).mockResolvedValue(streamResult);
 
     const { result } = renderHook(() =>
       useAI({ defaultSystem: "System guardrail" }),
