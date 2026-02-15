@@ -82,7 +82,7 @@ export function useIdeas({
         const created = await ideaRepository.create({
           projectId,
           content: content.trim(),
-          sceneId,
+          ...(sceneId !== undefined && { sceneId }),
           category,
           tags,
           archived: false,

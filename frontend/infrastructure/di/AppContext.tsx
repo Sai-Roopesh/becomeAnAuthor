@@ -17,6 +17,7 @@ import { TauriIdeaRepository } from "@/infrastructure/repositories/TauriIdeaRepo
 import { TauriSceneNoteRepository } from "@/infrastructure/repositories/TauriSceneNoteRepository";
 import { TauriMapRepository } from "@/infrastructure/repositories/TauriMapRepository";
 import { TauriWorldTimelineRepository } from "@/infrastructure/repositories/TauriWorldTimelineRepository";
+import { TauriAnalysisRepository } from "@/infrastructure/repositories/TauriAnalysisRepository";
 // Repository interfaces
 import type { INodeRepository } from "@/domain/repositories/INodeRepository";
 import type { ICodexRepository } from "@/domain/repositories/ICodexRepository";
@@ -33,11 +34,14 @@ import type { IIdeaRepository } from "@/domain/repositories/IIdeaRepository";
 import type { ISceneNoteRepository } from "@/domain/repositories/ISceneNoteRepository";
 import type { IMapRepository } from "@/domain/repositories/IMapRepository";
 import type { IWorldTimelineRepository } from "@/domain/repositories/IWorldTimelineRepository";
+import type { IAnalysisRepository } from "@/domain/repositories/IAnalysisRepository";
 // Services
 import type { IChatService } from "@/domain/services/IChatService";
 import { ChatService } from "@/infrastructure/services/ChatService";
 import type { IExportService } from "@/domain/services/IExportService";
 import { DocumentExportService } from "@/infrastructure/services/DocumentExportService";
+import type { IAnalysisService } from "@/domain/services/IAnalysisService";
+import { AnalysisService } from "@/infrastructure/services/AnalysisService";
 
 /**
  * Application-wide service container
@@ -64,10 +68,12 @@ interface AppServices {
   sceneNoteRepository: ISceneNoteRepository;
   mapRepository: IMapRepository;
   worldTimelineRepository: IWorldTimelineRepository;
+  analysisRepository: IAnalysisRepository;
 
   // Services
   chatService: IChatService;
   exportService: IExportService;
+  analysisService: IAnalysisService;
 }
 
 const AppContext = createContext<AppServices | null>(null);
@@ -162,6 +168,10 @@ export function AppProvider({
       customServices?.worldTimelineRepository ??
       createLazy(() => new TauriWorldTimelineRepository());
 
+    const analysisRepo =
+      customServices?.analysisRepository ??
+      TauriAnalysisRepository.getInstance();
+
     // Services still need eager instantiation as they're commonly used
     // But they use lazy repos internally
     const chatSvc =
@@ -175,6 +185,15 @@ export function AppProvider({
 
     const exportSvc =
       customServices?.exportService ?? new DocumentExportService(nodeRepo);
+
+    const analysisSvc =
+      customServices?.analysisService ??
+      new AnalysisService(
+        nodeRepo,
+        codexRepo,
+        analysisRepo,
+        projectRepo,
+      );
 
     return {
       nodeRepository: nodeRepo,
@@ -192,8 +211,10 @@ export function AppProvider({
       sceneNoteRepository: sceneNoteRepo,
       mapRepository: mapRepo,
       worldTimelineRepository: worldTimelineRepo,
+      analysisRepository: analysisRepo,
       chatService: chatSvc,
       exportService: exportSvc,
+      analysisService: analysisSvc,
     };
   }, [customServices]);
 

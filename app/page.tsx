@@ -109,10 +109,10 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl min-h-screen">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
         <h2 className="text-xl font-semibold">Series</h2>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-center md:justify-end">
           <Button
             variant="default"
             size="sm"
@@ -175,9 +175,9 @@ export default function Dashboard() {
                   {(deletedSeries ?? []).map((series) => (
                     <div
                       key={series.oldSeriesId}
-                      className="flex items-center justify-between border rounded-lg px-3 py-2"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between border rounded-lg px-3 py-2 gap-2"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 w-full">
                         <p className="font-medium truncate">{series.title}</p>
                         <p className="text-xs text-muted-foreground">
                           Deleted {new Date(series.deletedAt).toLocaleString()}
@@ -221,9 +221,9 @@ export default function Dashboard() {
                   {(trashedProjects ?? []).map((project) => (
                     <div
                       key={project.trashPath}
-                      className="flex items-center justify-between border rounded-lg px-3 py-2"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between border rounded-lg px-3 py-2 gap-2"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 w-full">
                         <p className="font-medium truncate">{project.title}</p>
                         <p className="text-xs text-muted-foreground">
                           Deleted {new Date(project.deletedAt).toLocaleString()}

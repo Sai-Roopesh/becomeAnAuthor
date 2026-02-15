@@ -3,8 +3,6 @@
  * Strongly-typed interfaces for AI-generated story analysis responses
  */
 
-import type { AnalysisInsight } from "./types";
-
 // ============================================
 // Plot Thread Analysis
 // ============================================
@@ -142,30 +140,3 @@ export type AnalysisResponse =
   | AlphaReaderResponse
   | BetaReaderResponse
   | SynopsisResponse;
-
-// ============================================
-// Parsed Analysis Result
-// ============================================
-
-export interface ParsedAnalysisResult {
-  summary?: string;
-  insights: AnalysisInsight[];
-  metrics?: Record<string, number | string>;
-}
-
-// ============================================
-// Analysis Metrics (replace Record<string, any>)
-// ============================================
-
-export interface AnalysisMetrics {
-  wordCount?: number;
-  sceneCount?: number;
-  characterCount?: number;
-  threadCount?: number;
-  resolvedThreads?: number;
-  unresolvedThreads?: number;
-  contradictionCount?: number;
-  pacing?: string;
-  rating?: number;
-  [key: string]: number | string | undefined;
-}

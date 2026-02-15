@@ -169,7 +169,7 @@ export function AnalysisDetailDialog({
         </div>
 
         <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-          <div className="px-6 pt-4 shrink-0 border-b bg-background/50">
+          <div className="px-6 pt-4 shrink-0 border-b bg-background/50 overflow-x-auto">
             <TabsList className="w-full justify-start bg-transparent p-0 h-auto gap-6">
               <TabsTrigger
                 value="overview"
@@ -501,7 +501,7 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
           >
             <div className="h-1 bg-gradient-to-r from-primary/50 to-secondary/50" />
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-heading flex items-center justify-between">
+              <CardTitle className="text-lg font-heading flex items-center justify-between gap-2">
                 {thread.name}
                 <Badge
                   variant={thread.status === "resolved" ? "default" : "outline"}
@@ -551,7 +551,7 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
             className="border-border/50 shadow-sm hover:shadow-md transition-all"
           >
             <CardHeader className="pb-3 bg-muted/20 border-b border-border/50">
-              <CardTitle className="text-lg font-heading flex items-center justify-between">
+              <CardTitle className="text-lg font-heading flex items-center justify-between gap-2">
                 {char.name}
                 <Badge variant="secondary" className="bg-background">
                   {char.role || "Character"}

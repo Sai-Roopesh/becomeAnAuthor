@@ -9,9 +9,9 @@ import type {
   DocumentNode,
   CodexEntry,
   AnalysisInsight,
+  ParsedAnalysisResult,
 } from "@/domain/entities/types";
 import type {
-  ParsedAnalysisResult,
   PlotThread,
   CharacterArc,
   TimelineInconsistency,
@@ -88,7 +88,7 @@ export class AnalysisService implements IAnalysisService {
           model,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           schema: schema as any,
-          prompt,
+          messages: [{ role: "user", content: prompt }],
           temperature: 0.7,
         });
 
@@ -358,8 +358,11 @@ export class AnalysisService implements IAnalysisService {
             id: crypto.randomUUID(),
             type: "error",
             category:
-              (contradiction.type === "logic" ? "plot" : contradiction.type) ||
-              "plot",
+              contradiction.type === "logic"
+                ? "plot"
+                : contradiction.type === "world-building"
+                  ? "world"
+                  : contradiction.type,
             message: contradiction.description,
             severity: contradiction.severity || 2,
             ...(contradiction.suggestion && {
