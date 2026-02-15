@@ -74,10 +74,29 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
       showOnCreate: false,
       interactive: true,
       trigger: "manual",
-      placement: "top-start",
+      placement: "top",
       offset: [0, 10],
       animation: "fade",
       duration: 150,
+      zIndex: 1080,
+      maxWidth: "none",
+      popperOptions: {
+        modifiers: [
+          {
+            name: "preventOverflow",
+            options: {
+              padding: 8,
+              boundary: "viewport",
+            },
+          },
+          {
+            name: "flip",
+            options: {
+              fallbackPlacements: ["bottom", "top-start", "bottom-start"],
+            },
+          },
+        ],
+      },
     });
 
     tippyRef.current = tippyInstance;
@@ -104,7 +123,6 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
     };
 
     editor.on("selectionUpdate", updateVisibility);
-    editor.on("blur", () => tippyInstance.hide());
 
     return () => {
       editor.off("selectionUpdate", updateVisibility);
@@ -118,44 +136,58 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
       {/* Hidden menu template for tippy */}
       <div
         ref={menuRef}
-        className="bg-background border rounded-lg shadow-lg flex items-center gap-1 p-1"
+        className="max-w-[calc(100vw-1rem)] overflow-x-auto rounded-lg border bg-background p-1 shadow-lg"
       >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleAction("tweak")}
-          className="h-8 px-3"
-        >
-          <Wand2 className="h-4 w-4 mr-1.5" />
-          Tweak & Generate
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleAction("expand")}
-          className="h-8 px-3"
-        >
-          <Expand className="h-4 w-4 mr-1.5" />
-          Expand
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleAction("rephrase")}
-          className="h-8 px-3"
-        >
-          <RefreshCw className="h-4 w-4 mr-1.5" />
-          Rephrase
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleAction("shorten")}
-          className="h-8 px-3"
-        >
-          <Minimize2 className="h-4 w-4 mr-1.5" />
-          Shorten
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleAction("tweak");
+            }}
+            className="h-8 shrink-0 px-3"
+          >
+            <Wand2 className="h-4 w-4 mr-1.5" />
+            Tweak & Generate
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleAction("expand");
+            }}
+            className="h-8 shrink-0 px-3"
+          >
+            <Expand className="h-4 w-4 mr-1.5" />
+            Expand
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleAction("rephrase");
+            }}
+            className="h-8 shrink-0 px-3"
+          >
+            <RefreshCw className="h-4 w-4 mr-1.5" />
+            Rephrase
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleAction("shorten");
+            }}
+            className="h-8 shrink-0 px-3"
+          >
+            <Minimize2 className="h-4 w-4 mr-1.5" />
+            Shorten
+          </Button>
+        </div>
       </div>
 
       {action && (

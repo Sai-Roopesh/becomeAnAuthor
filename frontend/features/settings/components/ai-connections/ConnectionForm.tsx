@@ -71,7 +71,7 @@ export function ConnectionForm({
   };
 
   return (
-    <div className="flex-1 border rounded-md p-6">
+    <div className="flex-1 border rounded-md p-4 sm:p-6">
       <ScrollArea className="h-full">
         <div className="space-y-6 pr-4">
           {/* Header with vendor info */}

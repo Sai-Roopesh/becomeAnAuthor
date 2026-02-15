@@ -4,7 +4,7 @@ import { Loader2, PenTool } from "lucide-react";
 
 export default function GlobalLoading() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="min-h-[100dvh] bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">

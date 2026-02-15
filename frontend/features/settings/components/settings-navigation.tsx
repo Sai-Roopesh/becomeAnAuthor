@@ -77,7 +77,7 @@ export function SettingsMobileNav({
 }: SettingsNavigationProps) {
   return (
     <div className="md:hidden flex-shrink-0 border-b bg-secondary/30 overflow-x-auto">
-      <div className="flex p-2 gap-2 min-w-max">
+      <div className="flex w-max min-w-full gap-2 p-2">
         {SETTINGS_NAV_ITEMS.map((item) => (
           <Button
             key={item.id}

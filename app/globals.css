@@ -18,43 +18,50 @@
 
 /* Container width utilities for dialogs, popovers, and sheets */
 .w-dialog-sm {
-  width: 425px;
+  width: min(425px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
 }
 
 .w-dialog-md {
-  width: 500px;
+  width: min(500px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
 }
 
 .w-dialog-lg {
-  width: 600px;
+  width: min(600px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
 }
 
 .w-popover {
-  width: 300px;
+  width: min(300px, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
 }
 
 .w-popover-lg {
-  width: 380px;
+  width: min(380px, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
 }
 
 .w-sheet {
-  width: 400px;
+  width: min(400px, calc(100vw - 0.75rem));
+  max-width: calc(100vw - 0.75rem);
 }
 
 .w-sheet-lg {
-  width: 540px;
+  width: min(540px, calc(100vw - 0.75rem));
+  max-width: calc(100vw - 0.75rem);
 }
 
 .w-select {
-  width: 180px;
+  width: min(180px, 100%);
 }
 
 .w-select-sm {
-  width: 150px;
+  width: min(150px, 100%);
 }
 
 .w-select-lg {
-  width: 200px;
+  width: min(200px, 100%);
 }
 
 /* Max-width utilities */
@@ -71,62 +78,70 @@
 }
 
 .max-w-mobile-sheet {
-  max-width: 350px;
+  max-width: min(350px, calc(100vw - 0.75rem));
 }
 
 /* Min-width utilities for menus and tables */
 .min-w-menu {
-  min-width: 150px;
+  min-width: min(150px, calc(100vw - 2rem));
 }
 
 .min-w-menu-lg {
-  min-width: 280px;
+  min-width: min(280px, calc(100vw - 2rem));
 }
 
 .min-w-btn {
-  min-width: 140px;
+  min-width: min(140px, 100%);
 }
 
 .min-w-table-sm {
-  min-width: 100px;
+  min-width: min(100px, 35vw);
 }
 
 .min-w-table {
-  min-width: 200px;
+  min-width: min(200px, 50vw);
 }
 
 .min-w-table-lg {
-  min-width: 250px;
+  min-width: min(250px, 60vw);
 }
 
 .min-w-table-xl {
-  min-width: 300px;
+  min-width: min(300px, 80vw);
+}
+
+.min-w-popover {
+  min-width: min(300px, calc(100vw - 2rem));
+}
+
+.min-w-select-sm {
+  min-width: min(150px, calc(100vw - 2rem));
 }
 
 /* Height utilities */
 .h-scroll-sm {
-  height: 200px;
+  height: min(200px, 40dvh);
 }
 
 .h-scroll {
-  height: 300px;
+  height: min(300px, 55dvh);
 }
 
 .h-scroll-lg {
-  height: 400px;
+  height: min(400px, 70dvh);
 }
 
 /* Max-height utilities */
 .max-h-dropdown {
-  max-height: 300px;
+  max-height: min(300px, 60dvh);
 }
 
 .max-h-scroll {
-  max-height: 400px;
+  max-height: min(400px, 75dvh);
 }
 
 .max-h-modal {
-  max-height: 500px;
+  max-height: min(500px, 80dvh);
 }
 
 @custom-variant dark (&:is(.dark *));

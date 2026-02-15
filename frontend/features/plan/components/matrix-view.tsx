@@ -114,8 +114,8 @@ export function MatrixView({
   return (
     <div className="space-y-6 pb-20">
       {/* Toolbar */}
-      <div className="flex items-center justify-between bg-card/50 backdrop-blur-sm border border-border/50 p-2 rounded-lg">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-2 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <span className="text-sm font-medium text-muted-foreground px-2">
             Matrix Mode:
           </span>

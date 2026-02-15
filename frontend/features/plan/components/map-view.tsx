@@ -214,7 +214,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b bg-background/80 backdrop-blur-md">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <Map className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">World Maps</h2>
@@ -223,7 +223,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
           <Button
             onClick={() => setIsUploadDialogOpen(true)}
             size="sm"
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <Upload className="h-4 w-4" />
             Upload Map
@@ -275,7 +275,7 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
         ) : selectedMap ? (
           <>
             {/* Map Controls */}
-            <div className="absolute top-4 right-4 z-10 flex gap-2">
+            <div className="absolute left-4 right-4 top-4 z-10 flex flex-wrap justify-end gap-2 sm:left-auto sm:right-4">
               <Button
                 variant={isAddingMarker ? "default" : "outline"}
                 size="sm"

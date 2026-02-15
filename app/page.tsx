@@ -108,15 +108,16 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-7xl min-h-screen">
-      <div className="flex justify-between items-center mb-4">
+    <div className="container mx-auto p-4 md:p-8 max-w-7xl min-h-[100dvh]">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold">Series</h2>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Button
             variant="default"
             size="sm"
             onClick={() => setCreateSeriesDialogOpen(true)}
+            className="w-full sm:w-auto"
           >
             <Plus className="w-4 h-4 mr-1" />
             New Series
@@ -126,6 +127,7 @@ export default function Dashboard() {
             size="sm"
             onClick={handleOpenNovel}
             disabled={isOpening}
+            className="w-full sm:w-auto"
           >
             {isOpening ? (
               <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -136,7 +138,7 @@ export default function Dashboard() {
           </Button>
           <BackupCenterDialog
             trigger={
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 Backup Center
               </Button>
             }
@@ -149,7 +151,7 @@ export default function Dashboard() {
       {((trashedProjects ?? []).length > 0 ||
         (deletedSeries ?? []).length > 0) && (
         <div className="mb-6 rounded-xl border bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="font-semibold">Trash</h3>
               <p className="text-sm text-muted-foreground">
@@ -175,7 +177,7 @@ export default function Dashboard() {
                   {(deletedSeries ?? []).map((series) => (
                     <div
                       key={series.oldSeriesId}
-                      className="flex items-center justify-between border rounded-lg px-3 py-2"
+                      className="flex flex-col gap-3 border rounded-lg px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
                         <p className="font-medium truncate">{series.title}</p>
@@ -183,7 +185,7 @@ export default function Dashboard() {
                           Deleted {new Date(series.deletedAt).toLocaleString()}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         <Button
                           size="sm"
                           variant="outline"
@@ -221,7 +223,7 @@ export default function Dashboard() {
                   {(trashedProjects ?? []).map((project) => (
                     <div
                       key={project.trashPath}
-                      className="flex items-center justify-between border rounded-lg px-3 py-2"
+                      className="flex flex-col gap-3 border rounded-lg px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
                         <p className="font-medium truncate">{project.title}</p>
@@ -229,7 +231,7 @@ export default function Dashboard() {
                           Deleted {new Date(project.deletedAt).toLocaleString()}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         <Button
                           size="sm"
                           variant="outline"

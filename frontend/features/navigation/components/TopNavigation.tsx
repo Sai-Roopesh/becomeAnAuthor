@@ -36,38 +36,40 @@ export function TopNavigation() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="h-12 border-b flex items-center justify-between px-4 bg-background">
-        <div className="flex items-center gap-1">
-          {/* Home Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="mr-2">
-                  <Home className="h-4 w-4" />
-                  <span className="hidden sm:inline ml-2">Home</span>
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>Back to Dashboard</TooltipContent>
-          </Tooltip>
+      <div className="border-b bg-background px-3 py-2 sm:px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
+            {/* Home Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/">
+                  <Button variant="ghost" size="sm" className="mr-1 sm:mr-2">
+                    <Home className="h-4 w-4" />
+                    <span className="hidden sm:inline ml-2">Home</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>Back to Dashboard</TooltipContent>
+            </Tooltip>
 
-          <div className="h-6 w-px bg-border mr-2" />
+            <div className="mr-1 h-6 w-px bg-border sm:mr-2" />
 
-          {modes.map((mode) => (
-            <Button
-              key={mode.id}
-              variant={viewMode === mode.id ? "default" : "ghost"}
-              size="sm"
-              onClick={() => handleModeChange(mode.id)}
-              className="gap-2"
-            >
-              <mode.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{mode.label}</span>
-            </Button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <SettingsDialog />
+            {modes.map((mode) => (
+              <Button
+                key={mode.id}
+                variant={viewMode === mode.id ? "default" : "ghost"}
+                size="sm"
+                onClick={() => handleModeChange(mode.id)}
+                className="gap-2"
+              >
+                <mode.icon className="h-4 w-4" />
+                <span className="hidden sm:inline">{mode.label}</span>
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <SettingsDialog />
+          </div>
         </div>
       </div>
     </TooltipProvider>

@@ -135,11 +135,11 @@ Now apply your task to the original text. Provide ONLY the modified text:`,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90dvh] sm:max-h-[85dvh] flex flex-col overflow-hidden">
         <form onSubmit={handleSubmit(handleGenerate)}>
           <DialogTitle>Tweak & Generate</DialogTitle>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[65dvh] overflow-y-auto pr-1">
             {/* Model Selector */}
             <div>
               <Label>Model</Label>

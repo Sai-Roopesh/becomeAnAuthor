@@ -90,7 +90,7 @@ export function CreateNodeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:w-dialog-sm">
+      <DialogContent className="w-dialog-sm">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle>
@@ -101,14 +101,14 @@ export function CreateNodeDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label htmlFor="title" className="text-left sm:text-right">
                 Title
               </Label>
               <Input
                 id="title"
                 {...register("title")}
-                className="col-span-3"
+                className="sm:col-span-3"
                 placeholder={`New ${type}`}
               />
             </div>

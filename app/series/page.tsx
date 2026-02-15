@@ -155,7 +155,7 @@ function SeriesContent() {
 
   if (!seriesId) {
     return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground">
+      <div className="flex min-h-[100dvh] items-center justify-center text-muted-foreground">
         <div className="w-full max-w-xl rounded-xl border bg-card p-6 space-y-5">
           <h2 className="text-xl font-semibold">No Series Selected</h2>
           <p>
@@ -210,7 +210,7 @@ function SeriesContent() {
 
   if (!allSeries || !projects) {
     return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground">
+      <div className="flex min-h-[100dvh] items-center justify-center text-muted-foreground">
         Loading series...
       </div>
     );
@@ -218,7 +218,7 @@ function SeriesContent() {
 
   if (!series) {
     return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground">
+      <div className="flex min-h-[100dvh] items-center justify-center text-muted-foreground">
         <div className="w-full max-w-xl rounded-xl border bg-card p-6 space-y-5">
           <h2 className="text-xl font-semibold">Series Not Found</h2>
           <p>
@@ -251,7 +251,7 @@ function SeriesContent() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-7xl min-h-screen">
+    <div className="container mx-auto p-4 md:p-8 max-w-7xl min-h-[100dvh]">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div className="space-y-2">
           <Link href="/" className="inline-flex">
@@ -281,11 +281,12 @@ function SeriesContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
           <Button
             variant="outline"
             onClick={handleExportSeriesBackup}
             disabled={isExportingSeries}
+            className="w-full sm:w-auto"
           >
             {isExportingSeries ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -294,7 +295,10 @@ function SeriesContent() {
             )}
             {isExportingSeries ? "Exporting..." : "Export Series Backup"}
           </Button>
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="w-full sm:w-auto"
+          >
             <Plus className="w-4 h-4 mr-2" />
             New Novel
           </Button>
@@ -339,7 +343,7 @@ function SeriesContent() {
             {archivedProjects.map((project) => (
               <div
                 key={project.id}
-                className="rounded-lg border bg-muted/20 p-3 flex items-center justify-between"
+                className="rounded-lg border bg-muted/20 p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <p className="font-medium">{project.title}</p>
@@ -385,7 +389,7 @@ function SeriesContent() {
 
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-screen">
+    <div className="flex min-h-[100dvh] items-center justify-center">
       <div className="text-muted-foreground">Loading series...</div>
     </div>
   );

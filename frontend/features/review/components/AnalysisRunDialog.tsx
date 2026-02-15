@@ -119,7 +119,7 @@ export function AnalysisRunDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl h-[85dvh] flex flex-col overflow-hidden bg-background/95 backdrop-blur-xl border-border/50">
+      <DialogContent className="max-w-2xl h-[90dvh] sm:h-[85dvh] flex flex-col overflow-hidden bg-background/95 backdrop-blur-xl border-border/50">
         <DialogHeader>
           <DialogTitle className="text-2xl font-heading font-bold">
             Run Story Analysis
@@ -129,14 +129,14 @@ export function AnalysisRunDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 py-4">
+        <div className="flex-1 min-h-0 space-y-8 overflow-y-auto py-4 pr-1">
           {/* Scope Selection */}
           <div className="space-y-4">
             <Label className="text-base font-semibold">Analysis Scope</Label>
             <RadioGroup
               value={scope}
               onValueChange={(v) => setScope(v as "full" | "custom")}
-              className="grid grid-cols-2 gap-4"
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2"
             >
               <div
                 className={cn(

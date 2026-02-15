@@ -45,7 +45,7 @@ export function BackupCenterDialog({
         </DialogTrigger>
       )}
 
-      <DialogContent className="max-w-3xl h-[85dvh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl h-[90dvh] sm:h-[85dvh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Backup Center</DialogTitle>
           <DialogDescription>

@@ -106,7 +106,7 @@ export function SearchPalette({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-2xl max-h-[90dvh] sm:max-h-[85dvh] flex flex-col p-0 gap-0">
         <VisuallyHidden>
           <DialogTitle>Search Palette</DialogTitle>
         </VisuallyHidden>
@@ -116,7 +116,7 @@ export function SearchPalette({
             onChange={setQuery}
             placeholder="Search manuscript and codex..."
           />
-          <div className="px-4 py-2 border-b bg-muted/20 flex items-center gap-2">
+          <div className="px-4 py-2 border-b bg-muted/20 flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant={scope === "all" ? "secondary" : "ghost"}
@@ -149,8 +149,8 @@ export function SearchPalette({
         </div>
 
         {/* Footer with keyboard hints */}
-        <div className="px-4 py-2 border-t text-xs text-muted-foreground flex items-center justify-between">
-          <div className="flex gap-4">
+        <div className="px-4 py-2 border-t text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-3">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">↑↓</kbd>
               Navigate

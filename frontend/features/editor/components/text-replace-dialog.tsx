@@ -219,7 +219,7 @@ Provide only the transformed text. No explanations, no preamble.`,
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-3xl h-[85dvh] flex flex-col p-0"
+        className="max-w-3xl h-[90dvh] sm:h-[85dvh] flex flex-col p-0"
         aria-describedby={undefined}
       >
         <VisuallyHidden>

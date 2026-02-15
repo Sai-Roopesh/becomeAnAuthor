@@ -6,7 +6,7 @@ export default function ProjectLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-screen w-full overflow-hidden bg-background">
+    <div className="h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-background">
       {children}
     </div>
   );

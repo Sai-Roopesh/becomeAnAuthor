@@ -97,7 +97,7 @@ export function AIConnectionsTab() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex-none p-6 pr-16 bg-background border-b">
+      <div className="flex-none border-b bg-background p-4 sm:p-6 sm:pr-16">
         <h3 className="text-sm font-medium mb-2 uppercase tracking-wide text-muted-foreground">
           CONNECTED AI VENDORS
         </h3>
@@ -110,7 +110,7 @@ export function AIConnectionsTab() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex gap-6 p-6 bg-background overflow-hidden">
+      <div className="flex-1 flex flex-col gap-4 bg-background overflow-hidden p-4 sm:gap-6 sm:p-6 lg:flex-row">
         {/* Connection List */}
         <ConnectionList
           connections={connections}
@@ -146,7 +146,7 @@ export function AIConnectionsTab() {
       </div>
 
       {/* Footer */}
-      <div className="flex-none p-6 border-t bg-background">
+      <div className="flex-none border-t bg-background p-4 sm:p-6">
         <h4 className="text-sm font-medium mb-2 uppercase tracking-wide text-muted-foreground">
           CREDENTIALS ARE STORED PER MACHINE
         </h4>

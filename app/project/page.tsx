@@ -36,7 +36,7 @@ function ProjectRecovery({
   onOpenPicker: () => Promise<void>;
 }) {
   return (
-    <div className="flex items-center justify-center h-screen text-muted-foreground p-4">
+    <div className="flex min-h-[100dvh] items-center justify-center text-muted-foreground p-4">
       <div className="w-full max-w-xl rounded-xl border bg-card p-6 space-y-5">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold text-foreground">{title}</h2>
@@ -249,7 +249,7 @@ function ProjectContent() {
 
   if (!project && !projectMissing) {
     return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground">
+      <div className="flex min-h-[100dvh] items-center justify-center text-muted-foreground">
         <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading project...
@@ -287,7 +287,7 @@ function ProjectContent() {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col">
+    <div className="h-[100dvh] min-h-[100dvh] overflow-hidden flex flex-col">
       <TopNavigation />
 
       <SearchPalette
@@ -315,7 +315,7 @@ function ProjectContent() {
 
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-screen">
+    <div className="flex min-h-[100dvh] items-center justify-center">
       <div className="text-muted-foreground">Loading project...</div>
     </div>
   );

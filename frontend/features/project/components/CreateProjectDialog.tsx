@@ -403,7 +403,7 @@ export function CreateProjectDialog({
         </DialogTrigger>
       )}
 
-      <DialogContent className="sm:w-dialog-md max-h-[85dvh] flex flex-col overflow-hidden">
+      <DialogContent className="w-dialog-md max-h-[90dvh] sm:max-h-[85dvh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {isSeriesLocked && selectedSeriesTitle
@@ -418,7 +418,7 @@ export function CreateProjectDialog({
         <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
           <div className="space-y-2">
             <Label>Title *</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 value={formData.title}
                 onChange={(e) =>
@@ -432,6 +432,7 @@ export function CreateProjectDialog({
                 variant="outline"
                 onClick={handleSurpriseMe}
                 title="Surprise Me"
+                className="w-full sm:w-auto"
               >
                 <Sparkles className="h-4 w-4" />
               </Button>
@@ -510,7 +511,7 @@ export function CreateProjectDialog({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <Input
                         value={newSeriesName}
                         onChange={(e) => setNewSeriesName(e.target.value)}
@@ -522,6 +523,7 @@ export function CreateProjectDialog({
                         size="sm"
                         onClick={handleCreateNewSeries}
                         disabled={!newSeriesName.trim()}
+                        className="w-full sm:w-auto"
                       >
                         Create
                       </Button>
@@ -575,7 +577,7 @@ export function CreateProjectDialog({
 
               <div className="space-y-2">
                 <Label>Save Location</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     value={resolvedSavePath}
                     readOnly
@@ -586,6 +588,7 @@ export function CreateProjectDialog({
                     type="button"
                     variant="outline"
                     onClick={handleChooseLocation}
+                    className="w-full sm:w-auto"
                   >
                     Choose Folder
                   </Button>

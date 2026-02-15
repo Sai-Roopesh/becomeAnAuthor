@@ -155,7 +155,7 @@ export function NewConnectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90dvh] sm:max-h-[85dvh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {!selectedProvider

@@ -98,18 +98,24 @@ export function TweakGenerateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90dvh] sm:max-h-[85dvh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Generate Text</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="tweak" className="w-full">
+        <Tabs
+          defaultValue="tweak"
+          className="flex w-full flex-1 min-h-0 flex-col"
+        >
           <TabsList>
             <TabsTrigger value="tweak">Tweak</TabsTrigger>
             <TabsTrigger value="preview">Preview</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="tweak" className="space-y-4 mt-4">
+          <TabsContent
+            value="tweak"
+            className="mt-4 flex-1 min-h-0 overflow-y-auto space-y-4 pr-1"
+          >
             {/* Words */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -242,7 +248,10 @@ export function TweakGenerateDialog({
             </div>
           </TabsContent>
 
-          <TabsContent value="preview" className="mt-4">
+          <TabsContent
+            value="preview"
+            className="mt-4 flex-1 min-h-0 overflow-y-auto"
+          >
             <div className="text-center text-muted-foreground p-8">
               Preview will show the final prompt sent to AI
             </div>

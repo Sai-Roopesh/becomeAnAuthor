@@ -157,7 +157,7 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
             <Settings className="h-5 w-5" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:w-dialog-lg">
+        <DialogContent className="w-dialog-lg">
           <DialogHeader>
             <DialogTitle>Novel Settings</DialogTitle>
             <DialogDescription>
@@ -266,7 +266,7 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
               <h3 className="text-sm font-medium text-destructive mb-2">
                 Danger Zone
               </h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"

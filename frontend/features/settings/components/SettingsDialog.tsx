@@ -33,7 +33,7 @@ export function SettingsDialog() {
       </Button>
 
       <DialogContent
-        className="w-[95vw] md:max-w-5xl h-[85dvh] max-h-[85dvh] p-0 bg-background fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 flex flex-col overflow-hidden"
+        className="w-[95vw] max-w-5xl h-[90dvh] sm:h-[85dvh] max-h-[90dvh] sm:max-h-[85dvh] p-0 bg-background fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 flex flex-col overflow-hidden"
         aria-describedby={undefined}
       >
         <VisuallyHidden>

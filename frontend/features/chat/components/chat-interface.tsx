@@ -264,7 +264,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+              <div className="flex items-center gap-1 opacity-100 transition-all md:opacity-0 md:group-hover:opacity-100">
                 {threadView === "active" && (
                   <Button
                     variant="ghost"
@@ -340,7 +340,10 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[85vw] sm:w-popover">
+            <SheetContent
+              side="left"
+              className="p-0 w-[90vw] max-w-mobile-sheet"
+            >
               {SidebarContent}
             </SheetContent>
           </Sheet>

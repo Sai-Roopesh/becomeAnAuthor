@@ -131,10 +131,10 @@ export function AnalysisDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0 bg-background/95 backdrop-blur-xl border-border/50 overflow-hidden">
+      <DialogContent className="max-w-4xl h-[90dvh] sm:h-[85dvh] flex flex-col p-0 gap-0 bg-background/95 backdrop-blur-xl border-border/50 overflow-hidden">
         <div className="p-6 pb-4 border-b shrink-0 bg-muted/20">
           <DialogHeader>
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex-1">
                 <DialogTitle className="capitalize flex items-center gap-3 text-2xl font-heading font-bold">
                   {analysis.analysisType.replace("-", " ")} Analysis
@@ -170,38 +170,40 @@ export function AnalysisDetailDialog({
 
         <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-4 shrink-0 border-b bg-background/50">
-            <TabsList className="w-full justify-start bg-transparent p-0 h-auto gap-6">
-              <TabsTrigger
-                value="overview"
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
-              >
-                Overview
-              </TabsTrigger>
-              <TabsTrigger
-                value="details"
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
-              >
-                Detailed Results
-              </TabsTrigger>
-              <TabsTrigger
-                value="insights"
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
-              >
-                Insights
-                <Badge
-                  variant="secondary"
-                  className="ml-2 h-5 px-1.5 text-2xs bg-muted text-muted-foreground"
+            <div className="overflow-x-auto">
+              <TabsList className="h-auto w-max min-w-full justify-start gap-6 bg-transparent p-0">
+                <TabsTrigger
+                  value="overview"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
                 >
-                  {analysis.results.insights.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger
-                value="metadata"
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
-              >
-                Metadata
-              </TabsTrigger>
-            </TabsList>
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="details"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
+                >
+                  Detailed Results
+                </TabsTrigger>
+                <TabsTrigger
+                  value="insights"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
+                >
+                  Insights
+                  <Badge
+                    variant="secondary"
+                    className="ml-2 h-5 px-1.5 text-2xs bg-muted text-muted-foreground"
+                  >
+                    {analysis.results.insights.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="metadata"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
+                >
+                  Metadata
+                </TabsTrigger>
+              </TabsList>
+            </div>
           </div>
 
           <TabsContent
@@ -354,7 +356,7 @@ export function AnalysisDetailDialog({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 gap-6 text-sm">
+                    <div className="grid grid-cols-1 gap-6 text-sm sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <span className="text-muted-foreground text-xs uppercase tracking-wide block">
                           Word Count
@@ -559,7 +561,7 @@ function DetailedResultsViewer({ analysis }: { analysis: StoryAnalysis }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div className="bg-muted/30 p-3 rounded-lg">
                   <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">
                     Arc Status

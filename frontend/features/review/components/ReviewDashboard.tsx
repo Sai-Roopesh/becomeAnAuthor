@@ -215,7 +215,7 @@ function AnalysisOverview({
           {analyses.slice(0, 5).map((analysis, index) => (
             <div
               key={analysis.id}
-              className="group flex items-center justify-between p-4 bg-card/50 hover:bg-card border border-border/50 hover:border-primary/20 rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md"
+              className="group flex flex-col gap-3 p-4 bg-card/50 hover:bg-card border border-border/50 hover:border-primary/20 rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
               onClick={() => onSelectAnalysis(analysis)}
               style={{ animationDelay: `${index * 50}ms` }}
             >
