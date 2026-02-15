@@ -36,7 +36,10 @@ export function MatrixView({
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
   );
-  const links = useLiveQuery(() => linkRepo.getByProject(projectId), [projectId, linkRepo]);
+  const links = useLiveQuery(
+    () => linkRepo.getByProject(projectId),
+    [projectId, linkRepo],
+  );
 
   const acts = nodes.filter((n) => n.type === "act");
   const getChildren = (parentId: string) =>
@@ -69,7 +72,11 @@ export function MatrixView({
   const getLinkId = (sceneId: string, codexId: string) =>
     links?.find((l) => l.sceneId === sceneId && l.codexId === codexId)?.id;
 
-  const toggleLink = async (sceneId: string, codexId: string, checked: boolean) => {
+  const toggleLink = async (
+    sceneId: string,
+    codexId: string,
+    checked: boolean,
+  ) => {
     if (checked) {
       await linkRepo.create({
         sceneId,
@@ -138,7 +145,7 @@ export function MatrixView({
                   Scene
                 </th>
                 {mode === "codex" &&
-                  codexEntries?.slice(0, 8).map((entry) => (
+                  codexEntries?.map((entry) => (
                     <th
                       key={entry.id}
                       className="p-4 text-center font-medium text-muted-foreground border-r border-border/50 min-w-table-sm whitespace-nowrap"
@@ -168,7 +175,7 @@ export function MatrixView({
                     {scene.title}
                   </td>
                   {mode === "codex" &&
-                    codexEntries?.slice(0, 8).map((entry) => (
+                    codexEntries?.map((entry) => (
                       <td
                         key={entry.id}
                         className="p-4 border-r border-border/50 text-center"
@@ -178,7 +185,11 @@ export function MatrixView({
                           className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 transition-all cursor-pointer"
                           checked={isLinked(scene.id, entry.id)}
                           onChange={(e) =>
-                            void toggleLink(scene.id, entry.id, e.target.checked)
+                            void toggleLink(
+                              scene.id,
+                              entry.id,
+                              e.target.checked,
+                            )
                           }
                         />
                       </td>

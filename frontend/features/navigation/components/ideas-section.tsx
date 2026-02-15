@@ -28,7 +28,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Lightbulb, MoreHorizontal, Trash2, Archive } from "lucide-react";
+import {
+  Lightbulb,
+  MoreHorizontal,
+  Trash2,
+  Archive,
+  RotateCcw,
+} from "lucide-react";
 import {
   IDEA_CATEGORY_COLORS,
   IDEA_CATEGORY_LABELS,
@@ -45,10 +51,19 @@ export function IdeasSection({
   projectId,
   defaultOpen = true,
 }: IdeasSectionProps) {
-  const { ideas, isLoading, createIdea, deleteIdea, archiveIdea } = useIdeas({
+  const {
+    ideas,
+    archivedIdeas,
+    isLoading,
+    createIdea,
+    deleteIdea,
+    archiveIdea,
+    restoreIdea,
+  } = useIdeas({
     projectId,
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Setup keyboard shortcut (⌘+I)
   const quickCapture = useQuickCapture("i");
@@ -116,6 +131,8 @@ export function IdeasSection({
                   idea={idea}
                   onDelete={deleteIdea}
                   onArchive={archiveIdea}
+                  onRestore={restoreIdea}
+                  archived={false}
                 />
               ))}
             {ideas.length > NAVIGATION_CONSTANTS.IDEAS_DISPLAY_LIMIT && (
@@ -123,6 +140,32 @@ export function IdeasSection({
                 +{ideas.length - NAVIGATION_CONSTANTS.IDEAS_DISPLAY_LIMIT} more
                 ideas
               </p>
+            )}
+
+            {archivedIdeas.length > 0 && (
+              <div className="mt-2 border-t pt-2">
+                <button
+                  className="w-full text-left text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
+                  onClick={() => setShowArchived(!showArchived)}
+                >
+                  {showArchived ? "Hide Archived Ideas" : "Show Archived Ideas"}{" "}
+                  ({archivedIdeas.length})
+                </button>
+                {showArchived && (
+                  <div className="space-y-1 mt-1">
+                    {archivedIdeas.map((idea) => (
+                      <IdeaItem
+                        key={idea.id}
+                        idea={idea}
+                        onDelete={deleteIdea}
+                        onArchive={archiveIdea}
+                        onRestore={restoreIdea}
+                        archived
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -145,9 +188,17 @@ interface IdeaItemProps {
   idea: Idea;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
+  onRestore: (id: string) => void;
+  archived: boolean;
 }
 
-function IdeaItem({ idea, onDelete, onArchive }: IdeaItemProps) {
+function IdeaItem({
+  idea,
+  onDelete,
+  onArchive,
+  onRestore,
+  archived,
+}: IdeaItemProps) {
   return (
     <div className="group flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
       {/* Category badge */}
@@ -162,7 +213,14 @@ function IdeaItem({ idea, onDelete, onArchive }: IdeaItemProps) {
       </Badge>
 
       {/* Content */}
-      <p className="flex-1 text-sm line-clamp-2 text-foreground/90">
+      <p
+        className={cn(
+          "flex-1 text-sm line-clamp-2",
+          archived
+            ? "text-muted-foreground line-through"
+            : "text-foreground/90",
+        )}
+      >
         {idea.content}
       </p>
 
@@ -178,10 +236,17 @@ function IdeaItem({ idea, onDelete, onArchive }: IdeaItemProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onArchive(idea.id)}>
-            <Archive className="h-4 w-4 mr-2" />
-            Archive
-          </DropdownMenuItem>
+          {archived ? (
+            <DropdownMenuItem onClick={() => onRestore(idea.id)}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Restore
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={() => onArchive(idea.id)}>
+              <Archive className="h-4 w-4 mr-2" />
+              Archive
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={() => onDelete(idea.id)}
             className="text-destructive focus:text-destructive"

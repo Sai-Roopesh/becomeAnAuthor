@@ -12,6 +12,8 @@ pub struct ChatThread {
     pub pinned: bool,
     #[serde(default)]
     pub archived: bool,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "deletedAt")]
+    pub deleted_at: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "defaultModel")]
     pub default_model: Option<String>,
     #[serde(rename = "createdAt")]

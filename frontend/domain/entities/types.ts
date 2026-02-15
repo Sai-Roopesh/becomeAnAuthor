@@ -201,6 +201,14 @@ export interface Project {
   updatedAt: number;
 }
 
+export interface TrashedProject {
+  id: string;
+  title: string;
+  originalPath: string;
+  trashPath: string;
+  deletedAt: number;
+}
+
 export interface Series {
   id: string;
   title: string;
@@ -317,6 +325,7 @@ export interface ChatThread {
   name: string;
   pinned: boolean;
   archived: boolean;
+  deletedAt?: number;
   defaultPrompt?: string; // Prompt ID
   defaultModel?: string; // Model name
   createdAt: number;

@@ -1,21 +1,20 @@
 "use client";
 
-import { GoogleDriveConnection } from "../GoogleDriveConnection";
+import { BackupCenterPanel } from "@/features/data-management";
 
 /**
  * Backup Tab
  *
- * Google Drive backup and restore functionality.
+ * Unified backup and restore functionality.
  */
 export function BackupTab() {
   return (
     <div className="p-6 bg-background flex-1 overflow-y-auto min-h-0">
-      <h3 className="text-lg font-semibold mb-2">Backup & Restore</h3>
+      <h3 className="text-lg font-semibold mb-2">Backup Center</h3>
       <p className="text-sm text-muted-foreground mb-6">
-        Securely back up your novels to Google Drive. Your data stays in your
-        control.
+        Manage local and Google Drive backups in one place, including restore.
       </p>
-      <GoogleDriveConnection />
+      <BackupCenterPanel />
     </div>
   );
 }

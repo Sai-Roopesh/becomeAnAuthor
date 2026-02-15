@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,12 +22,12 @@ import {
   Users,
   Clock,
   AlertCircle,
-  Eye,
 } from "lucide-react";
 import { useAnalysisRunner } from "../hooks/use-analysis-runner";
 import { ManuscriptTreeSelector } from "./ManuscriptTreeSelector";
-import { ESTIMATED_TOKENS_PER_ANALYSIS_TYPE } from "../constants";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
+import { getEnabledConnections } from "@/lib/ai";
 
 interface AnalysisRunDialogProps {
   projectId: string;
@@ -46,28 +46,54 @@ export function AnalysisRunDialog({
   onClose,
   renderModelSelector,
 }: AnalysisRunDialogProps) {
-  const { runAnalysis, isRunning } = useAnalysisRunner();
+  const { runAnalysis, estimateTokens, isRunning, progress, phase } =
+    useAnalysisRunner();
 
   const [scope, setScope] = useState<"full" | "custom">("full");
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
+  const [estimatedTokens, setEstimatedTokens] = useState<number>(0);
+  const [isEstimating, setIsEstimating] = useState(false);
   const [analysisTypes, setAnalysisTypes] = useState({
     synopsis: true,
     "plot-threads": false,
     "character-arcs": false,
     timeline: false,
     contradictions: false,
-    foreshadowing: false,
-    pacing: false,
-    "genre-fit": false,
   });
 
   const enabledTypes = Object.entries(analysisTypes)
     .filter(([, enabled]) => enabled)
     .map(([type]) => type);
+  const hasAIConnection = getEnabledConnections().length > 0;
 
-  const estimatedTokens =
-    enabledTypes.length * ESTIMATED_TOKENS_PER_ANALYSIS_TYPE;
+  useEffect(() => {
+    if (!open) return;
+    if (enabledTypes.length === 0) {
+      setEstimatedTokens(0);
+      return;
+    }
+
+    let cancelled = false;
+    const selectedScope = scope === "full" ? [] : selectedNodes;
+
+    const runEstimate = async () => {
+      try {
+        setIsEstimating(true);
+        const estimate = await estimateTokens(selectedScope, enabledTypes);
+        if (!cancelled) setEstimatedTokens(estimate);
+      } catch {
+        if (!cancelled) setEstimatedTokens(0);
+      } finally {
+        if (!cancelled) setIsEstimating(false);
+      }
+    };
+
+    runEstimate();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, scope, selectedNodes, enabledTypes, estimateTokens]);
 
   const handleRunAnalysis = async () => {
     if (!selectedModel) {
@@ -199,30 +225,43 @@ export function AnalysisRunDialog({
                 checked={analysisTypes.contradictions}
                 onCheckedChange={() => toggleAnalysisType("contradictions")}
               />
-              <AnalysisTypeCheckbox
-                id="foreshadowing"
-                label="Foreshadowing Tracker"
-                icon={<Eye className="h-4 w-4" />}
-                badge="Coming Soon"
-                checked={analysisTypes.foreshadowing}
-                onCheckedChange={() => toggleAnalysisType("foreshadowing")}
-                disabled
-              />
             </div>
           </div>
+
+          {!hasAIConnection && (
+            <Alert className="bg-destructive/5 border-destructive/20">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <AlertDescription className="text-destructive/80">
+                No AI connection is configured. Add one in Settings before
+                running analysis.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Token Warning */}
           <Alert className="bg-primary/5 border-primary/20">
             <AlertTriangle className="h-4 w-4 text-primary" />
             <AlertDescription className="text-primary/80">
               <strong>
-                Estimated tokens: ~{estimatedTokens.toLocaleString()}
+                Estimated tokens:{" "}
+                {isEstimating
+                  ? "Calculating..."
+                  : `~${estimatedTokens.toLocaleString()}`}
               </strong>
               <br />
-              This will use your AI quota. Make sure you have an AI connection
-              configured in settings.
+              Estimate is based on selected scope and analysis types.
             </AlertDescription>
           </Alert>
+
+          {isRunning && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">{phase}</span>
+                <span className="text-muted-foreground">{progress}%</span>
+              </div>
+              <Progress value={progress} />
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -231,7 +270,12 @@ export function AnalysisRunDialog({
           </Button>
           <Button
             onClick={handleRunAnalysis}
-            disabled={isRunning || enabledTypes.length === 0 || !selectedModel}
+            disabled={
+              isRunning ||
+              enabledTypes.length === 0 ||
+              !selectedModel ||
+              !hasAIConnection
+            }
             className="min-w-btn"
           >
             {isRunning && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

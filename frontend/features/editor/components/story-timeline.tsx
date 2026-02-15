@@ -2,13 +2,23 @@
 
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, FileText, Clock, Hash } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Clock,
+  Hash,
+  Loader2,
+  Plus,
+} from "lucide-react";
 import { useState } from "react";
 import { useProjectStore } from "@/store/use-project-store";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { Scene } from "@/domain/entities/types";
+import { invalidateQueries } from "@/hooks/use-live-query";
+import { toast } from "@/shared/utils/toast-service";
 
 interface StoryTimelineProps {
   projectId: string;
@@ -24,6 +34,7 @@ export function StoryTimeline({
 }: StoryTimelineProps) {
   const { activeSceneId, setActiveSceneId } = useProjectStore();
   const [collapsed, setCollapsed] = useState(false);
+  const [isCreatingScene, setIsCreatingScene] = useState(false);
   const { nodeRepository: nodeRepo } = useAppServices();
 
   const scenes = useLiveQuery(async () => {
@@ -33,6 +44,59 @@ export function StoryTimeline({
 
   const handleSceneClick = (sceneId: string) => {
     setActiveSceneId(sceneId);
+  };
+
+  const handleCreateScene = async () => {
+    setIsCreatingScene(true);
+    try {
+      const nodes = await nodeRepo.getByProject(projectId);
+      const acts = nodes.filter((node) => node.type === "act");
+      const chapters = nodes.filter((node) => node.type === "chapter");
+
+      let actId = acts[0]?.id ?? null;
+      if (!actId) {
+        const createdAct = await nodeRepo.create({
+          projectId,
+          type: "act",
+          title: "Act 1",
+          parentId: null,
+        });
+        actId = createdAct.id;
+      }
+
+      let chapterId =
+        chapters.find((chapter) => chapter.parentId === actId)?.id ?? null;
+      if (!chapterId) {
+        const createdChapter = await nodeRepo.create({
+          projectId,
+          type: "chapter",
+          title: "Chapter 1",
+          parentId: actId,
+        });
+        chapterId = createdChapter.id;
+      }
+
+      const siblingScenes = nodes.filter(
+        (node) => node.type === "scene" && node.parentId === chapterId,
+      );
+      const sceneNumber = siblingScenes.length + 1;
+
+      const createdScene = await nodeRepo.create({
+        projectId,
+        type: "scene",
+        title: `Scene ${sceneNumber}`,
+        parentId: chapterId,
+      });
+      setActiveSceneId(createdScene.id);
+      invalidateQueries("nodes");
+      toast.success(`Created ${createdScene.title}`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create a new scene",
+      );
+    } finally {
+      setIsCreatingScene(false);
+    }
   };
 
   if (collapsed) {
@@ -166,8 +230,21 @@ export function StoryTimeline({
               No scenes yet
             </p>
             <p className="text-xs text-muted-foreground/60 mt-1">
-              Create scenes in the Plan view
+              Create a scene here or switch to Plan for structure editing
             </p>
+            <Button
+              size="sm"
+              className="mt-4 gap-2"
+              onClick={handleCreateScene}
+              disabled={isCreatingScene}
+            >
+              {isCreatingScene ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              {isCreatingScene ? "Creating..." : "Create Scene"}
+            </Button>
           </div>
         )}
       </ScrollArea>

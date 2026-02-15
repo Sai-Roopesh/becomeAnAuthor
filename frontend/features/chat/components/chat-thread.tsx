@@ -121,6 +121,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
 
   // Handlers
   const handleSend = async (directMessage?: string) => {
+    if (thread?.deletedAt) return;
     const messageToSend = directMessage || message;
     if (!messageToSend.trim() || isGenerating) return;
 
@@ -282,16 +283,17 @@ ${contextText}`;
   };
 
   const handleArchive = async () => {
-    await chatRepo.updateThread(threadId, { archived: true });
+    if (!thread) return;
+    await chatRepo.updateThread(threadId, { archived: !thread.archived });
     setActiveThreadId(null);
   };
 
   const handleDelete = async () => {
     const confirmed = await confirmDelete({
-      title: "Delete Thread",
+      title: "Move Thread to Deleted",
       description:
-        "Are you sure you want to delete this chat thread? All messages will be permanently removed.",
-      confirmText: "Delete",
+        "This thread will move to Deleted and can be restored for 30 days.",
+      confirmText: "Move to Deleted",
       variant: "destructive",
     });
 
@@ -323,7 +325,23 @@ ${contextText}`;
     });
   };
 
-  if (!thread) return null;
+  if (!thread) {
+    return (
+      <div className="h-full flex items-center justify-center text-center text-muted-foreground p-6">
+        <div>
+          <p className="text-base font-medium text-foreground">
+            Chat not available
+          </p>
+          <p className="text-sm mt-1">
+            This thread may have been moved, deleted, or restored in another
+            view.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const isDeleted = Boolean(thread.deletedAt);
 
   return (
     <div className="h-full flex flex-col">
@@ -331,6 +349,7 @@ ${contextText}`;
       <ChatHeader
         threadName={thread.name}
         isPinned={thread.pinned || false}
+        isArchived={thread.archived}
         onNameChange={handleNameChange}
         onPin={handlePin}
         onArchive={handleArchive}
@@ -376,10 +395,16 @@ ${contextText}`;
         value={message}
         onChange={setMessage}
         onSend={() => handleSend()}
-        disabled={isGenerating}
+        disabled={isGenerating || isDeleted}
         isGenerating={isGenerating}
         onCancel={cancel}
       />
+
+      {isDeleted && (
+        <div className="border-t p-3 text-xs text-muted-foreground bg-muted/20">
+          This thread is in Deleted. Restore it from the sidebar to continue.
+        </div>
+      )}
 
       {/* Settings Dialog */}
       <ChatSettingsDialog

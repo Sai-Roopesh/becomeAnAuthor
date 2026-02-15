@@ -1,4 +1,4 @@
 // Public API for data-management feature
 // Components
-export { RestoreProjectDialog } from "./components/RestoreProjectDialog";
-export { DataManagementMenu } from "./components/data-management-menu";
+export { BackupCenterDialog } from "./components/BackupCenterDialog";
+export { BackupCenterPanel } from "./components/BackupCenterPanel";

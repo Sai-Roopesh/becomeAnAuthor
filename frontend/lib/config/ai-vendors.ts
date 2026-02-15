@@ -27,6 +27,7 @@ export interface AIVendor {
   icon: string;
   setupUrl: string;
   requiresAuth: boolean;
+  defaultEndpoint?: string;
   defaultModels?: string[];
   apiKeyPlaceholder?: string;
 }
@@ -74,6 +75,7 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "⚡",
     setupUrl: "https://platform.openai.com/api-keys",
     requiresAuth: false,
+    defaultEndpoint: "https://api.openai.com/v1",
     defaultModels: ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"],
   },
   mistral: {

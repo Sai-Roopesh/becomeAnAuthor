@@ -12,9 +12,11 @@ use crate::utils::{get_app_dir, get_projects_dir, slugify, validate_project_crea
 
 /// Represents a recently opened project for the dashboard
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RecentProject {
     pub path: String,
     pub title: String,
+    #[serde(alias = "last_opened")]
     pub last_opened: i64,
 }
 
@@ -69,6 +71,21 @@ pub(crate) fn register_project_path(project_path: String, title: Option<String>)
         },
     );
     write_project_registry(&entries)
+}
+
+fn get_projects_trash_dir() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    Ok(app_dir.join("Trash"))
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TrashedProject {
+    pub id: String,
+    pub title: String,
+    pub original_path: String,
+    pub trash_path: String,
+    pub deleted_at: i64,
 }
 
 pub(crate) fn unregister_project_path(project_path: &str) -> Result<(), String> {
@@ -381,8 +398,7 @@ pub fn delete_project(project_path: String) -> Result<(), String> {
         return Err("Project not found".to_string());
     }
     
-    let app_dir = get_app_dir()?;
-    let trash_dir = app_dir.join("Trash");
+    let trash_dir = get_projects_trash_dir()?;
     fs::create_dir_all(&trash_dir).map_err(|e| e.to_string())?;
     
     let folder_name = path.file_name()
@@ -399,6 +415,120 @@ pub fn delete_project(project_path: String) -> Result<(), String> {
     remove_from_recent(project_path)?;
     unregister_project_path(path.to_string_lossy().as_ref())?;
     
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_project_trash() -> Result<Vec<TrashedProject>, String> {
+    let trash_dir = get_projects_trash_dir()?;
+    if !trash_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut trashed = Vec::new();
+
+    for entry in fs::read_dir(&trash_dir).map_err(|e| e.to_string())? {
+        let entry = match entry {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let meta_path = path.join(".meta/project.json");
+        let content = match fs::read_to_string(&meta_path) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let project_meta: ProjectMeta = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let folder_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_string();
+        let deleted_at = if folder_name.len() >= 15 {
+            let suffix = &folder_name[folder_name.len() - 15..];
+            chrono::NaiveDateTime::parse_from_str(suffix, "%Y%m%d_%H%M%S")
+                .ok()
+                .map(|naive| naive.and_utc().timestamp_millis())
+                .unwrap_or(project_meta.updated_at)
+        } else {
+            project_meta.updated_at
+        };
+
+        trashed.push(TrashedProject {
+            id: project_meta.id.clone(),
+            title: project_meta.title.clone(),
+            original_path: project_meta.path.clone(),
+            trash_path: path.to_string_lossy().to_string(),
+            deleted_at,
+        });
+    }
+
+    trashed.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
+    Ok(trashed)
+}
+
+#[tauri::command]
+pub fn restore_trashed_project(trash_path: String) -> Result<ProjectMeta, String> {
+    let source = PathBuf::from(&trash_path);
+    if !source.exists() || !source.is_dir() {
+        return Err("Trashed project not found".to_string());
+    }
+
+    let meta_path = source.join(".meta/project.json");
+    let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
+    let mut project: ProjectMeta = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    let preferred_target = PathBuf::from(&project.path);
+    let mut target = preferred_target.clone();
+
+    if target.exists() {
+        let parent = preferred_target
+            .parent()
+            .ok_or("Invalid original project path")?
+            .to_path_buf();
+        let base_name = preferred_target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or("Invalid original project folder name")?;
+        let restored_name = format!(
+            "{}_restored_{}",
+            base_name,
+            chrono::Utc::now().format("%Y%m%d_%H%M%S")
+        );
+        target = parent.join(restored_name);
+    }
+
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    fs::rename(&source, &target).map_err(|e| e.to_string())?;
+
+    project.path = target.to_string_lossy().to_string();
+    project.updated_at = timestamp::now_millis();
+    let updated_json = serde_json::to_string_pretty(&project).map_err(|e| e.to_string())?;
+    fs::write(target.join(".meta/project.json"), updated_json).map_err(|e| e.to_string())?;
+
+    add_to_recent(project.path.clone(), project.title.clone())?;
+    register_project_path(project.path.clone(), Some(project.title.clone()))?;
+
+    Ok(project)
+}
+
+#[tauri::command]
+pub fn permanently_delete_trashed_project(trash_path: String) -> Result<(), String> {
+    let path = PathBuf::from(trash_path);
+    if path.exists() {
+        fs::remove_dir_all(path).map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 

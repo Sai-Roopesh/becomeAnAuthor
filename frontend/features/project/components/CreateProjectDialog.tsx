@@ -1,5 +1,13 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import {
+  Sparkles,
+  Plus,
+  BookOpen,
+  ChevronDown,
+  FolderOpen,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +21,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { useEffect, useMemo, useState } from "react";
-import { Sparkles, Plus, BookOpen, AlertCircle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -22,9 +28,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useSeriesRepository } from "@/hooks/use-series-repository";
-import { useLiveQuery, invalidateQueries } from "@/hooks/use-live-query";
+import { invalidateQueries, useLiveQuery } from "@/hooks/use-live-query";
+import { getProjectsPath } from "@/core/tauri/commands";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
 
@@ -53,16 +65,15 @@ interface CreateProjectDialogProps {
   seriesTitle?: string;
 }
 
-/**
- * CreateProjectDialog - Series-First Architecture
- *
- * CRITICAL: Every project MUST belong to a series. This is a core architectural requirement.
- * Users must either:
- * 1. Select an existing series, OR
- * 2. Create a new series inline
- *
- * The "Create Novel" button is DISABLED until a series is selected.
- */
+interface CreateFormData {
+  title: string;
+  author: string;
+  language: string;
+  seriesId: string;
+  seriesIndex: string;
+  savePath: string;
+}
+
 export function CreateProjectDialog({
   trigger,
   open: controlledOpen,
@@ -71,15 +82,10 @@ export function CreateProjectDialog({
   seriesTitle,
 }: CreateProjectDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-
-  // Support both controlled and uncontrolled modes
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = (value: boolean) => {
-    if (onOpenChange) {
-      onOpenChange(value);
-    } else {
-      setInternalOpen(value);
-    }
+    if (onOpenChange) onOpenChange(value);
+    else setInternalOpen(value);
   };
 
   const { projectRepository: projectRepo, nodeRepository: nodeRepo } =
@@ -87,33 +93,47 @@ export function CreateProjectDialog({
   const seriesRepo = useSeriesRepository();
   const isSeriesLocked = Boolean(lockedSeriesId);
 
-  // Fetch existing series for the dropdown
-  const existingSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
-
-  // Fetch existing projects to get unique author names
+  const existingSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo], {
+    keys: ["series", "projects"],
+  });
   const existingProjects = useLiveQuery(
     () => projectRepo.getAll(),
     [projectRepo],
+    {
+      keys: "projects",
+    },
   );
 
-  // Extract unique author names from existing projects
-  const uniqueAuthors: string[] = Array.from(
-    new Set(
-      (existingProjects || [])
-        .map((p) => p.author)
-        .filter((author): author is string => Boolean(author)),
-    ),
-  ).sort();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [isCreatingNewSeries, setIsCreatingNewSeries] = useState(false);
+  const [newSeriesName, setNewSeriesName] = useState("");
+  const [defaultSavePath, setDefaultSavePath] = useState("");
 
-  const initialFormData = {
-    title: "",
-    author: "",
-    language: "English (US)",
-    seriesId: lockedSeriesId ?? "", // REQUIRED - must select a series
-    seriesIndex: "Book 1", // REQUIRED - default to "Book 1"
-    savePath: "", // REQUIRED - user must choose location
-  };
-  const [formData, setFormData] = useState(initialFormData);
+  const initialFormData = useMemo<CreateFormData>(
+    () => ({
+      title: "",
+      author: "",
+      language: "English (US)",
+      seriesId: lockedSeriesId ?? "",
+      seriesIndex: "Book 1",
+      savePath: "",
+    }),
+    [lockedSeriesId],
+  );
+
+  const [formData, setFormData] = useState<CreateFormData>(initialFormData);
+
+  const uniqueAuthors: string[] = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (existingProjects ?? [])
+            .map((p) => p.author)
+            .filter((author): author is string => Boolean(author?.trim())),
+        ),
+      ).sort(),
+    [existingProjects],
+  );
 
   useEffect(() => {
     if (lockedSeriesId) {
@@ -121,12 +141,35 @@ export function CreateProjectDialog({
     }
   }, [lockedSeriesId]);
 
-  // State for inline series creation
-  const [isCreatingNewSeries, setIsCreatingNewSeries] = useState(false);
-  const [newSeriesName, setNewSeriesName] = useState("");
+  useEffect(() => {
+    if (!open || defaultSavePath || formData.savePath) return;
+    let cancelled = false;
 
-  // State for inline author entry
-  const [isCreatingNewAuthor, setIsCreatingNewAuthor] = useState(false);
+    const loadDefaultPath = async () => {
+      try {
+        const path = await getProjectsPath();
+        if (!cancelled && path) setDefaultSavePath(path);
+      } catch (error) {
+        log.warn("Failed to get default project path", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
+
+    void loadDefaultPath();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, defaultSavePath, formData.savePath]);
+
+  useEffect(() => {
+    if (isSeriesLocked || formData.seriesId) return;
+    if (!existingSeries || existingSeries.length === 0) return;
+    const firstSeries = existingSeries[0];
+    if (firstSeries) {
+      setFormData((prev) => ({ ...prev, seriesId: firstSeries.id }));
+    }
+  }, [existingSeries, formData.seriesId, isSeriesLocked]);
 
   const handleChooseLocation = async () => {
     try {
@@ -140,7 +183,7 @@ export function CreateProjectDialog({
         setFormData((prev) => ({ ...prev, savePath: selected }));
       }
     } catch (error) {
-      log.error("Failed to open directory picker:", error);
+      log.error("Failed to open directory picker", error);
       toast.error("Failed to open directory picker");
     }
   };
@@ -155,76 +198,68 @@ export function CreateProjectDialog({
 
   const handleCreateNewSeries = async () => {
     if (!newSeriesName.trim()) {
-      toast.error("Please enter a series name");
+      toast.error("Enter a series name");
       return;
     }
 
     try {
-      // Check if series already exists
       const existing = await seriesRepo.getByName(newSeriesName.trim());
-      if (existing) {
-        setFormData((prev) => ({ ...prev, seriesId: existing.id }));
-        setIsCreatingNewSeries(false);
-        setNewSeriesName("");
-        return;
-      }
+      const newId = existing
+        ? existing.id
+        : await seriesRepo.create({ title: newSeriesName.trim() });
 
-      // Create new series
-      const newSeriesId = await seriesRepo.create({
-        title: newSeriesName.trim(),
-      });
-
-      // Invalidate queries to refresh series list
-      invalidateQueries();
-
-      // Select the new series
-      setFormData((prev) => ({ ...prev, seriesId: newSeriesId }));
+      setFormData((prev) => ({ ...prev, seriesId: newId }));
       setIsCreatingNewSeries(false);
       setNewSeriesName("");
+      invalidateQueries(["series", "projects"]);
+      toast.success("Series ready");
     } catch (error) {
-      log.error("Failed to create series:", error);
+      log.error("Failed to create series", error);
       toast.error("Failed to create series");
     }
   };
 
+  const resolveSeriesForCreate = async (): Promise<string> => {
+    if (lockedSeriesId) return lockedSeriesId;
+    if (formData.seriesId) return formData.seriesId;
+
+    if (existingSeries && existingSeries.length > 0) {
+      const firstSeries = existingSeries[0];
+      if (firstSeries) return firstSeries.id;
+    }
+
+    const generatedSeriesName = formData.title.trim()
+      ? `${formData.title.trim()} Series`
+      : "My First Series";
+
+    const existing = await seriesRepo.getByName(generatedSeriesName);
+    if (existing) return existing.id;
+
+    return seriesRepo.create({ title: generatedSeriesName });
+  };
+
   const handleCreate = async () => {
-    // Validate all required fields
-    if (!formData.seriesId) {
-      toast.error(
-        "Please select a series. Every book must belong to a series.",
-      );
-      return;
-    }
-    if (!formData.seriesIndex.trim()) {
-      toast.error('Please enter the book number (e.g., "Book 1")');
-      return;
-    }
-    if (!formData.savePath) {
-      toast.error("Please choose a save location for your project");
-      return;
-    }
     if (!formData.title.trim()) {
       toast.error("Please enter a title for your novel");
       return;
     }
 
     try {
-      // ✅ Create project with REQUIRED seriesId and seriesIndex
-      const projectId = await projectRepo.create({
-        title: formData.title,
-        author: formData.author,
-        language: formData.language,
-        seriesId: formData.seriesId, // REQUIRED
-        seriesIndex: formData.seriesIndex, // REQUIRED
-        customPath: formData.savePath,
-      } as unknown as Omit<
-        import("@/domain/entities/types").Project,
-        "id" | "createdAt" | "updatedAt"
-      > & { customPath: string });
+      const seriesId = await resolveSeriesForCreate();
+      const savePath =
+        formData.savePath || defaultSavePath || (await getProjectsPath());
 
-      // Create initial manuscript structure using repository
+      const projectId = await projectRepo.create({
+        title: formData.title.trim(),
+        author: formData.author.trim() || "Unknown",
+        language: formData.language,
+        seriesId,
+        seriesIndex: formData.seriesIndex.trim() || "Book 1",
+        customPath: savePath,
+      });
+
       const act = await nodeRepo.create({
-        projectId: projectId,
+        projectId,
         type: "act",
         title: "Act 1",
         order: 0,
@@ -233,7 +268,7 @@ export function CreateProjectDialog({
       });
 
       const chapter = await nodeRepo.create({
-        projectId: projectId,
+        projectId,
         type: "chapter",
         title: "Chapter 1",
         order: 0,
@@ -242,7 +277,7 @@ export function CreateProjectDialog({
       });
 
       await nodeRepo.create({
-        projectId: projectId,
+        projectId,
         type: "scene",
         title: "Scene 1",
         order: 0,
@@ -254,43 +289,49 @@ export function CreateProjectDialog({
         summary: "",
       });
 
-      // Invalidate project list cache so new project appears
-      invalidateQueries();
-
-      toast.success(`Created "${formData.title}"`);
-
-      // Navigate to the new project
-      window.location.href = `/project?id=${projectId}`;
+      invalidateQueries(["projects", "nodes", "series"]);
+      toast.success(`Created "${formData.title.trim()}"`);
 
       setOpen(false);
+      setAdvancedOpen(false);
+      setIsCreatingNewSeries(false);
+      setNewSeriesName("");
       setFormData(initialFormData);
+      window.location.href = `/project?id=${projectId}`;
     } catch (error) {
-      log.error("Failed to create project:", error);
+      log.error("Failed to create project", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       toast.error(`Failed to create project: ${message}`);
     }
   };
 
-  // Form validation - all required fields must be filled
-  const isFormValid =
-    formData.title.trim() &&
-    formData.seriesId &&
-    formData.seriesIndex.trim() &&
-    formData.savePath;
-
-  // Get selected series name for display
   const selectedSeriesTitle = useMemo(() => {
     if (seriesTitle) return seriesTitle;
-    if (!formData.seriesId || !existingSeries) return "";
+    if (!formData.seriesId || !existingSeries)
+      return "Auto-assign at create time";
     return (
       existingSeries.find((series) => series.id === formData.seriesId)?.title ||
-      ""
+      "Auto-assign at create time"
     );
   }, [seriesTitle, formData.seriesId, existingSeries]);
 
+  const resolvedSavePath = formData.savePath || defaultSavePath;
+  const isFormValid = Boolean(formData.title.trim());
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+          setAdvancedOpen(false);
+          setIsCreatingNewSeries(false);
+          setNewSeriesName("");
+          setFormData(initialFormData);
+        }
+      }}
+    >
       {trigger !== undefined && (
         <DialogTrigger asChild>
           {trigger || (
@@ -303,284 +344,225 @@ export function CreateProjectDialog({
                   New Novel
                 </h3>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Start your next masterpiece
+                  Start in 30 seconds
                 </p>
               </Card>
             </div>
           )}
         </DialogTrigger>
       )}
+
       <DialogContent className="sm:w-dialog-md max-h-[85dvh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {isSeriesLocked && selectedSeriesTitle
-              ? `Create a new Novel in ${selectedSeriesTitle}`
-              : "Create a new Novel"}
+              ? `Create a New Novel in ${selectedSeriesTitle}`
+              : "Create a New Novel"}
           </DialogTitle>
           <DialogDescription>
-            {isSeriesLocked
-              ? "This novel will be created in the selected series."
-              : "Let's get you started with your next masterpiece."}
+            Start with a title. We will create the structure automatically.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Scrollable content area - takes remaining space */}
-        <div className="flex-1 min-h-0 overflow-y-auto py-4">
-          <div className="grid gap-4">
-            {/* SERIES SELECTION - REQUIRED */}
-            <div className="space-y-2 p-3 rounded-lg border-2 border-primary/20 bg-primary/5">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-primary" />
-                <Label className="font-semibold">Series *</Label>
-              </div>
-
-              {isSeriesLocked ? (
-                <div className="rounded-md border bg-background/50 p-3">
-                  <p className="font-medium">
-                    {selectedSeriesTitle || "Selected series"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    This novel will be created in this series.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Every book belongs to a series. Choose an existing series or
-                    create a new one.
-                  </p>
-
-                  {!isCreatingNewSeries ? (
-                    <div className="space-y-2">
-                      <Select
-                        value={formData.seriesId}
-                        onValueChange={(val) =>
-                          setFormData({ ...formData, seriesId: val })
-                        }
-                      >
-                        <SelectTrigger
-                          className={
-                            !formData.seriesId ? "border-destructive/50" : ""
-                          }
-                        >
-                          <SelectValue placeholder="Select a series..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {existingSeries?.map((series) => (
-                            <SelectItem key={series.id} value={series.id}>
-                              {series.title}
-                            </SelectItem>
-                          ))}
-                          {(!existingSeries || existingSeries.length === 0) && (
-                            <SelectItem value="_none" disabled>
-                              No series yet - create one below
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => setIsCreatingNewSeries(true)}
-                      >
-                        <Plus className="mr-2 h-3 w-3" /> Create New Series
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Input
-                          value={newSeriesName}
-                          onChange={(e) => setNewSeriesName(e.target.value)}
-                          placeholder="Enter series name..."
-                          autoFocus
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleCreateNewSeries}
-                          disabled={!newSeriesName.trim()}
-                        >
-                          Create
-                        </Button>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setIsCreatingNewSeries(false);
-                          setNewSeriesName("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Book Number */}
-            <div className="space-y-2">
-              <Label>Book Number *</Label>
+        <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
+          <div className="space-y-2">
+            <Label>Title *</Label>
+            <div className="flex gap-2">
               <Input
-                value={formData.seriesIndex}
+                value={formData.title}
                 onChange={(e) =>
-                  setFormData({ ...formData, seriesIndex: e.target.value })
+                  setFormData((prev) => ({ ...prev, title: e.target.value }))
                 }
-                placeholder="e.g. Book 1, Book 2"
+                placeholder="My Awesome Novel"
+                autoFocus
               />
-              <p className="text-xs text-muted-foreground">
-                Position in the series (e.g., "Book 1", "Book 2", "Prequel")
-              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSurpriseMe}
+                title="Surprise Me"
+              >
+                <Sparkles className="h-4 w-4" />
+              </Button>
             </div>
+          </div>
 
-            {/* Title */}
-            <div className="space-y-2">
-              <Label>Title *</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  placeholder="My Awesome Novel"
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+              Quick Start Defaults
+            </p>
+            <p className="text-sm flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              Series: <span className="font-medium">{selectedSeriesTitle}</span>
+            </p>
+            <p className="text-sm flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-primary" />
+              Save location:
+              <span className="font-medium truncate" title={resolvedSavePath}>
+                {resolvedSavePath || "Loading default location..."}
+              </span>
+            </p>
+          </div>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-between"
+              >
+                Advanced Options
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
                 />
-                <Button
-                  variant="outline"
-                  onClick={handleSurpriseMe}
-                  title="Surprise Me"
-                >
-                  <Sparkles className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+              </Button>
+            </CollapsibleTrigger>
 
-            {/* Author */}
-            <div className="space-y-2">
-              <Label>Author / Pen Name</Label>
-              {!isCreatingNewAuthor ? (
-                <div className="space-y-2">
-                  <Select
-                    value={formData.author}
-                    onValueChange={(val) =>
-                      setFormData({ ...formData, author: val })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select author..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {uniqueAuthors.map((author) => (
-                        <SelectItem key={author} value={author}>
-                          {author}
-                        </SelectItem>
-                      ))}
-                      {uniqueAuthors.length === 0 && (
-                        <SelectItem value="_none" disabled>
-                          No authors yet - enter one below
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setIsCreatingNewAuthor(true)}
-                  >
-                    <Plus className="mr-2 h-3 w-3" /> Enter New Author
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
+            <CollapsibleContent className="space-y-4 pt-3">
+              <div className="space-y-2">
+                <Label>Series</Label>
+
+                {isSeriesLocked ? (
+                  <div className="rounded-md border bg-background/50 p-3 text-sm">
+                    {selectedSeriesTitle || "Selected series"}
+                  </div>
+                ) : !isCreatingNewSeries ? (
+                  <div className="space-y-2">
+                    <Select
+                      value={formData.seriesId}
+                      onValueChange={(val) =>
+                        setFormData((prev) => ({ ...prev, seriesId: val }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auto-select first series" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(existingSeries ?? []).map((series) => (
+                          <SelectItem key={series.id} value={series.id}>
+                            {series.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setIsCreatingNewSeries(true)}
+                    >
+                      <Plus className="mr-2 h-3 w-3" />
+                      Create New Series
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        value={newSeriesName}
+                        onChange={(e) => setNewSeriesName(e.target.value)}
+                        placeholder="Enter series name..."
+                        autoFocus
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateNewSeries}
+                        disabled={!newSeriesName.trim()}
+                      >
+                        Create
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsCreatingNewSeries(false);
+                        setNewSeriesName("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Book Number</Label>
+                <Input
+                  value={formData.seriesIndex}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      seriesIndex: e.target.value,
+                    }))
+                  }
+                  placeholder="Book 1"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Author / Pen Name</Label>
+                <Input
+                  value={formData.author}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, author: e.target.value }))
+                  }
+                  placeholder="e.g. J.K. Rowling"
+                  list="project-author-suggestions"
+                />
+                <datalist id="project-author-suggestions">
+                  {uniqueAuthors.map((author) => (
+                    <option key={author} value={author} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Save Location</Label>
+                <div className="flex gap-2">
                   <Input
-                    value={formData.author}
-                    onChange={(e) =>
-                      setFormData({ ...formData, author: e.target.value })
-                    }
-                    placeholder="e.g. J.K. Rowling"
-                    autoFocus
+                    value={resolvedSavePath}
+                    readOnly
+                    placeholder="Loading default location..."
+                    className="flex-1"
                   />
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsCreatingNewAuthor(false);
-                    }}
+                    variant="outline"
+                    onClick={handleChooseLocation}
                   >
-                    Back to Author List
+                    Choose Folder
                   </Button>
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Save Location */}
-            <div className="space-y-2">
-              <Label>Save Location *</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={formData.savePath}
-                  readOnly
-                  placeholder="Click 'Choose Folder' to select location"
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleChooseLocation}
-                  className="shrink-0"
+              <div className="space-y-2">
+                <Label>Language</Label>
+                <Select
+                  value={formData.language}
+                  onValueChange={(val) =>
+                    setFormData((prev) => ({ ...prev, language: val }))
+                  }
                 >
-                  📁 Choose Folder
-                </Button>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="English (US)">English (US)</SelectItem>
+                    <SelectItem value="English (UK)">English (UK)</SelectItem>
+                    <SelectItem value="Spanish">Spanish</SelectItem>
+                    <SelectItem value="French">French</SelectItem>
+                    <SelectItem value="German">German</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Your project will be saved in a folder named after your title at
-                this location.
-              </p>
-            </div>
-
-            {/* Language */}
-            <div className="space-y-2">
-              <Label>Language</Label>
-              <Select
-                value={formData.language}
-                onValueChange={(val) =>
-                  setFormData({ ...formData, language: val })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="English (US)">English (US)</SelectItem>
-                  <SelectItem value="English (UK)">English (UK)</SelectItem>
-                  <SelectItem value="Spanish">Spanish</SelectItem>
-                  <SelectItem value="French">French</SelectItem>
-                  <SelectItem value="German">German</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Used for AI generation and spellcheck.
-              </p>
-            </div>
-
-            {/* Validation Warning */}
-            {!isSeriesLocked && !formData.seriesId && (
-              <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 text-destructive text-sm">
-                <AlertCircle className="h-4 w-4" />
-                <span>Please select or create a series to continue</span>
-              </div>
-            )}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        {/* Fixed footer - always visible */}
         <DialogFooter className="flex-shrink-0 border-t pt-4">
           <Button onClick={handleCreate} disabled={!isFormValid}>
             Create Novel

@@ -581,7 +581,11 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
   }, [editor, formatSettings]);
 
   if (!editor) {
-    return null;
+    return (
+      <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+        Initializing editor...
+      </div>
+    );
   }
 
   const handleInsertSection = () => {

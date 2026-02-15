@@ -1,10 +1,9 @@
 // Public API for settings feature
 // Components
-export { SettingsDialog } from './components/SettingsDialog';
-export { GoogleDriveConnection } from './components/GoogleDriveConnection';
-export { AIConnectionsTab } from './components/ai-connections-tab';
-export { NewConnectionDialog } from './components/new-connection-dialog';
+export { SettingsDialog } from "./components/SettingsDialog";
+export { AIConnectionsTab } from "./components/ai-connections-tab";
+export { NewConnectionDialog } from "./components/new-connection-dialog";
 
 // Hooks
-export { useAIConnections } from './hooks/useAIConnections';
-export { useConnectionValidation } from './hooks/useConnectionValidation';
+export { useAIConnections } from "./hooks/useAIConnections";
+export { useConnectionValidation } from "./hooks/useConnectionValidation";

@@ -68,7 +68,11 @@ export function NewConnectionDialog({
   const handleSelectProvider = (providerId: AIProvider) => {
     setSelectedProvider(providerId);
     const vendor = AI_VENDORS[providerId];
-    reset({ name: vendor.name, apiKey: "", customEndpoint: "" });
+    reset({
+      name: vendor.name,
+      apiKey: "",
+      customEndpoint: vendor.defaultEndpoint || "",
+    });
   };
 
   const handleBack = () => {
@@ -80,23 +84,32 @@ export function NewConnectionDialog({
     if (!selectedProvider) return;
 
     const vendor = AI_VENDORS[selectedProvider];
+    const normalizedApiKey = data.apiKey?.trim() || "";
+    const normalizedEndpoint =
+      data.customEndpoint?.trim() || vendor.defaultEndpoint;
 
     // Manual validation based on provider
-    if (vendor.requiresAuth && !data.apiKey?.trim()) {
+    if (vendor.requiresAuth && !normalizedApiKey) {
       setError("apiKey", { message: "API key is required" });
       return;
     }
 
-    if (selectedProvider === "openai" && !data.customEndpoint?.trim()) {
-      setError("customEndpoint", { message: "API endpoint is required" });
+    if (
+      selectedProvider === "openai" &&
+      normalizedEndpoint === AI_VENDORS.openai.defaultEndpoint &&
+      !normalizedApiKey
+    ) {
+      setError("apiKey", {
+        message:
+          "API key is required for OpenAI cloud endpoint. For local endpoints, API key can be empty.",
+      });
       return;
     }
 
     // Validate API key format
     if (
-      vendor.requiresAuth &&
-      data.apiKey &&
-      !validateApiKey(selectedProvider, data.apiKey)
+      normalizedApiKey &&
+      !validateApiKey(selectedProvider, normalizedApiKey)
     ) {
       setError("apiKey", {
         message: `Invalid API key format for ${vendor.name}`,
@@ -111,9 +124,8 @@ export function NewConnectionDialog({
         id: `${selectedProvider}-${Date.now()}`,
         name: data.name,
         provider: selectedProvider,
-        apiKey: data.apiKey || "",
-        ...(selectedProvider === "openai" &&
-          data.customEndpoint && { customEndpoint: data.customEndpoint }),
+        apiKey: normalizedApiKey,
+        ...(normalizedEndpoint && { customEndpoint: normalizedEndpoint }),
         enabled: true,
         models: [],
         createdAt: Date.now(),
@@ -213,7 +225,7 @@ export function NewConnectionDialog({
                 <Input
                   id="customEndpoint"
                   {...register("customEndpoint")}
-                  placeholder="https://api.openai.com/v1"
+                  placeholder={AI_VENDORS.openai.defaultEndpoint}
                   className="mt-2"
                 />
                 {errors.customEndpoint && (
@@ -222,16 +234,20 @@ export function NewConnectionDialog({
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  For local models, use: http://localhost:1234/v1 (LM Studio) or
-                  http://localhost:11434/v1 (Ollama)
+                  Default is OpenAI cloud endpoint. For local models use
+                  `http://localhost:1234/v1` (LM Studio) or
+                  `http://localhost:11434/v1` (Ollama).
                 </p>
               </div>
             )}
 
-            {AI_VENDORS[selectedProvider].requiresAuth && (
+            {(AI_VENDORS[selectedProvider].requiresAuth ||
+              selectedProvider === "openai") && (
               <div>
                 <Label htmlFor="apiKey" className="text-sm font-medium">
-                  API Key
+                  {selectedProvider === "openai"
+                    ? "API Key (Optional for Local)"
+                    : "API Key"}
                 </Label>
                 <div className="flex gap-2 mt-2">
                   <Input
@@ -260,15 +276,19 @@ export function NewConnectionDialog({
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  Get your API key from{" "}
-                  <a
-                    href={AI_VENDORS[selectedProvider].setupUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    {AI_VENDORS[selectedProvider].name}
-                  </a>
+                  {selectedProvider === "openai"
+                    ? "OpenAI cloud requires an API key. Local OpenAI-compatible endpoints can run without one."
+                    : "Get your API key from "}
+                  {selectedProvider !== "openai" && (
+                    <a
+                      href={AI_VENDORS[selectedProvider].setupUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      {AI_VENDORS[selectedProvider].name}
+                    </a>
+                  )}
                 </p>
               </div>
             )}

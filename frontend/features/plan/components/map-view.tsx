@@ -83,7 +83,6 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
 
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const [isAddingMarker, setIsAddingMarker] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [editingMarker, setEditingMarker] = useState<MapMarker | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [newMapName, setNewMapName] = useState("");
@@ -195,6 +194,18 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-muted-foreground">Loading maps...</div>
+      </div>
+    );
+  }
+
+  if (!projectPath) {
+    return (
+      <div className="h-full flex items-center justify-center p-6">
+        <EmptyState
+          icon={<Map className="h-12 w-12" />}
+          title="Project Context Missing"
+          description="Map view needs an active project path. Re-open this project from the dashboard to continue."
+        />
       </div>
     );
   }
@@ -343,76 +354,23 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
                         className="space-y-3 p-3"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground">
-                            Label
-                          </label>
-                          <Input
-                            value={marker.label}
-                            onChange={(e) => {
-                              const updated = {
-                                ...marker,
-                                label: e.target.value,
-                              };
-                              handleUpdateMarker(updated);
-                            }}
-                            className="h-8 mt-1"
-                          />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{marker.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {marker.codexId
+                              ? locations?.find(
+                                  (loc) => loc.id === marker.codexId,
+                                )?.name || "Linked location"
+                              : "No linked location"}
+                          </p>
                         </div>
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground">
-                            Color
-                          </label>
-                          <div className="flex gap-1 mt-1">
-                            {MARKER_COLORS.map((c) => (
-                              <button
-                                key={c.value}
-                                className={cn(
-                                  "h-6 w-6 rounded-full border-2",
-                                  marker.color === c.value
-                                    ? "border-foreground"
-                                    : "border-transparent",
-                                )}
-                                style={{ backgroundColor: c.value }}
-                                onClick={() =>
-                                  handleUpdateMarker({
-                                    ...marker,
-                                    color: c.value,
-                                  })
-                                }
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground">
-                            Link to Location
-                          </label>
-                          <Select
-                            value={marker.codexId || "none"}
-                            onValueChange={(v) => {
-                              if (v && v !== "none") {
-                                handleUpdateMarker({ ...marker, codexId: v });
-                              } else {
-                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                                const { codexId: _codexId, ...rest } = marker;
-                                handleUpdateMarker(rest as MapMarker);
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-8 mt-1">
-                              <SelectValue placeholder="Select location..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {locations?.map((loc) => (
-                                <SelectItem key={loc.id} value={loc.id}>
-                                  {loc.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setEditingMarker(marker)}
+                        >
+                          Edit Marker
+                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"
@@ -444,7 +402,11 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
               </div>
             </div>
           </>
-        ) : null}
+        ) : (
+          <div className="h-full flex items-center justify-center text-muted-foreground">
+            Select a map to continue.
+          </div>
+        )}
       </div>
 
       {/* Upload Dialog */}
@@ -489,6 +451,99 @@ export function MapView({ projectId, seriesId }: MapViewProps) {
               onClick={() => setIsUploadDialogOpen(false)}
             >
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editingMarker)}
+        onOpenChange={(open) => !open && setEditingMarker(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Marker</DialogTitle>
+          </DialogHeader>
+          {editingMarker && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Label</label>
+                <Input
+                  value={editingMarker.label}
+                  onChange={(e) =>
+                    setEditingMarker({
+                      ...editingMarker,
+                      label: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Color</label>
+                <div className="flex gap-2 flex-wrap">
+                  {MARKER_COLORS.map((color) => (
+                    <button
+                      key={color.value}
+                      className={cn(
+                        "h-7 w-7 rounded-full border-2",
+                        editingMarker.color === color.value
+                          ? "border-foreground"
+                          : "border-transparent",
+                      )}
+                      style={{ backgroundColor: color.value }}
+                      onClick={() =>
+                        setEditingMarker({
+                          ...editingMarker,
+                          color: color.value,
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  Link to Location
+                </label>
+                <Select
+                  value={editingMarker.codexId || "none"}
+                  onValueChange={(value) => {
+                    if (value === "none") {
+                      const { codexId, ...rest } = editingMarker;
+                      void codexId;
+                      setEditingMarker(rest as MapMarker);
+                      return;
+                    }
+                    setEditingMarker({ ...editingMarker, codexId: value });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {locations?.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMarker(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editingMarker) {
+                  void handleUpdateMarker(editingMarker);
+                }
+              }}
+            >
+              Save Marker
             </Button>
           </DialogFooter>
         </DialogContent>

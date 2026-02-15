@@ -115,7 +115,7 @@ export function ProjectCard({
                 onClick={(e) => onDelete(e, project.id)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Project
+                Move to Trash
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

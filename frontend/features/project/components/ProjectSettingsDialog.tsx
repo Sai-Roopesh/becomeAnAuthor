@@ -28,6 +28,7 @@ import { useLiveQuery } from "@/hooks/use-live-query";
 import { useRouter } from "next/navigation";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useSeriesRepository } from "@/hooks/use-series-repository";
+import { toast } from "@/shared/utils/toast-service";
 
 const projectSettingsSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -129,12 +130,17 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
   };
 
   const executeAction = async () => {
+    if (!project) return;
     if (confirmationAction === "archive") {
-      await projectRepo.archive(projectId);
+      await projectRepo.update(projectId, { archived: !project.archived });
+      toast.success(
+        project.archived ? "Novel restored from archive" : "Novel archived",
+      );
       setOpen(false);
       router.push("/");
     } else if (confirmationAction === "delete") {
       await projectRepo.delete(projectId);
+      toast.success("Novel moved to Trash");
       setOpen(false);
       router.push("/");
     }
@@ -267,14 +273,15 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
                   className="text-destructive hover:text-destructive"
                   onClick={handleArchive}
                 >
-                  <Archive className="h-4 w-4 mr-2" /> Archive Novel
+                  <Archive className="h-4 w-4 mr-2" />{" "}
+                  {project.archived ? "Restore Novel" : "Archive Novel"}
                 </Button>
                 <Button
                   type="button"
                   variant="destructive"
                   onClick={handleDelete}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete Forever
+                  <Trash2 className="h-4 w-4 mr-2" /> Move to Trash
                 </Button>
               </div>
             </div>
@@ -297,13 +304,17 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
           <DialogHeader>
             <DialogTitle>
               {confirmationAction === "archive"
-                ? "Archive Novel"
-                : "Delete Novel"}
+                ? project.archived
+                  ? "Restore Novel"
+                  : "Archive Novel"
+                : "Move Novel to Trash"}
             </DialogTitle>
             <DialogDescription>
               {confirmationAction === "archive"
-                ? "Are you sure you want to archive this novel? It will be moved to the archive list."
-                : "Are you sure you want to DELETE this novel? This action cannot be undone and all data will be lost."}
+                ? project.archived
+                  ? "Restore this novel to your active project list."
+                  : "Archive this novel. You can restore it later from the dashboard."
+                : "Move this novel to Trash. You can restore it from Trash before permanent removal."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -319,7 +330,11 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
               }
               onClick={executeAction}
             >
-              {confirmationAction === "archive" ? "Archive" : "Delete Forever"}
+              {confirmationAction === "archive"
+                ? project.archived
+                  ? "Restore"
+                  : "Archive"
+                : "Move to Trash"}
             </Button>
           </DialogFooter>
         </DialogContent>

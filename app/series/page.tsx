@@ -2,8 +2,15 @@
 
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ArrowLeft, BookOpen, Plus, FileDown, Download, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  BookOpen,
+  Plus,
+  FileDown,
+  Download,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useLiveQuery } from "@/hooks/use-live-query";
@@ -19,6 +26,7 @@ import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepo
 import { useImportExport } from "@/hooks/use-import-export";
 
 function SeriesContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const seriesId = searchParams.get("id") || "";
   const projectRepo = useRepository<IProjectRepository>("projectRepository");
@@ -31,6 +39,9 @@ function SeriesContent() {
   const [isExportingSeries, setIsExportingSeries] = useState(false);
 
   const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
+  const allProjects = useLiveQuery(() => projectRepo.getAll(), [projectRepo], {
+    keys: "projects",
+  });
   const projects = useLiveQuery(
     () => (seriesId ? projectRepo.getBySeries(seriesId) : Promise.resolve([])),
     [seriesId, projectRepo],
@@ -50,6 +61,34 @@ function SeriesContent() {
     });
   }, [projects]);
 
+  const activeProjects = useMemo(
+    () => sortedProjects.filter((project) => !project.archived),
+    [sortedProjects],
+  );
+
+  const archivedProjects = useMemo(
+    () => sortedProjects.filter((project) => Boolean(project.archived)),
+    [sortedProjects],
+  );
+
+  const recentSeries = useMemo(() => {
+    if (!allSeries || !allProjects) return [];
+    const bySeries = new Map<string, number>();
+    for (const project of allProjects) {
+      if (!project.seriesId) continue;
+      const previous = bySeries.get(project.seriesId) ?? 0;
+      bySeries.set(project.seriesId, Math.max(previous, project.updatedAt));
+    }
+
+    return [...allSeries]
+      .map((series) => ({
+        ...series,
+        lastUpdated: bySeries.get(series.id) ?? 0,
+      }))
+      .sort((a, b) => b.lastUpdated - a.lastUpdated)
+      .slice(0, 5);
+  }, [allProjects, allSeries]);
+
   const seriesMap = useMemo(() => {
     if (!series) return new Map<string, string>();
     return new Map([[series.id, series.title]]);
@@ -63,10 +102,10 @@ function SeriesContent() {
     e.stopPropagation();
 
     const confirmed = await confirm({
-      title: "Delete Project",
+      title: "Move Project to Trash",
       description:
-        "Are you sure you want to DELETE this novel? This will permanently delete all scenes, chapters, acts, and associated data. This cannot be undone.",
-      confirmText: "Delete",
+        "This novel will be moved to Trash. You can restore it from Trash before it is permanently removed.",
+      confirmText: "Move to Trash",
       variant: "destructive",
     });
 
@@ -74,7 +113,7 @@ function SeriesContent() {
 
     try {
       await projectRepo.delete(projectId);
-      toast.success("Project deleted successfully");
+      toast.success("Project moved to Trash");
     } catch (error) {
       console.error("Failed to delete project:", error);
       toast.error("Failed to delete project. Please try again.");
@@ -83,7 +122,7 @@ function SeriesContent() {
 
   const handleOpenExport = (projectId: string) => {
     const project = sortedProjects.find((p) => p.id === projectId) as
-      | (typeof sortedProjects)[number] & { _tauriPath?: string }
+      | ((typeof sortedProjects)[number] & { _tauriPath?: string })
       | undefined;
 
     if (project?._tauriPath) {
@@ -92,6 +131,16 @@ function SeriesContent() {
 
     setExportProjectId(projectId);
     setExportDialogOpen(true);
+  };
+
+  const handleRestoreProject = async (projectId: string) => {
+    try {
+      await projectRepo.update(projectId, { archived: false });
+      toast.success("Novel restored");
+    } catch (error) {
+      console.error("Failed to restore project:", error);
+      toast.error("Failed to restore project");
+    }
   };
 
   const handleExportSeriesBackup = async () => {
@@ -107,15 +156,53 @@ function SeriesContent() {
   if (!seriesId) {
     return (
       <div className="flex items-center justify-center h-screen text-muted-foreground">
-        <div className="text-center space-y-4">
+        <div className="w-full max-w-xl rounded-xl border bg-card p-6 space-y-5">
           <h2 className="text-xl font-semibold">No Series Selected</h2>
-          <p>Select a series first to create or manage novels.</p>
-          <Link href="/">
-            <Button variant="outline" className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Go to Dashboard
-            </Button>
-          </Link>
+          <p>
+            Select a recent series, create a new one, or return to the
+            dashboard.
+          </p>
+
+          {recentSeries.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">
+                Recent Series
+              </p>
+              <div className="space-y-2">
+                {recentSeries.map((series) => (
+                  <button
+                    key={series.id}
+                    className="w-full rounded-lg border p-3 text-left hover:bg-muted/40 transition-colors"
+                    onClick={() => router.push(`/series?id=${series.id}`)}
+                  >
+                    <p className="font-medium text-foreground truncate">
+                      {series.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {series.lastUpdated > 0
+                        ? `Updated ${new Date(series.lastUpdated).toLocaleDateString()}`
+                        : "No novels yet"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Link href="/">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Series
+              </Button>
+            </Link>
+            <Link href="/">
+              <Button variant="outline" className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -132,13 +219,30 @@ function SeriesContent() {
   if (!series) {
     return (
       <div className="flex items-center justify-center h-screen text-muted-foreground">
-        <div className="text-center space-y-4">
+        <div className="w-full max-w-xl rounded-xl border bg-card p-6 space-y-5">
           <h2 className="text-xl font-semibold">Series Not Found</h2>
-          <p>This series may have been deleted.</p>
+          <p>
+            This series may have been removed. Pick a recent one or go back.
+          </p>
+          {recentSeries.length > 0 && (
+            <div className="space-y-2">
+              {recentSeries.map((item) => (
+                <button
+                  key={item.id}
+                  className="w-full rounded-lg border p-3 text-left hover:bg-muted/40 transition-colors"
+                  onClick={() => router.push(`/series?id=${item.id}`)}
+                >
+                  <p className="font-medium text-foreground truncate">
+                    {item.title}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
           <Link href="/">
             <Button variant="outline" className="gap-2">
               <ArrowLeft className="h-4 w-4" />
-              Back to Series
+              Back to Dashboard
             </Button>
           </Link>
         </div>
@@ -162,11 +266,16 @@ function SeriesContent() {
               <BookOpen className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-heading font-bold">{series.title}</h1>
+              <h1 className="text-2xl font-heading font-bold">
+                {series.title}
+              </h1>
               <p className="text-sm text-muted-foreground">
-                {sortedProjects.length === 1
-                  ? "1 novel in this series"
-                  : `${sortedProjects.length} novels in this series`}
+                {activeProjects.length === 1
+                  ? "1 active novel in this series"
+                  : `${activeProjects.length} active novels in this series`}
+                {archivedProjects.length > 0
+                  ? ` • ${archivedProjects.length} archived`
+                  : ""}
               </p>
             </div>
           </div>
@@ -192,7 +301,7 @@ function SeriesContent() {
         </div>
       </div>
 
-      {sortedProjects.length === 0 ? (
+      {activeProjects.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center">
           <h3 className="text-lg font-medium mb-2">No novels yet</h3>
           <p className="text-muted-foreground mb-6">
@@ -205,7 +314,7 @@ function SeriesContent() {
         </div>
       ) : (
         <ProjectGrid
-          projects={sortedProjects}
+          projects={activeProjects}
           seriesMap={seriesMap}
           onDeleteProject={handleDeleteProject}
           renderExportButton={(projectId) => (
@@ -221,6 +330,34 @@ function SeriesContent() {
             </DropdownMenuItem>
           )}
         />
+      )}
+
+      {archivedProjects.length > 0 && (
+        <div className="mt-8 space-y-3">
+          <h3 className="text-lg font-semibold">Archived Novels</h3>
+          <div className="space-y-2">
+            {archivedProjects.map((project) => (
+              <div
+                key={project.id}
+                className="rounded-lg border bg-muted/20 p-3 flex items-center justify-between"
+              >
+                <div>
+                  <p className="font-medium">{project.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Archived novel • {project.seriesIndex}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleRestoreProject(project.id)}
+                >
+                  Restore
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <CreateProjectDialog

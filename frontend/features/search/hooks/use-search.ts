@@ -1,137 +1,138 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { useAppServices } from '@/infrastructure/di/AppContext';
-import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
-import { isScene, DocumentNode, CodexEntry, type Scene } from '@/domain/entities/types';
-import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
-import { logger } from '@/shared/utils/logger';
 
-const log = logger.scope('useSearch');
+import { useEffect, useMemo, useState } from "react";
+import {
+  searchProject,
+  type SearchResult as BackendSearchResult,
+} from "@/core/tauri/commands";
+import { useAppServices } from "@/infrastructure/di/AppContext";
+import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import {
+  type SearchResult,
+  type SearchableCodex,
+  type SearchableScene,
+} from "@/lib/search-service";
+import { logger } from "@/shared/utils/logger";
 
-interface RustSearchResult {
-    id: string;
-    title: string;
-    content_type: string;
-    snippet: string;
-    score: number;
+const log = logger.scope("useSearch");
+
+export type SearchScope = "all" | "scenes" | "codex";
+
+function mapBackendResults(results: BackendSearchResult[]): {
+  scenes: SearchResult<SearchableScene>[];
+  codex: SearchResult<SearchableCodex>[];
+} {
+  const scenes: SearchResult<SearchableScene>[] = [];
+  const codex: SearchResult<SearchableCodex>[] = [];
+
+  for (const result of results) {
+    const type = result.contentType || result.type;
+    if (type === "scene") {
+      scenes.push({
+        item: {
+          id: result.id,
+          title: result.title,
+          summary: result.snippet || "",
+          type: "scene",
+        },
+        score: result.score ?? 0,
+      });
+      continue;
+    }
+
+    if (type === "codex") {
+      codex.push({
+        item: {
+          id: result.id,
+          name: result.title,
+          description: result.snippet || "",
+          category: result.category || "codex",
+          type: "codex",
+        },
+        score: result.score ?? 0,
+      });
+    }
+  }
+
+  return { scenes, codex };
 }
 
 /**
- * Search hook for project content and codex entries
- * Series-first: requires seriesId for codex lookups
+ * Search hook for project content and codex entries.
+ * Uses backend search as source of truth for consistent results.
  */
-export function useSearch(projectId: string, seriesId: string) {
-    const [query, setQuery] = useState('');
-    const [allNodes, setAllNodes] = useState<DocumentNode[]>([]);
-    const [codexEntries, setCodexEntries] = useState<CodexEntry[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const { nodeRepository: nodeRepo, codexRepository: codexRepo } = useAppServices();
+export function useSearch(projectId: string) {
+  const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<SearchScope>("all");
+  const [results, setResults] = useState<{
+    scenes: SearchResult<SearchableScene>[];
+    codex: SearchResult<SearchableCodex>[];
+  }>({ scenes: [], codex: [] });
+  const [isLoading, setIsLoading] = useState(false);
 
-    // Fetch data on mount
-    useEffect(() => {
-        let mounted = true;
+  const { projectRepository: projectRepo } = useAppServices();
 
-        const fetchData = async () => {
-            try {
-                const [nodes, codex] = await Promise.all([
-                    nodeRepo.getByProject(projectId),
-                    codexRepo.getBySeries(seriesId)
-                ]);
+  const trimmedQuery = useMemo(() => query.trim(), [query]);
 
-                if (mounted) {
-                    setAllNodes(nodes);
-                    setCodexEntries(codex);
-                    setIsLoading(false);
-                }
-            } catch (error) {
-                log.error('Failed to fetch search data:', error);
-                if (mounted) setIsLoading(false);
-            }
-        };
+  useEffect(() => {
+    let cancelled = false;
 
-        fetchData();
-        return () => { mounted = false; };
-    }, [projectId, seriesId, nodeRepo, codexRepo]);
+    if (!trimmedQuery) {
+      setResults({ scenes: [], codex: [] });
+      setIsLoading(false);
+      return;
+    }
 
-    // Initialize scene search index
-    useEffect(() => {
-        let mounted = true;
+    const timer = setTimeout(async () => {
+      setIsLoading(true);
 
-        const hydrateScenes = async () => {
-            const sceneStubs = (allNodes ?? []).filter(node => isScene(node));
-            if (sceneStubs.length === 0) {
-                searchService.initializeSceneSearch([]);
-                return;
-            }
+      try {
+        const project = await projectRepo.get(projectId);
+        const tauriProject = project as
+          | (typeof project & { _tauriPath?: string })
+          | undefined;
+        const projectPath =
+          tauriProject?._tauriPath ||
+          TauriNodeRepository.getInstance().getProjectPath();
 
-            const hydrated = await Promise.all(
-                sceneStubs.map((scene) => nodeRepo.get(scene.id))
-            );
-            if (!mounted) return;
-
-            const searchableScenes: SearchableScene[] = hydrated
-                .filter((node): node is Scene => Boolean(node && isScene(node)))
-                .map((scene) => ({
-                    id: scene.id,
-                    title: scene.title,
-                    content: scene.content,
-                    summary: scene.summary || '',
-                    type: 'scene',
-                }));
-
-            searchService.initializeSceneSearch(searchableScenes);
-        };
-
-        void hydrateScenes();
-        return () => { mounted = false; };
-    }, [allNodes, nodeRepo]);
-
-    // Initialize codex search index
-    useEffect(() => {
-        if (codexEntries && codexEntries.length > 0) {
-            const searchableCodex: SearchableCodex[] = codexEntries.map((entry) => ({
-                id: entry.id,
-                name: entry.name,
-                description: entry.description || '',
-                category: entry.category,
-                type: 'codex',
-            }));
-            searchService.initializeCodexSearch(searchableCodex);
+        if (!projectPath) {
+          if (!cancelled) setResults({ scenes: [], codex: [] });
+          return;
         }
-    }, [codexEntries]);
 
-    // Perform search (hybrid: frontend Fuse.js + backend Rust)
-    const results = useMemo(() => {
-        if (!query.trim()) {
-            return { scenes: [], codex: [] };
+        const backendResults = await searchProject(
+          projectPath,
+          trimmedQuery,
+          scope === "all" ? undefined : scope,
+        );
+
+        if (!cancelled) {
+          setResults(mapBackendResults(backendResults));
         }
-        return searchService.searchAll(query);
-    }, [query]);
-
-    // Full-text search via Rust (for content within files)
-    const searchContent = useCallback(async (searchQuery: string): Promise<RustSearchResult[]> => {
-        if (!searchQuery.trim()) return [];
-
-        try {
-            const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-            if (!projectPath) return [];
-
-            return await invoke<RustSearchResult[]>('search_project', {
-                projectPath,
-                query: searchQuery
-            });
-        } catch (error) {
-            log.error('Rust search failed:', error);
-            return [];
+      } catch (error) {
+        log.error("Search failed", error);
+        if (!cancelled) {
+          setResults({ scenes: [], codex: [] });
         }
-    }, []);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }, 180);
 
-    return {
-        query,
-        setQuery,
-        results,
-        searchContent,
-        isLoading,
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
+  }, [trimmedQuery, projectId, projectRepo, scope]);
+
+  return {
+    query,
+    setQuery,
+    scope,
+    setScope,
+    results,
+    isLoading,
+  };
 }

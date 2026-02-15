@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Static export for Tauri
-  output: 'export',
+  output: "export",
 
   // Source directory (where app/ lives)
   // Note: Next.js doesn't have srcDir, so we need to use experimental.appDir
@@ -16,7 +16,9 @@ const nextConfig: NextConfig = {
   // Better for file:// URLs in Tauri
   trailingSlash: true,
 
-  turbopack: {}, // Empty config to silence warning
+  turbopack: {
+    root: process.cwd(),
+  },
 
   // Enable WebAssembly for tiktoken and suppress warnings
   webpack: (config, { isServer }) => {
@@ -42,7 +44,7 @@ const nextConfig: NextConfig = {
 
     // On client-side, configure WASM file handling
     if (!isServer) {
-      config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm';
+      config.output.webassemblyModuleFilename = "static/wasm/[modulehash].wasm";
     }
 
     return config;

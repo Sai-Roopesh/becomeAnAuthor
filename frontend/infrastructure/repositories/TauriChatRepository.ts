@@ -20,10 +20,11 @@ import { TauriNodeRepository } from "./TauriNodeRepository";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("TauriChatRepository");
+const DELETED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 async function refreshQueries(): Promise<void> {
   const { invalidateQueries } = await import("@/hooks/use-live-query");
-  invalidateQueries();
+  invalidateQueries("chat");
 }
 
 /**
@@ -80,7 +81,37 @@ export class TauriChatRepository implements IChatRepository {
   async getActiveThreads(projectId: string): Promise<ChatThread[]> {
     const threads = await this.getThreadsByProject(projectId);
     return threads
-      .filter((t) => !t.archived)
+      .filter((t) => !t.archived && !t.deletedAt)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  async getArchivedThreads(projectId: string): Promise<ChatThread[]> {
+    const threads = await this.getThreadsByProject(projectId);
+    return threads
+      .filter((t) => t.archived && !t.deletedAt)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  async getDeletedThreads(projectId: string): Promise<ChatThread[]> {
+    const threads = await this.getThreadsByProject(projectId);
+    const now = Date.now();
+    const staleThreads = threads.filter(
+      (thread) =>
+        typeof thread.deletedAt === "number" &&
+        now - thread.deletedAt > DELETED_RETENTION_MS,
+    );
+
+    for (const stale of staleThreads) {
+      await this.purgeThread(stale.id);
+    }
+
+    const refreshed =
+      staleThreads.length > 0
+        ? await this.getThreadsByProject(projectId)
+        : threads;
+
+    return refreshed
+      .filter((thread) => typeof thread.deletedAt === "number")
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
@@ -143,6 +174,14 @@ export class TauriChatRepository implements IChatRepository {
   }
 
   async deleteThread(id: string): Promise<void> {
+    await this.updateThread(id, {
+      archived: false,
+      pinned: false,
+      deletedAt: Date.now(),
+    });
+  }
+
+  async purgeThread(id: string): Promise<void> {
     const projectPath = this.getProjectPath();
     if (!projectPath) return;
 
@@ -150,9 +189,26 @@ export class TauriChatRepository implements IChatRepository {
       await deleteChatThread(projectPath, id);
       await refreshQueries();
     } catch (error) {
-      log.error("Failed to delete chat thread:", error);
+      log.error("Failed to permanently delete chat thread:", error);
       throw error;
     }
+  }
+
+  async restoreThread(id: string): Promise<void> {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    const currentThread = await this.get(id);
+    if (!currentThread) throw new Error("Thread not found");
+
+    const { deletedAt, ...rest } = currentThread;
+    void deletedAt;
+    await updateChatThread(projectPath, {
+      ...rest,
+      archived: false,
+      updatedAt: Date.now(),
+    });
+    await refreshQueries();
   }
 
   // ============ Message Operations ============

@@ -15,6 +15,8 @@ import {
   MessageSquare,
   Sparkles,
   Menu,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import { useChatStore } from "@/store/use-chat-store";
 import { ChatThread } from "./chat-thread";
@@ -25,6 +27,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DecorativeGrid } from "@/components/ui/decorative-grid";
+import { getEnabledConnections } from "@/lib/ai";
 
 interface ChatInterfaceProps {
   projectId: string;
@@ -33,45 +36,87 @@ interface ChatInterfaceProps {
 export function ChatInterface({ projectId }: ChatInterfaceProps) {
   const chatRepo = useChatRepository();
   const [searchQuery, setSearchQuery] = useState("");
-  const { activeThreadId, setActiveThreadId } = useChatStore();
+  const { activeThreadId, setActiveThreadId, threadView, setThreadView } =
+    useChatStore();
   const { confirm, ConfirmationDialog } = useConfirmation();
   const isMobile = useIsMobile();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const hasAIConnection = getEnabledConnections().length > 0;
 
-  const threads = useLiveQuery(
+  const activeThreads = useLiveQuery(
     () => chatRepo.getActiveThreads(projectId),
     [projectId],
+    { keys: "chat" },
   );
+  const archivedThreads = useLiveQuery(
+    () => chatRepo.getArchivedThreads(projectId),
+    [projectId],
+    { keys: "chat" },
+  );
+  const deletedThreads = useLiveQuery(
+    () => chatRepo.getDeletedThreads(projectId),
+    [projectId],
+    { keys: "chat" },
+  );
+
+  const threadsByView = {
+    active: activeThreads ?? [],
+    archived: archivedThreads ?? [],
+    deleted: deletedThreads ?? [],
+  };
+  const threads = threadsByView[threadView];
 
   const createNewThread = async () => {
     const newThread = await chatRepo.createThread({
       projectId,
       name: "New Chat",
     });
-    invalidateQueries(); // Refresh the chat list
+    invalidateQueries("chat");
+    setThreadView("active");
     setActiveThreadId(newThread.id);
     if (isMobile) setSidebarOpen(false);
   };
 
   const handleDeleteThread = async (threadId: string) => {
+    if (threadView === "deleted") {
+      const purgeConfirmed = await confirm({
+        title: "Permanently Delete Chat",
+        description:
+          "This permanently removes this chat and all messages. This cannot be undone.",
+        confirmText: "Delete Permanently",
+        variant: "destructive",
+      });
+
+      if (!purgeConfirmed) return;
+      try {
+        await chatRepo.purgeThread(threadId);
+        if (activeThreadId === threadId) setActiveThreadId(null);
+        invalidateQueries("chat");
+        toast.success("Chat permanently deleted");
+      } catch (error) {
+        log.error("Failed to purge chat:", error);
+        toast.error("Failed to permanently delete chat");
+      }
+      return;
+    }
+
     const confirmed = await confirm({
-      title: "Delete Chat",
+      title: "Move Chat to Deleted",
       description:
-        "Are you sure you want to delete this chat? This action cannot be undone.",
-      confirmText: "Delete",
+        "This chat will move to Deleted and can be restored for 30 days.",
+      confirmText: "Move to Deleted",
       variant: "destructive",
     });
 
     if (confirmed) {
       try {
-        // Repository handles cascade delete automatically
         await chatRepo.deleteThread(threadId);
 
         if (activeThreadId === threadId) {
           setActiveThreadId(null);
         }
-        invalidateQueries(); // Refresh the chat list
-        toast.success("Chat deleted");
+        invalidateQueries("chat");
+        toast.success("Chat moved to Deleted");
       } catch (error) {
         log.error("Failed to delete chat:", error);
         const message =
@@ -81,9 +126,44 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
     }
   };
 
+  const handleArchiveThread = async (threadId: string) => {
+    try {
+      await chatRepo.updateThread(threadId, { archived: true });
+      if (activeThreadId === threadId) {
+        setActiveThreadId(null);
+      }
+      invalidateQueries("chat");
+      toast.success("Chat moved to Archived");
+    } catch (error) {
+      log.error("Failed to archive chat:", error);
+      toast.error("Failed to archive chat");
+    }
+  };
+
+  const handleRestoreThread = async (threadId: string) => {
+    try {
+      await chatRepo.restoreThread(threadId);
+      setThreadView("active");
+      setActiveThreadId(threadId);
+      invalidateQueries("chat");
+      toast.success("Chat restored");
+    } catch (error) {
+      log.error("Failed to restore chat:", error);
+      toast.error("Failed to restore chat");
+    }
+  };
+
   const filteredThreads = threads?.filter((t) =>
     (t.name || "Untitled").toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const tabButtonClass = (view: "active" | "archived" | "deleted") =>
+    cn(
+      "flex-1 h-8 text-xs",
+      threadView === view
+        ? "bg-background border shadow-sm text-foreground"
+        : "text-muted-foreground",
+    );
 
   const SidebarContent = (
     <div className="h-full flex flex-col">
@@ -105,6 +185,37 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
             className="pl-9 bg-muted/50 border-transparent focus:bg-background transition-all"
           />
         </div>
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={tabButtonClass("active")}
+            onClick={() => setThreadView("active")}
+          >
+            Active
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={tabButtonClass("archived")}
+            onClick={() => setThreadView("archived")}
+          >
+            Archived
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={tabButtonClass("deleted")}
+            onClick={() => setThreadView("deleted")}
+          >
+            Deleted
+          </Button>
+        </div>
+        {threadView === "deleted" && (
+          <p className="text-xs text-muted-foreground">
+            Deleted chats are retained for 30 days.
+          </p>
+        )}
       </div>
 
       <ScrollArea className="flex-1 p-3">
@@ -117,8 +228,11 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 activeThreadId === thread.id
                   ? "bg-primary/5 border-primary/20 shadow-sm"
                   : "bg-transparent border-transparent hover:bg-card hover:border-border/50 hover:shadow-sm",
+                threadView === "deleted" &&
+                  "cursor-default hover:bg-transparent hover:border-transparent hover:shadow-none",
               )}
               onClick={() => {
+                if (threadView === "deleted") return;
                 setActiveThreadId(thread.id);
                 if (isMobile) setSidebarOpen(false);
               }}
@@ -150,23 +264,64 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 </div>
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive -mr-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteThread(thread.id);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                {threadView === "active" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:bg-muted"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleArchiveThread(thread.id);
+                    }}
+                    title="Archive chat"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {(threadView === "archived" || threadView === "deleted") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:bg-muted"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleRestoreThread(thread.id);
+                    }}
+                    title="Restore chat"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive -mr-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDeleteThread(thread.id);
+                  }}
+                  title={
+                    threadView === "deleted"
+                      ? "Delete permanently"
+                      : "Move to Deleted"
+                  }
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
 
           {filteredThreads?.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
-              <p className="text-sm">No chats found</p>
+              <p className="text-sm">
+                {threadView === "active"
+                  ? "No active chats"
+                  : threadView === "archived"
+                    ? "No archived chats"
+                    : "No deleted chats"}
+              </p>
             </div>
           )}
         </div>
@@ -208,17 +363,25 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
         {activeThreadId ? (
           <ChatThread threadId={activeThreadId} />
         ) : (
-          <EmptyState
-            variant="hero"
-            icon={<Sparkles className="h-10 w-10" />}
-            title="AI Assistant"
-            description="Select a chat from the sidebar or start a new conversation to brainstorm, outline, or write with AI."
-            action={{
-              label: "Start New Chat",
-              onClick: createNewThread,
-              variant: "outline",
-            }}
-          />
+          <div className="h-full">
+            {!hasAIConnection && (
+              <div className="mx-6 mt-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                No AI connection configured. Open Settings and add an AI
+                provider before starting chat.
+              </div>
+            )}
+            <EmptyState
+              variant="hero"
+              icon={<Sparkles className="h-10 w-10" />}
+              title="AI Assistant"
+              description="Select a chat from the sidebar or start a new conversation to brainstorm, outline, or write with AI."
+              action={{
+                label: "Start New Chat",
+                onClick: createNewThread,
+                variant: "outline",
+              }}
+            />
+          </div>
         )}
       </div>
 

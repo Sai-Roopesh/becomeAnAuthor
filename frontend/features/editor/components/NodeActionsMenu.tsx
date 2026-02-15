@@ -64,6 +64,7 @@ export function NodeActionsMenu({
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [isPovDialogOpen, setIsPovDialogOpen] = useState(false);
   const [isSubtitleDialogOpen, setIsSubtitleDialogOpen] = useState(false);
+  const [isActionBusy, setIsActionBusy] = useState(false);
 
   const renameForm = useForm<NodeActionsFormData>({
     resolver: zodResolver(nodeActionsSchema),
@@ -146,21 +147,34 @@ EXAMPLE:
 
   const handleToggleAIExclusion = async () => {
     if (!isScene(node)) return;
-    const current = node.excludeFromAI || false;
-    await nodeRepo.updateMetadata(nodeId, { excludeFromAI: !current });
-    const { invalidateQueries } = await import("@/hooks/use-live-query");
-    invalidateQueries();
-    toast.success(
-      current ? "Included in AI context" : "Excluded from AI context",
-    );
+    try {
+      const current = node.excludeFromAI || false;
+      await nodeRepo.updateMetadata(nodeId, { excludeFromAI: !current });
+      const { invalidateQueries } = await import("@/hooks/use-live-query");
+      invalidateQueries("nodes");
+      toast.success(
+        current ? "Included in AI context" : "Excluded from AI context",
+      );
+    } catch (error) {
+      log.error("Failed to update AI context flag", error);
+      toast.error("Failed to update AI context flag");
+    }
   };
 
   const handleSummarizeScene = async () => {
     if (!isScene(node)) return;
+    if (isGenerating || isActionBusy) return;
 
     const text = extractTextFromTiptapJSON(node.content);
-    const result = await generate({
-      prompt: `Summarize this scene using the framework:
+    if (!text.trim()) {
+      toast.error("Cannot summarize an empty scene");
+      return;
+    }
+
+    setIsActionBusy(true);
+    try {
+      const result = await generate({
+        prompt: `Summarize this scene using the framework:
 1. Goal (what character wants)
 2. Conflict (what opposes them)
 3. Outcome (success/failure/complication)
@@ -170,35 +184,52 @@ SCENE TEXT:
 ${text}
 
 SUMMARY (2-3 sentences, present tense):`,
-      maxTokens: 300,
-    });
+        maxTokens: 300,
+      });
 
-    if (result) {
-      await nodeRepo.updateMetadata(nodeId, { summary: result });
-      const { invalidateQueries } = await import("@/hooks/use-live-query");
-      invalidateQueries();
+      if (result) {
+        await nodeRepo.updateMetadata(nodeId, { summary: result });
+        const { invalidateQueries } = await import("@/hooks/use-live-query");
+        invalidateQueries("nodes");
+        toast.success("Scene summary updated");
+      }
+    } catch (error) {
+      log.error("Failed to summarize scene", error);
+      toast.error("Failed to summarize scene");
+    } finally {
+      setIsActionBusy(false);
     }
   };
 
   const handleDuplicate = async () => {
     if (!isScene(node)) return;
-    await nodeRepo.create({
-      ...node,
-      title: `${node.title} (Copy)`,
-      order: (node.order || 0) + 0.5,
-      type: "scene",
-      projectId: node.projectId,
-    });
-    const { invalidateQueries } = await import("@/hooks/use-live-query");
-    invalidateQueries();
-    toast.success("Scene duplicated");
+    try {
+      await nodeRepo.create({
+        ...node,
+        title: `${node.title} (Copy)`,
+        order: (node.order || 0) + 0.5,
+        type: "scene",
+        projectId: node.projectId,
+      });
+      const { invalidateQueries } = await import("@/hooks/use-live-query");
+      invalidateQueries("nodes");
+      toast.success("Scene duplicated");
+    } catch (error) {
+      log.error("Failed to duplicate scene", error);
+      toast.error("Failed to duplicate scene");
+    }
   };
 
   const handleCopyProse = async () => {
     if (!isScene(node)) return;
-    const text = extractTextFromTiptapJSON(node.content);
-    await navigator.clipboard.writeText(text);
-    toast.success("Prose copied to clipboard!");
+    try {
+      const text = extractTextFromTiptapJSON(node.content);
+      await navigator.clipboard.writeText(text);
+      toast.success("Prose copied to clipboard");
+    } catch (error) {
+      log.error("Failed to copy prose", error);
+      toast.error("Failed to copy prose");
+    }
   };
 
   const handleExport = () => {
@@ -219,11 +250,21 @@ SUMMARY (2-3 sentences, present tense):`,
   };
 
   const executeArchive = async () => {
-    await nodeRepo.updateMetadata(nodeId, { archived: true });
-    const { invalidateQueries } = await import("@/hooks/use-live-query");
-    invalidateQueries();
-    toast.success("Scene archived");
-    setIsArchiveDialogOpen(false);
+    if (!isScene(node)) return;
+    try {
+      await nodeRepo.updateMetadata(nodeId, { archived: !node.archived });
+      const { invalidateQueries } = await import("@/hooks/use-live-query");
+      invalidateQueries("nodes");
+      toast.success(
+        node.archived
+          ? "Scene restored from archive"
+          : "Scene archived. You can restore it from the sidebar archive section.",
+      );
+      setIsArchiveDialogOpen(false);
+    } catch (error) {
+      log.error("Failed to update archive state", error);
+      toast.error("Failed to update archive state");
+    }
   };
 
   const handleRename = () => {
@@ -239,7 +280,7 @@ SUMMARY (2-3 sentences, present tense):`,
       if (data.name && data.name !== node.title) {
         await nodeRepo.update(nodeId, { title: data.name });
         const { invalidateQueries } = await import("@/hooks/use-live-query");
-        invalidateQueries();
+        invalidateQueries("nodes");
         toast.success(
           `${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} renamed`,
         );
@@ -333,7 +374,7 @@ SUMMARY (2-3 sentences, present tense):`,
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleArchive}>
                 <Archive className="h-4 w-4 mr-2" />
-                Archive Scene
+                {node.archived ? "Restore Scene" : "Archive Scene"}
               </DropdownMenuItem>
             </>
           )}
@@ -354,8 +395,9 @@ SUMMARY (2-3 sentences, present tense):`,
           <DialogHeader>
             <DialogTitle>Archive Scene</DialogTitle>
             <DialogDescription>
-              Are you sure you want to archive this scene? It will be moved to
-              the archive list.
+              {node.archived
+                ? "Restore this scene to the active manuscript list."
+                : "Archive this scene. It will move to the archived scenes section in the sidebar."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -365,7 +407,9 @@ SUMMARY (2-3 sentences, present tense):`,
             >
               Cancel
             </Button>
-            <Button onClick={executeArchive}>Archive</Button>
+            <Button onClick={executeArchive}>
+              {node.archived ? "Restore" : "Archive"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

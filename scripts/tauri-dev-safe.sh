@@ -17,4 +17,4 @@ if [[ ! -x "$ROOT_DIR/node_modules/.bin/tauri" ]]; then
   exit 1
 fi
 
-exec "$ROOT_DIR/node_modules/.bin/tauri" dev --no-dev-server-wait
+exec "$ROOT_DIR/node_modules/.bin/tauri" dev

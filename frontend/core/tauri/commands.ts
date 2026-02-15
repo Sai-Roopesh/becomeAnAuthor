@@ -48,6 +48,14 @@ export interface RecentProject {
   lastOpened: number;
 }
 
+export interface TrashedProject {
+  id: string;
+  title: string;
+  originalPath: string;
+  trashPath: string;
+  deletedAt: number;
+}
+
 export interface StructureNode {
   id: string;
   type: string; // "act", "chapter", "scene"
@@ -86,8 +94,13 @@ import type { TiptapContent } from "@/shared/types/tiptap";
 // Snippet interface removed in favor of domain type
 
 export interface SearchResult {
-  type: string;
-  file?: string;
+  id: string;
+  title: string;
+  type: "scene" | "codex";
+  contentType?: "scene" | "codex";
+  snippet?: string;
+  score?: number;
+  category?: string;
   path: string;
 }
 
@@ -128,6 +141,22 @@ export async function createProject(
 
 export async function deleteProject(projectPath: string): Promise<void> {
   return invoke("delete_project", { projectPath });
+}
+
+export async function listProjectTrash(): Promise<TrashedProject[]> {
+  return invoke<TrashedProject[]>("list_project_trash");
+}
+
+export async function restoreTrashedProject(
+  trashPath: string,
+): Promise<ProjectMeta> {
+  return invoke<ProjectMeta>("restore_trashed_project", { trashPath });
+}
+
+export async function permanentlyDeleteTrashedProject(
+  trashPath: string,
+): Promise<void> {
+  return invoke("permanently_delete_trashed_project", { trashPath });
 }
 
 // ============ Recent Projects Commands ============
@@ -738,8 +767,13 @@ export async function deleteSnippet(
 export async function searchProject(
   projectPath: string,
   query: string,
+  scope?: "all" | "scenes" | "codex",
 ): Promise<SearchResult[]> {
-  return invoke<SearchResult[]>("search_project", { projectPath, query });
+  return invoke<SearchResult[]>("search_project", {
+    projectPath,
+    query,
+    ...(scope ? { scope } : {}),
+  });
 }
 
 // ============ Map Commands ============

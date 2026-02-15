@@ -1,67 +1,73 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { AIConnection } from '@/lib/config/ai-vendors';
-import { modelDiscoveryService } from '@/infrastructure/services/ModelDiscoveryService';
-import { logger } from '@/shared/utils/logger';
+import { useState } from "react";
+import { AIConnection } from "@/lib/config/ai-vendors";
+import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { AI_VENDORS } from "@/lib/config/ai-vendors";
+import { logger } from "@/shared/utils/logger";
 
-const log = logger.scope('useConnectionValidation');
+const log = logger.scope("useConnectionValidation");
 
 /**
  * Hook for validating AI connections and fetching models.
  * Uses ModelDiscoveryService for dynamic model fetching from provider APIs.
  */
 export function useConnectionValidation() {
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    const refreshModels = async (
-        connection: AIConnection,
-        apiKey: string,
-        customEndpoint?: string
-    ): Promise<string[]> => {
-        if (!apiKey) {
-            setError('Please enter an API key first');
-            throw new Error('API key is required');
-        }
+  const refreshModels = async (
+    connection: AIConnection,
+    apiKey: string,
+    customEndpoint?: string,
+  ): Promise<string[]> => {
+    const vendor = AI_VENDORS[connection.provider];
+    const normalizedApiKey = apiKey.trim();
+    const endpoint = customEndpoint?.trim() || vendor.defaultEndpoint;
 
-        setLoading(true);
-        setError('');
+    if (vendor.requiresAuth && !normalizedApiKey) {
+      setError("Please enter an API key first");
+      throw new Error("API key is required");
+    }
 
-        try {
-            log.info(`Fetching models for ${connection.provider}...`);
+    setLoading(true);
+    setError("");
 
-            // Use ModelDiscoveryService for dynamic model fetching
-            const result = await modelDiscoveryService.fetchModels(
-                connection.provider,
-                apiKey,
-                customEndpoint
-            );
+    try {
+      log.info(`Fetching models for ${connection.provider}...`);
 
-            if (result.error) {
-                setError(result.error);
-                setLoading(false);
-                throw new Error(result.error);
-            }
+      // Use ModelDiscoveryService for dynamic model fetching
+      const result = await modelDiscoveryService.fetchModels(
+        connection.provider,
+        normalizedApiKey,
+        endpoint,
+      );
 
-            // Extract model IDs
-            const modelIds = result.models.map((m) => m.id);
-            log.info(`Found ${modelIds.length} models for ${connection.provider}`);
+      if (result.error) {
+        setError(result.error);
+        setLoading(false);
+        throw new Error(result.error);
+      }
 
-            setLoading(false);
-            return modelIds;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch models';
-            setError(errorMessage);
-            setLoading(false);
-            log.error('Failed to fetch models:', err);
-            throw err;
-        }
-    };
+      // Extract model IDs
+      const modelIds = result.models.map((m) => m.id);
+      log.info(`Found ${modelIds.length} models for ${connection.provider}`);
 
-    return {
-        loading,
-        error,
-        refreshModels,
-    };
+      setLoading(false);
+      return modelIds;
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch models";
+      setError(errorMessage);
+      setLoading(false);
+      log.error("Failed to fetch models:", err);
+      throw err;
+    }
+  };
+
+  return {
+    loading,
+    error,
+    refreshModels,
+  };
 }

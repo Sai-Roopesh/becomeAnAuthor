@@ -13,6 +13,7 @@ import {
   Book,
   Users,
   MoreHorizontal,
+  RotateCcw,
 } from "lucide-react";
 import { logger } from "@/shared/utils/logger";
 
@@ -138,12 +139,39 @@ export function ProjectNavigation({
     }
   };
 
-  if (!project) return null;
+  if (!project) {
+    return (
+      <div className="h-full flex items-center justify-center p-4 text-sm text-muted-foreground">
+        Open a project to load manuscript navigation.
+      </div>
+    );
+  }
+
+  const allScenes =
+    (nodes?.filter((node) => node.type === "scene") as Array<
+      DocumentNode & { archived?: boolean }
+    >) ?? [];
+  const archivedScenes = allScenes.filter((scene) => Boolean(scene.archived));
+  const visibleNodes = (nodes ?? []).filter(
+    (node) =>
+      node.type !== "scene" || !(node as { archived?: boolean }).archived,
+  );
 
   // Build Tree
-  const acts = nodes?.filter((n) => n.type === "act") || [];
+  const acts = visibleNodes.filter((n) => n.type === "act");
   const getChildren = (parentId: string) =>
-    nodes?.filter((n) => n.parentId === parentId) || [];
+    visibleNodes.filter((n) => n.parentId === parentId);
+
+  const restoreArchivedScene = async (sceneId: string) => {
+    try {
+      await nodeRepo.updateMetadata(sceneId, { archived: false });
+      invalidateQueries("nodes");
+      toast.success("Scene restored");
+    } catch (error) {
+      log.error("Failed to restore archived scene", error);
+      toast.error("Failed to restore archived scene");
+    }
+  };
 
   const renderNode = (node: DocumentNode, level: number) => {
     const children = getChildren(node.id);
@@ -292,6 +320,33 @@ export function ProjectNavigation({
                 </div>
               )}
             </div>
+
+            {archivedScenes.length > 0 && (
+              <div className="mx-2 mb-2 rounded-md border bg-muted/30">
+                <div className="px-3 py-2 border-b text-xs font-medium text-muted-foreground">
+                  Archived Scenes ({archivedScenes.length})
+                </div>
+                <div className="divide-y">
+                  {archivedScenes.map((scene) => (
+                    <div
+                      key={scene.id}
+                      className="px-3 py-2 flex items-center gap-2 text-sm"
+                    >
+                      <span className="truncate flex-1">{scene.title}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => restoreArchivedScene(scene.id)}
+                        title="Restore scene"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Ideas Section - Collapsible below manuscript tree */}
             <div className="border-t mt-2">

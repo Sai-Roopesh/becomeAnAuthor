@@ -7,26 +7,27 @@ import { SearchInput } from "./SearchInput";
 import { SearchResults } from "./SearchResults";
 import { useSearch } from "../hooks/use-search";
 import { useProjectStore } from "@/store/use-project-store";
+import { Button } from "@/components/ui/button";
 
 interface SearchPaletteProps {
   projectId: string;
-  seriesId: string; // Required - series-first architecture
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function SearchPalette({
   projectId,
-  seriesId,
   open,
   onOpenChange,
 }: SearchPaletteProps) {
-  const { query, setQuery, results, isLoading } = useSearch(
-    projectId,
-    seriesId,
-  );
-  const { setActiveSceneId, setViewMode, setLeftSidebarTab, setActiveCodexEntryId } =
-    useProjectStore();
+  const { query, setQuery, scope, setScope, results, isLoading } =
+    useSearch(projectId);
+  const {
+    setActiveSceneId,
+    setViewMode,
+    setLeftSidebarTab,
+    setActiveCodexEntryId,
+  } = useProjectStore();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Reset state when dialog opens/closes
@@ -34,8 +35,9 @@ export function SearchPalette({
     if (!open) {
       setQuery("");
       setSelectedIndex(0);
+      setScope("all");
     }
-  }, [open, setQuery]);
+  }, [open, setQuery, setScope]);
 
   // Calculate total results for keyboard navigation
   const allResults = React.useMemo(
@@ -61,7 +63,13 @@ export function SearchPalette({
         onOpenChange(false);
       }
     },
-    [setActiveSceneId, setViewMode, setLeftSidebarTab, setActiveCodexEntryId, onOpenChange],
+    [
+      setActiveSceneId,
+      setViewMode,
+      setLeftSidebarTab,
+      setActiveCodexEntryId,
+      onOpenChange,
+    ],
   );
 
   // Keyboard navigation
@@ -106,8 +114,31 @@ export function SearchPalette({
           <SearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Search scenes and codex..."
+            placeholder="Search manuscript and codex..."
           />
+          <div className="px-4 py-2 border-b bg-muted/20 flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={scope === "all" ? "secondary" : "ghost"}
+              onClick={() => setScope("all")}
+            >
+              All
+            </Button>
+            <Button
+              size="sm"
+              variant={scope === "scenes" ? "secondary" : "ghost"}
+              onClick={() => setScope("scenes")}
+            >
+              Scenes
+            </Button>
+            <Button
+              size="sm"
+              variant={scope === "codex" ? "secondary" : "ghost"}
+              onClick={() => setScope("codex")}
+            >
+              Codex
+            </Button>
+          </div>
           <SearchResults
             results={results}
             selectedIndex={selectedIndex}
