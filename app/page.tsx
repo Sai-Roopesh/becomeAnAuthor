@@ -4,11 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOpenProject } from "@/hooks/use-open-project";
 import { useProjectRepository } from "@/hooks/use-project-repository";
-import { useLiveQuery } from "@/hooks/use-live-query";
+import { invalidateQueries, useLiveQuery } from "@/hooks/use-live-query";
 import { DashboardHeader } from "@/features/dashboard/components/DashboardHeader";
 import { ErrorBoundary } from "@/features/shared/components";
 import { BackupCenterDialog } from "@/features/data-management";
 import { CreateSeriesDialog, SeriesList } from "@/features/series";
+import {
+  listDeletedSeries,
+  permanentlyDeleteDeletedSeries,
+  restoreDeletedSeries,
+} from "@/core/tauri";
 import { Button } from "@/components/ui/button";
 import { Plus, FolderOpen, Loader2, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "@/shared/utils/toast-service";
@@ -27,6 +32,9 @@ export default function Dashboard() {
       keys: "projects",
     },
   );
+  const deletedSeries = useLiveQuery(() => listDeletedSeries(), [], {
+    keys: "series",
+  });
 
   const handleOpenNovel = async () => {
     const project = await openFromPicker();
@@ -60,6 +68,41 @@ export default function Dashboard() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to delete project";
+      toast.error(message);
+    }
+  };
+
+  const handleRestoreSeries = async (oldSeriesId: string) => {
+    try {
+      const restored = await restoreDeletedSeries(oldSeriesId);
+      invalidateQueries(["series", "projects"]);
+      toast.success(`Series "${restored.title}" restored`);
+      router.push(`/series?id=${restored.id}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to restore series";
+      toast.error(message);
+    }
+  };
+
+  const handleDeleteSeriesRecord = async (
+    oldSeriesId: string,
+    title: string,
+  ) => {
+    const confirmed = window.confirm(
+      `Permanently remove deleted series record "${title}" from Trash? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await permanentlyDeleteDeletedSeries(oldSeriesId);
+      invalidateQueries("series");
+      toast.success(`Deleted "${title}" from Trash`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to delete series record";
       toast.error(message);
     }
   };
@@ -103,13 +146,14 @@ export default function Dashboard() {
 
       <DashboardHeader />
 
-      {(trashedProjects ?? []).length > 0 && (
+      {((trashedProjects ?? []).length > 0 ||
+        (deletedSeries ?? []).length > 0) && (
         <div className="mb-6 rounded-xl border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold">Trash</h3>
               <p className="text-sm text-muted-foreground">
-                Restore projects or permanently delete them.
+                Restore novels and series, or permanently delete novels.
               </p>
             </div>
             <Button
@@ -123,39 +167,104 @@ export default function Dashboard() {
 
           {showTrash && (
             <div className="space-y-2">
-              {(trashedProjects ?? []).map((project) => (
-                <div
-                  key={project.trashPath}
-                  className="flex items-center justify-between border rounded-lg px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{project.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Deleted {new Date(project.deletedAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleRestoreFromTrash(project.trashPath)}
+              {(deletedSeries ?? []).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Deleted Series
+                  </p>
+                  {(deletedSeries ?? []).map((series) => (
+                    <div
+                      key={series.oldSeriesId}
+                      className="flex items-center justify-between border rounded-lg px-3 py-2"
                     >
-                      <RotateCcw className="w-4 h-4 mr-1" />
-                      Restore
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() =>
-                        handlePermanentDelete(project.trashPath, project.title)
-                      }
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Delete Forever
-                    </Button>
-                  </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{series.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Deleted {new Date(series.deletedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            handleRestoreSeries(series.oldSeriesId)
+                          }
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          Restore Series
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            handleDeleteSeriesRecord(
+                              series.oldSeriesId,
+                              series.title,
+                            )
+                          }
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete Forever
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {(trashedProjects ?? []).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Deleted Novels
+                  </p>
+                  {(trashedProjects ?? []).map((project) => (
+                    <div
+                      key={project.trashPath}
+                      className="flex items-center justify-between border rounded-lg px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{project.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Deleted {new Date(project.deletedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            handleRestoreFromTrash(project.trashPath)
+                          }
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          Restore
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            handlePermanentDelete(
+                              project.trashPath,
+                              project.title,
+                            )
+                          }
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete Forever
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(deletedSeries ?? []).length === 0 &&
+                (trashedProjects ?? []).length === 0 && (
+                  <div className="text-sm text-muted-foreground border rounded-lg px-3 py-2">
+                    Trash is empty.
+                  </div>
+                )}
             </div>
           )}
         </div>

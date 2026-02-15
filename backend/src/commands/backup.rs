@@ -1,7 +1,7 @@
 // Backup and export commands
 
 use std::fs;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, EmergencyBackup, StructureNode, Series, CodexRelation};
@@ -421,12 +421,23 @@ fn build_project_backup_payload(project: &ProjectMeta) -> Result<serde_json::Val
     let structure = crate::commands::project::get_structure(project.path.clone())?;
     let snippets = crate::commands::snippet::list_snippets(project.path.clone())?;
     let scene_files = collect_scene_files(&project.path, &structure);
+    let chats = crate::commands::chat::list_chat_threads(project.path.clone()).unwrap_or_default();
+    let mut messages = Vec::new();
+    for thread in &chats {
+        let mut thread_messages = crate::commands::chat::get_chat_messages(
+            project.path.clone(),
+            thread.id.clone(),
+        ).unwrap_or_default();
+        messages.append(&mut thread_messages);
+    }
 
     Ok(serde_json::json!({
         "project": project,
         "nodes": structure,
         "sceneFiles": scene_files,
-        "snippets": snippets
+        "snippets": snippets,
+        "chats": chats,
+        "messages": messages
     }))
 }
 
@@ -684,6 +695,204 @@ fn restore_snippets(
     Ok(())
 }
 
+fn normalize_timestamp(value: Option<&serde_json::Value>, fallback: i64) -> i64 {
+    if let Some(v) = value {
+        if let Some(ts) = v.as_i64() {
+            return ts;
+        }
+        if let Some(ts) = v.as_u64() {
+            return ts as i64;
+        }
+    }
+    fallback
+}
+
+fn restore_chats(
+    project_dir: &PathBuf,
+    chats: Option<&Vec<serde_json::Value>>,
+    messages: Option<&Vec<serde_json::Value>>,
+    project_id: &str,
+) -> Result<(), String> {
+    let chat_root = project_dir.join(".meta/chat");
+    let messages_dir = chat_root.join("messages");
+    fs::create_dir_all(&messages_dir).map_err(|e| e.to_string())?;
+
+    let now = timestamp::now_millis();
+    let mut threads: Vec<serde_json::Value> = Vec::new();
+    let mut thread_ids: Vec<String> = Vec::new();
+    let mut thread_id_set: HashSet<String> = HashSet::new();
+    let mut thread_max_timestamp: HashMap<String, i64> = HashMap::new();
+    let mut grouped_messages: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+
+    if let Some(message_values) = messages {
+        for message in message_values {
+            let mut normalized = message.clone();
+            let Some(obj) = normalized.as_object_mut() else { continue };
+
+            let thread_id = obj
+                .get("threadId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if thread_id.is_empty() {
+                continue;
+            }
+
+            let message_id = obj
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            if message_id.is_empty() {
+                obj.insert(
+                    "id".to_string(),
+                    serde_json::Value::String(uuid::Uuid::new_v4().to_string()),
+                );
+            }
+
+            let role = obj
+                .get("role")
+                .and_then(|v| v.as_str())
+                .unwrap_or("user");
+            let normalized_role = if role.eq_ignore_ascii_case("assistant") {
+                "assistant"
+            } else {
+                "user"
+            };
+            obj.insert(
+                "role".to_string(),
+                serde_json::Value::String(normalized_role.to_string()),
+            );
+
+            let content = obj
+                .get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            obj.insert("content".to_string(), serde_json::Value::String(content));
+
+            let ts = normalize_timestamp(obj.get("timestamp"), now);
+            obj.insert(
+                "timestamp".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(ts)),
+            );
+
+            grouped_messages
+                .entry(thread_id.clone())
+                .or_default()
+                .push(normalized);
+            thread_max_timestamp
+                .entry(thread_id)
+                .and_modify(|current| {
+                    if ts > *current {
+                        *current = ts;
+                    }
+                })
+                .or_insert(ts);
+        }
+    }
+
+    if let Some(chat_values) = chats {
+        for chat in chat_values {
+            let mut normalized = chat.clone();
+            let Some(obj) = normalized.as_object_mut() else { continue };
+
+            let thread_id = obj
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if thread_id.is_empty() || thread_id_set.contains(&thread_id) {
+                continue;
+            }
+
+            obj.insert(
+                "projectId".to_string(),
+                serde_json::Value::String(project_id.to_string()),
+            );
+
+            let name = obj
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .or_else(|| {
+                    obj.get("title")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                })
+                .unwrap_or_else(|| "Imported Chat".to_string());
+            obj.insert("name".to_string(), serde_json::Value::String(name));
+
+            if obj.get("pinned").is_none() {
+                obj.insert("pinned".to_string(), serde_json::Value::Bool(false));
+            }
+            if obj.get("archived").is_none() {
+                obj.insert("archived".to_string(), serde_json::Value::Bool(false));
+            }
+
+            let created_at = normalize_timestamp(obj.get("createdAt"), now);
+            let mut updated_at = normalize_timestamp(obj.get("updatedAt"), created_at);
+            if let Some(max_ts) = thread_max_timestamp.get(&thread_id) {
+                if *max_ts > updated_at {
+                    updated_at = *max_ts;
+                }
+            }
+
+            obj.insert(
+                "createdAt".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(created_at)),
+            );
+            obj.insert(
+                "updatedAt".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(updated_at)),
+            );
+
+            thread_id_set.insert(thread_id.clone());
+            thread_ids.push(thread_id);
+            threads.push(normalized);
+        }
+    }
+
+    for thread_id in grouped_messages.keys() {
+        if thread_id_set.contains(thread_id) {
+            continue;
+        }
+        let max_ts = *thread_max_timestamp.get(thread_id).unwrap_or(&now);
+        let fallback_thread = serde_json::json!({
+            "id": thread_id,
+            "projectId": project_id,
+            "name": "Imported Chat",
+            "pinned": false,
+            "archived": false,
+            "createdAt": max_ts,
+            "updatedAt": max_ts
+        });
+        thread_id_set.insert(thread_id.clone());
+        thread_ids.push(thread_id.clone());
+        threads.push(fallback_thread);
+    }
+
+    let threads_json = serde_json::to_string_pretty(&threads).map_err(|e| e.to_string())?;
+    fs::write(chat_root.join("threads.json"), threads_json).map_err(|e| e.to_string())?;
+
+    for thread_id in thread_ids {
+        let mut thread_messages = grouped_messages.remove(&thread_id).unwrap_or_default();
+        thread_messages.sort_by_key(|msg| {
+            msg.get("timestamp")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(now)
+        });
+        let json = serde_json::to_string_pretty(&thread_messages).map_err(|e| e.to_string())?;
+        fs::write(messages_dir.join(format!("{}.json", thread_id)), json).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, String> {
     let backup: serde_json::Value = serde_json::from_str(&backup_json)
@@ -772,6 +981,9 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
 
         let snippets = payload.get("snippets").and_then(|v| v.as_array());
         restore_snippets(&project_dir, snippets, &new_id)?;
+        let chats = payload.get("chats").and_then(|v| v.as_array());
+        let messages = payload.get("messages").and_then(|v| v.as_array());
+        restore_chats(&project_dir, chats, messages, &new_id)?;
 
         crate::commands::project::add_to_recent(
             imported_project.path.clone(),
@@ -820,11 +1032,28 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
     }
 
     let relations_path = get_series_dir(&imported_series.id)?.join("codex_relations.json");
-    let relations: Vec<CodexRelation> = backup
-        .get("codexRelations")
-        .cloned()
-        .map(|v| serde_json::from_value(v).unwrap_or_default())
-        .unwrap_or_default();
+    let mut relations: Vec<CodexRelation> = Vec::new();
+    if let Some(raw_relations) = backup.get("codexRelations").and_then(|v| v.as_array()) {
+        for relation in raw_relations {
+            let mut relation_clone = relation.clone();
+            if let Some(obj) = relation_clone.as_object_mut() {
+                if let Some(old_project_id) = obj.get("projectId").and_then(|v| v.as_str()) {
+                    if let Some(new_project_id) = project_id_map.get(old_project_id) {
+                        obj.insert(
+                            "projectId".to_string(),
+                            serde_json::Value::String(new_project_id.clone()),
+                        );
+                    } else {
+                        obj.remove("projectId");
+                    }
+                }
+            }
+
+            if let Ok(parsed) = serde_json::from_value::<CodexRelation>(relation_clone) {
+                relations.push(parsed);
+            }
+        }
+    }
     let relations_json = serde_json::to_string_pretty(&relations).map_err(|e| e.to_string())?;
     fs::write(relations_path, relations_json).map_err(|e| e.to_string())?;
 

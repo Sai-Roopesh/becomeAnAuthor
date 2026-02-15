@@ -128,10 +128,13 @@ pub fn run() {
             import_project_backup,
             // Series commands
             list_series,
+            list_deleted_series,
+            permanently_delete_deleted_series,
             create_series,
             update_series,
             delete_series,
             delete_series_cascade,
+            restore_deleted_series,
             // Series Codex commands
             list_series_codex_entries,
             get_series_codex_entry,

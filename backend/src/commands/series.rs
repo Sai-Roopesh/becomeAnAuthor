@@ -6,7 +6,182 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 use crate::models::{Series, CodexEntry, CodexRelation};
-use crate::utils::{get_series_path, get_series_codex_path, get_series_dir, validate_project_title};
+use crate::utils::{
+    get_app_dir,
+    get_series_path,
+    get_series_codex_path,
+    get_series_dir,
+    validate_project_title,
+};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DeletedSeriesRecord {
+    pub old_series_id: String,
+    pub title: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub author: Option<String>,
+    #[serde(default)]
+    pub genre: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
+    pub deleted_at: i64,
+    #[serde(default)]
+    pub restored_series_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletedSeries {
+    pub old_series_id: String,
+    pub title: String,
+    pub deleted_at: i64,
+}
+
+fn deleted_series_registry_path() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let meta_dir = app_dir.join(".meta");
+    fs::create_dir_all(&meta_dir).map_err(|e| e.to_string())?;
+    Ok(meta_dir.join("deleted_series.json"))
+}
+
+fn read_deleted_series_registry() -> Result<Vec<DeletedSeriesRecord>, String> {
+    let path = deleted_series_registry_path()?;
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    Ok(serde_json::from_str(&content).unwrap_or_default())
+}
+
+fn write_deleted_series_registry(records: &[DeletedSeriesRecord]) -> Result<(), String> {
+    let path = deleted_series_registry_path()?;
+    let json = serde_json::to_string_pretty(records).map_err(|e| e.to_string())?;
+    fs::write(path, json).map_err(|e| e.to_string())
+}
+
+pub(crate) fn mark_series_deleted(series: &Series) -> Result<(), String> {
+    let mut records = read_deleted_series_registry()?;
+    records.retain(|record| record.old_series_id != series.id);
+    records.insert(
+        0,
+        DeletedSeriesRecord {
+            old_series_id: series.id.clone(),
+            title: series.title.clone(),
+            description: series.description.clone(),
+            author: series.author.clone(),
+            genre: series.genre.clone(),
+            status: series.status.clone(),
+            deleted_at: chrono::Utc::now().timestamp_millis(),
+            restored_series_id: None,
+        },
+    );
+    write_deleted_series_registry(&records)
+}
+
+pub(crate) fn restore_or_recreate_deleted_series(
+    old_series_id: &str,
+) -> Result<Option<String>, String> {
+    let mut records = read_deleted_series_registry()?;
+    let Some(record_index) = records
+        .iter()
+        .position(|record| record.old_series_id == old_series_id)
+    else {
+        return Ok(None);
+    };
+
+    let existing_series = list_series()?;
+    let record = &records[record_index];
+
+    if let Some(restored_id) = &record.restored_series_id {
+        if existing_series.iter().any(|series| &series.id == restored_id) {
+            return Ok(Some(restored_id.clone()));
+        }
+    }
+
+    let recreated_series_id = if let Some(existing) = existing_series
+        .iter()
+        .find(|series| series.title == record.title)
+    {
+        existing.id.clone()
+    } else {
+        let created = create_series(
+            record.title.clone(),
+            record.description.clone(),
+            record.author.clone(),
+            record.genre.clone(),
+            record.status.clone(),
+        )?;
+        created.id
+    };
+
+    records[record_index].restored_series_id = Some(recreated_series_id.clone());
+    write_deleted_series_registry(&records)?;
+
+    Ok(Some(recreated_series_id))
+}
+
+#[tauri::command]
+pub fn list_deleted_series() -> Result<Vec<DeletedSeries>, String> {
+    let existing_series_ids: std::collections::HashSet<String> = list_series()?
+        .into_iter()
+        .map(|series| series.id)
+        .collect();
+    let mut records = read_deleted_series_registry()?;
+    records.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
+
+    let mut deleted = Vec::new();
+    let mut seen_titles: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for record in records {
+        if !seen_titles.insert(record.title.clone()) {
+            continue;
+        }
+
+        if let Some(restored_series_id) = &record.restored_series_id {
+            if existing_series_ids.contains(restored_series_id) {
+                continue;
+            }
+        }
+
+        deleted.push(DeletedSeries {
+            old_series_id: record.old_series_id,
+            title: record.title,
+            deleted_at: record.deleted_at,
+        });
+    }
+
+    deleted.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
+    Ok(deleted)
+}
+
+#[tauri::command]
+pub fn permanently_delete_deleted_series(old_series_id: String) -> Result<(), String> {
+    let mut records = read_deleted_series_registry()?;
+    let target_title = records
+        .iter()
+        .find(|record| record.old_series_id == old_series_id)
+        .map(|record| record.title.clone())
+        .ok_or("Deleted series record not found".to_string())?;
+
+    records.retain(|record| record.title != target_title);
+    write_deleted_series_registry(&records)
+}
+
+#[tauri::command]
+pub fn restore_deleted_series(old_series_id: String) -> Result<Series, String> {
+    let restored_series_id = restore_or_recreate_deleted_series(&old_series_id)?
+        .ok_or("Deleted series record not found".to_string())?;
+
+    let series = list_series()?
+        .into_iter()
+        .find(|entry| entry.id == restored_series_id)
+        .ok_or("Restored series could not be loaded".to_string())?;
+
+    Ok(series)
+}
 
 // ============== Series CRUD ==============
 
@@ -113,7 +288,21 @@ pub fn update_series(series_id: String, updates: serde_json::Value) -> Result<()
 
 #[tauri::command]
 pub fn delete_series(series_id: String) -> Result<(), String> {
+    let linked_projects = crate::commands::project::list_projects()?
+        .into_iter()
+        .filter(|project| project.series_id == series_id)
+        .count();
+    if linked_projects > 0 {
+        return Err(format!(
+            "Cannot delete series with {} linked novel(s). Use delete_series_cascade instead.",
+            linked_projects
+        ));
+    }
+
     let mut all_series = list_series()?;
+    if let Some(series_to_delete) = all_series.iter().find(|s| s.id == series_id) {
+        mark_series_deleted(series_to_delete)?;
+    }
     all_series.retain(|s| s.id != series_id);
     
     let series_path = get_series_path()?;

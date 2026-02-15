@@ -81,6 +81,60 @@ fn get_projects_trash_dir() -> Result<PathBuf, String> {
     Ok(app_dir.join("Trash"))
 }
 
+const RECOVERY_SERIES_TITLE: &str = "Recovered Projects";
+
+fn get_or_create_recovery_series_id() -> Result<String, String> {
+    let existing_series = crate::commands::series::list_series()?;
+    if let Some(series) = existing_series
+        .iter()
+        .find(|series| series.title == RECOVERY_SERIES_TITLE)
+    {
+        return Ok(series.id.clone());
+    }
+
+    let created = crate::commands::series::create_series(
+        RECOVERY_SERIES_TITLE.to_string(),
+        Some(
+            "Auto-created to hold restored projects whose original series no longer exists."
+                .to_string(),
+        ),
+        None,
+        None,
+        Some("planned".to_string()),
+    )?;
+
+    Ok(created.id)
+}
+
+fn ensure_project_has_valid_series(project: &mut ProjectMeta) -> Result<(), String> {
+    let known_series = crate::commands::series::list_series()?;
+    let has_valid_series = known_series
+        .iter()
+        .any(|series| series.id == project.series_id);
+
+    if has_valid_series {
+        return Ok(());
+    }
+
+    let missing_series_id = project.series_id.clone();
+    project.series_id = crate::commands::series::restore_or_recreate_deleted_series(
+        &missing_series_id,
+    )?
+    .unwrap_or(get_or_create_recovery_series_id()?);
+
+    let preferred_index = project.series_index.trim().to_string();
+    if preferred_index.is_empty()
+        || check_duplicate_book_number(&project.series_id, &preferred_index, Some(&project.id))
+            .is_err()
+    {
+        project.series_index = next_available_series_index(&project.series_id, Some(&project.id))?;
+    } else {
+        project.series_index = preferred_index;
+    }
+
+    Ok(())
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct TrashedProject {
@@ -255,11 +309,50 @@ pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
 
     let mut projects = Vec::new();
     let mut still_valid_registry_entries: Vec<RegistryEntry> = Vec::new();
+    let mut known_series_ids: HashSet<String> = crate::commands::series::list_series()?
+        .into_iter()
+        .map(|series| series.id)
+        .collect();
+    let mut recovery_series_id: Option<String> = None;
 
     for project_path in candidate_paths {
         let meta_path = PathBuf::from(&project_path).join(".meta/project.json");
         if let Ok(content) = fs::read_to_string(&meta_path) {
-            if let Ok(project) = serde_json::from_str::<ProjectMeta>(&content) {
+            if let Ok(mut project) = serde_json::from_str::<ProjectMeta>(&content) {
+                let mut repaired = false;
+                if !known_series_ids.contains(&project.series_id) {
+                    let missing_series_id = project.series_id.clone();
+                    let reassigned_series_id = if let Some(restored_series_id) =
+                        crate::commands::series::restore_or_recreate_deleted_series(
+                            &missing_series_id,
+                        )?
+                    {
+                        restored_series_id
+                    } else if let Some(existing_recovery_series_id) = recovery_series_id.clone() {
+                        existing_recovery_series_id
+                    } else {
+                        let created_recovery_series_id = get_or_create_recovery_series_id()?;
+                        recovery_series_id = Some(created_recovery_series_id.clone());
+                        created_recovery_series_id
+                    };
+
+                    project.series_id = reassigned_series_id.clone();
+                    known_series_ids.insert(reassigned_series_id);
+                    repaired = true;
+                }
+
+                if project.series_index.trim().is_empty() {
+                    project.series_index = "Book 1".to_string();
+                    repaired = true;
+                }
+
+                if repaired {
+                    project.updated_at = timestamp::now_millis();
+                    let json = serde_json::to_string_pretty(&project)
+                        .map_err(|e| e.to_string())?;
+                    fs::write(&meta_path, json).map_err(|e| e.to_string())?;
+                }
+
                 still_valid_registry_entries.push(RegistryEntry {
                     path: project.path.clone(),
                     title: Some(project.title.clone()),
@@ -550,6 +643,7 @@ pub fn restore_trashed_project(trash_path: String) -> Result<ProjectMeta, String
     let meta_path = source.join(".meta/project.json");
     let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
     let mut project: ProjectMeta = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    ensure_project_has_valid_series(&mut project)?;
 
     let preferred_target = PathBuf::from(&project.path);
     let mut target = preferred_target.clone();

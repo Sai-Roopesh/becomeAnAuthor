@@ -52,24 +52,45 @@ export function useImportExport() {
 
   const importSeries = async (file: File): Promise<ImportSeriesResult> => {
     try {
-      const fileContent = await file.text();
-      let parsedData: unknown;
-      try {
-        parsedData = JSON.parse(fileContent);
-      } catch {
-        throw new Error("Invalid JSON file");
+      const isZipArchive =
+        file.name.toLowerCase().endsWith(".zip") ||
+        file.type === "application/zip" ||
+        file.type === "application/x-zip-compressed";
+
+      let backupJson = "";
+      if (isZipArchive) {
+        toast.info("Detected novel archive. Converting to series backup...");
+        const { convertNovelZipToSeriesBackup } =
+          await import("@/features/data-management/services/novel-zip-converter");
+        const converted = await convertNovelZipToSeriesBackup(file);
+        if (converted.warnings.length > 0) {
+          const warningSummary =
+            converted.warnings[0] ?? "Import completed with warnings.";
+          toast.info(warningSummary);
+          log.warn("Novel archive conversion warnings", converted.warnings);
+        }
+        backupJson = JSON.stringify(converted.backup);
+      } else {
+        const fileContent = await file.text();
+        let parsedData: unknown;
+        try {
+          parsedData = JSON.parse(fileContent);
+        } catch {
+          throw new Error("Invalid JSON file");
+        }
+
+        const validationResult = ExportedSeriesSchema.safeParse(parsedData);
+        if (!validationResult.success) {
+          log.error(
+            "Series backup validation errors",
+            validationResult.error.issues,
+          );
+          throw new Error("Invalid series backup file format.");
+        }
+        backupJson = fileContent;
       }
 
-      const validationResult = ExportedSeriesSchema.safeParse(parsedData);
-      if (!validationResult.success) {
-        log.error(
-          "Series backup validation errors",
-          validationResult.error.issues,
-        );
-        throw new Error("Invalid series backup file format.");
-      }
-
-      const result = await importSeriesBackup(fileContent);
+      const result = await importSeriesBackup(backupJson);
       toast.success(
         `Series "${result.seriesTitle}" imported (${result.importedProjectCount} novel${result.importedProjectCount === 1 ? "" : "s"}).`,
       );

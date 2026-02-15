@@ -169,7 +169,7 @@ export class TauriProjectRepository implements IProjectRepository {
   async restoreFromTrash(trashPath: string): Promise<string> {
     const restored = await restoreTrashedProject(trashPath);
     const { invalidateQueries } = await import("@/hooks/use-live-query");
-    invalidateQueries("projects");
+    invalidateQueries(["projects", "series"]);
     return restored.id;
   }
 

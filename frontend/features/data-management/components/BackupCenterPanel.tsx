@@ -215,7 +215,7 @@ export function BackupCenterPanel({
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json"
+        accept=".json,.zip"
         className="hidden"
         onChange={handleLocalImport}
         disabled={busy}
@@ -421,7 +421,9 @@ export function BackupCenterPanel({
             ) : (
               <Upload className="h-4 w-4 mr-2" />
             )}
-            {isImporting ? "Restoring..." : "Choose Backup File (.json)"}
+            {isImporting
+              ? "Restoring..."
+              : "Choose Backup File (.json or .zip)"}
           </Button>
         ) : !isAuthenticated ? (
           <InlineGoogleAuth onAuthComplete={() => void 0} />

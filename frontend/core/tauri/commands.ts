@@ -55,6 +55,12 @@ export interface TrashedProject {
   deletedAt: number;
 }
 
+export interface DeletedSeriesMeta {
+  oldSeriesId: string;
+  title: string;
+  deletedAt: number;
+}
+
 export interface StructureNode {
   id: string;
   type: string; // "act", "chapter", "scene"
@@ -637,6 +643,22 @@ export async function deleteSeries(seriesId: string): Promise<void> {
  */
 export async function deleteSeriesCascade(seriesId: string): Promise<number> {
   return invoke<number>("delete_series_cascade", { seriesId });
+}
+
+export async function listDeletedSeries(): Promise<DeletedSeriesMeta[]> {
+  return invoke<DeletedSeriesMeta[]>("list_deleted_series");
+}
+
+export async function restoreDeletedSeries(
+  oldSeriesId: string,
+): Promise<Series> {
+  return invoke<Series>("restore_deleted_series", { oldSeriesId });
+}
+
+export async function permanentlyDeleteDeletedSeries(
+  oldSeriesId: string,
+): Promise<void> {
+  return invoke("permanently_delete_deleted_series", { oldSeriesId });
 }
 
 // ============ Series Codex Commands ============
