@@ -159,7 +159,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
 
   const tabButtonClass = (view: "active" | "archived" | "deleted") =>
     cn(
-      "flex-1 h-8 text-xs",
+      "h-8 w-full min-w-0 px-2 text-xs",
       threadView === view
         ? "bg-background border shadow-sm text-foreground"
         : "text-muted-foreground",
@@ -185,7 +185,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
             className="pl-9 bg-muted/50 border-transparent focus:bg-background transition-all"
           />
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border">
+        <div className="grid grid-cols-3 items-center gap-1 p-1 rounded-lg bg-muted/40 border overflow-hidden">
           <Button
             variant="ghost"
             size="sm"

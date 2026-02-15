@@ -2,13 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useProjectStore, ViewMode } from "@/store/use-project-store";
-import {
-  LayoutTemplate,
-  PenTool,
-  MessageSquare,
-  Eye,
-  Home,
-} from "lucide-react";
+import { LayoutTemplate, PenTool, MessageSquare, Home } from "lucide-react";
 import { SettingsDialog } from "../../settings/components/SettingsDialog";
 import Link from "next/link";
 import {
@@ -27,12 +21,11 @@ export function TopNavigation() {
     { id: "plan", label: "Plan", icon: LayoutTemplate },
     { id: "write", label: "Write", icon: PenTool },
     { id: "chat", label: "Chat", icon: MessageSquare },
-    { id: "review", label: "Review", icon: Eye },
   ];
 
   const handleModeChange = (mode: ViewMode) => {
     const hasAIConnection = getEnabledConnections().length > 0;
-    if ((mode === "chat" || mode === "review") && !hasAIConnection) {
+    if (mode === "chat" && !hasAIConnection) {
       toast.info(
         "AI is not configured. Click the settings button to add a connection.",
       );

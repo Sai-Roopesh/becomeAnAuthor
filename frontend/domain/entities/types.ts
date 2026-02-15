@@ -250,74 +250,6 @@ export interface Section {
   createdAt: number;
 }
 
-// Story Analysis Types
-export interface StoryAnalysis {
-  id: string;
-  projectId: string;
-  analysisType:
-    | "synopsis"
-    | "plot-threads"
-    | "character-arcs"
-    | "timeline"
-    | "contradictions"
-    | "foreshadowing"
-    | "pacing"
-    | "genre-fit"
-    | "alpha-reader"
-    | "beta-reader";
-
-  scope: "full" | "act" | "chapter" | "scene";
-  scopeIds: string[]; // IDs of analyzed nodes
-
-  results: {
-    summary?: string;
-    insights: AnalysisInsight[];
-    metrics?: Record<string, number | string | boolean>;
-  };
-
-  // Version tracking
-  createdAt: number;
-  manuscriptVersion: number; // Sum of all scene updatedAt timestamps
-  wordCountAtAnalysis: number;
-  scenesAnalyzedCount: number;
-
-  // AI metadata
-  model: string;
-  tokensUsed?: number;
-
-  // User interaction
-  dismissed: boolean;
-  resolved: boolean;
-  userNotes?: string;
-}
-
-export interface AnalysisInsight {
-  id: string;
-  type: "positive" | "neutral" | "warning" | "error";
-  category:
-    | "plot"
-    | "character"
-    | "timeline"
-    | "pacing"
-    | "world-building"
-    | "dialogue";
-  message: string;
-  severity: 1 | 2 | 3; // 1=minor, 2=moderate, 3=critical
-
-  // References to scenes
-  sceneReferences?: SceneReference[];
-
-  autoSuggest?: string;
-  dismissed: boolean;
-  resolved: boolean;
-}
-
-export interface SceneReference {
-  sceneId: string;
-  sceneTitle: string;
-  excerpt?: string;
-}
-
 // Chat Interface Types
 export interface ChatThread {
   id: string;
@@ -376,7 +308,6 @@ export interface ExportedProject {
   codexAdditions: CodexAddition[];
   sections: Section[];
   snippets: Snippet[];
-  storyAnalyses: StoryAnalysis[]; // NEW
 }
 
 // Google OAuth and Drive Types

@@ -12,7 +12,6 @@ export type { IWorldTimelineRepository } from "./IWorldTimelineRepository";
 export type { ICodexRepository } from "./ICodexRepository";
 export type { IChatRepository } from "./IChatRepository";
 export type { IProjectRepository } from "./IProjectRepository";
-export type { IAnalysisRepository } from "./IAnalysisRepository";
 export type { ISeriesRepository } from "./ISeriesRepository";
 export type { ISnippetRepository } from "./ISnippetRepository";
 export type { ICodexRelationRepository } from "./ICodexRelationRepository";

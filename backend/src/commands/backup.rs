@@ -616,7 +616,6 @@ fn create_project_directory_structure(project_dir: &PathBuf) -> Result<(), Strin
     fs::create_dir_all(project_dir.join(".meta/chat/messages")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("manuscript")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("snippets")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(project_dir.join("analyses")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("exports")).map_err(|e| e.to_string())?;
     Ok(())
 }

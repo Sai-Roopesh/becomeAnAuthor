@@ -4,10 +4,8 @@ import { Suspense } from "react";
 import { EditorContainer } from "@/features/editor/components/EditorContainer";
 import { PlanView } from "@/features/plan/components/plan-view";
 import { ChatInterface } from "@/features/chat/components/chat-interface";
-import { ReviewDashboard } from "@/features/review/components/ReviewDashboard";
 import { SearchPalette } from "@/features/search/components/SearchPalette";
 import { TopNavigation } from "@/features/navigation";
-import { ModelSelector } from "@/features/ai";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProjectStore } from "@/store/use-project-store";
@@ -305,16 +303,6 @@ function ProjectContent() {
           <EditorContainer projectId={projectId} />
         ) : viewMode === "chat" ? (
           <ChatInterface projectId={projectId} />
-        ) : viewMode === "review" ? (
-          <ReviewDashboard
-            projectId={projectId}
-            renderModelSelector={(props) => (
-              <ModelSelector
-                value={props.value}
-                onValueChange={props.onValueChange}
-              />
-            )}
-          />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             Unknown view mode

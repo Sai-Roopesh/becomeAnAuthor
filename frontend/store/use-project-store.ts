@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type ViewMode = "plan" | "write" | "chat" | "review";
+export type ViewMode = "plan" | "write" | "chat";
 
 /** Right panel tabs in Write mode */
 export type RightPanelTab = "timeline" | "notes";

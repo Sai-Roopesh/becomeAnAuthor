@@ -101,10 +101,6 @@ pub fn run() {
             list_scene_codex_links,
             save_scene_codex_link,
             delete_scene_codex_link,
-            // Analysis commands
-            list_analyses,
-            save_analysis,
-            delete_analysis,
             // Emergency backup commands
             save_emergency_backup,
             get_emergency_backup,

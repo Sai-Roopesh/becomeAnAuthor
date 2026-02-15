@@ -13,7 +13,6 @@ import type {
   CodexEntryTag,
   ProjectMap,
   WorldEvent,
-  StoryAnalysis,
   ChatThread,
   ChatMessage,
   Series,
@@ -598,30 +597,6 @@ export async function deleteChatMessage(
   messageId: string,
 ): Promise<void> {
   return invoke("delete_chat_message", { projectPath, threadId, messageId });
-}
-
-// ============ Analysis Commands ============
-
-// Analysis interface removed in favor of StoryAnalysis from types.ts
-
-export async function listAnalyses(
-  projectPath: string,
-): Promise<StoryAnalysis[]> {
-  return invoke<StoryAnalysis[]>("list_analyses", { projectPath });
-}
-
-export async function saveAnalysis(
-  projectPath: string,
-  analysis: StoryAnalysis,
-): Promise<void> {
-  return invoke("save_analysis", { projectPath, analysis });
-}
-
-export async function deleteAnalysis(
-  projectPath: string,
-  analysisId: string,
-): Promise<void> {
-  return invoke("delete_analysis", { projectPath, analysisId });
 }
 
 // ============ Series Commands ============
