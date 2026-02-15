@@ -1,78 +1,87 @@
-'use client';
+"use client";
 /**
  * Unified AI Hook
  * Single hook for all AI generation with streaming, cancellation, and state management
  * Uses Vercel AI SDK's streamText for all providers
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { stream, generate } from '@/lib/ai';
-import { storage } from '@/core/storage/safe-storage';
-import { toast } from '@/shared/utils/toast-service';
-import { logger } from '@/shared/utils/logger';
+import { useState, useCallback, useRef } from "react";
+import { stream, generate } from "@/lib/ai";
+import { storage } from "@/core/storage/safe-storage";
+import { toast } from "@/shared/utils/toast-service";
+import { logger } from "@/shared/utils/logger";
+import type { AIModelMessage } from "@/lib/ai/client";
 
-const log = logger.scope('useAI');
+const log = logger.scope("useAI");
 
 export interface UseAIOptions {
-    /** Initial model to use */
-    defaultModel?: string;
-    /** System prompt */
-    system?: string;
-    /** Auto-save model selection */
-    persistModel?: boolean;
-    /** Operation name for error messages */
-    operationName?: string;
+  /** Initial model to use */
+  defaultModel?: string;
+  /** System prompt prepended to every request */
+  defaultSystem?: string;
+  /** Auto-save model selection */
+  persistModel?: boolean;
+  /** Operation name for error messages */
+  operationName?: string;
 }
 
 export interface GenerateOptions {
-    /** Optional per-request model override */
-    model?: string;
-    /** The main user prompt */
-    prompt: string;
-    /** Optional context to prepend to prompt */
-    context?: string;
-    /** Maximum tokens to generate */
-    maxTokens?: number;
-    /** Temperature for generation */
-    temperature?: number;
-    /** Nucleus sampling */
-    topP?: number;
-    /** Penalize repeated tokens */
-    frequencyPenalty?: number;
-    /** Encourage novel topic tokens */
-    presencePenalty?: number;
-    /** Override system prompt */
-    system?: string;
+  /** Optional per-request model override */
+  model?: string;
+  /** Full conversation payload */
+  messages: AIModelMessage[];
+  /** Maximum tokens to generate */
+  maxTokens?: number;
+  /** Temperature for generation */
+  temperature?: number;
+  /** Nucleus sampling */
+  topP?: number;
+  /** Penalize repeated tokens */
+  frequencyPenalty?: number;
+  /** Encourage novel topic tokens */
+  presencePenalty?: number;
+  /** Override system prompt */
+  system?: string;
 }
 
 export interface StreamCallbacks {
-    /** Called for each chunk of text */
-    onChunk?: (chunk: string) => void;
-    /** Called when generation completes */
-    onComplete?: (fullText: string) => void;
-    /** Called on error */
-    onError?: (error: Error) => void;
+  /** Called for each chunk of text */
+  onChunk?: (chunk: string) => void;
+  /** Called when generation completes */
+  onComplete?: (fullText: string) => void;
+  /** Called on error */
+  onError?: (error: Error) => void;
+}
+
+function withSystemMessage(
+  messages: AIModelMessage[],
+  defaultSystem?: string,
+): AIModelMessage[] {
+  if (!defaultSystem) return messages;
+
+  // Ensure system instruction is always the first message and never mixed into user content.
+  return [{ role: "system", content: defaultSystem }, ...messages];
 }
 
 /**
  * Get initial model from storage or default
  */
 function getDefaultModel(preferred?: string): string {
-    if (preferred) return preferred;
-    const lastUsed = storage.getItem<string>('last_used_model', '');
-    if (lastUsed) return lastUsed;
-    return 'gemini-2.5-flash'; // Fallback default
+  if (preferred) return preferred;
+  const lastUsed = storage.getItem<string>("last_used_model", "");
+  if (lastUsed) return lastUsed;
+  return "gpt-4.1-mini"; // Fallback default
 }
 
 /**
  * Unified AI hook for all generation needs
- * 
+ *
  * @example
  * ```tsx
  * const { generateStream, isGenerating, cancel } = useAI();
- * 
+ *
  * await generateStream(
- *   { prompt: 'Write a story' },
+ *   { messages: [{ role: 'user', content: 'Write a story' }] },
  *   {
  *     onChunk: (chunk) => setResult(prev => prev + chunk),
  *     onComplete: (text) => console.log('Done!', text)
@@ -81,146 +90,174 @@ function getDefaultModel(preferred?: string): string {
  * ```
  */
 export function useAI(options: UseAIOptions = {}) {
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [model, setModel] = useState(() => getDefaultModel(options.defaultModel));
-    const [error, setError] = useState<string | null>(null);
-    const abortControllerRef = useRef<AbortController | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [model, setModel] = useState(() =>
+    getDefaultModel(options.defaultModel),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-    /**
-     * Non-streaming generation
-     */
-    const generateText = useCallback(async (genOptions: GenerateOptions): Promise<string> => {
-        if (isGenerating) {
-            log.warn('Generation already in progress');
-            return '';
+  /**
+   * Non-streaming generation
+   */
+  const generateText = useCallback(
+    async (genOptions: GenerateOptions): Promise<string> => {
+      if (isGenerating) {
+        log.warn("Generation already in progress");
+        return "";
+      }
+      if (genOptions.messages.length === 0) {
+        const errorMsg = `${options.operationName || "Generation"} failed: no messages provided`;
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return "";
+      }
+
+      setIsGenerating(true);
+      setError(null);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        const modelToUse = genOptions.model || model;
+        const messages = withSystemMessage(
+          genOptions.messages,
+          options.defaultSystem,
+        );
+        const result = await generate({
+          model: modelToUse,
+          messages,
+          signal: controller.signal,
+          ...(genOptions.maxTokens && { maxTokens: genOptions.maxTokens }),
+          ...(genOptions.temperature != null && {
+            temperature: genOptions.temperature,
+          }),
+          ...(genOptions.topP != null && { topP: genOptions.topP }),
+          ...(genOptions.frequencyPenalty != null && {
+            frequencyPenalty: genOptions.frequencyPenalty,
+          }),
+          ...(genOptions.presencePenalty != null && {
+            presencePenalty: genOptions.presencePenalty,
+          }),
+        });
+
+        if (options.persistModel) {
+          storage.setItem("last_used_model", modelToUse);
         }
 
-        setIsGenerating(true);
-        setError(null);
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-
-        try {
-            const modelToUse = genOptions.model || model;
-            const fullPrompt = genOptions.context
-                ? `${genOptions.context}\n\n${genOptions.prompt}`
-                : genOptions.prompt;
-
-            const systemPrompt = genOptions.system || options.system;
-            const result = await generate({
-                model: modelToUse,
-                prompt: fullPrompt,
-                signal: controller.signal,
-                ...(systemPrompt && { system: systemPrompt }),
-                ...(genOptions.maxTokens && { maxTokens: genOptions.maxTokens }),
-                ...(genOptions.temperature != null && { temperature: genOptions.temperature }),
-                ...(genOptions.topP != null && { topP: genOptions.topP }),
-                ...(genOptions.frequencyPenalty != null && { frequencyPenalty: genOptions.frequencyPenalty }),
-                ...(genOptions.presencePenalty != null && { presencePenalty: genOptions.presencePenalty }),
-            });
-
-            if (options.persistModel) {
-                storage.setItem('last_used_model', modelToUse);
-            }
-
-            return result.text;
-        } catch (err: unknown) {
-            const e = err as Error;
-            if (e.name !== 'AbortError') {
-                const errorMsg = `${options.operationName || 'Generation'} failed: ${e.message}`;
-                setError(errorMsg);
-                toast.error(errorMsg);
-            }
-            return '';
-        } finally {
-            setIsGenerating(false);
-            abortControllerRef.current = null;
+        return result.text;
+      } catch (err: unknown) {
+        const e = err as Error;
+        if (e.name !== "AbortError") {
+          const errorMsg = `${options.operationName || "Generation"} failed: ${e.message}`;
+          setError(errorMsg);
+          toast.error(errorMsg);
         }
-    }, [model, isGenerating, options]);
+        return "";
+      } finally {
+        setIsGenerating(false);
+        abortControllerRef.current = null;
+      }
+    },
+    [model, isGenerating, options],
+  );
 
-    /**
-     * Streaming generation with callbacks
-     */
-    const generateStream = useCallback(async (
-        genOptions: GenerateOptions,
-        callbacks: StreamCallbacks = {}
+  /**
+   * Streaming generation with callbacks
+   */
+  const generateStream = useCallback(
+    async (
+      genOptions: GenerateOptions,
+      callbacks: StreamCallbacks = {},
     ): Promise<string> => {
-        if (isGenerating) {
-            log.warn('Generation already in progress');
-            return '';
+      if (isGenerating) {
+        log.warn("Generation already in progress");
+        return "";
+      }
+      if (genOptions.messages.length === 0) {
+        const errorMsg = `${options.operationName || "Generation"} failed: no messages provided`;
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return "";
+      }
+
+      setIsGenerating(true);
+      setError(null);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        const modelToUse = genOptions.model || model;
+        const messages = withSystemMessage(
+          genOptions.messages,
+          options.defaultSystem,
+        );
+        const result = await stream({
+          model: modelToUse,
+          messages,
+          signal: controller.signal,
+          ...(genOptions.maxTokens && { maxTokens: genOptions.maxTokens }),
+          ...(genOptions.temperature != null && {
+            temperature: genOptions.temperature,
+          }),
+          ...(genOptions.topP != null && { topP: genOptions.topP }),
+          ...(genOptions.frequencyPenalty != null && {
+            frequencyPenalty: genOptions.frequencyPenalty,
+          }),
+          ...(genOptions.presencePenalty != null && {
+            presencePenalty: genOptions.presencePenalty,
+          }),
+        });
+
+        let fullText = "";
+        for await (const chunk of result.textStream) {
+          fullText += chunk;
+          callbacks.onChunk?.(chunk);
         }
 
-        setIsGenerating(true);
-        setError(null);
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-
-        try {
-            const modelToUse = genOptions.model || model;
-            const fullPrompt = genOptions.context
-                ? `${genOptions.context}\n\n${genOptions.prompt}`
-                : genOptions.prompt;
-
-            const systemPrompt = genOptions.system || options.system;
-            const result = await stream({
-                model: modelToUse,
-                prompt: fullPrompt,
-                signal: controller.signal,
-                ...(systemPrompt && { system: systemPrompt }),
-                ...(genOptions.maxTokens && { maxTokens: genOptions.maxTokens }),
-                ...(genOptions.temperature != null && { temperature: genOptions.temperature }),
-                ...(genOptions.topP != null && { topP: genOptions.topP }),
-                ...(genOptions.frequencyPenalty != null && { frequencyPenalty: genOptions.frequencyPenalty }),
-                ...(genOptions.presencePenalty != null && { presencePenalty: genOptions.presencePenalty }),
-            });
-
-            let fullText = '';
-            for await (const chunk of result.textStream) {
-                fullText += chunk;
-                callbacks.onChunk?.(chunk);
-            }
-
-            if (options.persistModel) {
-                storage.setItem('last_used_model', modelToUse);
-            }
-
-            callbacks.onComplete?.(fullText);
-            return fullText;
-        } catch (err: unknown) {
-            const e = err as Error;
-            if (e.name !== 'AbortError') {
-                const errorMsg = `${options.operationName || 'Generation'} failed: ${e.message}`;
-                setError(errorMsg);
-                toast.error(errorMsg);
-                callbacks.onError?.(e);
-            }
-            return '';
-        } finally {
-            setIsGenerating(false);
-            abortControllerRef.current = null;
+        if (options.persistModel) {
+          storage.setItem("last_used_model", modelToUse);
         }
-    }, [model, isGenerating, options]);
 
-    /**
-     * Cancel ongoing generation
-     */
-    const cancel = useCallback(() => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            toast.info('Generation cancelled');
+        callbacks.onComplete?.(fullText);
+        return fullText;
+      } catch (err: unknown) {
+        const e = err as Error;
+        if (e.name !== "AbortError") {
+          const errorMsg = `${options.operationName || "Generation"} failed: ${e.message}`;
+          setError(errorMsg);
+          toast.error(errorMsg);
+          callbacks.onError?.(e);
         }
-    }, []);
+        return "";
+      } finally {
+        setIsGenerating(false);
+        abortControllerRef.current = null;
+      }
+    },
+    [model, isGenerating, options],
+  );
 
-    return {
-        // State
-        isGenerating,
-        model,
-        error,
+  /**
+   * Cancel ongoing generation
+   */
+  const cancel = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      toast.info("Generation cancelled");
+    }
+  }, []);
 
-        // Actions
-        setModel,
-        generate: generateText,
-        generateStream,
-        cancel,
-    };
+  return {
+    // State
+    isGenerating,
+    model,
+    error,
+
+    // Actions
+    setModel,
+    generate: generateText,
+    generateStream,
+    cancel,
+  };
 }

@@ -1,59 +1,82 @@
-/**
- * Example test for use-ai hook
- * Demonstrates testing patterns for custom React hooks
- */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useAI } from "./use-ai";
+import { stream } from "@/lib/ai";
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useAI } from './use-ai';
-
-// Mock the storage
-vi.mock('@/core/storage/safe-storage', () => ({
-    storage: {
-        getItem: vi.fn(),
-        setItem: vi.fn(),
-    },
+vi.mock("@/core/storage/safe-storage", () => ({
+  storage: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+  },
 }));
 
-// Mock the invoke function
-vi.mock('@tauri-apps/api/core', () => ({
-    invoke: vi.fn(),
+vi.mock("@/lib/ai", () => ({
+  generate: vi.fn(),
+  stream: vi.fn(),
 }));
 
-// Mock ai-utils to provide getValidatedModel
-vi.mock('@/shared/utils/ai-utils', () => ({
-    getValidatedModel: vi.fn().mockReturnValue({ model: '', isValid: false }),
-    formatAIError: vi.fn().mockReturnValue(''),
-    buildAIPrompt: vi.fn().mockReturnValue({ system: '', prompt: '' }),
-    persistModelSelection: vi.fn(),
+vi.mock("@/shared/utils/toast-service", () => ({
+  toast: {
+    error: vi.fn(),
+    info: vi.fn(),
+  },
 }));
 
-describe('useAI', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
+describe("useAI", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const { storage } = await import("@/core/storage/safe-storage");
+    vi.mocked(storage.getItem).mockReturnValue("");
+  });
+
+  it("initializes with fallback model when storage is empty", () => {
+    const { result } = renderHook(() => useAI());
+
+    expect(result.current.isGenerating).toBe(false);
+    expect(result.current.model).toBe("gpt-4.1-mini");
+  });
+
+  it("allows setting model explicitly", () => {
+    const { result } = renderHook(() => useAI());
+
+    act(() => {
+      result.current.setModel("openai/gpt-4.1-mini");
     });
 
-    it('should initialize with default values', () => {
-        const { result } = renderHook(() => useAI({
-            system: 'Test system prompt',
-        }));
+    expect(result.current.model).toBe("openai/gpt-4.1-mini");
+  });
 
-        expect(result.current.isGenerating).toBe(false);
-        expect(result.current.model).toBe('');
+  it("prepends default system message when streaming", async () => {
+    vi.mocked(stream).mockResolvedValue({
+      textStream: (async function* () {
+        yield "hello";
+      })(),
+    } as Awaited<ReturnType<typeof stream>>);
+
+    const { result } = renderHook(() =>
+      useAI({ defaultSystem: "System guardrail" }),
+    );
+
+    act(() => {
+      result.current.setModel("openai/gpt-4.1-mini");
     });
 
-    it('should handle model selection', () => {
-        const { result } = renderHook(() => useAI({
-            system: 'Test system prompt',
-            persistModel: false,
-        }));
-
-        act(() => {
-            result.current.setModel('gpt-4');
-        });
-
-        expect(result.current.model).toBe('gpt-4');
+    let text = "";
+    await act(async () => {
+      text = await result.current.generateStream({
+        messages: [{ role: "user", content: "Write one line." }],
+      });
     });
 
-    // Add more tests as needed
+    expect(text).toBe("hello");
+    expect(stream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "openai/gpt-4.1-mini",
+        messages: [
+          { role: "system", content: "System guardrail" },
+          { role: "user", content: "Write one line." },
+        ],
+      }),
+    );
+  });
 });

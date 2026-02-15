@@ -15,7 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 // ScrollArea, Checkbox imports removed - unused
 import { Expand, Copy } from "lucide-react";
 import { ModelSelector } from "@/features/ai/components/model-selector";
-import type { ChatContext } from "@/domain/entities/types";
 import { storage } from "@/core/storage/safe-storage";
 import {
   useDialogState,
@@ -43,7 +42,6 @@ interface TweakGenerateDialogProps {
 export interface GenerateOptions {
   wordCount: number;
   instructions: string;
-  context: ChatContext;
   model: string;
   selectedContexts?: ContextItem[];
   reasoning?: "enabled" | "disabled"; // NEW: reasoning toggle
@@ -83,7 +81,6 @@ export function TweakGenerateDialog({
     onGenerate({
       wordCount: parseInt(state.wordCount) || 400,
       instructions: state.instructions,
-      context: {}, // Context selection handled via selectedContexts
       model:
         state.model ||
         storage.getItem<string>("last_used_model", "openai/gpt-3.5-turbo"),

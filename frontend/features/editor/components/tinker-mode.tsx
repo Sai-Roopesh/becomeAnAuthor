@@ -49,7 +49,7 @@ export function TinkerMode({
   });
 
   const { generateStream, isGenerating, model, setModel, cancel } = useAI({
-    system: `You are an expert creative writing editor specializing in custom text modifications.
+    defaultSystem: `You are an expert creative writing editor specializing in custom text modifications.
 
 MODIFICATION PRINCIPLES:
 - Understand the intent: Interpret user instructions accurately
@@ -85,7 +85,10 @@ Follow the user's instructions precisely. Output only the modified text without 
 
     await generateStream(
       {
-        prompt: `TASK: ${data.instruction}
+        messages: [
+          {
+            role: "user",
+            content: `TASK: ${data.instruction}
 
 ORIGINAL TEXT:
 "${selectedText}"
@@ -96,6 +99,8 @@ Original: "He opened the door."
 Modified: "His hand trembled on the knob. The door swung open—silence beyond, thick and waiting."
 
 Now apply your task to the original text. Provide ONLY the modified text:`,
+          },
+        ],
         maxTokens: 2000,
       },
       {

@@ -91,7 +91,10 @@ Output exactly an array of 4-5 objects in this shape:
 ]`;
 
 function mapSparkPrompts(
-  items: Array<{ category: "dialogue" | "action" | "description"; text: string }>,
+  items: Array<{
+    category: "dialogue" | "action" | "description";
+    text: string;
+  }>,
 ): SparkPrompt[] {
   const timestamp = Date.now();
   return items.map((p, i) => ({
@@ -172,8 +175,10 @@ export const SparkPopover = memo(function SparkPopover({
       const response = await generateObject({
         model: selectedModel,
         schema: SparkPromptsSchema,
-        system: SPARK_SYSTEM_PROMPT,
-        prompt: contextPrompt,
+        messages: [
+          { role: "system", content: SPARK_SYSTEM_PROMPT },
+          { role: "user", content: contextPrompt },
+        ],
         maxTokens: 500,
         temperature: 0.8,
       });
@@ -195,8 +200,13 @@ export const SparkPopover = memo(function SparkPopover({
           );
           const fallbackResponse = await generate({
             model: selectedModel,
-            system: `${SPARK_SYSTEM_PROMPT}\n\n${SPARK_JSON_FALLBACK_PROMPT}`,
-            prompt: contextPrompt,
+            messages: [
+              {
+                role: "system",
+                content: `${SPARK_SYSTEM_PROMPT}\n\n${SPARK_JSON_FALLBACK_PROMPT}`,
+              },
+              { role: "user", content: contextPrompt },
+            ],
             maxTokens: 600,
             temperature: 0.8,
           });
@@ -226,7 +236,9 @@ export const SparkPopover = memo(function SparkPopover({
       }
 
       log.error("Spark generation error:", err);
-      setError(err instanceof Error ? err.message : "Failed to generate prompts");
+      setError(
+        err instanceof Error ? err.message : "Failed to generate prompts",
+      );
     } finally {
       setIsLoading(false);
     }

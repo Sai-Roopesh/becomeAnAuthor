@@ -1,198 +1,326 @@
 "use client";
 /**
- * Centralized Context Assembly Hook
- * Eliminates code duplication across chat/editor context assembly flows.
+ * Context Assembly Hook
+ * Builds provenance-rich context sources and packs them by relevance + token budget.
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { logger } from "@/shared/utils/logger";
-import { CACHE_CONSTANTS } from "@/lib/config/constants";
+import {
+  packContext,
+  type ContextSource,
+  type ContextPackResult,
+} from "@/shared/utils/context-packer";
+import type {
+  Scene,
+  Act,
+  Chapter,
+  BaseNode,
+  CodexEntry,
+} from "@/domain/entities/types";
+import type { TiptapContent, TiptapNode } from "@/shared/types/tiptap";
+import { isElementNode } from "@/shared/types/tiptap";
+import type { ContextItem } from "@/features/shared/components";
 
 const log = logger.scope("ContextAssembly");
-import type { ContextItem } from "@/features/shared/components";
-import type { Scene, Act, Chapter, BaseNode } from "@/domain/entities/types";
 
 // Union type for all node types
-type StoryNode = Scene | Act | Chapter | (BaseNode & { type: string });
+export type StoryNode = Scene | Act | Chapter | (BaseNode & { type: string });
 
-// Type guard for scene nodes
+interface AssembleContextOptions {
+  query: string;
+  model: string;
+  maxContextTokens?: number;
+  maxBlocks?: number;
+}
+
 function isSceneNode(node: StoryNode): node is Scene {
   return node.type === "scene";
 }
 
-/**
- * Hook for assembling context from selected items
- * Provides caching to avoid re-fetching same nodes
- * Series-first: requires seriesId for codex lookups
- */
+function formatSceneContent(scene: Scene): string {
+  const lines: string[] = [];
+  lines.push(`Scene: ${scene.title}`);
+
+  if (scene.pov) {
+    lines.push(`POV: ${scene.pov}`);
+  }
+  if (scene.subtitle) {
+    lines.push(`Subtitle: ${scene.subtitle}`);
+  }
+  if (scene.summary) {
+    lines.push(`Summary: ${scene.summary}`);
+  }
+
+  const text = extractTextFromTiptap(scene.content);
+  if (text) {
+    lines.push("Content:");
+    lines.push(text);
+  }
+
+  return lines.join("\n").trim();
+}
+
+function formatCodexContent(entry: CodexEntry): string {
+  const lines: string[] = [];
+  lines.push(`${entry.category.toUpperCase()}: ${entry.name}`);
+
+  if (entry.coreDescription) {
+    lines.push(`Key traits: ${entry.coreDescription}`);
+  }
+  if (entry.description) {
+    lines.push(entry.description);
+  }
+
+  const attrEntries = Object.entries(entry.attributes ?? {}).filter(
+    ([, value]) => Boolean(value),
+  );
+  if (attrEntries.length > 0) {
+    lines.push("Attributes:");
+    for (const [key, value] of attrEntries) {
+      lines.push(`- ${key}: ${value}`);
+    }
+  }
+
+  if (entry.aliases?.length) {
+    lines.push(`Aliases: ${entry.aliases.join(", ")}`);
+  }
+
+  return lines.join("\n").trim();
+}
+
+function addOrReplaceSource(
+  sourceMap: Map<string, ContextSource>,
+  source: ContextSource,
+): void {
+  const key = `${source.type}:${source.id}`;
+  const existing = sourceMap.get(key);
+  if (!existing || existing.content.length < source.content.length) {
+    sourceMap.set(key, source);
+  }
+}
+
+function extractTextFromTiptap(
+  content: TiptapContent | null | undefined,
+): string {
+  if (!content || !content.content) {
+    return "";
+  }
+
+  let text = "";
+
+  const processNode = (node: TiptapNode): void => {
+    if (node.type === "text") {
+      text += node.text || "";
+    } else if (
+      isElementNode(node) &&
+      node.content &&
+      Array.isArray(node.content)
+    ) {
+      for (const child of node.content) {
+        processNode(child);
+      }
+      if (node.type === "paragraph" || node.type === "heading") {
+        text += "\n";
+      }
+    }
+  };
+
+  if (Array.isArray(content.content)) {
+    for (const node of content.content) {
+      processNode(node);
+    }
+  }
+
+  return text.trim();
+}
+
 export function useContextAssembly(projectId: string, seriesId?: string) {
   const {
     nodeRepository: nodeRepo,
     codexRepository: codexRepo,
     projectRepository: projectRepo,
   } = useAppServices();
-  const cacheRef = useRef(new Map<string, string>());
 
-  // We may need to fetch the project to get seriesId if not provided
-  const resolvedSeriesIdRef = useRef<string | undefined>(seriesId);
-
-  // Update the ref when seriesId changes
-  if (seriesId) {
-    resolvedSeriesIdRef.current = seriesId;
-  }
-
-  /**
-   * Assemble context from selected context items
-   * Supports: scenes, acts, chapters, full novel, outline, codex entries
-   */
-  const assembleContext = useCallback(
-    async (selectedContexts: ContextItem[]): Promise<string> => {
-      if (selectedContexts.length === 0) return "";
-
-      // Check cache first
-      const cacheKey = selectedContexts
-        .map((c) => `${c.type}:${c.id || "global"}`)
-        .sort()
-        .join("|");
-
-      if (cacheRef.current.has(cacheKey)) {
-        log.debug("Cache hit", { cacheKey });
-        return cacheRef.current.get(cacheKey)!;
-      }
-
-      // Resolve seriesId if not provided (fallback for backward compatibility)
-      let effectiveSeriesId = resolvedSeriesIdRef.current;
-      if (!effectiveSeriesId) {
-        const project = await projectRepo.get(projectId);
-        effectiveSeriesId = project?.seriesId;
-      }
-
-      const { getContextAssembler } =
-        await import("@/shared/utils/context-assembler");
-      const contextAssembler = getContextAssembler();
-      const contexts: string[] = [];
-
-      const loadSceneForContext = async (sceneId: string): Promise<Scene | null> => {
-        const node = (await nodeRepo.get(sceneId)) as Scene | undefined;
-        if (node && node.type === "scene") return node;
+  const loadScene = useCallback(
+    async (sceneId: string): Promise<Scene | null> => {
+      const node = (await nodeRepo.get(sceneId)) as Scene | undefined;
+      if (!node || node.type !== "scene") {
         return null;
-      };
+      }
+      return node;
+    },
+    [nodeRepo],
+  );
 
-      for (const context of selectedContexts) {
+  const resolveSeriesId = useCallback(async (): Promise<string | undefined> => {
+    if (seriesId) return seriesId;
+    const project = await projectRepo.get(projectId);
+    return project?.seriesId;
+  }, [seriesId, projectRepo, projectId]);
+
+  const assembleContextPack = useCallback(
+    async (
+      selectedContexts: ContextItem[],
+      options: AssembleContextOptions,
+    ): Promise<ContextPackResult> => {
+      if (selectedContexts.length === 0) {
+        return packContext([], {
+          query: options.query,
+          model: options.model,
+          ...(options.maxContextTokens !== undefined && {
+            maxContextTokens: options.maxContextTokens,
+          }),
+          ...(options.maxBlocks !== undefined && {
+            maxBlocks: options.maxBlocks,
+          }),
+        });
+      }
+
+      const effectiveSeriesId = await resolveSeriesId();
+      const sourceMap = new Map<string, ContextSource>();
+
+      const allNodes = (await nodeRepo.getByProject(projectId)) as StoryNode[];
+      const scenesById = new Map(
+        allNodes.filter(isSceneNode).map((scene) => [scene.id, scene]),
+      );
+
+      for (const selected of selectedContexts) {
         try {
-          if (context.type === "novel") {
-            // Fetch all scenes and combine
-            const nodes = (await nodeRepo.getByProject(
-              projectId,
-            )) as StoryNode[];
-            const sceneNodes = nodes.filter(isSceneNode);
-            for (const scene of sceneNodes) {
-              const fullScene = await loadSceneForContext(scene.id);
-              if (fullScene) {
-                const sceneContext = contextAssembler.createSceneContext(fullScene);
-                contexts.push(sceneContext.content);
-              }
+          if (selected.type === "novel") {
+            for (const scene of scenesById.values()) {
+              if (scene.excludeFromAI) continue;
+              const fullScene = (await loadScene(scene.id)) ?? scene;
+              addOrReplaceSource(sourceMap, {
+                id: fullScene.id,
+                type: "scene",
+                label: fullScene.title,
+                content: formatSceneContent(fullScene),
+                updatedAt: fullScene.updatedAt,
+              });
             }
-          } else if (context.type === "outline") {
-            // Fetch structure outline
-            const nodes = (await nodeRepo.getByProject(
-              projectId,
-            )) as StoryNode[];
-            const outline = nodes
-              .map((n) => `${n.type.toUpperCase()}: ${n.title}`)
+            continue;
+          }
+
+          if (selected.type === "outline") {
+            const outline = allNodes
+              .slice()
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map((node) => `${node.type.toUpperCase()}: ${node.title}`)
               .join("\n");
-            contexts.push(`=== OUTLINE ===\n${outline}`);
-          } else if (context.type === "scene" && context.id) {
-            // Fetch specific scene
-            const scene = (await nodeRepo.get(context.id)) as Scene | undefined;
-            if (scene) {
-              const sceneContext = contextAssembler.createSceneContext(scene);
-              contexts.push(sceneContext.content);
-            }
-          } else if (context.type === "act" && context.id) {
-            // Fetch all scenes in act
+
+            addOrReplaceSource(sourceMap, {
+              id: "project-outline",
+              type: "outline",
+              label: "Full Outline",
+              content: outline,
+            });
+            continue;
+          }
+
+          if (selected.type === "scene" && selected.id) {
+            const scene = await loadScene(selected.id);
+            if (!scene) continue;
+            addOrReplaceSource(sourceMap, {
+              id: scene.id,
+              type: "scene",
+              label: scene.title,
+              content: formatSceneContent(scene),
+              updatedAt: scene.updatedAt,
+            });
+            continue;
+          }
+
+          if (selected.type === "act" && selected.id) {
             const children = (await nodeRepo.getChildren(
-              context.id,
+              selected.id,
             )) as StoryNode[];
             for (const child of children) {
               if (isSceneNode(child)) {
-                const fullScene = await loadSceneForContext(child.id);
-                if (fullScene) {
-                  const sceneContext = contextAssembler.createSceneContext(fullScene);
-                  contexts.push(sceneContext.content);
-                }
-              } else if (child.type === "chapter") {
-                const grandchildren = (await nodeRepo.getChildren(
+                if (child.excludeFromAI) continue;
+                const fullScene = (await loadScene(child.id)) ?? child;
+                addOrReplaceSource(sourceMap, {
+                  id: fullScene.id,
+                  type: "scene",
+                  label: fullScene.title,
+                  content: formatSceneContent(fullScene),
+                  updatedAt: fullScene.updatedAt,
+                });
+                continue;
+              }
+
+              if (child.type === "chapter") {
+                const chapterScenes = (await nodeRepo.getChildren(
                   child.id,
                 )) as StoryNode[];
-                for (const scene of grandchildren.filter(isSceneNode)) {
-                  const fullScene = await loadSceneForContext(scene.id);
-                  if (fullScene) {
-                    const sceneContext = contextAssembler.createSceneContext(fullScene);
-                    contexts.push(sceneContext.content);
-                  }
+                for (const chapterScene of chapterScenes.filter(isSceneNode)) {
+                  if (chapterScene.excludeFromAI) continue;
+                  const fullScene =
+                    (await loadScene(chapterScene.id)) ?? chapterScene;
+                  addOrReplaceSource(sourceMap, {
+                    id: fullScene.id,
+                    type: "scene",
+                    label: fullScene.title,
+                    content: formatSceneContent(fullScene),
+                    updatedAt: fullScene.updatedAt,
+                  });
                 }
               }
             }
-          } else if (context.type === "chapter" && context.id) {
-            // Fetch all scenes in chapter
+            continue;
+          }
+
+          if (selected.type === "chapter" && selected.id) {
             const children = (await nodeRepo.getChildren(
-              context.id,
+              selected.id,
             )) as StoryNode[];
             for (const scene of children.filter(isSceneNode)) {
-              const fullScene = await loadSceneForContext(scene.id);
-              if (fullScene) {
-                const sceneContext = contextAssembler.createSceneContext(fullScene);
-                contexts.push(sceneContext.content);
-              }
+              if (scene.excludeFromAI) continue;
+              const fullScene = (await loadScene(scene.id)) ?? scene;
+              addOrReplaceSource(sourceMap, {
+                id: fullScene.id,
+                type: "scene",
+                label: fullScene.title,
+                content: formatSceneContent(fullScene),
+                updatedAt: fullScene.updatedAt,
+              });
             }
-          } else if (
-            context.type === "codex" &&
-            context.id &&
-            effectiveSeriesId
-          ) {
-            // Fetch codex entry - series-first: use seriesId
-            const entry = await codexRepo.get(effectiveSeriesId, context.id);
-            if (entry) {
-              const codexContext = contextAssembler.createCodexContext(entry);
-              contexts.push(codexContext.content);
-            }
+            continue;
+          }
+
+          if (selected.type === "codex" && selected.id && effectiveSeriesId) {
+            const entry = await codexRepo.get(effectiveSeriesId, selected.id);
+            if (!entry) continue;
+
+            addOrReplaceSource(sourceMap, {
+              id: entry.id,
+              type: "codex",
+              label: entry.name,
+              content: formatCodexContent(entry),
+              updatedAt: entry.updatedAt,
+            });
           }
         } catch (error) {
-          log.error(`Failed to load ${context.label}`, error);
-          contexts.push(`[${context.label}]: Failed to load content`);
+          log.error(`Failed to load context item: ${selected.label}`, error);
         }
       }
 
-      const result = contexts.join("\n\n---\n\n");
-
-      // Cache the result
-      cacheRef.current.set(cacheKey, result);
-
-      // Limit cache size to prevent memory issues
-      if (cacheRef.current.size > CACHE_CONSTANTS.CONTEXT_CACHE_SIZE) {
-        const firstKey = cacheRef.current.keys().next().value;
-        if (firstKey !== undefined) {
-          cacheRef.current.delete(firstKey);
-        }
-      }
-
-      return result;
+      return packContext(Array.from(sourceMap.values()), {
+        query: options.query,
+        model: options.model,
+        ...(options.maxContextTokens !== undefined && {
+          maxContextTokens: options.maxContextTokens,
+        }),
+        ...(options.maxBlocks !== undefined && {
+          maxBlocks: options.maxBlocks,
+        }),
+      });
     },
-    [projectId, nodeRepo, codexRepo, projectRepo],
+    [resolveSeriesId, nodeRepo, projectId, loadScene, codexRepo],
   );
 
-  /**
-   * Clear the context cache
-   * Useful when nodes/codex entries are updated
-   */
-  const clearCache = useCallback(() => {
-    cacheRef.current.clear();
-  }, []);
-
   return {
-    assembleContext,
-    clearCache,
+    assembleContextPack,
   };
 }

@@ -34,7 +34,7 @@ export function DetailsTab({ entity, onChange }: DetailsTabProps) {
   });
 
   const { generate, isGenerating } = useAI({
-    system:
+    defaultSystem:
       "You are a helpful creative writing assistant specializing in world-building.",
     operationName: "Codex Description Generation",
   });
@@ -86,7 +86,7 @@ STYLE:
 Generate now for: ${entity.name} (${entity.category})`;
 
     const description = await generate({
-      prompt,
+      messages: [{ role: "user", content: prompt }],
       maxTokens: 500,
     });
 

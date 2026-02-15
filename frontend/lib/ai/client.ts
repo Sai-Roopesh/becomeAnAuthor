@@ -8,10 +8,16 @@ import { getModel } from "./providers";
 import { storage } from "@/core/storage/safe-storage";
 import type { AIConnection } from "@/lib/config/ai-vendors";
 
+export type AIMessageRole = "system" | "user" | "assistant";
+
+export interface AIModelMessage {
+  role: AIMessageRole;
+  content: string;
+}
+
 export interface GenerateOptions {
   model: string;
-  system?: string;
-  prompt: string;
+  messages: AIModelMessage[];
   maxTokens?: number;
   temperature?: number;
   topP?: number;
@@ -23,14 +29,19 @@ export interface GenerateOptions {
 export interface GenerateObjectOptions<T> {
   model: string;
   schema: ZodType<T>;
-  prompt: string;
-  system?: string;
+  messages: AIModelMessage[];
   maxTokens?: number;
   temperature?: number;
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
   signal?: AbortSignal;
+}
+
+function assertMessages(messages: AIModelMessage[]): void {
+  if (!messages.length) {
+    throw new Error("AI request requires at least one message.");
+  }
 }
 
 /**
@@ -62,19 +73,23 @@ function getConnection(modelId: string): AIConnection {
  * Use for one-shot generation like analysis, spark prompts, etc.
  */
 export async function generate(opts: GenerateOptions) {
+  assertMessages(opts.messages);
   const connection = getConnection(opts.model);
   const model = getModel(connection, opts.model);
 
   // Conditionally include optional properties to satisfy exactOptionalPropertyTypes
   return sdkGenerateText({
     model,
-    prompt: opts.prompt,
-    ...(opts.system && { system: opts.system }),
+    messages: opts.messages,
     ...(opts.maxTokens && { maxOutputTokens: opts.maxTokens }),
     ...(opts.temperature != null && { temperature: opts.temperature }),
     ...(opts.topP != null && { topP: opts.topP }),
-    ...(opts.frequencyPenalty != null && { frequencyPenalty: opts.frequencyPenalty }),
-    ...(opts.presencePenalty != null && { presencePenalty: opts.presencePenalty }),
+    ...(opts.frequencyPenalty != null && {
+      frequencyPenalty: opts.frequencyPenalty,
+    }),
+    ...(opts.presencePenalty != null && {
+      presencePenalty: opts.presencePenalty,
+    }),
     ...(opts.signal && { abortSignal: opts.signal }),
   });
 }
@@ -85,19 +100,23 @@ export async function generate(opts: GenerateOptions) {
  * Returns an async iterable that yields text chunks.
  */
 export async function stream(opts: GenerateOptions) {
+  assertMessages(opts.messages);
   const connection = getConnection(opts.model);
   const model = getModel(connection, opts.model);
 
   // Conditionally include optional properties to satisfy exactOptionalPropertyTypes
   return streamText({
     model,
-    prompt: opts.prompt,
-    ...(opts.system && { system: opts.system }),
+    messages: opts.messages,
     ...(opts.maxTokens && { maxOutputTokens: opts.maxTokens }),
     ...(opts.temperature != null && { temperature: opts.temperature }),
     ...(opts.topP != null && { topP: opts.topP }),
-    ...(opts.frequencyPenalty != null && { frequencyPenalty: opts.frequencyPenalty }),
-    ...(opts.presencePenalty != null && { presencePenalty: opts.presencePenalty }),
+    ...(opts.frequencyPenalty != null && {
+      frequencyPenalty: opts.frequencyPenalty,
+    }),
+    ...(opts.presencePenalty != null && {
+      presencePenalty: opts.presencePenalty,
+    }),
     ...(opts.signal && { abortSignal: opts.signal }),
   });
 }
@@ -108,19 +127,23 @@ export async function stream(opts: GenerateOptions) {
  * Guarantees type-safe output matching the provided schema.
  */
 export async function object<T>(opts: GenerateObjectOptions<T>) {
+  assertMessages(opts.messages);
   const connection = getConnection(opts.model);
   const model = getModel(connection, opts.model);
 
   return sdkGenerateObject({
     model,
     schema: opts.schema,
-    prompt: opts.prompt,
-    ...(opts.system && { system: opts.system }),
+    messages: opts.messages,
     ...(opts.maxTokens && { maxOutputTokens: opts.maxTokens }),
     ...(opts.temperature != null && { temperature: opts.temperature }),
     ...(opts.topP != null && { topP: opts.topP }),
-    ...(opts.frequencyPenalty != null && { frequencyPenalty: opts.frequencyPenalty }),
-    ...(opts.presencePenalty != null && { presencePenalty: opts.presencePenalty }),
+    ...(opts.frequencyPenalty != null && {
+      frequencyPenalty: opts.frequencyPenalty,
+    }),
+    ...(opts.presencePenalty != null && {
+      presencePenalty: opts.presencePenalty,
+    }),
     ...(opts.signal && { abortSignal: opts.signal }),
   });
 }

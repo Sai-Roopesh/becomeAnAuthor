@@ -33,6 +33,7 @@ import { createCodexSuggestion } from "./suggestion";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useContextAssembly } from "@/hooks/use-context-assembly";
 import { assembleContext as assembleCodexContext } from "@/shared/utils/context-engine";
+import type { AIModelMessage } from "@/lib/ai/client";
 import type { TiptapContent } from "@/shared/types/tiptap";
 import type { EditorView } from "@tiptap/pm/view";
 import type { ContextItem } from "@/features/shared/components/ContextSelector";
@@ -85,7 +86,7 @@ export function TiptapEditor({
   const previousSceneIdRef = useRef<string | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const { codexRepository: codexRepo } = useAppServices();
-  const { assembleContext } = useContextAssembly(projectId);
+  const { assembleContextPack } = useContextAssembly(projectId, seriesId);
 
   // Save state management with EditorStateManager
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
@@ -391,7 +392,7 @@ export function TiptapEditor({
   }, [editor, formatSettings.typewriterMode, formatSettings.typewriterOffset]);
 
   const { generateStream, isGenerating, model, cancel } = useAI({
-    system: `You are an expert fiction writer specializing in immersive storytelling.
+    defaultSystem: `You are an expert fiction writer specializing in immersive storytelling.
 
 CORE PRINCIPLES:
 - Show, don't tell: Use sensory details and actions to convey emotions
@@ -417,14 +418,17 @@ When continuing a story, extend the narrative naturally while honoring the estab
     const lastContext = currentText.slice(-AI_DEFAULTS.CONTEXT_WINDOW_CHARS);
 
     // ✅ Auto-detect @mentioned codex entries from scene content
-    const codexContext = await assembleCodexContext(sceneId, "", seriesId);
+    const codexContext = await assembleCodexContext(sceneId, seriesId);
 
     // ✅ User-selected additional context
-    const additionalContext =
+    const additionalContextPack =
       options.selectedContexts && options.selectedContexts.length > 0
-        ? "\n\n=== ADDITIONAL CONTEXT ===\n" +
-          (await assembleContext(options.selectedContexts))
-        : "";
+        ? await assembleContextPack(options.selectedContexts, {
+            query: `${options.instructions || ""}\n${lastContext}`.trim(),
+            model,
+            maxBlocks: 10,
+          })
+        : null;
 
     // Enhanced prompt with style guidelines and examples
     const getModeGuidance = (mode: string) => {
@@ -446,7 +450,7 @@ When continuing a story, extend the narrative naturally while honoring the estab
 
 ${codexContext}
 CONTINUATION FROM:
-${lastContext}${additionalContext}
+${lastContext}
 
 CRITICAL WORD COUNT REQUIREMENT:
 - Write EXACTLY ${targetWords} words (acceptable range: ${targetWords - 20} to ${targetWords + 20} words)
@@ -471,9 +475,32 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
 
     // generatedText variable removed - unused
 
+    const messages: AIModelMessage[] = [];
+    if (codexContext) {
+      messages.push({
+        role: "system",
+        content: [
+          "Story bible context derived from @mentions in the current scene:",
+          codexContext,
+        ].join("\n\n"),
+      });
+    }
+
+    if (additionalContextPack?.serialized) {
+      messages.push({
+        role: "system",
+        content: [
+          "Additional selected context (evidence blocks):",
+          additionalContextPack.serialized,
+        ].join("\n\n"),
+      });
+    }
+
+    messages.push({ role: "user", content: prompt });
+
     await generateStream(
       {
-        prompt,
+        messages,
         // Use word count from UI with fallback
         maxTokens: (
           await import("@/lib/config/model-specs")

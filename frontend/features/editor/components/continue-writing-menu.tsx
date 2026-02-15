@@ -89,7 +89,6 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({
     onGenerate({
       wordCount: parseInt(state.wordCount),
       instructions: getModeInstructions(state.selectedMode),
-      context: {},
       model:
         state.model ||
         storage.getItem<string>("last_used_model", "openai/gpt-3.5-turbo"),

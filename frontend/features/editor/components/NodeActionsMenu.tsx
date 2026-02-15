@@ -80,7 +80,7 @@ export function NodeActionsMenu({
   });
 
   const { generate, isGenerating } = useAI({
-    system: `You are an expert story analyst specializing in scene summarization.
+    defaultSystem: `You are an expert story analyst specializing in scene summarization.
 
 SUMMARIZATION FRAMEWORK:
 1. Goal: What does the POV character want in this scene?
@@ -174,7 +174,10 @@ EXAMPLE:
     setIsActionBusy(true);
     try {
       const result = await generate({
-        prompt: `Summarize this scene using the framework:
+        messages: [
+          {
+            role: "user",
+            content: `Summarize this scene using the framework:
 1. Goal (what character wants)
 2. Conflict (what opposes them)
 3. Outcome (success/failure/complication)
@@ -184,6 +187,8 @@ SCENE TEXT:
 ${text}
 
 SUMMARY (2-3 sentences, present tense):`,
+          },
+        ],
         maxTokens: 300,
       });
 

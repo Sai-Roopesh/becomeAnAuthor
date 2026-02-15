@@ -17,6 +17,8 @@ import { useConfirmation } from "@/hooks/use-confirmation";
 import { storage } from "@/core/storage/safe-storage";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { getPromptTemplate } from "@/shared/prompts/templates";
+import { buildRollingMemory } from "@/features/chat/utils/chat-memory";
+import type { AIModelMessage } from "@/lib/ai/client";
 
 // Import child components
 import { ChatHeader } from "./chat-header";
@@ -84,14 +86,15 @@ export function ChatThread({ threadId }: ChatThreadProps) {
 
   // Use unified AI hook for streaming
   const { generateStream, isGenerating, cancel, setModel } = useAI({
-    system:
-      "You are a creative writing assistant helping authors craft their stories.",
     persistModel: true,
     operationName: "Chat",
   });
 
   // Use context assembly hook
-  const { assembleContext } = useContextAssembly(thread?.projectId || "");
+  const { assembleContextPack } = useContextAssembly(
+    thread?.projectId || "",
+    project?.seriesId,
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -166,42 +169,77 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     setMessage("");
     await chatRepo.createMessage(userMessage);
 
-    // Create AI message placeholder for streaming
-    const aiMessageId = crypto.randomUUID();
-    const aiMessage = {
-      id: aiMessageId,
-      threadId,
-      role: "assistant" as const,
-      content: "",
-      model: effectiveModel,
-      timestamp: Date.now(),
-    };
-    await chatRepo.createMessage(aiMessage);
-    setStreamingMessageId(aiMessageId);
-    setStreamingContent("");
-
+    let aiMessageId: string | null = null;
     try {
-      // Build context text
-      const contextText = await assembleContext(selectedContexts);
+      const priorMessages = await chatRepo.getMessagesByThread(threadId);
+      const history = priorMessages.filter(
+        (m) =>
+          m.role !== "assistant" ||
+          (m.role === "assistant" && m.content.trim().length > 0),
+      );
+      const conversationHistory = history.filter(
+        (m) => m.timestamp < userMessage.timestamp,
+      );
+
+      const contextPack = await assembleContextPack(selectedContexts, {
+        query: messageToSend.trim(),
+        model: effectiveModel,
+      });
       const template = getPromptTemplate(selectedPromptId);
 
-      // Build system prompt with context
-      let systemPrompt =
-        template?.systemPrompt || "You are a creative writing assistant.";
-      if (contextText) {
-        systemPrompt += `
+      const modelMessages: AIModelMessage[] = [
+        {
+          role: "system",
+          content:
+            template?.systemPrompt || "You are a creative writing assistant.",
+        },
+      ];
 
-=== CONTEXT ===
-${contextText}`;
+      if (contextPack.serialized) {
+        modelMessages.push({
+          role: "system",
+          content: [
+            "Use the evidence blocks below as authoritative project context.",
+            "Do not contradict facts from evidence blocks.",
+            "If evidence is insufficient, ask a clarifying question before inventing details.",
+            "",
+            contextPack.serialized,
+          ].join("\n"),
+        });
       }
+
+      const rollingMemory = buildRollingMemory(conversationHistory);
+      if (rollingMemory.summaryMessage) {
+        modelMessages.push(rollingMemory.summaryMessage);
+      }
+      modelMessages.push(...rollingMemory.recentMessages);
+      modelMessages.push({ role: "user", content: messageToSend.trim() });
+
+      if (contextPack.warningMessage) {
+        toast.warning(contextPack.warningMessage);
+      }
+
+      // Create AI message placeholder for streaming
+      aiMessageId = crypto.randomUUID();
+      const aiMessage = {
+        id: aiMessageId,
+        threadId,
+        role: "assistant" as const,
+        content: "",
+        model: effectiveModel,
+        timestamp: Date.now(),
+      };
+      await chatRepo.createMessage(aiMessage);
+      setStreamingMessageId(aiMessageId);
+      setStreamingContent("");
+      const streamMessageId = aiMessageId;
 
       // Stream the response
       let fullText = "";
       await generateStream(
         {
           model: effectiveModel,
-          prompt: messageToSend.trim(),
-          context: systemPrompt,
+          messages: modelMessages,
           maxTokens: settings.maxTokens,
           temperature: settings.temperature,
           topP: settings.topP,
@@ -217,7 +255,7 @@ ${contextText}`;
           },
           onComplete: async (completedText) => {
             if (isMountedRef.current) {
-              await chatRepo.updateMessage(aiMessageId, {
+              await chatRepo.updateMessage(streamMessageId, {
                 content: completedText,
               });
               setStreamingMessageId(null);
@@ -231,7 +269,7 @@ ${contextText}`;
           },
           onError: async (error) => {
             if (isMountedRef.current) {
-              await chatRepo.updateMessage(aiMessageId, {
+              await chatRepo.updateMessage(streamMessageId, {
                 content: `Error: ${error.message}`,
               });
               setStreamingMessageId(null);
@@ -242,13 +280,18 @@ ${contextText}`;
       );
     } catch (error) {
       log.error("Chat error:", error);
-      if (isMountedRef.current) {
+      if (aiMessageId) {
         await chatRepo.updateMessage(aiMessageId, {
           content: `Error: ${error instanceof Error ? error.message : "Failed to generate response"}`,
         });
+      }
+      if (isMountedRef.current) {
         setStreamingMessageId(null);
         setStreamingContent("");
       }
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate response",
+      );
     }
   };
 

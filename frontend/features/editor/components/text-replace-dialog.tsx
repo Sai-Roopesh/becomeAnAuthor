@@ -23,10 +23,8 @@ import {
   textReplaceReducer,
   initialTextReplaceState,
 } from "@/hooks/use-dialog-state";
-import {
-  ContextSelector,
-  type ContextItem,
-} from "@/features/shared/components/ContextSelector";
+import { useContextAssembly } from "@/hooks/use-context-assembly";
+import { ContextSelector } from "@/features/shared/components/ContextSelector";
 import type { EditorStateManager } from "@/lib/core/editor-state-manager";
 
 interface TextReplaceDialogProps {
@@ -54,6 +52,7 @@ export function TextReplaceDialog({
     initialTextReplaceState,
     textReplaceReducer,
   );
+  const { assembleContextPack } = useContextAssembly(projectId, seriesId);
 
   const {
     generateStream,
@@ -63,7 +62,7 @@ export function TextReplaceDialog({
     error: aiError,
     cancel,
   } = useAI({
-    system: `You are an expert creative writing editor specializing in text transformation.
+    defaultSystem: `You are an expert creative writing editor specializing in text transformation.
 
 EDITING APPROACH:
 - ${action === "expand" ? "Add rich sensory details and vivid descriptions" : ""}
@@ -129,13 +128,6 @@ Provide only the transformed text. No explanations, no preamble.`,
       systemPrompt += `\n\nAdditional instructions: ${state.instruction}`;
     }
 
-    if (state.selectedContexts.length > 0) {
-      const contextLabels = state.selectedContexts
-        .map((c: ContextItem) => c.label)
-        .join(", ");
-      systemPrompt += `\n\nConsider the following context: ${contextLabels}. (Note: Full context content would be injected here in a real implementation)`;
-    }
-
     return systemPrompt;
   };
 
@@ -147,10 +139,38 @@ Provide only the transformed text. No explanations, no preamble.`,
     // Clear previous result and switch to preview tab
     dispatch({ type: "START_GENERATE" });
 
+    const contextPack =
+      state.selectedContexts.length > 0
+        ? await assembleContextPack(state.selectedContexts, {
+            query: `${state.instruction} ${selectedText}`.trim(),
+            model,
+            maxBlocks: 8,
+          })
+        : null;
+
+    const messages = [];
+    const taskSystemPrompt = getSystemPrompt();
+    if (taskSystemPrompt) {
+      messages.push({ role: "system" as const, content: taskSystemPrompt });
+    }
+    if (contextPack?.serialized) {
+      messages.push({
+        role: "system" as const,
+        content: [
+          "Project context evidence blocks:",
+          contextPack.serialized,
+          "Use these facts to preserve continuity while transforming the selected text.",
+        ].join("\n\n"),
+      });
+    }
+    messages.push({
+      role: "user" as const,
+      content: `Original text:\n\n${selectedText}\n\nProvide only the ${action === "expand" ? "expanded" : action === "rephrase" ? "rephrased" : "shortened"} version without any explanation.`,
+    });
+
     await generateStream(
       {
-        prompt: `Original text:\n\n${selectedText}\n\nProvide only the ${action === "expand" ? "expanded" : action === "rephrase" ? "rephrased" : "shortened"} version without any explanation.`,
-        context: getSystemPrompt(),
+        messages,
         maxTokens: 4000,
       },
       {

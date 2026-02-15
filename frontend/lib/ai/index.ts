@@ -20,6 +20,8 @@ export {
   fetchModelsForConnection,
   type GenerateOptions,
   type GenerateObjectOptions,
+  type AIModelMessage,
+  type AIMessageRole,
 } from "./client";
 
 // Provider exports

@@ -20,6 +20,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:watch": "vitest --watch",
+    "ai:eval:cases": "node scripts/generate-ai-eval-cases.js",
+    "ai:eval:run": "node scripts/run-ai-eval-loop.js",
     "prepare": "husky",
     "deps:check": "depcruise frontend --config .dependency-cruiser.js",
     "deps:circular": "madge --circular --extensions ts,tsx frontend",
