@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, StructureNode};
-use crate::utils::{get_app_dir, get_projects_dir, slugify, validate_project_creation, timestamp};
+use crate::utils::{get_app_dir, get_projects_dir, slugify, timestamp, validate_project_creation};
 
 // ============== Recent Projects ==============
 
@@ -59,7 +59,10 @@ fn write_project_registry(entries: &[RegistryEntry]) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn register_project_path(project_path: String, title: Option<String>) -> Result<(), String> {
+pub(crate) fn register_project_path(
+    project_path: String,
+    title: Option<String>,
+) -> Result<(), String> {
     let mut entries = read_project_registry()?;
     entries.retain(|e| e.path != project_path);
     entries.insert(
@@ -98,36 +101,34 @@ pub(crate) fn unregister_project_path(project_path: &str) -> Result<(), String> 
 #[tauri::command]
 pub fn list_recent_projects() -> Result<Vec<RecentProject>, String> {
     let recent_path = get_recent_path()?;
-    
+
     if !recent_path.exists() {
         return Ok(Vec::new());
     }
-    
+
     let content = fs::read_to_string(&recent_path)
         .map_err(|e| format!("Failed to read recent.json: {}", e))?;
-    
-    let mut projects: Vec<RecentProject> = serde_json::from_str(&content)
-        .unwrap_or_default();
-    
+
+    let mut projects: Vec<RecentProject> = serde_json::from_str(&content).unwrap_or_default();
+
     // Prune entries older than 30 days
     let cutoff = timestamp::now_millis() - (30 * 24 * 60 * 60 * 1000);
     projects.retain(|p| p.last_opened > cutoff);
-    
+
     // Validate paths exist (remove invalid entries)
     projects.retain(|p| PathBuf::from(&p.path).join(".meta/project.json").exists());
-    
+
     // Sort by most recent first
     projects.sort_by(|a, b| b.last_opened.cmp(&a.last_opened));
-    
+
     // Limit to 20
     projects.truncate(20);
-    
+
     // Save pruned list back
     let json = serde_json::to_string_pretty(&projects)
         .map_err(|e| format!("Failed to serialize recent: {}", e))?;
-    fs::write(&recent_path, json)
-        .map_err(|e| format!("Failed to write recent.json: {}", e))?;
-    
+    fs::write(&recent_path, json).map_err(|e| format!("Failed to write recent.json: {}", e))?;
+
     Ok(projects)
 }
 
@@ -137,7 +138,7 @@ pub fn add_to_recent(project_path: String, title: String) -> Result<(), String> 
     let recent_path = get_recent_path()?;
     let registry_path = project_path.clone();
     let registry_title = title.clone();
-    
+
     let mut projects: Vec<RecentProject> = if recent_path.exists() {
         let content = fs::read_to_string(&recent_path)
             .map_err(|e| format!("Failed to read recent.json: {}", e))?;
@@ -145,29 +146,31 @@ pub fn add_to_recent(project_path: String, title: String) -> Result<(), String> 
     } else {
         Vec::new()
     };
-    
+
     // Remove if already exists (will re-add at top)
     projects.retain(|p| p.path != project_path);
-    
+
     // Add at start (most recent)
-    projects.insert(0, RecentProject {
-        path: project_path,
-        title,
-        last_opened: timestamp::now_millis(),
-    });
-    
+    projects.insert(
+        0,
+        RecentProject {
+            path: project_path,
+            title,
+            last_opened: timestamp::now_millis(),
+        },
+    );
+
     // Limit to 20
     projects.truncate(20);
-    
+
     // Save
     let json = serde_json::to_string_pretty(&projects)
         .map_err(|e| format!("Failed to serialize recent: {}", e))?;
-    fs::write(&recent_path, json)
-        .map_err(|e| format!("Failed to write recent.json: {}", e))?;
+    fs::write(&recent_path, json).map_err(|e| format!("Failed to write recent.json: {}", e))?;
 
     // Keep registry in sync so projects remain discoverable beyond recent-window limits.
     register_project_path(registry_path, Some(registry_title))?;
-    
+
     Ok(())
 }
 
@@ -175,23 +178,21 @@ pub fn add_to_recent(project_path: String, title: String) -> Result<(), String> 
 #[tauri::command]
 pub fn remove_from_recent(project_path: String) -> Result<(), String> {
     let recent_path = get_recent_path()?;
-    
+
     if !recent_path.exists() {
         return Ok(());
     }
-    
+
     let content = fs::read_to_string(&recent_path)
         .map_err(|e| format!("Failed to read recent.json: {}", e))?;
-    let mut projects: Vec<RecentProject> = serde_json::from_str(&content)
-        .unwrap_or_default();
-    
+    let mut projects: Vec<RecentProject> = serde_json::from_str(&content).unwrap_or_default();
+
     projects.retain(|p| p.path != project_path);
-    
+
     let json = serde_json::to_string_pretty(&projects)
         .map_err(|e| format!("Failed to serialize recent: {}", e))?;
-    fs::write(&recent_path, json)
-        .map_err(|e| format!("Failed to write recent.json: {}", e))?;
-    
+    fs::write(&recent_path, json).map_err(|e| format!("Failed to write recent.json: {}", e))?;
+
     Ok(())
 }
 
@@ -200,20 +201,20 @@ pub fn remove_from_recent(project_path: String) -> Result<(), String> {
 pub fn open_project(project_path: String) -> Result<ProjectMeta, String> {
     let path = PathBuf::from(&project_path);
     let meta_path = path.join(".meta/project.json");
-    
+
     if !meta_path.exists() {
         return Err(format!("Not a valid project folder: {}", project_path));
     }
-    
+
     let content = fs::read_to_string(&meta_path)
         .map_err(|e| format!("Failed to read project.json: {}", e))?;
-    
+
     let project: ProjectMeta = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse project.json: {}", e))?;
-    
+
     // Add to recent list
     add_to_recent(project_path, project.title.clone())?;
-    
+
     Ok(project)
 }
 
@@ -280,23 +281,23 @@ pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
 }
 
 /// Helper function to check if a book number already exists in a series
-/// 
+///
 /// # Arguments
 /// * `series_id` - The series ID to check within
 /// * `series_index` - The book number to check (e.g., "Book 1")
 /// * `exclude_project_id` - Optional project ID to exclude from check (for updates)
-/// 
+///
 /// # Returns
 /// * Ok(()) if the book number is unique
 /// * Err(String) with a descriptive message if duplicate found
 fn check_duplicate_book_number(
-    series_id: &str, 
+    series_id: &str,
     series_index: &str,
-    exclude_project_id: Option<&str>
+    exclude_project_id: Option<&str>,
 ) -> Result<(), String> {
     // Get all projects
     let all_projects = list_projects()?;
-    
+
     // Check if any other project in the same series has the same book number
     for project in all_projects {
         // Skip if this is the project being updated
@@ -305,7 +306,7 @@ fn check_duplicate_book_number(
                 continue;
             }
         }
-        
+
         // Check for duplicate
         if project.series_id == series_id && project.series_index == series_index {
             return Err(format!(
@@ -314,42 +315,106 @@ fn check_duplicate_book_number(
             ));
         }
     }
-    
+
     Ok(())
+}
+
+fn parse_book_number(series_index: &str) -> Option<u32> {
+    let mut digits = String::new();
+
+    for ch in series_index.chars() {
+        if ch.is_ascii_digit() {
+            digits.push(ch);
+        } else if !digits.is_empty() {
+            break;
+        }
+    }
+
+    if digits.is_empty() {
+        return None;
+    }
+
+    digits.parse::<u32>().ok().filter(|n| *n > 0)
+}
+
+fn next_available_series_index(
+    series_id: &str,
+    exclude_project_id: Option<&str>,
+) -> Result<String, String> {
+    let all_projects = list_projects()?;
+    let mut max_book_number = 0u32;
+
+    for project in all_projects {
+        if project.series_id != series_id {
+            continue;
+        }
+
+        if let Some(exclude_id) = exclude_project_id {
+            if project.id == exclude_id {
+                continue;
+            }
+        }
+
+        if let Some(num) = parse_book_number(&project.series_index) {
+            if num > max_book_number {
+                max_book_number = num;
+            }
+        }
+    }
+
+    Ok(format!("Book {}", max_book_number + 1))
+}
+
+fn resolve_series_index_for_create(
+    series_id: &str,
+    requested_series_index: &str,
+) -> Result<String, String> {
+    let trimmed = requested_series_index.trim();
+
+    // Defensive fallback for stale callers that still send "Book 1" as a hardcoded default.
+    // For new creations this should always resolve to the next available book number.
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("Book 1") {
+        return next_available_series_index(series_id, None);
+    }
+
+    check_duplicate_book_number(series_id, trimmed, None)?;
+    Ok(trimmed.to_string())
 }
 
 #[tauri::command]
 pub fn create_project(
-    title: String, 
-    author: String, 
+    title: String,
+    author: String,
     custom_path: String,
     series_id: String,
     series_index: String,
 ) -> Result<ProjectMeta, String> {
     // VALIDATION: Validate project title and author
     validate_project_creation(&title, Some(&author))?;
-    
+
     // Validate series_id is provided
     if series_id.is_empty() {
         return Err("Series ID is required. All projects must belong to a series.".to_string());
     }
-    
-    // CHECK FOR DUPLICATE: Ensure book number is unique within the series
-    check_duplicate_book_number(&series_id, &series_index, None)?;
-    
+
+    let resolved_series_index = resolve_series_index_for_create(&series_id, &series_index)?;
+
     // User must provide custom path - no default fallback
     let base_dir = PathBuf::from(&custom_path);
-    
+
     // Validate the custom path
     if !base_dir.exists() {
         return Err(format!("Directory does not exist: {}", custom_path));
     }
-    
+
     let slug = slugify(&title);
     let project_dir = base_dir.join(&slug);
 
     if project_dir.exists() {
-        return Err(format!("Project '{}' already exists at this location", title));
+        return Err(format!(
+            "Project '{}' already exists at this location",
+            title
+        ));
     }
 
     // Create directory structure (NO codex folder - codex is at series level)
@@ -370,7 +435,7 @@ pub fn create_project(
         language: None,
         cover_image: None,
         series_id,
-        series_index,
+        series_index: resolved_series_index,
         path: project_dir.to_string_lossy().to_string(),
         created_at: now,
         updated_at: now,
@@ -396,24 +461,25 @@ pub fn delete_project(project_path: String) -> Result<(), String> {
     if !path.exists() {
         return Err("Project not found".to_string());
     }
-    
+
     let trash_dir = get_projects_trash_dir()?;
     fs::create_dir_all(&trash_dir).map_err(|e| e.to_string())?;
-    
-    let folder_name = path.file_name()
+
+    let folder_name = path
+        .file_name()
         .ok_or("Invalid project path")?
         .to_string_lossy()
         .to_string();
-    
+
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let trash_path = trash_dir.join(format!("{}_{}", folder_name, timestamp));
-    
+
     fs::rename(&path, &trash_path).map_err(|e| e.to_string())?;
-    
+
     // Remove from recent projects list
     remove_from_recent(project_path)?;
     unregister_project_path(path.to_string_lossy().as_ref())?;
-    
+
     Ok(())
 }
 
@@ -544,24 +610,30 @@ pub struct ProjectUpdates {
 }
 
 #[tauri::command]
-pub fn update_project(project_path: String, updates: ProjectUpdates) -> Result<ProjectMeta, String> {
+pub fn update_project(
+    project_path: String,
+    updates: ProjectUpdates,
+) -> Result<ProjectMeta, String> {
     let meta_path = PathBuf::from(&project_path).join(".meta/project.json");
     if !meta_path.exists() {
         return Err("Project not found".to_string());
     }
-    
+
     let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
     let mut project: ProjectMeta = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    
+
     // Extract series_id and series_index for duplicate check
     let new_series_id = updates.series_id.as_ref().unwrap_or(&project.series_id);
-    let new_series_index = updates.series_index.as_ref().unwrap_or(&project.series_index);
-    
+    let new_series_index = updates
+        .series_index
+        .as_ref()
+        .unwrap_or(&project.series_index);
+
     // CHECK FOR DUPLICATE: If either series_id or series_index is being changed
     if updates.series_id.is_some() || updates.series_index.is_some() {
         check_duplicate_book_number(new_series_id, new_series_index, Some(&project.id))?;
     }
-    
+
     if let Some(title) = updates.title {
         project.title = title;
     }
@@ -586,40 +658,44 @@ pub fn update_project(project_path: String, updates: ProjectUpdates) -> Result<P
     if let Some(series_index) = updates.series_index {
         project.series_index = series_index;
     }
-    
+
     project.updated_at = timestamp::now_millis();
-    
+
     let json = serde_json::to_string_pretty(&project).map_err(|e| e.to_string())?;
     fs::write(&meta_path, json).map_err(|e| e.to_string())?;
-    
+
     Ok(project)
 }
 
 #[tauri::command]
 pub fn archive_project(project_path: String) -> Result<ProjectMeta, String> {
-    update_project(project_path, ProjectUpdates {
-        title: None,
-        author: None,
-        description: None,
-        archived: Some(true),
-        language: None,
-        cover_image: None,
-        series_id: None,
-        series_index: None,
-    })
+    update_project(
+        project_path,
+        ProjectUpdates {
+            title: None,
+            author: None,
+            description: None,
+            archived: Some(true),
+            language: None,
+            cover_image: None,
+            series_id: None,
+            series_index: None,
+        },
+    )
 }
 
 #[tauri::command]
 pub fn get_structure(project_path: String) -> Result<Vec<StructureNode>, String> {
     let structure_path = PathBuf::from(&project_path).join(".meta/structure.json");
-    
+
     if !structure_path.exists() {
         return Ok(Vec::new());
     }
-    
+
     let content = fs::read_to_string(&structure_path).map_err(|e| e.to_string())?;
-    let structure: Vec<StructureNode> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    
+    let structure: Vec<StructureNode> =
+        serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
     Ok(structure)
 }
 
@@ -641,11 +717,11 @@ pub fn create_node(
     let structure_path = PathBuf::from(&project_path).join(".meta/structure.json");
     let content = fs::read_to_string(&structure_path).unwrap_or_else(|_| "[]".to_string());
     let mut structure: Vec<StructureNode> = serde_json::from_str(&content).unwrap_or_default();
-    
+
     let id = uuid::Uuid::new_v4().to_string();
     let now = timestamp::now_millis();
     let now_rfc3339 = timestamp::to_rfc3339(now);
-    
+
     fn count_children(nodes: &[StructureNode], parent_id: &Option<String>) -> i32 {
         match parent_id {
             None => nodes.len() as i32,
@@ -665,9 +741,9 @@ pub fn create_node(
             }
         }
     }
-    
+
     let order = count_children(&structure, &parent_id);
-    
+
     let mut new_node = StructureNode {
         id: id.clone(),
         node_type: node_type.clone(),
@@ -676,12 +752,14 @@ pub fn create_node(
         children: Vec::new(),
         file: None,
     };
-    
+
     // If scene, create the markdown file
     if node_type == "scene" {
         let file_name = format!("{}.md", id);
-        let file_path = PathBuf::from(&project_path).join("manuscript").join(&file_name);
-        
+        let file_path = PathBuf::from(&project_path)
+            .join("manuscript")
+            .join(&file_name);
+
         let scene_content = format!(
             "---\nid: {}\ntitle: \"{}\"\norder: {}\nstatus: draft\nwordCount: 0\npov: null\nsubtitle: null\nlabels: []\nexcludeFromAI: false\nsummary: \"\"\narchived: false\ncreatedAt: {}\nupdatedAt: {}\n---\n\n",
             id, title, order, now_rfc3339, now_rfc3339
@@ -689,9 +767,13 @@ pub fn create_node(
         fs::write(&file_path, scene_content).map_err(|e| e.to_string())?;
         new_node.file = Some(file_name);
     }
-    
+
     // Add to structure
-    fn add_to_parent(nodes: &mut Vec<StructureNode>, parent_id: &Option<String>, new_node: StructureNode) -> bool {
+    fn add_to_parent(
+        nodes: &mut Vec<StructureNode>,
+        parent_id: &Option<String>,
+        new_node: StructureNode,
+    ) -> bool {
         match parent_id {
             None => {
                 nodes.push(new_node);
@@ -711,12 +793,12 @@ pub fn create_node(
             }
         }
     }
-    
+
     add_to_parent(&mut structure, &parent_id, new_node.clone());
-    
+
     let json = serde_json::to_string_pretty(&structure).map_err(|e| e.to_string())?;
     fs::write(&structure_path, json).map_err(|e| e.to_string())?;
-    
+
     Ok(new_node)
 }
 
@@ -724,8 +806,9 @@ pub fn create_node(
 pub fn rename_node(project_path: String, node_id: String, new_title: String) -> Result<(), String> {
     let structure_path = PathBuf::from(&project_path).join(".meta/structure.json");
     let content = fs::read_to_string(&structure_path).map_err(|e| e.to_string())?;
-    let mut structure: Vec<StructureNode> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    
+    let mut structure: Vec<StructureNode> =
+        serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
     fn rename_in_tree(nodes: &mut [StructureNode], node_id: &str, new_title: &str) -> bool {
         for node in nodes.iter_mut() {
             if node.id == node_id {
@@ -738,9 +821,9 @@ pub fn rename_node(project_path: String, node_id: String, new_title: String) -> 
         }
         false
     }
-    
+
     rename_in_tree(&mut structure, &node_id, &new_title);
-    
+
     let json = serde_json::to_string_pretty(&structure).map_err(|e| e.to_string())?;
     fs::write(&structure_path, json).map_err(|e| e.to_string())?;
     Ok(())
@@ -750,8 +833,9 @@ pub fn rename_node(project_path: String, node_id: String, new_title: String) -> 
 pub fn delete_node(project_path: String, node_id: String) -> Result<(), String> {
     let structure_path = PathBuf::from(&project_path).join(".meta/structure.json");
     let content = fs::read_to_string(&structure_path).map_err(|e| e.to_string())?;
-    let mut structure: Vec<StructureNode> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    
+    let mut structure: Vec<StructureNode> =
+        serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
     fn collect_scene_files(node: &StructureNode, files: &mut Vec<String>) {
         if let Some(ref file) = node.file {
             files.push(file.clone());
@@ -760,8 +844,12 @@ pub fn delete_node(project_path: String, node_id: String) -> Result<(), String> 
             collect_scene_files(child, files);
         }
     }
-    
-    fn delete_from_tree(nodes: &mut Vec<StructureNode>, node_id: &str, files: &mut Vec<String>) -> bool {
+
+    fn delete_from_tree(
+        nodes: &mut Vec<StructureNode>,
+        node_id: &str,
+        files: &mut Vec<String>,
+    ) -> bool {
         if let Some(pos) = nodes.iter().position(|n| n.id == node_id) {
             collect_scene_files(&nodes[pos], files);
             nodes.remove(pos);
@@ -774,10 +862,10 @@ pub fn delete_node(project_path: String, node_id: String) -> Result<(), String> 
         }
         false
     }
-    
+
     let mut files_to_delete = Vec::new();
     delete_from_tree(&mut structure, &node_id, &mut files_to_delete);
-    
+
     // Delete scene files
     for file in files_to_delete {
         let file_path = PathBuf::from(&project_path).join("manuscript").join(&file);
@@ -785,9 +873,9 @@ pub fn delete_node(project_path: String, node_id: String) -> Result<(), String> 
             let _ = fs::remove_file(&file_path);
         }
     }
-    
+
     let json = serde_json::to_string_pretty(&structure).map_err(|e| e.to_string())?;
     fs::write(&structure_path, json).map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }

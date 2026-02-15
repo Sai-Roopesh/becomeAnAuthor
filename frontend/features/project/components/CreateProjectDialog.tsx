@@ -41,6 +41,34 @@ import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("CreateProjectDialog");
+const DEFAULT_SERIES_INDEX = "Book 1";
+
+function extractBookNumber(seriesIndex: string | undefined): number | null {
+  if (!seriesIndex) return null;
+  const match = seriesIndex.match(/\d+/);
+  if (!match) return null;
+  const parsed = parseInt(match[0], 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return null;
+  return parsed;
+}
+
+function getNextSeriesIndex(
+  seriesId: string,
+  projects: Array<{ seriesId: string; seriesIndex: string }>,
+): string {
+  if (!seriesId) return DEFAULT_SERIES_INDEX;
+
+  let maxBookNumber = 0;
+  for (const project of projects) {
+    if (project.seriesId !== seriesId) continue;
+    const number = extractBookNumber(project.seriesIndex);
+    if (number && number > maxBookNumber) {
+      maxBookNumber = number;
+    }
+  }
+
+  return `Book ${maxBookNumber + 1}`;
+}
 
 const TITLES = [
   "The Last Starship",
@@ -106,6 +134,8 @@ export function CreateProjectDialog({
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isCreatingNewSeries, setIsCreatingNewSeries] = useState(false);
+  const [seriesIndexManuallyEdited, setSeriesIndexManuallyEdited] =
+    useState(false);
   const [newSeriesName, setNewSeriesName] = useState("");
   const [defaultSavePath, setDefaultSavePath] = useState("");
 
@@ -115,7 +145,7 @@ export function CreateProjectDialog({
       author: "",
       language: "English (US)",
       seriesId: lockedSeriesId ?? "",
-      seriesIndex: "Book 1",
+      seriesIndex: DEFAULT_SERIES_INDEX,
       savePath: "",
     }),
     [lockedSeriesId],
@@ -140,6 +170,19 @@ export function CreateProjectDialog({
       setFormData((prev) => ({ ...prev, seriesId: lockedSeriesId }));
     }
   }, [lockedSeriesId]);
+
+  const selectedSeriesId = lockedSeriesId ?? formData.seriesId;
+  const suggestedSeriesIndex = useMemo(() => {
+    return getNextSeriesIndex(selectedSeriesId, existingProjects ?? []);
+  }, [selectedSeriesId, existingProjects]);
+
+  useEffect(() => {
+    if (!open || !selectedSeriesId || seriesIndexManuallyEdited) return;
+    setFormData((prev) => {
+      if (prev.seriesIndex === suggestedSeriesIndex) return prev;
+      return { ...prev, seriesIndex: suggestedSeriesIndex };
+    });
+  }, [open, selectedSeriesId, suggestedSeriesIndex, seriesIndexManuallyEdited]);
 
   useEffect(() => {
     if (!open || defaultSavePath || formData.savePath) return;
@@ -209,6 +252,7 @@ export function CreateProjectDialog({
         : await seriesRepo.create({ title: newSeriesName.trim() });
 
       setFormData((prev) => ({ ...prev, seriesId: newId }));
+      setSeriesIndexManuallyEdited(false);
       setIsCreatingNewSeries(false);
       setNewSeriesName("");
       invalidateQueries(["series", "projects"]);
@@ -246,6 +290,11 @@ export function CreateProjectDialog({
 
     try {
       const seriesId = await resolveSeriesForCreate();
+      const projectsInSeries = await projectRepo.getBySeries(seriesId);
+      const nextSeriesIndex = getNextSeriesIndex(seriesId, projectsInSeries);
+      const submittedSeriesIndex = seriesIndexManuallyEdited
+        ? formData.seriesIndex.trim() || nextSeriesIndex
+        : nextSeriesIndex;
       const savePath =
         formData.savePath || defaultSavePath || (await getProjectsPath());
 
@@ -254,7 +303,7 @@ export function CreateProjectDialog({
         author: formData.author.trim() || "Unknown",
         language: formData.language,
         seriesId,
-        seriesIndex: formData.seriesIndex.trim() || "Book 1",
+        seriesIndex: submittedSeriesIndex,
         customPath: savePath,
       });
 
@@ -295,6 +344,7 @@ export function CreateProjectDialog({
       setOpen(false);
       setAdvancedOpen(false);
       setIsCreatingNewSeries(false);
+      setSeriesIndexManuallyEdited(false);
       setNewSeriesName("");
       setFormData(initialFormData);
       window.location.href = `/project?id=${projectId}`;
@@ -327,6 +377,7 @@ export function CreateProjectDialog({
         if (!nextOpen) {
           setAdvancedOpen(false);
           setIsCreatingNewSeries(false);
+          setSeriesIndexManuallyEdited(false);
           setNewSeriesName("");
           setFormData(initialFormData);
         }
@@ -430,9 +481,10 @@ export function CreateProjectDialog({
                   <div className="space-y-2">
                     <Select
                       value={formData.seriesId}
-                      onValueChange={(val) =>
-                        setFormData((prev) => ({ ...prev, seriesId: val }))
-                      }
+                      onValueChange={(val) => {
+                        setSeriesIndexManuallyEdited(false);
+                        setFormData((prev) => ({ ...prev, seriesId: val }));
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Auto-select first series" />
@@ -493,12 +545,13 @@ export function CreateProjectDialog({
                 <Label>Book Number</Label>
                 <Input
                   value={formData.seriesIndex}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setSeriesIndexManuallyEdited(true);
                     setFormData((prev) => ({
                       ...prev,
                       seriesIndex: e.target.value,
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder="Book 1"
                 />
               </div>
