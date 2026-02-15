@@ -4,6 +4,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use crate::models::ProjectMeta;
+use crate::utils::get_series_codex_path;
 
 /// A single mention of a codex entry in the manuscript
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,8 +26,25 @@ pub struct Mention {
 pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec<Mention>, String> {
     let project_path_buf = PathBuf::from(&project_path);
     
-    // Load the codex entry to get name and aliases
-    let meta_codex_dir = project_path_buf.join(".meta/codex");
+    // Resolve codex location from series metadata (series-first architecture)
+    // Fallback to project-level codex for legacy projects.
+    let meta_codex_dir = {
+        let project_meta_path = project_path_buf.join(".meta/project.json");
+        if project_meta_path.exists() {
+            if let Ok(meta_content) = fs::read_to_string(&project_meta_path) {
+                if let Ok(project_meta) = serde_json::from_str::<ProjectMeta>(&meta_content) {
+                    get_series_codex_path(&project_meta.series_id)
+                        .unwrap_or_else(|_| project_path_buf.join(".meta/codex"))
+                } else {
+                    project_path_buf.join(".meta/codex")
+                }
+            } else {
+                project_path_buf.join(".meta/codex")
+            }
+        } else {
+            project_path_buf.join(".meta/codex")
+        }
+    };
     
     // Find the codex entry file
     let mut entry_name = String::new();
@@ -120,32 +139,39 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
         }
     }
     
-    // Search in snippets
-    let snippets_path = project_path_buf.join(".meta/snippets.json");
-    if snippets_path.exists() {
-        if let Ok(content) = fs::read_to_string(&snippets_path) {
-            if let Ok(snippets) = serde_json::from_str::<Vec<serde_json::Value>>(&content) {
-                for snippet in snippets {
-                    let snippet_id = snippet.get("id").and_then(|v| v.as_str()).unwrap_or("");
-                    let snippet_title = snippet.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
-                    
-                    // Get text content from Tiptap JSON
-                    if let Some(content_obj) = snippet.get("content") {
-                        let content_str = serde_json::to_string(content_obj).unwrap_or_default();
-                        
-                        for term in &search_terms {
-                            if content_str.to_lowercase().contains(&term.to_lowercase()) {
-                                mentions.push(Mention {
-                                    id: uuid::Uuid::new_v4().to_string(),
-                                    codex_entry_id: codex_entry_id.clone(),
-                                    source_type: "snippet".to_string(),
-                                    source_id: snippet_id.to_string(),
-                                    source_title: snippet_title.to_string(),
-                                    position: 0,
-                                    context: format!("Found in snippet: {}", snippet_title),
-                                    created_at: chrono::Utc::now().timestamp_millis(),
-                                });
-                                break; // One mention per snippet
+    // Search in snippet files (project/snippets/*.json)
+    let snippets_dir = project_path_buf.join("snippets");
+    if snippets_dir.exists() {
+        if let Ok(entries) = fs::read_dir(&snippets_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if !path.extension().is_some_and(|e| e == "json") {
+                    continue;
+                }
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if let Ok(snippet) = serde_json::from_str::<serde_json::Value>(&content) {
+                        let snippet_id = snippet.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                        let snippet_title = snippet
+                            .get("title")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Untitled");
+
+                        if let Some(content_obj) = snippet.get("content") {
+                            let content_str = serde_json::to_string(content_obj).unwrap_or_default();
+                            for term in &search_terms {
+                                if content_str.to_lowercase().contains(&term.to_lowercase()) {
+                                    mentions.push(Mention {
+                                        id: uuid::Uuid::new_v4().to_string(),
+                                        codex_entry_id: codex_entry_id.clone(),
+                                        source_type: "snippet".to_string(),
+                                        source_id: snippet_id.to_string(),
+                                        source_title: snippet_title.to_string(),
+                                        position: 0,
+                                        context: format!("Found in snippet: {}", snippet_title),
+                                        created_at: chrono::Utc::now().timestamp_millis(),
+                                    });
+                                    break;
+                                }
                             }
                         }
                     }

@@ -23,7 +23,7 @@ function ProjectContent() {
   const projectId = searchParams.get("id") || "";
   const { projectRepository: projectRepo } = useAppServices();
 
-  const { viewMode } = useProjectStore();
+  const { viewMode, setActiveProjectId } = useProjectStore();
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Fetch project to get seriesId
@@ -45,6 +45,14 @@ function ProjectContent() {
       document.title = "OpenSource Novel Writer";
     };
   }, [project?.title, viewMode]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    setActiveProjectId(projectId);
+    return () => {
+      setActiveProjectId(null);
+    };
+  }, [projectId, setActiveProjectId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

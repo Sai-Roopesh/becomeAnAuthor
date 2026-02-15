@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import type { Series, Project } from '@/domain/entities/types';
 import { useSeriesRepository } from '@/hooks/use-series-repository';
 import { invalidateQueries } from '@/hooks/use-live-query';
@@ -43,6 +44,7 @@ interface SeriesCardProps {
 }
 
 export function SeriesCard({ series, projects }: SeriesCardProps) {
+    const router = useRouter();
     const seriesRepo = useSeriesRepository();
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
     const [showEditDialog, setShowEditDialog] = React.useState(false);
@@ -68,13 +70,30 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
     };
 
     const projectCount = projects.length;
+    const openSeries = () => {
+        router.push(`/series?id=${series.id}`);
+    };
+
+    const handleCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openSeries();
+        }
+    };
+
     const statusLabel = series.status === 'in-progress' ? 'In Progress' :
         series.status === 'completed' ? 'Completed' :
             series.status === 'planned' ? 'Planned' : null;
 
     return (
         <>
-            <Card className="group hover:shadow-md transition-shadow">
+            <Card
+                className="group hover:shadow-md transition-shadow cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={openSeries}
+                onKeyDown={handleCardKeyDown}
+            >
                 <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
@@ -104,19 +123,31 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                                     variant="ghost"
                                     size="icon"
                                     className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
                                 >
                                     <MoreHorizontal className="w-4 h-4" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                                <DropdownMenuItem onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowEditDialog(true);
+                                }}>
                                     <Pencil className="w-4 h-4 mr-2" />
                                     Edit Details
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="text-destructive"
-                                    onClick={() => setShowDeleteDialog(true)}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setShowDeleteDialog(true);
+                                    }}
                                 >
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Delete

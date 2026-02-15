@@ -20,7 +20,10 @@ import {
   initialContinueWritingState,
 } from "@/hooks/use-dialog-state";
 
-type GenerationMode = "scene-beat" | "continue-writing" | "codex-progression";
+export type GenerationMode =
+  | "scene-beat"
+  | "continue-writing"
+  | "codex-progression";
 
 interface ContinueWritingMenuProps {
   open: boolean;
@@ -28,6 +31,7 @@ interface ContinueWritingMenuProps {
   onGenerate: (options: GenerateOptions & { mode: GenerationMode }) => void;
   projectId: string;
   seriesId: string; // Required - series-first architecture
+  initialMode?: GenerationMode;
   isGenerating?: boolean;
   onCancel?: () => void;
   position?: { x: number; y: number } | null; // Unused now - keeping for API compat
@@ -39,6 +43,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({
   onGenerate,
   projectId,
   seriesId,
+  initialMode,
   isGenerating,
   onCancel,
 }: ContinueWritingMenuProps) {
@@ -69,6 +74,12 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({
       }
     }
   }, [state.model, dispatch]);
+
+  useEffect(() => {
+    if (open && initialMode) {
+      dispatch({ type: "SET_MODE", payload: initialMode });
+    }
+  }, [open, initialMode, dispatch]);
 
   const handleModeSelect = (mode: GenerationMode) => {
     dispatch({ type: "SET_MODE", payload: mode });

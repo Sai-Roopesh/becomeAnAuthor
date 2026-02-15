@@ -25,7 +25,8 @@ export function SearchPalette({
     projectId,
     seriesId,
   );
-  const { setActiveSceneId, setViewMode } = useProjectStore();
+  const { setActiveSceneId, setViewMode, setLeftSidebarTab, setActiveCodexEntryId } =
+    useProjectStore();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Reset state when dialog opens/closes
@@ -53,12 +54,14 @@ export function SearchPalette({
         setViewMode("write");
         onOpenChange(false);
       } else {
-        // Navigate to codex (future: implement codex view)
-        // For now, just close the palette
+        // Navigate to codex entry in write mode sidebar
+        setViewMode("write");
+        setLeftSidebarTab("codex");
+        setActiveCodexEntryId(result.item.id);
         onOpenChange(false);
       }
     },
-    [setActiveSceneId, setViewMode, onOpenChange],
+    [setActiveSceneId, setViewMode, setLeftSidebarTab, setActiveCodexEntryId, onOpenChange],
   );
 
   // Keyboard navigation

@@ -25,7 +25,7 @@ export class TauriWorldTimelineRepository implements IWorldTimelineRepository {
             return await listWorldEvents(projectPath);
         } catch (error) {
             log.error('Failed to list world events:', error);
-            return [];
+            throw error;
         }
     }
 

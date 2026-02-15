@@ -198,10 +198,14 @@ ${contextText}`;
       let fullText = "";
       await generateStream(
         {
+          model: effectiveModel,
           prompt: messageToSend.trim(),
           context: systemPrompt,
           maxTokens: settings.maxTokens,
           temperature: settings.temperature,
+          topP: settings.topP,
+          frequencyPenalty: settings.frequencyPenalty,
+          presencePenalty: settings.presencePenalty,
         },
         {
           onChunk: (chunk) => {

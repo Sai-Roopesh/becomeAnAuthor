@@ -12,6 +12,16 @@ pub struct SceneMeta {
     pub word_count: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pov_character: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(default)]
+    pub labels: Vec<String>,
+    #[serde(default)]
+    pub exclude_from_ai: bool,
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub archived: bool,
     #[serde(
         serialize_with = "timestamp::serialize_as_rfc3339",
         deserialize_with = "timestamp::deserialize_from_rfc3339"
@@ -45,8 +55,18 @@ pub struct YamlSceneMeta {
     pub status: String,
     #[serde(default)]
     pub word_count: i32,
-    #[serde(default)]
+    #[serde(default, alias = "pov", alias = "povCharacter", alias = "pov_character")]
     pub pov_character: Option<String>,
+    #[serde(default)]
+    pub subtitle: Option<String>,
+    #[serde(default)]
+    pub labels: Vec<String>,
+    #[serde(default, alias = "excludeFromAI", alias = "excludeFromAi", alias = "exclude_from_ai")]
+    pub exclude_from_ai: bool,
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub archived: bool,
     #[serde(default)]
     pub created_at: String,
     #[serde(default)]

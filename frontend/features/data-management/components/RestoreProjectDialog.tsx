@@ -45,7 +45,7 @@ export function RestoreProjectDialog({
   };
 
   const [activeTab, setActiveTab] = useState<"local" | "drive">("local");
-  const { importProject } = useImportExport();
+  const { importSeries } = useImportExport();
   const { isAuthenticated } = useGoogleAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,9 +55,11 @@ export function RestoreProjectDialog({
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const newProjectId = await importProject(file);
-        if (newProjectId) {
-          toast.success("Project restored successfully!");
+        const result = await importSeries(file);
+        if (result.seriesId) {
+          toast.success(
+            `Series "${result.seriesTitle}" restored with ${result.importedProjectCount} novel${result.importedProjectCount === 1 ? "" : "s"}!`,
+          );
           setOpen(false);
           invalidateQueries();
         }
@@ -81,10 +83,10 @@ export function RestoreProjectDialog({
                   <Download className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="font-heading font-semibold text-lg text-muted-foreground">
-                  Restore Project
+                  Restore Series
                 </h3>
                 <p className="text-sm text-muted-foreground/70 mt-2">
-                  Import from backup file
+                  Import a series backup file
                 </p>
               </Card>
             </div>
@@ -93,9 +95,9 @@ export function RestoreProjectDialog({
       )}
       <DialogContent className="max-w-2xl h-[80dvh] flex flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Restore Project</DialogTitle>
+          <DialogTitle>Restore Series</DialogTitle>
           <DialogDescription>
-            Restore a project from a backup file or from your Google Drive
+            Restore a full series (including novels and codex) from a backup file or Google Drive
           </DialogDescription>
         </DialogHeader>
 
@@ -129,7 +131,7 @@ export function RestoreProjectDialog({
                 <div className="space-y-2">
                   <h3 className="font-medium">Select Backup File</h3>
                   <p className="text-sm text-muted-foreground">
-                    Choose a .json backup file to restore your project
+                    Choose a .json series backup file to restore your data
                   </p>
                 </div>
                 <input
@@ -152,9 +154,9 @@ export function RestoreProjectDialog({
                       About Project Backups
                     </p>
                     <p className="text-blue-700 dark:text-blue-300">
-                      Project backups contain everything from a single novel:
-                      story structure, scenes, characters, and more. Restoring
-                      creates a new copy alongside your existing projects.
+                      Series backups contain all novels in a series, scene
+                      structure, codex, and snippets. Restoring creates a new
+                      imported series alongside existing data.
                     </p>
                   </div>
                 </div>
@@ -172,7 +174,7 @@ export function RestoreProjectDialog({
                 <DriveBackupBrowser
                   onRestore={() => {
                     setOpen(false);
-                    toast.success("Project restored from Google Drive!");
+                    toast.success("Series restored from Google Drive!");
                     invalidateQueries();
                   }}
                 />

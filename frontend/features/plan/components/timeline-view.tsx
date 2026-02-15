@@ -18,8 +18,7 @@ interface TimelineViewProps {
     searchQuery: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQuery }: TimelineViewProps) {
+export function TimelineView({ projectId, seriesId, nodes, searchQuery }: TimelineViewProps) {
     const {
         codexRepository: codexRepo,
         sceneCodexLinkRepository: linkRepo
@@ -41,8 +40,11 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQ
 
     // Process data
     const scenes = useMemo(() => extractScenes(nodes), [nodes]);
-
-    // filteredScenes removed - unused
+    const filteredScenes = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return scenes;
+        return scenes.filter((scene) => scene.title.toLowerCase().includes(q));
+    }, [scenes, searchQuery]);
 
     const visibleLanes = useMemo(() => {
         if (!codexEntries) return [];
@@ -54,7 +56,7 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQ
     // Calculate layout helpers
     const getScenesForLane = (codexId: string) => {
         if (!links) return [];
-        return scenes.map((scene, index) => {
+        return filteredScenes.map((scene, index) => {
             const hasLink = links.some(l => l.sceneId === scene.id && l.codexId === codexId);
             return hasLink ? index : -1;
         }).filter(i => i !== -1);
@@ -87,7 +89,7 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQ
                 visibleCategories={visibleCategories}
                 onToggleCategory={handleToggleCategory}
                 codexEntries={codexEntries}
-                sceneCount={scenes.length}
+                sceneCount={filteredScenes.length}
                 laneCount={visibleLanes.length}
             />
 
@@ -107,8 +109,8 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQ
                             <div className="flex flex-col">
                                 {/* Top Scene Track */}
                                 <div className="h-10 border-b bg-muted/30 flex items-center px-4 sticky top-0 z-10 grid gap-2"
-                                    style={{ gridTemplateColumns: `repeat(${scenes.length}, minmax(120px, 1fr))` }}>
-                                    {scenes.map((scene, i) => (
+                                    style={{ gridTemplateColumns: `repeat(${filteredScenes.length}, minmax(120px, 1fr))` }}>
+                                    {filteredScenes.map((scene, i) => (
                                         <div key={scene.id} className="text-xs font-medium text-muted-foreground truncate px-1 border-l first:border-l-0 border-border/50">
                                             {i + 1}. {scene.title}
                                         </div>
@@ -120,7 +122,7 @@ export function TimelineView({ projectId, seriesId, nodes, searchQuery: _searchQ
                                     <TimelineLane
                                         key={lane.id}
                                         lane={lane}
-                                        scenes={scenes}
+                                        scenes={filteredScenes}
                                         sceneIndices={getScenesForLane(lane.id)}
                                         links={links}
                                         totalWidth={0} // Unused now with grid

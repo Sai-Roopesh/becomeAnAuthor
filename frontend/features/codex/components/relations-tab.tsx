@@ -47,8 +47,8 @@ export function RelationsTab({ entityId, seriesId }: RelationsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const relations = useLiveQuery(
-    () => relationRepo.getByParent(entityId),
-    [entityId, relationRepo],
+    () => relationRepo.getByParent(seriesId, entityId),
+    [seriesId, entityId, relationRepo],
   );
 
   // Fetch all entries once, filter client-side
@@ -73,7 +73,7 @@ export function RelationsTab({ entityId, seriesId }: RelationsTabProps) {
   }, [allEntries, relations, entityId, searchQuery]);
 
   const addRelation = async (childId: string, childName: string) => {
-    await relationRepo.create({
+    await relationRepo.create(seriesId, {
       parentId: entityId,
       childId: childId,
     });
@@ -84,7 +84,7 @@ export function RelationsTab({ entityId, seriesId }: RelationsTabProps) {
   };
 
   const removeRelation = async (relationId: string) => {
-    await relationRepo.delete(relationId);
+    await relationRepo.delete(seriesId, relationId);
     invalidateQueries();
   };
 

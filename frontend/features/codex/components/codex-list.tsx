@@ -38,19 +38,36 @@ import { useConfirmation } from "@/hooks/use-confirmation";
 
 interface CodexListProps {
   seriesId: string;
+  selectedEntityId?: string | null;
+  onSelectedEntityIdChange?: (id: string | null) => void;
 }
 
 const ITEM_HEIGHT = 60; // Height of each codex entry row
 
-export function CodexList({ seriesId }: CodexListProps) {
+export function CodexList({
+  seriesId,
+  selectedEntityId: controlledSelectedEntityId,
+  onSelectedEntityIdChange,
+}: CodexListProps) {
   const codexRepo = useCodexRepository();
   const templateRepo = useCodexTemplateRepository();
   const [search, setSearch] = useState("");
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [internalSelectedEntityId, setInternalSelectedEntityId] = useState<string | null>(null);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [pendingCategory, setPendingCategory] =
     useState<CodexCategory>("character");
   const parentRef = useRef<HTMLDivElement>(null);
+  const selectedEntityId =
+    controlledSelectedEntityId !== undefined
+      ? controlledSelectedEntityId
+      : internalSelectedEntityId;
+  const setSelectedEntityId = (id: string | null) => {
+    if (onSelectedEntityIdChange) {
+      onSelectedEntityIdChange(id);
+      return;
+    }
+    setInternalSelectedEntityId(id);
+  };
 
   const entries = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),

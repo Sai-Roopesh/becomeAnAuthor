@@ -219,7 +219,7 @@ SUMMARY (2-3 sentences, present tense):`,
   };
 
   const executeArchive = async () => {
-    await nodeRepo.update(nodeId, { archived: true });
+    await nodeRepo.updateMetadata(nodeId, { archived: true });
     const { invalidateQueries } = await import("@/hooks/use-live-query");
     invalidateQueries();
     toast.success("Scene archived");
@@ -329,7 +329,7 @@ SUMMARY (2-3 sentences, present tense):`,
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExport}>
                 <FileDown className="h-4 w-4 mr-2" />
-                Export Scene
+                Export Scene as TXT
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleArchive}>
                 <Archive className="h-4 w-4 mr-2" />

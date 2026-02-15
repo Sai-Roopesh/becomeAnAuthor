@@ -64,6 +64,11 @@ export interface SceneMeta {
   status: string;
   word_count: number;
   pov_character?: string;
+  subtitle?: string;
+  labels?: string[];
+  exclude_from_ai?: boolean;
+  summary?: string;
+  archived?: boolean;
   created_at: number; // ✅ Changed from string
   updated_at: number; // ✅ Changed from string
 }
@@ -248,6 +253,27 @@ export async function saveScene(
     sceneFile,
     content,
     title,
+  });
+}
+
+export async function updateSceneMetadata(
+  projectPath: string,
+  sceneFile: string,
+  updates: Partial<{
+    title: string;
+    status: string;
+    pov: string;
+    subtitle: string;
+    labels: string[];
+    excludeFromAI: boolean;
+    summary: string;
+    archived: boolean;
+  }>,
+): Promise<SceneMeta> {
+  return invoke<SceneMeta>("update_scene_metadata", {
+    projectPath,
+    sceneFile,
+    updates,
   });
 }
 
@@ -524,9 +550,17 @@ export async function getChatMessages(
 
 export async function createChatMessage(
   projectPath: string,
-  message: Omit<ChatMessage, "id" | "timestamp">,
+  message: ChatMessage,
 ): Promise<ChatMessage> {
   return invoke<ChatMessage>("create_chat_message", { projectPath, message });
+}
+
+export async function updateChatMessage(
+  projectPath: string,
+  threadId: string,
+  message: ChatMessage,
+): Promise<void> {
+  return invoke("update_chat_message", { projectPath, threadId, message });
 }
 
 export async function deleteChatMessage(
@@ -572,7 +606,13 @@ export async function listSeries(): Promise<Series[]> {
 export async function createSeries(
   series: Omit<Series, "id" | "createdAt" | "updatedAt">,
 ): Promise<Series> {
-  return invoke<Series>("create_series", { title: series.title });
+  return invoke<Series>("create_series", {
+    title: series.title,
+    description: series.description,
+    author: series.author,
+    genre: series.genre,
+    status: series.status,
+  });
 }
 
 export async function updateSeries(
@@ -787,12 +827,45 @@ export async function exportProjectBackup(
 }
 
 /**
+ * Export a full series backup as JSON file
+ */
+export async function exportSeriesBackup(
+  seriesId: string,
+  outputPath?: string | null,
+): Promise<string> {
+  return invoke<string>("export_series_backup", { seriesId, outputPath });
+}
+
+/**
+ * Export series backup as JSON string (for cloud backup services)
+ */
+export async function exportSeriesAsJson(seriesId: string): Promise<string> {
+  return invoke<string>("export_series_as_json", { seriesId });
+}
+
+/**
  * Export project as JSON string (for cloud backup services like Google Drive)
  */
 export async function exportProjectAsJson(
   projectPath: string,
 ): Promise<string> {
   return invoke<string>("export_project_as_json", { projectPath });
+}
+
+export interface ImportSeriesResult {
+  seriesId: string;
+  seriesTitle: string;
+  projectIds: string[];
+  importedProjectCount: number;
+}
+
+/**
+ * Import a series backup file
+ */
+export async function importSeriesBackup(
+  backupJson: string,
+): Promise<ImportSeriesResult> {
+  return invoke<ImportSeriesResult>("import_series_backup", { backupJson });
 }
 
 /**

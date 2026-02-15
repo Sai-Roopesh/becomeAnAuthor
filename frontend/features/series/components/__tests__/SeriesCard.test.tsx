@@ -31,6 +31,12 @@ vi.mock('@/hooks/use-live-query', () => ({
     invalidateQueries: vi.fn(),
 }));
 
+vi.mock('next/navigation', () => ({
+    useRouter: () => ({
+        push: vi.fn(),
+    }),
+}));
+
 vi.mock('@/components/ui/card', () => ({
     Card: ({ children }: React.PropsWithChildren) => <div data-testid="card">{children}</div>,
     CardContent: ({ children }: React.PropsWithChildren) => <div data-testid="card-content">{children}</div>,
@@ -113,7 +119,7 @@ const createMockProject = (overrides: Partial<Project> = {}): Project => ({
     createdAt: Date.now(),
     updatedAt: Date.now(),
     seriesId: 'series-1',
-    seriesIndex: 1,
+    seriesIndex: 'Book 1',
     ...overrides,
 } as Project);
 

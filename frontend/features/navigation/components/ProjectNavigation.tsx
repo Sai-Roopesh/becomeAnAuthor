@@ -3,6 +3,7 @@
 import { useLiveQuery, invalidateQueries } from "@/hooks/use-live-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useProjectStore } from "@/store/use-project-store";
+import type { LeftSidebarTab } from "@/store/use-project-store";
 import { cn } from "@/lib/utils";
 import { DocumentNode } from "@/domain/entities/types";
 import {
@@ -48,7 +49,11 @@ interface ProjectNavigationProps {
     projectId: string;
     onSelect: (id: string) => void;
   }) => ReactNode;
-  renderCodexList?: (props: { seriesId: string }) => ReactNode;
+  renderCodexList?: (props: {
+    seriesId: string;
+    selectedEntityId: string | null;
+    onSelectedEntityIdChange: (id: string | null) => void;
+  }) => ReactNode;
   renderNodeActionsMenu?: (props: {
     nodeId: string;
     nodeType: "act" | "chapter" | "scene";
@@ -74,7 +79,14 @@ export function ProjectNavigation({
     () => nodeRepo.getByProject(projectId),
     [projectId, nodeRepo],
   );
-  const { activeSceneId, setActiveSceneId } = useProjectStore();
+  const {
+    activeSceneId,
+    setActiveSceneId,
+    leftSidebarTab,
+    setLeftSidebarTab,
+    activeCodexEntryId,
+    setActiveCodexEntryId,
+  } = useProjectStore();
   // expanded state removed - unused
 
   const [dialogState, setDialogState] = useState<{
@@ -226,7 +238,8 @@ export function ProjectNavigation({
       </div>
 
       <Tabs
-        defaultValue="manuscript"
+        value={leftSidebarTab}
+        onValueChange={(value) => setLeftSidebarTab(value as LeftSidebarTab)}
         className="flex-1 flex flex-col overflow-hidden"
       >
         <TabsList className="grid w-full grid-cols-3 rounded-none border-b bg-transparent p-0">
@@ -289,7 +302,11 @@ export function ProjectNavigation({
 
         <TabsContent value="codex" className="flex-1 overflow-hidden m-0">
           {renderCodexList ? (
-            renderCodexList({ seriesId: project.seriesId })
+            renderCodexList({
+              seriesId: project.seriesId,
+              selectedEntityId: activeCodexEntryId,
+              onSelectedEntityIdChange: setActiveCodexEntryId,
+            })
           ) : (
             <div className="p-4 text-center text-muted-foreground text-sm">
               Codex component not provided

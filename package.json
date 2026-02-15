@@ -3,9 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.29.2",
+  "engines": {
+    "node": ">=20.9.0 <25",
+    "pnpm": ">=10"
+  },
   "scripts": {
-    "dev": "tauri dev",
-    "dev:web": "next dev",
+    "dev": "pnpm run tauri:dev",
+    "check:runtime": "bash ./scripts/check-runtime.sh",
+    "dev:web": "bash ./scripts/dev-web-safe.sh",
+    "dev:doctor": "bash ./scripts/dev-doctor.sh",
+    "dev:reset": "bash ./scripts/dev-reset.sh",
     "build": "next build",
     "start": "next start",
     "lint": "eslint frontend app --ext .ts,.tsx",
@@ -18,7 +25,8 @@
     "deps:circular": "madge --circular --extensions ts,tsx frontend",
     "deps:graph": "madge --extensions ts,tsx --image deps-graph.svg frontend",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
+    "tauri:dev": "bash ./scripts/tauri-dev-safe.sh",
+    "tauri:dev:raw": "tauri dev --no-dev-server-wait",
     "tauri:build": "tauri build"
   },
   "lint-staged": {

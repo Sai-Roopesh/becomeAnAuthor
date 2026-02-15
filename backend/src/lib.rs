@@ -58,6 +58,7 @@ pub fn run() {
             // Scene commands
             load_scene,
             save_scene,
+            update_scene_metadata,
             save_scene_by_id,
             delete_scene,
             // Codex commands
@@ -76,6 +77,7 @@ pub fn run() {
             delete_chat_thread,
             get_chat_messages,
             create_chat_message,
+            update_chat_message,
             delete_chat_message,
             // Codex enhancement commands
             list_codex_relations,
@@ -117,10 +119,13 @@ pub fn run() {
             export_manuscript_text,
             export_manuscript_docx,
             export_manuscript_epub,
+            export_series_backup,
+            export_series_as_json,
             export_project_backup,
             export_project_as_json,
             write_export_file,
             // Import command
+            import_series_backup,
             import_project_backup,
             // Series commands
             list_series,

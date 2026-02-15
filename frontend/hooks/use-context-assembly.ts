@@ -1,7 +1,7 @@
 "use client";
 /**
  * Centralized Context Assembly Hook
- * Eliminates code duplication between AIChat and tiptap-editor
+ * Eliminates code duplication across chat/editor context assembly flows.
  */
 
 import { useCallback, useRef } from "react";
@@ -73,6 +73,12 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
       const contextAssembler = getContextAssembler();
       const contexts: string[] = [];
 
+      const loadSceneForContext = async (sceneId: string): Promise<Scene | null> => {
+        const node = (await nodeRepo.get(sceneId)) as Scene | undefined;
+        if (node && node.type === "scene") return node;
+        return null;
+      };
+
       for (const context of selectedContexts) {
         try {
           if (context.type === "novel") {
@@ -82,8 +88,11 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
             )) as StoryNode[];
             const sceneNodes = nodes.filter(isSceneNode);
             for (const scene of sceneNodes) {
-              const sceneContext = contextAssembler.createSceneContext(scene);
-              contexts.push(sceneContext.content);
+              const fullScene = await loadSceneForContext(scene.id);
+              if (fullScene) {
+                const sceneContext = contextAssembler.createSceneContext(fullScene);
+                contexts.push(sceneContext.content);
+              }
             }
           } else if (context.type === "outline") {
             // Fetch structure outline
@@ -108,16 +117,21 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
             )) as StoryNode[];
             for (const child of children) {
               if (isSceneNode(child)) {
-                const sceneContext = contextAssembler.createSceneContext(child);
-                contexts.push(sceneContext.content);
+                const fullScene = await loadSceneForContext(child.id);
+                if (fullScene) {
+                  const sceneContext = contextAssembler.createSceneContext(fullScene);
+                  contexts.push(sceneContext.content);
+                }
               } else if (child.type === "chapter") {
                 const grandchildren = (await nodeRepo.getChildren(
                   child.id,
                 )) as StoryNode[];
                 for (const scene of grandchildren.filter(isSceneNode)) {
-                  const sceneContext =
-                    contextAssembler.createSceneContext(scene);
-                  contexts.push(sceneContext.content);
+                  const fullScene = await loadSceneForContext(scene.id);
+                  if (fullScene) {
+                    const sceneContext = contextAssembler.createSceneContext(fullScene);
+                    contexts.push(sceneContext.content);
+                  }
                 }
               }
             }
@@ -127,8 +141,11 @@ export function useContextAssembly(projectId: string, seriesId?: string) {
               context.id,
             )) as StoryNode[];
             for (const scene of children.filter(isSceneNode)) {
-              const sceneContext = contextAssembler.createSceneContext(scene);
-              contexts.push(sceneContext.content);
+              const fullScene = await loadSceneForContext(scene.id);
+              if (fullScene) {
+                const sceneContext = contextAssembler.createSceneContext(fullScene);
+                contexts.push(sceneContext.content);
+              }
             }
           } else if (
             context.type === "codex" &&

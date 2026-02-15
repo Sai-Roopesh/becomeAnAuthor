@@ -1,6 +1,7 @@
 // Project commands
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -21,6 +22,59 @@ pub struct RecentProject {
 fn get_recent_path() -> Result<PathBuf, String> {
     let app_dir = get_app_dir()?;
     Ok(app_dir.join("recent.json"))
+}
+
+/// Get the path to the project registry file
+fn get_project_registry_path() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    Ok(app_dir.join("project_registry.json"))
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct RegistryEntry {
+    path: String,
+    title: Option<String>,
+    last_seen: i64,
+}
+
+fn read_project_registry() -> Result<Vec<RegistryEntry>, String> {
+    let registry_path = get_project_registry_path()?;
+    if !registry_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(&registry_path)
+        .map_err(|e| format!("Failed to read project_registry.json: {}", e))?;
+    Ok(serde_json::from_str(&content).unwrap_or_default())
+}
+
+fn write_project_registry(entries: &[RegistryEntry]) -> Result<(), String> {
+    let registry_path = get_project_registry_path()?;
+    let json = serde_json::to_string_pretty(entries)
+        .map_err(|e| format!("Failed to serialize project registry: {}", e))?;
+    fs::write(&registry_path, json)
+        .map_err(|e| format!("Failed to write project_registry.json: {}", e))?;
+    Ok(())
+}
+
+pub(crate) fn register_project_path(project_path: String, title: Option<String>) -> Result<(), String> {
+    let mut entries = read_project_registry()?;
+    entries.retain(|e| e.path != project_path);
+    entries.insert(
+        0,
+        RegistryEntry {
+            path: project_path,
+            title,
+            last_seen: timestamp::now_millis(),
+        },
+    );
+    write_project_registry(&entries)
+}
+
+pub(crate) fn unregister_project_path(project_path: &str) -> Result<(), String> {
+    let mut entries = read_project_registry()?;
+    entries.retain(|e| e.path != project_path);
+    write_project_registry(&entries)
 }
 
 /// List recently opened projects (auto-prunes old/invalid entries)
@@ -64,6 +118,8 @@ pub fn list_recent_projects() -> Result<Vec<RecentProject>, String> {
 #[tauri::command]
 pub fn add_to_recent(project_path: String, title: String) -> Result<(), String> {
     let recent_path = get_recent_path()?;
+    let registry_path = project_path.clone();
+    let registry_title = title.clone();
     
     let mut projects: Vec<RecentProject> = if recent_path.exists() {
         let content = fs::read_to_string(&recent_path)
@@ -91,6 +147,9 @@ pub fn add_to_recent(project_path: String, title: String) -> Result<(), String> 
         .map_err(|e| format!("Failed to serialize recent: {}", e))?;
     fs::write(&recent_path, json)
         .map_err(|e| format!("Failed to write recent.json: {}", e))?;
+
+    // Keep registry in sync so projects remain discoverable beyond recent-window limits.
+    register_project_path(registry_path, Some(registry_title))?;
     
     Ok(())
 }
@@ -152,18 +211,54 @@ pub fn get_projects_path() -> Result<String, String> {
 /// List projects from recent list (simplified from registry-based approach)
 #[tauri::command]
 pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
-    let recent = list_recent_projects()?;
+    let mut candidate_paths: HashSet<String> = HashSet::new();
+
+    // 1) Registry-backed paths (persistent across "recent" pruning)
+    for entry in read_project_registry()? {
+        candidate_paths.insert(entry.path);
+    }
+
+    // 2) Recent paths (still useful for externally-opened projects)
+    for recent in list_recent_projects()? {
+        candidate_paths.insert(recent.path);
+    }
+
+    // 3) Default app projects directory scan
+    let projects_dir = get_projects_dir()?;
+    if projects_dir.exists() {
+        for entry in fs::read_dir(&projects_dir).map_err(|e| e.to_string())? {
+            let Ok(entry) = entry else { continue };
+            let path = entry.path();
+            if path.is_dir() && path.join(".meta/project.json").exists() {
+                candidate_paths.insert(path.to_string_lossy().to_string());
+            }
+        }
+    }
+
     let mut projects = Vec::new();
-    
-    for recent_proj in recent {
-        let meta_path = PathBuf::from(&recent_proj.path).join(".meta/project.json");
+    let mut still_valid_registry_entries: Vec<RegistryEntry> = Vec::new();
+
+    for project_path in candidate_paths {
+        let meta_path = PathBuf::from(&project_path).join(".meta/project.json");
         if let Ok(content) = fs::read_to_string(&meta_path) {
             if let Ok(project) = serde_json::from_str::<ProjectMeta>(&content) {
+                still_valid_registry_entries.push(RegistryEntry {
+                    path: project.path.clone(),
+                    title: Some(project.title.clone()),
+                    last_seen: timestamp::now_millis(),
+                });
                 projects.push(project);
             }
         }
     }
 
+    // Save a pruned/merged registry so stale entries do not accumulate.
+    // Sort by most recently seen descending.
+    still_valid_registry_entries.sort_by(|a, b| b.last_seen.cmp(&a.last_seen));
+    write_project_registry(&still_valid_registry_entries)?;
+
+    // Sort by updated_at desc for deterministic dashboard ordering.
+    projects.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
     Ok(projects)
 }
 
@@ -302,6 +397,7 @@ pub fn delete_project(project_path: String) -> Result<(), String> {
     
     // Remove from recent projects list
     remove_from_recent(project_path)?;
+    unregister_project_path(path.to_string_lossy().as_ref())?;
     
     Ok(())
 }
@@ -458,7 +554,7 @@ pub fn create_node(
         let file_path = PathBuf::from(&project_path).join("manuscript").join(&file_name);
         
         let scene_content = format!(
-            "---\nid: {}\ntitle: \"{}\"\norder: {}\nstatus: draft\nwordCount: 0\ncreatedAt: {}\nupdatedAt: {}\n---\n\n",
+            "---\nid: {}\ntitle: \"{}\"\norder: {}\nstatus: draft\nwordCount: 0\npov: null\nsubtitle: null\nlabels: []\nexcludeFromAI: false\nsummary: \"\"\narchived: false\ncreatedAt: {}\nupdatedAt: {}\n---\n\n",
             id, title, order, now_rfc3339, now_rfc3339
         );
         fs::write(&file_path, scene_content).map_err(|e| e.to_string())?;

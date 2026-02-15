@@ -83,7 +83,13 @@ export function EditorContainer({ projectId }: { projectId: string }) {
         renderSnippetList={(props) => (
           <SnippetList projectId={props.projectId} onSelect={props.onSelect} />
         )}
-        renderCodexList={(props) => <CodexList seriesId={props.seriesId} />}
+        renderCodexList={(props) => (
+          <CodexList
+            seriesId={props.seriesId}
+            selectedEntityId={props.selectedEntityId}
+            onSelectedEntityIdChange={props.onSelectedEntityIdChange}
+          />
+        )}
         renderNodeActionsMenu={(props) => (
           <NodeActionsMenu
             nodeId={props.nodeId}

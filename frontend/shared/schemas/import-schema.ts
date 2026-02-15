@@ -134,3 +134,37 @@ export const ExportedProjectSchema = z.object({
 });
 
 export type ValidatedExportedProject = z.infer<typeof ExportedProjectSchema>;
+
+/**
+ * Series backup schema (series-first import/export contract)
+ */
+export const ExportedSeriesSchema = z.object({
+    version: z.number().int().min(2),
+    backupType: z.literal('series'),
+    exportedAt: z.string().optional(),
+    series: z.object({
+        id: z.string().optional(),
+        title: z.string().min(1).max(200),
+        description: z.string().optional().nullable(),
+        author: z.string().optional().nullable(),
+        genre: z.string().optional().nullable(),
+        status: z.string().optional().nullable(),
+        createdAt: z.number().optional(),
+        updatedAt: z.number().optional(),
+    }),
+    projects: z.array(
+        z.object({
+            project: z.object({
+                id: z.string().optional(),
+                title: z.string().min(1).max(200),
+            }).passthrough(),
+            nodes: z.array(z.any()).optional(),
+            sceneFiles: z.record(z.string(), z.string()).optional(),
+            snippets: z.array(z.any()).optional(),
+        }),
+    ).default([]),
+    codex: z.array(z.any()).optional(),
+    codexRelations: z.array(z.any()).optional(),
+});
+
+export type ValidatedExportedSeries = z.infer<typeof ExportedSeriesSchema>;

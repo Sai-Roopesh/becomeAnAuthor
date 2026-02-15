@@ -1,10 +1,11 @@
 "use client";
 
 import { DocumentNode } from "@/domain/entities/types";
-import { useLiveQuery } from "@/hooks/use-live-query";
+import { invalidateQueries, useLiveQuery } from "@/hooks/use-live-query";
 import { useCodexRepository } from "@/hooks/use-codex-repository";
 import { useState } from "react";
 import { Table } from "lucide-react";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import {
   Select,
   SelectContent,
@@ -22,19 +23,20 @@ interface MatrixViewProps {
 
 type MatrixMode = "codex" | "pov" | "labels";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function MatrixView({
-  projectId: _projectId,
+  projectId,
   seriesId,
   nodes,
   searchQuery,
 }: MatrixViewProps) {
   const [mode, setMode] = useState<MatrixMode>("codex");
   const codexRepo = useCodexRepository();
+  const { sceneCodexLinkRepository: linkRepo } = useAppServices();
   const codexEntries = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
   );
+  const links = useLiveQuery(() => linkRepo.getByProject(projectId), [projectId, linkRepo]);
 
   const acts = nodes.filter((n) => n.type === "act");
   const getChildren = (parentId: string) =>
@@ -60,6 +62,27 @@ export function MatrixView({
   };
 
   const filteredScenes = scenes.filter(filterScenes);
+
+  const isLinked = (sceneId: string, codexId: string) =>
+    links?.some((l) => l.sceneId === sceneId && l.codexId === codexId) ?? false;
+
+  const getLinkId = (sceneId: string, codexId: string) =>
+    links?.find((l) => l.sceneId === sceneId && l.codexId === codexId)?.id;
+
+  const toggleLink = async (sceneId: string, codexId: string, checked: boolean) => {
+    if (checked) {
+      await linkRepo.create({
+        sceneId,
+        codexId,
+        projectId,
+        role: "appears",
+      });
+    } else {
+      const id = getLinkId(sceneId, codexId);
+      if (id) await linkRepo.delete(id);
+    }
+    invalidateQueries();
+  };
 
   if (scenes.length === 0) {
     return (
@@ -153,7 +176,10 @@ export function MatrixView({
                         <input
                           type="checkbox"
                           className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 transition-all cursor-pointer"
-                          defaultChecked={false}
+                          checked={isLinked(scene.id, entry.id)}
+                          onChange={(e) =>
+                            void toggleLink(scene.id, entry.id, e.target.checked)
+                          }
                         />
                       </td>
                     ))}

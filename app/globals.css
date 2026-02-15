@@ -1,6 +1,8 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @plugin "tailwindcss-animate";
 @plugin "@tailwindcss/typography";
+@source "./**/*.{ts,tsx}";
+@source "../frontend/**/*.{ts,tsx}";
 
 .mention {
   @apply bg-primary/10 text-primary font-medium rounded px-1 py-0.5 decoration-clone;
@@ -240,6 +242,9 @@
 
 :root {
   --radius: 0.625rem;
+  /* Local/system font stacks avoid network fetches in Next font pipeline. */
+  --font-inter: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-outfit: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* Light Mode - Warm Neutral (Ulysses-inspired) */
   /* Paper-like, easy on the eyes for long writing sessions */

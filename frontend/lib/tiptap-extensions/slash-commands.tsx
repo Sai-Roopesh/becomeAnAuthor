@@ -20,6 +20,11 @@ export interface SlashCommandItem {
     keywords?: string[]; // For search filtering
 }
 
+function getSelectionMenuPosition(editor: Editor): { x: number; y: number } {
+    const coords = editor.view.coordsAtPos(editor.state.selection.from);
+    return { x: coords.left, y: coords.bottom + 8 };
+}
+
 /**
  * Get all available slash commands
  * 
@@ -42,7 +47,7 @@ export function getSuggestionItems(query: string): SlashCommandItem[] {
                 // Dispatch event to open Spark popover
                 const event = new CustomEvent('openSparkPopover', {
                     detail: {
-                        position: editor.view.coordsAtPos(editor.state.selection.from),
+                        position: getSelectionMenuPosition(editor),
                     }
                 });
                 window.dispatchEvent(event);
@@ -56,7 +61,11 @@ export function getSuggestionItems(query: string): SlashCommandItem[] {
             command: ({ editor, range }) => {
                 editor.chain().focus().deleteRange(range).run();
                 // Trigger scene beat dialog
-                const event = new CustomEvent('openSceneBeat');
+                const event = new CustomEvent('openSceneBeat', {
+                    detail: {
+                        position: getSelectionMenuPosition(editor),
+                    },
+                });
                 window.dispatchEvent(event);
             },
         },
@@ -68,7 +77,11 @@ export function getSuggestionItems(query: string): SlashCommandItem[] {
             command: ({ editor, range }) => {
                 editor.chain().focus().deleteRange(range).run();
                 // Trigger AI generation menu (Cmd+J equivalent)
-                const event = new CustomEvent('continueWriting');
+                const event = new CustomEvent('continueWriting', {
+                    detail: {
+                        position: getSelectionMenuPosition(editor),
+                    },
+                });
                 window.dispatchEvent(event);
             },
         },

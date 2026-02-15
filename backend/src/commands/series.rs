@@ -23,7 +23,13 @@ pub fn list_series() -> Result<Vec<Series>, String> {
 }
 
 #[tauri::command]
-pub fn create_series(title: String) -> Result<Series, String> {
+pub fn create_series(
+    title: String,
+    description: Option<String>,
+    author: Option<String>,
+    genre: Option<String>,
+    status: Option<String>,
+) -> Result<Series, String> {
     // Validate title (same rules as project titles)
     validate_project_title(&title)?;
     
@@ -32,6 +38,10 @@ pub fn create_series(title: String) -> Result<Series, String> {
     let new_series = Series {
         id: uuid::Uuid::new_v4().to_string(),
         title,
+        description,
+        author,
+        genre,
+        status,
         created_at: now,
         updated_at: now,
     };
@@ -68,6 +78,26 @@ pub fn update_series(series_id: String, updates: serde_json::Value) -> Result<()
     if let Some(series) = all_series.iter_mut().find(|s| s.id == series_id) {
         if let Some(title) = updates.get("title").and_then(|v| v.as_str()) {
             series.title = title.to_string();
+        }
+        if let Some(description) = updates.get("description").and_then(|v| v.as_str()) {
+            series.description = Some(description.to_string());
+        } else if updates.get("description").is_some_and(|v| v.is_null()) {
+            series.description = None;
+        }
+        if let Some(author) = updates.get("author").and_then(|v| v.as_str()) {
+            series.author = Some(author.to_string());
+        } else if updates.get("author").is_some_and(|v| v.is_null()) {
+            series.author = None;
+        }
+        if let Some(genre) = updates.get("genre").and_then(|v| v.as_str()) {
+            series.genre = Some(genre.to_string());
+        } else if updates.get("genre").is_some_and(|v| v.is_null()) {
+            series.genre = None;
+        }
+        if let Some(status) = updates.get("status").and_then(|v| v.as_str()) {
+            series.status = Some(status.to_string());
+        } else if updates.get("status").is_some_and(|v| v.is_null()) {
+            series.status = None;
         }
         series.updated_at = now;
     } else {

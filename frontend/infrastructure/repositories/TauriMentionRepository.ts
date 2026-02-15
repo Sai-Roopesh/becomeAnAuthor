@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { IMentionRepository } from "@/domain/repositories/IMentionRepository";
 import type { Mention } from "@/domain/entities/types";
+import { listProjects } from "@/core/tauri";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("TauriMentionRepository");
@@ -10,6 +11,26 @@ const log = logger.scope("TauriMentionRepository");
  * Follows Clean Architecture patterns - calls Rust backend commands
  */
 export class TauriMentionRepository implements IMentionRepository {
+  private projectPathCache = new Map<string, string>();
+
+  private async resolveProjectPath(projectIdOrPath: string): Promise<string | null> {
+    if (projectIdOrPath.includes("/") || projectIdOrPath.includes("\\")) {
+      return projectIdOrPath;
+    }
+
+    const cached = this.projectPathCache.get(projectIdOrPath);
+    if (cached) return cached;
+
+    const projects = await listProjects();
+    const project = projects.find((p) => p.id === projectIdOrPath);
+    if (!project?.path) {
+      return null;
+    }
+
+    this.projectPathCache.set(projectIdOrPath, project.path);
+    return project.path;
+  }
+
   /**
    * Get all mentions of a codex entry
    */
@@ -18,9 +39,11 @@ export class TauriMentionRepository implements IMentionRepository {
     codexEntryId: string,
   ): Promise<Mention[]> {
     try {
-      // projectId is the project path in the backend
+      const projectPath = await this.resolveProjectPath(projectId);
+      if (!projectPath) return [];
+
       return await invoke<Mention[]>("find_mentions", {
-        projectPath: projectId,
+        projectPath,
         codexEntryId,
       });
     } catch (error) {
@@ -37,8 +60,11 @@ export class TauriMentionRepository implements IMentionRepository {
     codexEntryId: string,
   ): Promise<number> {
     try {
+      const projectPath = await this.resolveProjectPath(projectId);
+      if (!projectPath) return 0;
+
       return await invoke<number>("count_mentions", {
-        projectPath: projectId,
+        projectPath,
         codexEntryId,
       });
     } catch (error) {
@@ -51,8 +77,8 @@ export class TauriMentionRepository implements IMentionRepository {
    * Rebuild the mention index for a project
    * Currently not implemented server-side - mentions are computed on-demand
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async rebuildIndex(_projectId: string): Promise<void> {
+  async rebuildIndex(projectId: string): Promise<void> {
+    void projectId;
     // No-op: Mentions are computed on-demand, not stored
     // Could be implemented for performance optimization in the future
   }
@@ -62,9 +88,9 @@ export class TauriMentionRepository implements IMentionRepository {
    * Not yet implemented - would need a new backend command
    */
   async getAllByProject(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _projectId: string,
+    projectId: string,
   ): Promise<Record<string, Mention[]>> {
+    void projectId;
     // Not implemented yet - would require backend support
     return {};
   }

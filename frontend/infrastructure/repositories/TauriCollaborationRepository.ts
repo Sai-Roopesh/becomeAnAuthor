@@ -35,9 +35,11 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
 
   async saveYjsState(
     sceneId: string,
-    _projectId: string,
+    projectId: string,
     update: Uint8Array,
   ): Promise<void> {
+    // Project identity is part of domain contract; storage uses active project path.
+    void projectId;
     const projectPath = this.getProjectPath();
     if (!projectPath) {
       log.debug("Cannot save Yjs state: No project path set");
@@ -60,11 +62,11 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async loadYjsState(
     sceneId: string,
-    _projectId: string,
+    projectId: string,
   ): Promise<YjsStateSnapshot | null> {
+    void projectId;
     const projectPath = this.getProjectPath();
     if (!projectPath) {
       log.debug("Cannot load Yjs state: No project path set");
@@ -97,8 +99,8 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async hasYjsState(sceneId: string, _projectId: string): Promise<boolean> {
+  async hasYjsState(sceneId: string, projectId: string): Promise<boolean> {
+    void projectId;
     const projectPath = this.getProjectPath();
     if (!projectPath) return false;
 
@@ -112,8 +114,8 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async deleteYjsState(sceneId: string, _projectId: string): Promise<void> {
+  async deleteYjsState(sceneId: string, projectId: string): Promise<void> {
+    void projectId;
     const projectPath = this.getProjectPath();
     if (!projectPath) {
       log.debug("Cannot delete Yjs state: No project path set");

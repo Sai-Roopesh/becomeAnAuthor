@@ -14,6 +14,9 @@ export interface GenerateOptions {
   prompt: string;
   maxTokens?: number;
   temperature?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   signal?: AbortSignal;
 }
 
@@ -24,6 +27,9 @@ export interface GenerateObjectOptions<T> {
   system?: string;
   maxTokens?: number;
   temperature?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   signal?: AbortSignal;
 }
 
@@ -66,6 +72,9 @@ export async function generate(opts: GenerateOptions) {
     ...(opts.system && { system: opts.system }),
     ...(opts.maxTokens && { maxOutputTokens: opts.maxTokens }),
     ...(opts.temperature != null && { temperature: opts.temperature }),
+    ...(opts.topP != null && { topP: opts.topP }),
+    ...(opts.frequencyPenalty != null && { frequencyPenalty: opts.frequencyPenalty }),
+    ...(opts.presencePenalty != null && { presencePenalty: opts.presencePenalty }),
     ...(opts.signal && { abortSignal: opts.signal }),
   });
 }
@@ -86,6 +95,9 @@ export async function stream(opts: GenerateOptions) {
     ...(opts.system && { system: opts.system }),
     ...(opts.maxTokens && { maxOutputTokens: opts.maxTokens }),
     ...(opts.temperature != null && { temperature: opts.temperature }),
+    ...(opts.topP != null && { topP: opts.topP }),
+    ...(opts.frequencyPenalty != null && { frequencyPenalty: opts.frequencyPenalty }),
+    ...(opts.presencePenalty != null && { presencePenalty: opts.presencePenalty }),
     ...(opts.signal && { abortSignal: opts.signal }),
   });
 }
@@ -106,6 +118,9 @@ export async function object<T>(opts: GenerateObjectOptions<T>) {
     ...(opts.system && { system: opts.system }),
     ...(opts.maxTokens && { maxOutputTokens: opts.maxTokens }),
     ...(opts.temperature != null && { temperature: opts.temperature }),
+    ...(opts.topP != null && { topP: opts.topP }),
+    ...(opts.frequencyPenalty != null && { frequencyPenalty: opts.frequencyPenalty }),
+    ...(opts.presencePenalty != null && { presencePenalty: opts.presencePenalty }),
     ...(opts.signal && { abortSignal: opts.signal }),
   });
 }

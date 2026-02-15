@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppServices } from '@/infrastructure/di/AppContext';
 import { searchService, type SearchableScene, type SearchableCodex } from '@/lib/search-service';
-import { isScene, DocumentNode, CodexEntry } from '@/domain/entities/types';
+import { isScene, DocumentNode, CodexEntry, type Scene } from '@/domain/entities/types';
 import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
 import { logger } from '@/shared/utils/logger';
 
@@ -54,26 +54,38 @@ export function useSearch(projectId: string, seriesId: string) {
         return () => { mounted = false; };
     }, [projectId, seriesId, nodeRepo, codexRepo]);
 
-    // Filter to just scenes
-    const scenes = useMemo(() => {
-        return allNodes?.filter(node => isScene(node)) || [];
-    }, [allNodes]);
-
     // Initialize scene search index
     useEffect(() => {
-        if (scenes && scenes.length > 0) {
-            const searchableScenes: SearchableScene[] = scenes
-                .filter(node => isScene(node))
+        let mounted = true;
+
+        const hydrateScenes = async () => {
+            const sceneStubs = (allNodes ?? []).filter(node => isScene(node));
+            if (sceneStubs.length === 0) {
+                searchService.initializeSceneSearch([]);
+                return;
+            }
+
+            const hydrated = await Promise.all(
+                sceneStubs.map((scene) => nodeRepo.get(scene.id))
+            );
+            if (!mounted) return;
+
+            const searchableScenes: SearchableScene[] = hydrated
+                .filter((node): node is Scene => Boolean(node && isScene(node)))
                 .map((scene) => ({
                     id: scene.id,
                     title: scene.title,
-                    content: isScene(scene) ? scene.content : null,
-                    summary: isScene(scene) ? (scene.summary || '') : '',
+                    content: scene.content,
+                    summary: scene.summary || '',
                     type: 'scene',
                 }));
+
             searchService.initializeSceneSearch(searchableScenes);
-        }
-    }, [scenes]);
+        };
+
+        void hydrateScenes();
+        return () => { mounted = false; };
+    }, [allNodes, nodeRepo]);
 
     // Initialize codex search index
     useEffect(() => {

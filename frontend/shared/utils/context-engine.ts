@@ -179,7 +179,6 @@ export async function assembleContext(
 
             if (mentionedIds.length > 0) {
                 try {
-                    // Try series-level codex first (preferred)
                     if (seriesId) {
                         const allCodex = await invoke<CodexEntry[]>(
                             'list_series_codex_entries',
@@ -187,12 +186,10 @@ export async function assembleContext(
                         );
                         mentionedEntries = allCodex.filter(e => mentionedIds.includes(e.id));
                     } else {
-                        // Fallback to project-level codex
-                        const allCodex = await invoke<CodexEntry[]>(
-                            'list_codex_entries',
-                            { projectPath }
-                        );
-                        mentionedEntries = allCodex.filter(e => mentionedIds.includes(e.id));
+                        log.warn('Series ID missing; skipping codex mention context', {
+                            sceneId,
+                            mentionedCount: mentionedIds.length,
+                        });
                     }
                 } catch (error) {
                     log.warn('Failed to load codex entries for mentions', { error });
@@ -308,4 +305,3 @@ async function extractTextFromTiptap(content: unknown, depth: number = 0): Promi
 
     return '';
 }
-

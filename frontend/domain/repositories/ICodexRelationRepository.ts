@@ -8,15 +8,15 @@ export interface ICodexRelationRepository {
     /**
      * Get all relations for a specific codex entry (as parent)
      */
-    getByParent(parentId: string): Promise<CodexRelation[]>;
+    getByParent(seriesId: string, parentId: string): Promise<CodexRelation[]>;
 
     /**
      * Create a new codex relation
      */
-    create(relation: Partial<CodexRelation> & { parentId: string; childId: string }): Promise<CodexRelation>;
+    create(seriesId: string, relation: Partial<CodexRelation> & { parentId: string; childId: string }): Promise<CodexRelation>;
 
     /**
      * Delete a codex relation
      */
-    delete(id: string): Promise<void>;
+    delete(seriesId: string, id: string): Promise<void>;
 }

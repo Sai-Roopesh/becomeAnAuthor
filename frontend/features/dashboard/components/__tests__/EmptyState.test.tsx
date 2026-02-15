@@ -1,11 +1,10 @@
 /**
  * EmptyState Component Specification Tests
- * 
+ *
  * SPECIFICATIONS:
  * 1. MUST display welcoming message for new users
- * 2. MUST include create project dialog
- * 3. MUST include restore project dialog
- * 4. MUST have visual indicators (icons, animations)
+ * 2. MUST display series-first instructional copy
+ * 3. MUST have visual indicators (icons, animations)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -20,18 +19,6 @@ import { EmptyState } from '../EmptyState';
 vi.mock('lucide-react', () => ({
     BookOpen: () => <span data-testid="book-icon">📖</span>,
     Sparkles: () => <span data-testid="sparkles-icon">✨</span>,
-}));
-
-vi.mock('@/features/project', () => ({
-    CreateProjectDialog: () => (
-        <button data-testid="create-project-dialog">Create New Project</button>
-    ),
-}));
-
-vi.mock('@/features/data-management', () => ({
-    RestoreProjectDialog: () => (
-        <button data-testid="restore-project-dialog">Restore Project</button>
-    ),
 }));
 
 // ============================================
@@ -58,25 +45,7 @@ describe('EmptyState Component', () => {
             render(<EmptyState />);
 
             expect(screen.getByText(/Your journey begins here/i)).toBeInTheDocument();
-            expect(screen.getByText(/Create a new novel/i)).toBeInTheDocument();
-        });
-    });
-
-    // ========================================
-    // SPECIFICATION: Action Buttons
-    // ========================================
-
-    describe('SPEC: Action Buttons', () => {
-        it('MUST include create project dialog', () => {
-            render(<EmptyState />);
-
-            expect(screen.getByTestId('create-project-dialog')).toBeInTheDocument();
-        });
-
-        it('MUST include restore project dialog', () => {
-            render(<EmptyState />);
-
-            expect(screen.getByTestId('restore-project-dialog')).toBeInTheDocument();
+            expect(screen.getByText(/Create your first series/i)).toBeInTheDocument();
         });
     });
 

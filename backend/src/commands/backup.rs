@@ -1,10 +1,11 @@
 // Backup and export commands
 
 use std::fs;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::models::{ProjectMeta, EmergencyBackup, StructureNode};
-use crate::utils::{get_app_dir, get_projects_dir, slugify, timestamp};
+use crate::models::{ProjectMeta, EmergencyBackup, StructureNode, Series, CodexRelation};
+use crate::utils::{get_app_dir, get_projects_dir, get_series_codex_path, get_series_dir, slugify, timestamp};
 
 // Emergency Backup Commands
 #[tauri::command]
@@ -392,6 +393,133 @@ pub fn export_manuscript_epub(
     Ok(output_path)
 }
 
+fn collect_scene_files(project_path: &str, nodes: &[StructureNode]) -> serde_json::Map<String, serde_json::Value> {
+    fn walk(
+        project_path: &str,
+        nodes: &[StructureNode],
+        out: &mut serde_json::Map<String, serde_json::Value>,
+    ) {
+        for node in nodes {
+            if let Some(file) = &node.file {
+                let file_path = PathBuf::from(project_path).join("manuscript").join(file);
+                if let Ok(content) = fs::read_to_string(file_path) {
+                    out.insert(file.clone(), serde_json::Value::String(content));
+                }
+            }
+            if !node.children.is_empty() {
+                walk(project_path, &node.children, out);
+            }
+        }
+    }
+
+    let mut files = serde_json::Map::new();
+    walk(project_path, nodes, &mut files);
+    files
+}
+
+fn build_project_backup_payload(project: &ProjectMeta) -> Result<serde_json::Value, String> {
+    let structure = crate::commands::project::get_structure(project.path.clone())?;
+    let snippets = crate::commands::snippet::list_snippets(project.path.clone())?;
+    let scene_files = collect_scene_files(&project.path, &structure);
+
+    Ok(serde_json::json!({
+        "project": project,
+        "nodes": structure,
+        "sceneFiles": scene_files,
+        "snippets": snippets
+    }))
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportSeriesResult {
+    pub series_id: String,
+    pub series_title: String,
+    pub project_ids: Vec<String>,
+    pub imported_project_count: usize,
+}
+
+#[tauri::command]
+pub fn export_series_backup(series_id: String, output_path: Option<String>) -> Result<String, String> {
+    let all_series = crate::commands::series::list_series()?;
+    let series = all_series
+        .into_iter()
+        .find(|s| s.id == series_id)
+        .ok_or_else(|| "Series not found".to_string())?;
+
+    let projects = crate::commands::project::list_projects()?
+        .into_iter()
+        .filter(|p| p.series_id == series.id)
+        .collect::<Vec<_>>();
+
+    let mut project_payloads = Vec::with_capacity(projects.len());
+    for project in &projects {
+        project_payloads.push(build_project_backup_payload(project)?);
+    }
+
+    let codex = crate::commands::series::list_series_codex_entries(series.id.clone(), None)?;
+    let codex_relations = crate::commands::series::list_series_codex_relations(series.id.clone())?;
+
+    let backup = serde_json::json!({
+        "version": 2,
+        "backupType": "series",
+        "exportedAt": chrono::Utc::now().to_rfc3339(),
+        "series": series,
+        "projects": project_payloads,
+        "codex": codex,
+        "codexRelations": codex_relations
+    });
+
+    let exports_dir = get_series_dir(&series_id)?.join("exports");
+    fs::create_dir_all(&exports_dir).map_err(|e| e.to_string())?;
+
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+    let filename = format!("{}_series_backup_{}.json", slugify(&series.title), timestamp);
+
+    let final_path = output_path
+        .map(PathBuf::from)
+        .unwrap_or_else(|| exports_dir.join(&filename));
+
+    let json = serde_json::to_string_pretty(&backup).map_err(|e| e.to_string())?;
+    fs::write(&final_path, json).map_err(|e| e.to_string())?;
+
+    Ok(final_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn export_series_as_json(series_id: String) -> Result<String, String> {
+    let all_series = crate::commands::series::list_series()?;
+    let series = all_series
+        .into_iter()
+        .find(|s| s.id == series_id)
+        .ok_or_else(|| "Series not found".to_string())?;
+
+    let projects = crate::commands::project::list_projects()?
+        .into_iter()
+        .filter(|p| p.series_id == series.id)
+        .collect::<Vec<_>>();
+
+    let mut project_payloads = Vec::with_capacity(projects.len());
+    for project in &projects {
+        project_payloads.push(build_project_backup_payload(project)?);
+    }
+
+    let codex = crate::commands::series::list_series_codex_entries(series.id.clone(), None)?;
+    let codex_relations = crate::commands::series::list_series_codex_relations(series.id.clone())?;
+
+    let backup = serde_json::json!({
+        "version": 2,
+        "backupType": "series",
+        "exportedAt": chrono::Utc::now().to_rfc3339(),
+        "series": series,
+        "projects": project_payloads,
+        "codex": codex,
+        "codexRelations": codex_relations
+    });
+
+    serde_json::to_string(&backup).map_err(|e| e.to_string())
+}
+
 
 #[tauri::command]
 pub fn export_project_backup(project_path: String, output_path: Option<String>) -> Result<String, String> {
@@ -408,14 +536,18 @@ pub fn export_project_backup(project_path: String, output_path: Option<String>) 
     };
     
     let structure = crate::commands::project::get_structure(project_path.clone())?;
-    let codex = crate::commands::codex::list_codex_entries(project_path.clone())?;
+    let scene_files = collect_scene_files(&project_path, &structure);
+    let codex = crate::commands::series::list_series_codex_entries(project.series_id.clone(), None)
+        .unwrap_or_else(|_| crate::commands::codex::list_codex_entries(project_path.clone()).unwrap_or_default());
     let snippets = crate::commands::snippet::list_snippets(project_path.clone())?;
     
     let backup = serde_json::json!({
-        "version": 1,
+        "version": 2,
+        "backupType": "project",
         "exportedAt": chrono::Utc::now().to_rfc3339(),
         "project": project,
         "nodes": structure,
+        "sceneFiles": scene_files,
         "codex": codex,
         "snippets": snippets
     });
@@ -452,14 +584,18 @@ pub fn export_project_as_json(project_path: String) -> Result<String, String> {
     };
     
     let structure = crate::commands::project::get_structure(project_path.clone())?;
-    let codex = crate::commands::codex::list_codex_entries(project_path.clone())?;
+    let scene_files = collect_scene_files(&project_path, &structure);
+    let codex = crate::commands::series::list_series_codex_entries(project.series_id.clone(), None)
+        .unwrap_or_else(|_| crate::commands::codex::list_codex_entries(project_path.clone()).unwrap_or_default());
     let snippets = crate::commands::snippet::list_snippets(project_path.clone())?;
     
     let backup = serde_json::json!({
-        "version": 1,
+        "version": 2,
+        "backupType": "project",
         "exportedAt": chrono::Utc::now().to_rfc3339(),
         "project": project,
         "nodes": structure,
+        "sceneFiles": scene_files,
         "codex": codex,
         "snippets": snippets
     });
@@ -468,109 +604,77 @@ pub fn export_project_as_json(project_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn import_project_backup(backup_json: String, series_id: String, series_index: String) -> Result<ProjectMeta, String> {
-    // Validate series_id
-    if series_id.is_empty() {
-        return Err("Series ID is required. All projects must belong to a series.".to_string());
-    }
-    
-    let backup: serde_json::Value = serde_json::from_str(&backup_json)
-        .map_err(|e| format!("Invalid backup JSON: {}", e))?;
-    
-    let project_data = backup.get("project")
-        .ok_or("Missing 'project' field in backup")?;
-    
-    let title = project_data.get("title")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing project title")?;
-    
-    let author = project_data.get("author")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Unknown");
-    
-    let description = project_data.get("description")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    
-    let projects_dir = get_projects_dir()?;
-    let timestamp_str = chrono::Utc::now().format("%Y%m%d%H%M%S");
-    let slug = format!("{}_{}", slugify(title), timestamp_str);
-    let project_dir = projects_dir.join(&slug);
-    
-    // Create directory structure (NO codex folder - codex is at series level)
+pub fn import_project_backup(
+    _backup_json: String,
+    _series_id: String,
+    _series_index: String,
+) -> Result<ProjectMeta, String> {
+    Err("Project-level import is disabled. Use series backup import instead.".to_string())
+}
+
+fn create_project_directory_structure(project_dir: &PathBuf) -> Result<(), String> {
     fs::create_dir_all(project_dir.join(".meta/chat/messages")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("manuscript")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("snippets")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("analyses")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("exports")).map_err(|e| e.to_string())?;
-    
-    let new_id = uuid::Uuid::new_v4().to_string();
-    let now = timestamp::now_millis();
-    
-    let project = ProjectMeta {
-        id: new_id.clone(),
-        title: title.to_string(),
-        author: author.to_string(),
-        description: description.to_string(),
-        archived: false,
-        language: None,
-        cover_image: None,
-        series_id: series_id.clone(),
-        series_index,
-        path: project_dir.to_string_lossy().to_string(),
-        created_at: now,
-        updated_at: now,
-    };
-    
-    let project_json = serde_json::to_string_pretty(&project).map_err(|e| e.to_string())?;
-    fs::write(project_dir.join(".meta/project.json"), &project_json).map_err(|e| e.to_string())?;
-    
-    // Import nodes
-    if let Some(nodes) = backup.get("nodes") {
-        let mut nodes_array = nodes.as_array().cloned().unwrap_or_default();
-        for node in nodes_array.iter_mut() {
-            if let Some(obj) = node.as_object_mut() {
-                obj.insert("projectId".to_string(), serde_json::Value::String(new_id.clone()));
+    Ok(())
+}
+
+fn restore_scene_files(
+    project_dir: &PathBuf,
+    scene_files: Option<&serde_json::Map<String, serde_json::Value>>,
+) -> Result<(), String> {
+    if let Some(files) = scene_files {
+        for (file_name, content_value) in files {
+            if let Some(content) = content_value.as_str() {
+                let path = project_dir.join("manuscript").join(file_name);
+                fs::write(path, content).map_err(|e| e.to_string())?;
             }
         }
-        let structure_json = serde_json::to_string_pretty(&nodes_array).map_err(|e| e.to_string())?;
-        fs::write(project_dir.join(".meta/structure.json"), structure_json).map_err(|e| e.to_string())?;
-    } else {
-        fs::write(project_dir.join(".meta/structure.json"), "[]").map_err(|e| e.to_string())?;
     }
-    
-    // Import codex entries to SERIES storage (not project-local)
-    if let Some(codex) = backup.get("codex").and_then(|v| v.as_array()) {
-        for entry in codex {
-            if let (Some(id), Some(category)) = (
-                entry.get("id").and_then(|v| v.as_str()),
-                entry.get("category").and_then(|v| v.as_str())
-            ) {
-                let mut entry_clone = entry.clone();
-                if let Some(obj) = entry_clone.as_object_mut() {
-                    // Update projectId to the new project ID
-                    obj.insert("projectId".to_string(), serde_json::Value::String(new_id.clone()));
+    Ok(())
+}
+
+fn ensure_scene_files_exist(project_dir: &PathBuf, nodes: &[StructureNode]) -> Result<(), String> {
+    fn walk(project_dir: &PathBuf, nodes: &[StructureNode]) -> Result<(), String> {
+        for node in nodes {
+            if let Some(file_name) = &node.file {
+                let path = project_dir.join("manuscript").join(file_name);
+                if !path.exists() {
+                    let now = chrono::Utc::now().to_rfc3339();
+                    let fallback = format!(
+                        "---\nid: {}\ntitle: \"{}\"\norder: {}\nstatus: draft\nwordCount: 0\npov: null\nsubtitle: null\nlabels: []\nexcludeFromAI: false\nsummary: \"\"\narchived: false\ncreatedAt: {}\nupdatedAt: {}\n---\n\n",
+                        node.id,
+                        node.title.replace('"', "\\\""),
+                        node.order,
+                        now,
+                        now
+                    );
+                    fs::write(path, fallback).map_err(|e| e.to_string())?;
                 }
-                // Save to series codex location
-                let series_codex_dir = crate::utils::get_series_codex_path(&series_id)?;
-                let entry_path = series_codex_dir.join(category).join(format!("{}.json", id));
-                let parent_dir = entry_path.parent()
-                    .ok_or_else(|| format!("Invalid codex entry path: {:?}", entry_path))?;
-                fs::create_dir_all(parent_dir)
-                    .map_err(|e| format!("Failed to create codex directory: {}", e))?;
-                let json = serde_json::to_string_pretty(&entry_clone).map_err(|e| e.to_string())?;
-                fs::write(entry_path, json).map_err(|e| e.to_string())?;
+            }
+            if !node.children.is_empty() {
+                walk(project_dir, &node.children)?;
             }
         }
+        Ok(())
     }
-    
-    // Import snippets
-    if let Some(snippets) = backup.get("snippets").and_then(|v| v.as_array()) {
+
+    walk(project_dir, nodes)
+}
+
+fn restore_snippets(
+    project_dir: &PathBuf,
+    snippets: Option<&Vec<serde_json::Value>>,
+    project_id: &str,
+) -> Result<(), String> {
+    if let Some(snippets) = snippets {
         for snippet in snippets {
             if let Some(id) = snippet.get("id").and_then(|v| v.as_str()) {
                 let mut snippet_clone = snippet.clone();
                 if let Some(obj) = snippet_clone.as_object_mut() {
-                    obj.insert("projectId".to_string(), serde_json::Value::String(new_id.clone()));
+                    obj.insert("projectId".to_string(), serde_json::Value::String(project_id.to_string()));
                 }
                 let snippet_path = project_dir.join("snippets").join(format!("{}.json", id));
                 let json = serde_json::to_string_pretty(&snippet_clone).map_err(|e| e.to_string())?;
@@ -578,10 +682,159 @@ pub fn import_project_backup(backup_json: String, series_id: String, series_inde
             }
         }
     }
-    
-    // Note: Templates are seeded at series level, not project level
-    
-    Ok(project)
+    Ok(())
+}
+
+#[tauri::command]
+pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, String> {
+    let backup: serde_json::Value = serde_json::from_str(&backup_json)
+        .map_err(|e| format!("Invalid backup JSON: {}", e))?;
+
+    let backup_type = backup
+        .get("backupType")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if backup_type != "series" {
+        return Err("Invalid backup: expected a series backup file".to_string());
+    }
+
+    let series_data = backup
+        .get("series")
+        .ok_or("Missing 'series' field in backup")?;
+
+    let title = series_data
+        .get("title")
+        .and_then(|v| v.as_str())
+        .ok_or("Missing series title")?;
+
+    let imported_series: Series = crate::commands::series::create_series(
+        title.to_string(),
+        series_data.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        series_data.get("author").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        series_data.get("genre").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        series_data.get("status").and_then(|v| v.as_str()).map(|s| s.to_string()),
+    )?;
+
+    let projects = backup
+        .get("projects")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let projects_dir = get_projects_dir()?;
+    let mut project_ids = Vec::new();
+    let mut project_id_map: HashMap<String, String> = HashMap::new();
+
+    for (index, payload) in projects.iter().enumerate() {
+        let source_project_value = payload
+            .get("project")
+            .ok_or("Missing project payload in series backup")?;
+        let source_project: ProjectMeta =
+            serde_json::from_value(source_project_value.clone()).map_err(|e| e.to_string())?;
+
+        let timestamp_str = chrono::Utc::now().format("%Y%m%d%H%M%S");
+        let slug = format!(
+            "{}_{}_{}",
+            slugify(&source_project.title),
+            timestamp_str,
+            index + 1
+        );
+        let project_dir = projects_dir.join(&slug);
+        create_project_directory_structure(&project_dir)?;
+
+        let new_id = uuid::Uuid::new_v4().to_string();
+        let now = timestamp::now_millis();
+        let imported_project = ProjectMeta {
+            id: new_id.clone(),
+            title: source_project.title.clone(),
+            author: source_project.author.clone(),
+            description: source_project.description.clone(),
+            archived: source_project.archived,
+            language: source_project.language.clone(),
+            cover_image: source_project.cover_image.clone(),
+            series_id: imported_series.id.clone(),
+            series_index: source_project.series_index.clone(),
+            path: project_dir.to_string_lossy().to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let project_json = serde_json::to_string_pretty(&imported_project).map_err(|e| e.to_string())?;
+        fs::write(project_dir.join(".meta/project.json"), project_json).map_err(|e| e.to_string())?;
+
+        let nodes_value = payload.get("nodes").cloned().unwrap_or_else(|| serde_json::json!([]));
+        let nodes: Vec<StructureNode> = serde_json::from_value(nodes_value).unwrap_or_default();
+        let structure_json = serde_json::to_string_pretty(&nodes).map_err(|e| e.to_string())?;
+        fs::write(project_dir.join(".meta/structure.json"), structure_json).map_err(|e| e.to_string())?;
+
+        let scene_files = payload.get("sceneFiles").and_then(|v| v.as_object());
+        restore_scene_files(&project_dir, scene_files)?;
+        ensure_scene_files_exist(&project_dir, &nodes)?;
+
+        let snippets = payload.get("snippets").and_then(|v| v.as_array());
+        restore_snippets(&project_dir, snippets, &new_id)?;
+
+        crate::commands::project::add_to_recent(
+            imported_project.path.clone(),
+            imported_project.title.clone(),
+        )?;
+
+        project_id_map.insert(source_project.id.clone(), new_id.clone());
+        project_ids.push(new_id);
+    }
+
+    if let Some(codex_entries) = backup.get("codex").and_then(|v| v.as_array()) {
+        let series_codex_dir = get_series_codex_path(&imported_series.id)?;
+        for entry in codex_entries {
+            let category = entry
+                .get("category")
+                .and_then(|v| v.as_str())
+                .unwrap_or("lore");
+            let entry_id = entry
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or("Codex entry missing id")?;
+
+            let mut entry_clone = entry.clone();
+            if let Some(obj) = entry_clone.as_object_mut() {
+                obj.insert(
+                    "seriesId".to_string(),
+                    serde_json::Value::String(imported_series.id.clone()),
+                );
+
+                if let Some(old_project_id) = obj.get("projectId").and_then(|v| v.as_str()) {
+                    if let Some(new_project_id) = project_id_map.get(old_project_id) {
+                        obj.insert(
+                            "projectId".to_string(),
+                            serde_json::Value::String(new_project_id.clone()),
+                        );
+                    }
+                }
+            }
+
+            let category_dir = series_codex_dir.join(category);
+            fs::create_dir_all(&category_dir).map_err(|e| e.to_string())?;
+            let entry_path = category_dir.join(format!("{}.json", entry_id));
+            let json = serde_json::to_string_pretty(&entry_clone).map_err(|e| e.to_string())?;
+            fs::write(entry_path, json).map_err(|e| e.to_string())?;
+        }
+    }
+
+    let relations_path = get_series_dir(&imported_series.id)?.join("codex_relations.json");
+    let relations: Vec<CodexRelation> = backup
+        .get("codexRelations")
+        .cloned()
+        .map(|v| serde_json::from_value(v).unwrap_or_default())
+        .unwrap_or_default();
+    let relations_json = serde_json::to_string_pretty(&relations).map_err(|e| e.to_string())?;
+    fs::write(relations_path, relations_json).map_err(|e| e.to_string())?;
+
+    Ok(ImportSeriesResult {
+        series_id: imported_series.id,
+        series_title: imported_series.title,
+        imported_project_count: project_ids.len(),
+        project_ids,
+    })
 }
 
 /// Write export file data to the specified path

@@ -6,22 +6,20 @@
 import type { ICodexRelationRepository } from '@/domain/repositories/ICodexRelationRepository';
 import type { CodexRelation } from '@/domain/entities/types';
 import {
-    listCodexRelations,
-    saveCodexRelation,
-    deleteCodexRelation
+    listSeriesCodexRelations,
+    saveSeriesCodexRelation,
+    deleteSeriesCodexRelation
 } from '@/core/tauri';
-import { TauriNodeRepository } from './TauriNodeRepository';
 import { logger } from '@/shared/utils/logger';
 
 const log = logger.scope('TauriCodexRelationRepository');
 
 export class TauriCodexRelationRepository implements ICodexRelationRepository {
-    async getByParent(parentId: string): Promise<CodexRelation[]> {
-        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-        if (!projectPath) return [];
+    async getByParent(seriesId: string, parentId: string): Promise<CodexRelation[]> {
+        if (!seriesId) return [];
 
         try {
-            const relations = await listCodexRelations(projectPath);
+            const relations = await listSeriesCodexRelations(seriesId);
             return relations.filter(r => r.parentId === parentId);
         } catch (error) {
             log.error('Failed to list codex relations:', error);
@@ -29,16 +27,15 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         }
     }
 
-    async create(relation: Partial<CodexRelation> & { parentId: string; childId: string }): Promise<CodexRelation> {
-        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-        if (!projectPath) throw new Error('No project path set');
+    async create(seriesId: string, relation: Partial<CodexRelation> & { parentId: string; childId: string }): Promise<CodexRelation> {
+        if (!seriesId) throw new Error('Series ID is required');
 
         const now = Date.now();
         const newRelation: CodexRelation = {
             id: crypto.randomUUID(),
             parentId: relation.parentId,
             childId: relation.childId,
-            projectId: relation.projectId || 'current',  // Get from context
+            ...(relation.projectId !== undefined && { projectId: relation.projectId }),
             ...(relation.typeId !== undefined && { typeId: relation.typeId }),
             ...(relation.label !== undefined && { label: relation.label }),
             ...(relation.strength !== undefined && { strength: relation.strength }),
@@ -47,7 +44,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         };
 
         try {
-            await saveCodexRelation(projectPath, newRelation);
+            await saveSeriesCodexRelation(seriesId, newRelation);
             return newRelation;
         } catch (error) {
             log.error('Failed to save codex relation:', error);
@@ -55,12 +52,11 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
         }
     }
 
-    async delete(id: string): Promise<void> {
-        const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-        if (!projectPath) return;
+    async delete(seriesId: string, id: string): Promise<void> {
+        if (!seriesId) return;
 
         try {
-            await deleteCodexRelation(projectPath, id);
+            await deleteSeriesCodexRelation(seriesId, id);
         } catch (error) {
             log.error('Failed to delete codex relation:', error);
             throw error;

@@ -24,8 +24,8 @@ export function EmptyState() {
           Welcome to your Writing Studio
         </h2>
         <p className="text-muted-foreground text-lg leading-relaxed">
-          Your journey begins here. Use the buttons above to create a new novel,
-          open an existing one, or restore from backup.
+          Your journey begins here. Create your first series, open an existing
+          novel, or restore from backup.
         </p>
       </div>
     </div>

@@ -8,7 +8,7 @@
  * Uses tippy.js for reliable positioning above cursor.
  */
 
-import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import { logger } from "@/shared/utils/logger";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 import "tippy.js/dist/tippy.css";
@@ -37,7 +37,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateObject, getEnabledConnections } from "@/lib/ai";
+import { generate, generateObject, getEnabledConnections } from "@/lib/ai";
 import { storage } from "@/core/storage/safe-storage";
 import type { AIConnection } from "@/lib/config/ai-vendors";
 
@@ -83,6 +83,34 @@ const SparkPromptsSchema = z.array(
     text: z.string(),
   }),
 );
+
+const SPARK_JSON_FALLBACK_PROMPT = `Return ONLY valid JSON (no markdown, no explanation).
+Output exactly an array of 4-5 objects in this shape:
+[
+  { "category": "dialogue" | "action" | "description", "text": "prompt text" }
+]`;
+
+function mapSparkPrompts(
+  items: Array<{ category: "dialogue" | "action" | "description"; text: string }>,
+): SparkPrompt[] {
+  const timestamp = Date.now();
+  return items.map((p, i) => ({
+    id: `${timestamp}-${i}`,
+    category: p.category,
+    text: p.text,
+  }));
+}
+
+function extractJsonArray(rawText: string): string | null {
+  const fenced = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = (fenced?.[1] ?? rawText).trim();
+  const start = candidate.indexOf("[");
+  const end = candidate.lastIndexOf("]");
+  if (start < 0 || end <= start) {
+    return null;
+  }
+  return candidate.slice(start, end + 1);
+}
 
 export const SparkPopover = memo(function SparkPopover({
   isOpen,
@@ -151,18 +179,54 @@ export const SparkPopover = memo(function SparkPopover({
       });
 
       // Type-safe structured output - no JSON parsing needed
-      setPrompts(
-        response.object.map((p, i) => ({
-          id: `${Date.now()}-${i}`,
-          category: p.category as SparkCategory,
-          text: p.text,
-        })),
-      );
+      setPrompts(mapSparkPrompts(response.object));
     } catch (err) {
+      const isStructuredOutputError =
+        err instanceof Error &&
+        (err.name === "AI_NoObjectGeneratedError" ||
+          err.message.toLowerCase().includes("no object generated") ||
+          err.message.toLowerCase().includes("could not parse"));
+
+      if (isStructuredOutputError) {
+        try {
+          log.warn(
+            "Structured output failed, retrying Spark with JSON text fallback",
+            err,
+          );
+          const fallbackResponse = await generate({
+            model: selectedModel,
+            system: `${SPARK_SYSTEM_PROMPT}\n\n${SPARK_JSON_FALLBACK_PROMPT}`,
+            prompt: contextPrompt,
+            maxTokens: 600,
+            temperature: 0.8,
+          });
+
+          const jsonArray = extractJsonArray(fallbackResponse.text ?? "");
+          if (!jsonArray) {
+            throw new Error("Model returned non-JSON content");
+          }
+
+          const parsed = JSON.parse(jsonArray) as unknown;
+          const validated = SparkPromptsSchema.safeParse(parsed);
+          if (!validated.success) {
+            throw new Error("Model returned invalid prompt structure");
+          }
+
+          setPrompts(mapSparkPrompts(validated.data));
+          return;
+        } catch (fallbackErr) {
+          log.error("Spark fallback generation error:", fallbackErr);
+          setError(
+            fallbackErr instanceof Error
+              ? fallbackErr.message
+              : "Failed to generate prompts",
+          );
+          return;
+        }
+      }
+
       log.error("Spark generation error:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to generate prompts",
-      );
+      setError(err instanceof Error ? err.message : "Failed to generate prompts");
     } finally {
       setIsLoading(false);
     }
@@ -231,7 +295,10 @@ export const SparkPopover = memo(function SparkPopover({
       : prompts.filter((p) => p.category === activeCategory);
 
   // Get all models from all connections
-  const allModels = connections.flatMap((c) => c.models || []);
+  const allModels = useMemo(
+    () => Array.from(new Set(connections.flatMap((c) => c.models || []))),
+    [connections],
+  );
 
   return (
     <div ref={popoverRef}>

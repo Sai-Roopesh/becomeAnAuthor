@@ -15,7 +15,11 @@ import type { SaveStatus } from "@/lib/core/editor-state-manager";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { EditorToolbar } from "./editor-toolbar";
 import { TextSelectionMenu } from "./text-selection-menu";
-import { ContinueWritingMenu } from "./continue-writing-menu";
+import {
+  ContinueWritingMenu,
+  type GenerationMode,
+} from "./continue-writing-menu";
+import { SparkPopover } from "./spark-popover";
 import { CollaborationPanel } from "@/features/collaboration/components/CollaborationPanel";
 import { SaveStatusIndicator } from "@/components/ui/save-status-indicator";
 import { useFormatStore } from "@/store/use-format-store";
@@ -67,7 +71,14 @@ export function TiptapEditor({
 }) {
   const formatSettings = useFormatStore();
   const [showContinueMenu, setShowContinueMenu] = useState(false);
+  const [continueMenuMode, setContinueMenuMode] =
+    useState<GenerationMode>("continue-writing");
   const [menuPosition, setMenuPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [showSparkPopover, setShowSparkPopover] = useState(false);
+  const [sparkPosition, setSparkPosition] = useState<{
     x: number;
     y: number;
   } | null>(null);
@@ -130,6 +141,36 @@ export function TiptapEditor({
       y: coords.bottom + 8, // Position slightly below the cursor
     };
   }, []);
+
+  const normalizeSlashMenuPosition = useCallback(
+    (
+      position:
+        | {
+            x?: number;
+            y?: number;
+            left?: number;
+            bottom?: number;
+          }
+        | null
+        | undefined,
+    ) => {
+      if (!position) return null;
+
+      if (typeof position.x === "number" && typeof position.y === "number") {
+        return { x: position.x, y: position.y };
+      }
+
+      if (
+        typeof position.left === "number" &&
+        typeof position.bottom === "number"
+      ) {
+        return { x: position.left, y: position.bottom + 8 };
+      }
+
+      return null;
+    },
+    [],
+  );
 
   // Validate content is proper Tiptap structure before passing to editor
   // Empty objects {} cause "Unknown node type: undefined" errors
@@ -203,6 +244,7 @@ export function TiptapEditor({
         if (isModKey(event as unknown as KeyboardEvent) && event.key === "j") {
           event.preventDefault();
           const pos = getCursorPosition(view);
+          setContinueMenuMode("continue-writing");
           setMenuPosition(pos);
           setShowContinueMenu(true);
           return true;
@@ -466,6 +508,70 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
   }, [editor, onWordCountChange]);
 
   useEffect(() => {
+    if (!editor) return;
+
+    type SlashCommandEventDetail = {
+      position?: {
+        x?: number;
+        y?: number;
+        left?: number;
+        bottom?: number;
+      };
+    };
+
+    const handleSpark = (rawEvent: Event) => {
+      const event = rawEvent as CustomEvent<SlashCommandEventDetail>;
+      const pos =
+        normalizeSlashMenuPosition(event.detail?.position) ??
+        getCursorPosition(editor.view);
+      setSparkPosition(pos);
+      setShowSparkPopover(true);
+    };
+
+    const handleContinueWriting = (rawEvent: Event) => {
+      const event = rawEvent as CustomEvent<SlashCommandEventDetail>;
+      const pos =
+        normalizeSlashMenuPosition(event.detail?.position) ??
+        getCursorPosition(editor.view);
+      setContinueMenuMode("continue-writing");
+      setMenuPosition(pos);
+      setShowContinueMenu(true);
+    };
+
+    const handleSceneBeat = (rawEvent: Event) => {
+      const event = rawEvent as CustomEvent<SlashCommandEventDetail>;
+      const pos =
+        normalizeSlashMenuPosition(event.detail?.position) ??
+        getCursorPosition(editor.view);
+      setContinueMenuMode("scene-beat");
+      setMenuPosition(pos);
+      setShowContinueMenu(true);
+    };
+
+    window.addEventListener("openSparkPopover", handleSpark as EventListener);
+    window.addEventListener(
+      "continueWriting",
+      handleContinueWriting as EventListener,
+    );
+    window.addEventListener("openSceneBeat", handleSceneBeat as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        "openSparkPopover",
+        handleSpark as EventListener,
+      );
+      window.removeEventListener(
+        "continueWriting",
+        handleContinueWriting as EventListener,
+      );
+      window.removeEventListener(
+        "openSceneBeat",
+        handleSceneBeat as EventListener,
+      );
+    };
+  }, [editor, getCursorPosition, normalizeSlashMenuPosition]);
+
+  useEffect(() => {
     if (editor) {
       editor.view.dom.setAttribute(
         "style",
@@ -494,6 +600,11 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
     if (!open) {
       setMenuPosition(null);
     }
+  };
+
+  const handleSparkClose = () => {
+    setShowSparkPopover(false);
+    setSparkPosition(null);
   };
 
   return (
@@ -530,9 +641,20 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
         onGenerate={generate}
         projectId={projectId}
         seriesId={seriesId}
+        initialMode={continueMenuMode}
         isGenerating={isGenerating}
         onCancel={cancel}
         position={menuPosition}
+      />
+      <SparkPopover
+        isOpen={showSparkPopover}
+        onClose={handleSparkClose}
+        position={sparkPosition}
+        sceneContext={editor.getText()}
+        onInsert={(text) => {
+          editor.chain().focus().insertContent(text).run();
+          void editorStateManagerRef.current?.saveImmediate();
+        }}
       />
       <div
         ref={editorContainerRef}

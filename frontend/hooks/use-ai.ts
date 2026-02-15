@@ -25,6 +25,8 @@ export interface UseAIOptions {
 }
 
 export interface GenerateOptions {
+    /** Optional per-request model override */
+    model?: string;
     /** The main user prompt */
     prompt: string;
     /** Optional context to prepend to prompt */
@@ -33,6 +35,12 @@ export interface GenerateOptions {
     maxTokens?: number;
     /** Temperature for generation */
     temperature?: number;
+    /** Nucleus sampling */
+    topP?: number;
+    /** Penalize repeated tokens */
+    frequencyPenalty?: number;
+    /** Encourage novel topic tokens */
+    presencePenalty?: number;
     /** Override system prompt */
     system?: string;
 }
@@ -93,22 +101,26 @@ export function useAI(options: UseAIOptions = {}) {
         abortControllerRef.current = controller;
 
         try {
+            const modelToUse = genOptions.model || model;
             const fullPrompt = genOptions.context
                 ? `${genOptions.context}\n\n${genOptions.prompt}`
                 : genOptions.prompt;
 
             const systemPrompt = genOptions.system || options.system;
             const result = await generate({
-                model,
+                model: modelToUse,
                 prompt: fullPrompt,
                 signal: controller.signal,
                 ...(systemPrompt && { system: systemPrompt }),
                 ...(genOptions.maxTokens && { maxTokens: genOptions.maxTokens }),
                 ...(genOptions.temperature != null && { temperature: genOptions.temperature }),
+                ...(genOptions.topP != null && { topP: genOptions.topP }),
+                ...(genOptions.frequencyPenalty != null && { frequencyPenalty: genOptions.frequencyPenalty }),
+                ...(genOptions.presencePenalty != null && { presencePenalty: genOptions.presencePenalty }),
             });
 
             if (options.persistModel) {
-                storage.setItem('last_used_model', model);
+                storage.setItem('last_used_model', modelToUse);
             }
 
             return result.text;
@@ -144,18 +156,22 @@ export function useAI(options: UseAIOptions = {}) {
         abortControllerRef.current = controller;
 
         try {
+            const modelToUse = genOptions.model || model;
             const fullPrompt = genOptions.context
                 ? `${genOptions.context}\n\n${genOptions.prompt}`
                 : genOptions.prompt;
 
             const systemPrompt = genOptions.system || options.system;
             const result = await stream({
-                model,
+                model: modelToUse,
                 prompt: fullPrompt,
                 signal: controller.signal,
                 ...(systemPrompt && { system: systemPrompt }),
                 ...(genOptions.maxTokens && { maxTokens: genOptions.maxTokens }),
                 ...(genOptions.temperature != null && { temperature: genOptions.temperature }),
+                ...(genOptions.topP != null && { topP: genOptions.topP }),
+                ...(genOptions.frequencyPenalty != null && { frequencyPenalty: genOptions.frequencyPenalty }),
+                ...(genOptions.presencePenalty != null && { presencePenalty: genOptions.presencePenalty }),
             });
 
             let fullText = '';
@@ -165,7 +181,7 @@ export function useAI(options: UseAIOptions = {}) {
             }
 
             if (options.persistModel) {
-                storage.setItem('last_used_model', model);
+                storage.setItem('last_used_model', modelToUse);
             }
 
             callbacks.onComplete?.(fullText);

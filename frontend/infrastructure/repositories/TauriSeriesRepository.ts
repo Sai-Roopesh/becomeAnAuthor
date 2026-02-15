@@ -46,7 +46,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
     series: Omit<Series, "id" | "createdAt" | "updatedAt">,
   ): Promise<string> {
     try {
-      const result = await createSeries({ title: series.title });
+      const result = await createSeries(series);
       return result.id;
     } catch (error) {
       log.error("Failed to create series:", error);

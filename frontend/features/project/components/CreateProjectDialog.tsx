@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sparkles, Plus, BookOpen, AlertCircle } from "lucide-react";
 import {
   Select,
@@ -49,6 +49,8 @@ interface CreateProjectDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  seriesId?: string;
+  seriesTitle?: string;
 }
 
 /**
@@ -65,6 +67,8 @@ export function CreateProjectDialog({
   trigger,
   open: controlledOpen,
   onOpenChange,
+  seriesId: lockedSeriesId,
+  seriesTitle,
 }: CreateProjectDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
 
@@ -81,6 +85,7 @@ export function CreateProjectDialog({
   const { projectRepository: projectRepo, nodeRepository: nodeRepo } =
     useAppServices();
   const seriesRepo = useSeriesRepository();
+  const isSeriesLocked = Boolean(lockedSeriesId);
 
   // Fetch existing series for the dropdown
   const existingSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
@@ -100,14 +105,21 @@ export function CreateProjectDialog({
     ),
   ).sort();
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     title: "",
     author: "",
     language: "English (US)",
-    seriesId: "", // REQUIRED - must select a series
+    seriesId: lockedSeriesId ?? "", // REQUIRED - must select a series
     seriesIndex: "Book 1", // REQUIRED - default to "Book 1"
     savePath: "", // REQUIRED - user must choose location
-  });
+  };
+  const [formData, setFormData] = useState(initialFormData);
+
+  useEffect(() => {
+    if (lockedSeriesId) {
+      setFormData((prev) => ({ ...prev, seriesId: lockedSeriesId }));
+    }
+  }, [lockedSeriesId]);
 
   // State for inline series creation
   const [isCreatingNewSeries, setIsCreatingNewSeries] = useState(false);
@@ -251,14 +263,7 @@ export function CreateProjectDialog({
       window.location.href = `/project?id=${projectId}`;
 
       setOpen(false);
-      setFormData({
-        title: "",
-        author: "",
-        language: "English (US)",
-        seriesId: "",
-        seriesIndex: "Book 1",
-        savePath: "",
-      });
+      setFormData(initialFormData);
     } catch (error) {
       log.error("Failed to create project:", error);
       const message =
@@ -275,7 +280,14 @@ export function CreateProjectDialog({
     formData.savePath;
 
   // Get selected series name for display
-  // selectedSeries removed - unused
+  const selectedSeriesTitle = useMemo(() => {
+    if (seriesTitle) return seriesTitle;
+    if (!formData.seriesId || !existingSeries) return "";
+    return (
+      existingSeries.find((series) => series.id === formData.seriesId)?.title ||
+      ""
+    );
+  }, [seriesTitle, formData.seriesId, existingSeries]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -300,9 +312,15 @@ export function CreateProjectDialog({
       )}
       <DialogContent className="sm:w-dialog-md max-h-[85dvh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Create a new Novel</DialogTitle>
+          <DialogTitle>
+            {isSeriesLocked && selectedSeriesTitle
+              ? `Create a new Novel in ${selectedSeriesTitle}`
+              : "Create a new Novel"}
+          </DialogTitle>
           <DialogDescription>
-            Let's get you started with your next masterpiece.
+            {isSeriesLocked
+              ? "This novel will be created in the selected series."
+              : "Let's get you started with your next masterpiece."}
           </DialogDescription>
         </DialogHeader>
 
@@ -315,79 +333,93 @@ export function CreateProjectDialog({
                 <BookOpen className="h-4 w-4 text-primary" />
                 <Label className="font-semibold">Series *</Label>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Every book belongs to a series. Choose an existing series or
-                create a new one.
-              </p>
 
-              {!isCreatingNewSeries ? (
-                <div className="space-y-2">
-                  <Select
-                    value={formData.seriesId}
-                    onValueChange={(val) =>
-                      setFormData({ ...formData, seriesId: val })
-                    }
-                  >
-                    <SelectTrigger
-                      className={
-                        !formData.seriesId ? "border-destructive/50" : ""
-                      }
-                    >
-                      <SelectValue placeholder="Select a series..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {existingSeries?.map((series) => (
-                        <SelectItem key={series.id} value={series.id}>
-                          {series.title}
-                        </SelectItem>
-                      ))}
-                      {(!existingSeries || existingSeries.length === 0) && (
-                        <SelectItem value="_none" disabled>
-                          No series yet - create one below
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setIsCreatingNewSeries(true)}
-                  >
-                    <Plus className="mr-2 h-3 w-3" /> Create New Series
-                  </Button>
+              {isSeriesLocked ? (
+                <div className="rounded-md border bg-background/50 p-3">
+                  <p className="font-medium">
+                    {selectedSeriesTitle || "Selected series"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This novel will be created in this series.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      value={newSeriesName}
-                      onChange={(e) => setNewSeriesName(e.target.value)}
-                      placeholder="Enter series name..."
-                      autoFocus
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleCreateNewSeries}
-                      disabled={!newSeriesName.trim()}
-                    >
-                      Create
-                    </Button>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsCreatingNewSeries(false);
-                      setNewSeriesName("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Every book belongs to a series. Choose an existing series or
+                    create a new one.
+                  </p>
+
+                  {!isCreatingNewSeries ? (
+                    <div className="space-y-2">
+                      <Select
+                        value={formData.seriesId}
+                        onValueChange={(val) =>
+                          setFormData({ ...formData, seriesId: val })
+                        }
+                      >
+                        <SelectTrigger
+                          className={
+                            !formData.seriesId ? "border-destructive/50" : ""
+                          }
+                        >
+                          <SelectValue placeholder="Select a series..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {existingSeries?.map((series) => (
+                            <SelectItem key={series.id} value={series.id}>
+                              {series.title}
+                            </SelectItem>
+                          ))}
+                          {(!existingSeries || existingSeries.length === 0) && (
+                            <SelectItem value="_none" disabled>
+                              No series yet - create one below
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setIsCreatingNewSeries(true)}
+                      >
+                        <Plus className="mr-2 h-3 w-3" /> Create New Series
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={newSeriesName}
+                          onChange={(e) => setNewSeriesName(e.target.value)}
+                          placeholder="Enter series name..."
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCreateNewSeries}
+                          disabled={!newSeriesName.trim()}
+                        >
+                          Create
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsCreatingNewSeries(false);
+                          setNewSeriesName("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -539,7 +571,7 @@ export function CreateProjectDialog({
             </div>
 
             {/* Validation Warning */}
-            {!formData.seriesId && (
+            {!isSeriesLocked && !formData.seriesId && (
               <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 text-destructive text-sm">
                 <AlertCircle className="h-4 w-4" />
                 <span>Please select or create a series to continue</span>

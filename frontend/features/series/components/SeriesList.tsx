@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { useSeriesRepository } from '@/hooks/use-series-repository';
 import { useProjectRepository } from '@/hooks/use-project-repository';
@@ -9,10 +10,22 @@ import { CreateSeriesDialog } from './CreateSeriesDialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Library } from 'lucide-react';
 
-export function SeriesList() {
+interface SeriesListProps {
+    onSeriesCreated?: (seriesId: string) => void;
+}
+
+export function SeriesList({ onSeriesCreated }: SeriesListProps) {
+    const router = useRouter();
     const seriesRepo = useSeriesRepository();
     const projectRepo = useProjectRepository();
     const [showCreateDialog, setShowCreateDialog] = React.useState(false);
+    const handleSeriesCreated = (seriesId: string) => {
+        if (onSeriesCreated) {
+            onSeriesCreated(seriesId);
+            return;
+        }
+        router.push(`/series?id=${seriesId}`);
+    };
 
     const series = useLiveQuery(
         () => seriesRepo.getAll(),
@@ -47,6 +60,7 @@ export function SeriesList() {
                 <CreateSeriesDialog
                     open={showCreateDialog}
                     onOpenChange={setShowCreateDialog}
+                    onCreated={handleSeriesCreated}
                 />
             </div>
         );
@@ -58,7 +72,7 @@ export function SeriesList() {
                 <div>
                     <h2 className="text-2xl font-bold">Series</h2>
                     <p className="text-muted-foreground">
-                        {series.length} series • {projects.filter(p => p.seriesId).length} books in series
+                        {series.length} series • {projects.filter(p => p.seriesId).length} books in series • Click a series to open
                     </p>
                 </div>
                 <Button onClick={() => setShowCreateDialog(true)}>
@@ -90,6 +104,7 @@ export function SeriesList() {
             <CreateSeriesDialog
                 open={showCreateDialog}
                 onOpenChange={setShowCreateDialog}
+                onCreated={handleSeriesCreated}
             />
         </div>
     );

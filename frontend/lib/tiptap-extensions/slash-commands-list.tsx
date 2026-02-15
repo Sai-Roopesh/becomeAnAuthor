@@ -25,17 +25,21 @@ export const SlashCommandsList = forwardRef<
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }: { event: KeyboardEvent }) => {
+      if (props.items.length === 0) {
+        return false;
+      }
+
       if (event.key === "ArrowUp") {
         event.preventDefault();
         setSelectedIndex(
-          (selectedIndex + props.items.length - 1) % props.items.length,
+          (prev) => (prev + props.items.length - 1) % props.items.length,
         );
         return true;
       }
 
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setSelectedIndex((selectedIndex + 1) % props.items.length);
+        setSelectedIndex((prev) => (prev + 1) % props.items.length);
         return true;
       }
 
@@ -69,6 +73,10 @@ export const SlashCommandsList = forwardRef<
       {props.items.map((item, index) => (
         <button
           key={item.title}
+          onMouseDown={(event) => {
+            // Keep focus in editor so suggestion command can run before popup exits.
+            event.preventDefault();
+          }}
           onClick={() => selectItem(index)}
           className={`flex items-start gap-3 w-full px-3 py-2 text-left rounded-md transition-colors ${
             index === selectedIndex

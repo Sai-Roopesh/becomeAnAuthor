@@ -18,7 +18,12 @@ import { CodexFilterBar } from '@/features/plan/components/codex-filter-bar';
 type PlanViewType = 'grid' | 'outline' | 'matrix' | 'timeline' | 'map' | 'world';
 
 export function PlanView({ projectId }: { projectId: string }) {
-    const { nodeRepository: nodeRepo, projectRepository: projectRepo, sceneCodexLinkRepository: linkRepo } = useAppServices();
+    const {
+        nodeRepository: nodeRepo,
+        projectRepository: projectRepo,
+        sceneCodexLinkRepository: linkRepo,
+        codexRepository: codexRepo,
+    } = useAppServices();
 
     const [viewType, setViewType] = useState<PlanViewType>('grid');
     const [search, setSearch] = useState('');
@@ -37,25 +42,41 @@ export function PlanView({ projectId }: { projectId: string }) {
         () => linkRepo.getByProject(projectId),
         [projectId, linkRepo]
     );
+    const codexEntries = useLiveQuery(
+        () => (project ? codexRepo.getBySeries(project.seriesId) : Promise.resolve([])),
+        [project?.seriesId, codexRepo],
+    );
 
-    // Filter nodes based on selected codex entries
+    // Filter nodes based on selected codex entries + category filter
     const filteredNodes = useMemo(() => {
         if (!nodes) return [];
-        if (selectedCodexIds.length === 0) return nodes;
+        if (selectedCodexIds.length === 0 && categoryFilter === null) return nodes;
 
-        // Get scene IDs that have at least one of the selected codex entries
-        const linkedSceneIds = new Set(
+        const selectedSceneIds = new Set(
             allLinks
                 ?.filter(link => selectedCodexIds.includes(link.codexId))
                 .map(link => link.sceneId) || []
         );
 
+        const categoryCodexIds = new Set(
+            codexEntries
+                ?.filter((entry) => categoryFilter === null || entry.category === categoryFilter)
+                .map((entry) => entry.id) || []
+        );
+        const categorySceneIds = new Set(
+            allLinks
+                ?.filter((link) => categoryFilter !== null && categoryCodexIds.has(link.codexId))
+                .map((link) => link.sceneId) || []
+        );
+
         // Keep all non-scene nodes (acts, chapters) and scenes that match filter
         return nodes.filter(node => {
             if (node.type !== 'scene') return true; // Keep structure nodes
-            return linkedSceneIds.has(node.id);
+            if (selectedCodexIds.length > 0 && !selectedSceneIds.has(node.id)) return false;
+            if (categoryFilter !== null && !categorySceneIds.has(node.id)) return false;
+            return true;
         });
-    }, [nodes, selectedCodexIds, allLinks]);
+    }, [nodes, selectedCodexIds, allLinks, categoryFilter, codexEntries]);
 
     if (!project || !nodes) {
         return (

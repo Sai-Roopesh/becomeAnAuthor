@@ -12,6 +12,7 @@ import {
     createNode,
     loadScene,
     saveScene,
+    updateSceneMetadata,
     deleteScene,
     type StructureNode,
 } from '@/core/tauri';
@@ -69,6 +70,48 @@ function flattenStructure(nodes: StructureNode[], projectId: string, parentId: s
     return result;
 }
 
+function extractSceneMetadata(data: Record<string, unknown>) {
+    const labelsValue = data['labels'];
+    const labels = Array.isArray(labelsValue)
+        ? labelsValue.map((l) => String(l)).filter((l) => l.length > 0)
+        : [];
+
+    const pov =
+        (data['pov'] as string | undefined) ??
+        (data['pov_character'] as string | undefined) ??
+        (data['povCharacter'] as string | undefined);
+
+    const subtitle =
+        (data['subtitle'] as string | undefined) ?? undefined;
+
+    const summary =
+        (data['summary'] as string | undefined) ?? '';
+
+    const status =
+        (data['status'] as string | undefined) ?? 'draft';
+
+    const wordCount = Number(
+        data['word_count'] ?? data['wordCount'] ?? 0,
+    );
+
+    const excludeFromAI = Boolean(
+        data['exclude_from_ai'] ?? data['excludeFromAI'] ?? false,
+    );
+
+    const archived = Boolean(data['archived'] ?? false);
+
+    return {
+        wordCount,
+        status: status as 'draft' | 'revised' | 'final',
+        pov,
+        subtitle,
+        labels,
+        excludeFromAI,
+        summary,
+        archived,
+    };
+}
+
 /**
  * Tauri-based Node Repository
  * Only used when running in Tauri desktop app
@@ -116,23 +159,27 @@ export class TauriNodeRepository implements INodeRepository {
             if (tauriNode._tauriFile) {
                 try {
                     const scene = await loadScene(this.projectPath, tauriNode._tauriFile);
+                    const data = scene as unknown as Record<string, unknown>;
+                    const metadata = extractSceneMetadata(data);
+                    const rawContent = data['content'];
 
-                    // CRITICAL FIX: Parse content as JSON - backend saves it as stringified JSON
+                    // Parse content as JSON (Tiptap)
                     let parsedContent;
                     try {
-                        parsedContent = typeof scene.content === 'string'
-                            ? JSON.parse(scene.content)
-                            : scene.content;
+                        parsedContent = typeof rawContent === 'string'
+                            ? JSON.parse(rawContent)
+                            : rawContent;
                     } catch {
-                        // Fallback if content isn't valid JSON
-                        parsedContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: scene.content }] }] };
+                        parsedContent = {
+                            type: 'doc',
+                            content: [{ type: 'paragraph', content: [{ type: 'text', text: String(rawContent ?? '') }] }],
+                        };
                     }
 
                     return {
                         ...node,
                         content: parsedContent,
-                        wordCount: scene.meta.word_count,
-                        status: scene.meta.status,
+                        ...metadata,
                     } as Scene;
                 } catch {
                     return node;
@@ -160,19 +207,13 @@ export class TauriNodeRepository implements INodeRepository {
                     if (sceneNode._tauriFile && this.projectPath) {
                         try {
                             const sceneData = await loadScene(this.projectPath, sceneNode._tauriFile);
-
-                            // Rust backend uses #[serde(flatten)] on meta, so fields are at root level
-                            // Response is: {id, title, word_count, status, content, ...}
-                            // Cast to record to access dynamic properties since TS interface is wrong
                             const data = sceneData as unknown as Record<string, unknown>;
-                            const wordCount = (data['word_count'] ?? data['wordCount'] ?? 0) as number;
-                            const status = (data['status'] ?? 'draft') as string;
+                            const metadata = extractSceneMetadata(data);
 
-                            log.debug('Loaded scene word count', { title: node.title, wordCount });
+                            log.debug('Loaded scene metadata', { title: node.title, wordCount: metadata.wordCount });
                             return {
                                 ...node,
-                                wordCount,
-                                status: status as 'draft' | 'revised' | 'final',
+                                ...metadata,
                             } as Scene;
                         } catch (err) {
                             log.error(`Failed to load scene ${node.id}:`, err);
@@ -290,9 +331,43 @@ export class TauriNodeRepository implements INodeRepository {
     }
 
     async updateMetadata(id: string, metadata: Partial<Scene>): Promise<void> {
-        // For now, just update title if provided
-        if (metadata.title) {
-            await this.update(id, { title: metadata.title });
+        if (!this.projectPath) return;
+
+        const structure = await getStructure(this.projectPath);
+        const allNodes = flattenStructure(structure, 'current');
+        const node = allNodes.find((n) => n.id === id) as (Scene & { _tauriFile?: string }) | undefined;
+
+        if (!node || node.type !== 'scene' || !node._tauriFile) {
+            return;
+        }
+
+        const updates: Partial<{
+            title: string;
+            status: string;
+            pov: string;
+            subtitle: string;
+            labels: string[];
+            excludeFromAI: boolean;
+            summary: string;
+            archived: boolean;
+        }> = {};
+
+        if (metadata.title !== undefined) updates.title = metadata.title;
+        if (metadata.status !== undefined) updates.status = metadata.status;
+        if (metadata.pov !== undefined) updates.pov = metadata.pov;
+        if (metadata.subtitle !== undefined) updates.subtitle = metadata.subtitle;
+        if (metadata.labels !== undefined) updates.labels = metadata.labels;
+        if (metadata.excludeFromAI !== undefined) updates.excludeFromAI = metadata.excludeFromAI;
+        if (metadata.summary !== undefined) updates.summary = metadata.summary;
+        if (metadata.archived !== undefined) updates.archived = metadata.archived;
+
+        if (Object.keys(updates).length === 0) return;
+
+        await updateSceneMetadata(this.projectPath, node._tauriFile, updates);
+
+        // Keep manuscript structure title aligned with scene frontmatter title.
+        if (updates.title) {
+            await this.update(id, { title: updates.title });
         }
     }
 

@@ -21,6 +21,8 @@ export interface ProjectStore {
     setViewMode: (mode: ViewMode) => void;
     activeProjectId: string | null;
     setActiveProjectId: (id: string | null) => void;
+    activeCodexEntryId: string | null;
+    setActiveCodexEntryId: (id: string | null) => void;
     // Panel visibility (collapsible)
     showSidebar: boolean;
     showTimeline: boolean;
@@ -42,6 +44,7 @@ export const useProjectStore = create<ProjectStore>()(
             activeSceneId: null,
             viewMode: 'plan',
             activeProjectId: null,
+            activeCodexEntryId: null,
             showSidebar: true,
             showTimeline: true,
             rightPanelTab: 'timeline',
@@ -62,6 +65,7 @@ export const useProjectStore = create<ProjectStore>()(
             },
 
             setActiveProjectId: (id) => set({ activeProjectId: id }),
+            setActiveCodexEntryId: (id) => set({ activeCodexEntryId: id }),
         }),
         {
             name: 'project-store',

@@ -180,7 +180,7 @@ export interface CodexRelation {
   id: string;
   parentId: string;
   childId: string;
-  projectId: string; // ✅ Added - required in backend
+  projectId?: string; // Optional - legacy field, codex relations are series-scoped
   typeId?: string; // ✅ Renamed from 'type'
   label?: string; // ✅ Renamed from 'description'
   strength?: number;
@@ -606,13 +606,23 @@ export type WorldEventCategory =
   | "military"
   | "other";
 
+export type WorldEventTemporalPrecision = "year" | "date" | "date-time";
+
+export interface WorldEventTemporal {
+  precision: WorldEventTemporalPrecision;
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+}
+
 export interface WorldEvent {
   id: string;
   projectId: string;
   title: string;
   description: string;
-  date: string; // Human-readable date string
-  year?: number; // For sorting
+  temporal: WorldEventTemporal;
   era?: string;
   category: WorldEventCategory;
   importance: "minor" | "moderate" | "major" | "world-changing";

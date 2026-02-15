@@ -15,11 +15,14 @@ pub fn list_world_events(project_path: String) -> Result<Vec<WorldEvent>, String
     
     for entry in fs::read_dir(&timeline_dir).map_err(|e| e.to_string())?.flatten() {
         if entry.path().extension().is_some_and(|e| e == "json") {
-            if let Ok(content) = fs::read_to_string(entry.path()) {
-                if let Ok(event) = serde_json::from_str::<WorldEvent>(&content) {
-                    events.push(event);
-                }
-            }
+            let path = entry.path();
+            let content = fs::read_to_string(&path).map_err(|e| {
+                format!("Failed to read world event file {}: {}", path.display(), e)
+            })?;
+            let event = serde_json::from_str::<WorldEvent>(&content).map_err(|e| {
+                format!("Invalid world event schema in {}: {}", path.display(), e)
+            })?;
+            events.push(event);
         }
     }
     

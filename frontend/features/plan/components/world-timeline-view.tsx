@@ -56,6 +56,12 @@ import { cn } from '@/lib/utils';
 import { useWorldTimeline } from '../hooks/use-world-timeline';
 // useAppServices removed - unused
 import type { WorldEvent, WorldEventCategory } from '@/domain/entities/types';
+import { WorldEventTemporalField } from './world-event-temporal-field';
+import {
+    createDefaultWorldEventTemporal,
+    formatWorldEventTemporal,
+    worldEventTemporalSortValue,
+} from '@/shared/utils/world-event-temporal';
 
 interface WorldTimelineViewProps {
     projectId: string;
@@ -79,12 +85,12 @@ const IMPORTANCE_COLORS = {
     'world-changing': 'border-l-red-500',
 };
 
-const createEmptyEvent = (projectId: string): Omit<WorldEvent, 'year' | 'era'> & { year?: number; era?: string } => ({
+const createEmptyEvent = (projectId: string): WorldEvent => ({
     id: crypto.randomUUID(),
     projectId,
     title: '',
     description: '',
-    date: '',
+    temporal: createDefaultWorldEventTemporal(),
     category: 'other',
     importance: 'moderate',
     linkedCodexIds: [],
@@ -96,9 +102,7 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
     // worldTimelineRepository removed - unused
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    // Use a type that allows year to be undefined for the editing form
-    type EditableWorldEvent = Omit<WorldEvent, 'year' | 'era'> & { year?: number; era?: string };
-    const [editingEvent, setEditingEvent] = useState<EditableWorldEvent | null>(null);
+    const [editingEvent, setEditingEvent] = useState<WorldEvent | null>(null);
     const [selectedEra, setSelectedEra] = useState<string | null>(null);
     const [deleteEventConfirm, setDeleteEventConfirm] = useState<{ id: string; title: string } | null>(null);
 
@@ -114,7 +118,9 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
         if (!events) return new Map<string, WorldEvent[]>();
 
         const grouped = new Map<string, WorldEvent[]>();
-        const sortedEvents = [...events].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+        const sortedEvents = [...events].sort(
+            (a, b) => worldEventTemporalSortValue(a.temporal) - worldEventTemporalSortValue(b.temporal)
+        );
 
         for (const event of sortedEvents) {
             const era = event.era || 'Unknown Era';
@@ -142,7 +148,7 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
     const handleSaveEvent = async () => {
         if (!editingEvent) return;
 
-        await saveEvent(editingEvent as WorldEvent);
+        await saveEvent(editingEvent);
         setIsDialogOpen(false);
         setEditingEvent(null);
     };
@@ -253,11 +259,9 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
                                                                     <Icon className="h-3 w-3" />
                                                                     {categoryConfig.label}
                                                                 </Badge>
-                                                                {event.date && (
-                                                                    <span className="text-sm text-muted-foreground">
-                                                                        {event.date}
-                                                                    </span>
-                                                                )}
+                                                                <span className="text-sm text-muted-foreground">
+                                                                    {formatWorldEventTemporal(event.temporal)}
+                                                                </span>
                                                             </div>
                                                             <h4 className="font-semibold">{event.title}</h4>
                                                             <p className="text-sm text-muted-foreground mt-1">
@@ -323,11 +327,10 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">Date</label>
-                                    <Input
-                                        value={editingEvent.date}
-                                        onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })}
-                                        placeholder="Year 450..."
+                                    <label className="text-sm font-medium mb-1 block">Temporal</label>
+                                    <WorldEventTemporalField
+                                        value={editingEvent.temporal}
+                                        onChange={temporal => setEditingEvent({ ...editingEvent, temporal })}
                                     />
                                 </div>
                             </div>
@@ -368,29 +371,6 @@ export function WorldTimelineView({ projectId }: WorldTimelineViewProps) {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium mb-1 block">Year (for sorting)</label>
-                                <Input
-                                    type="number"
-                                    value={editingEvent.year ?? ''}
-                                    onChange={e => {
-                                        const val = e.target.value;
-                                        if (val) {
-                                            setEditingEvent({
-                                                ...editingEvent,
-                                                year: parseInt(val, 10)
-                                            });
-                                        } else {
-                                            // Remove year property to avoid undefined assignment
-                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                                            const { year: _year, ...rest } = editingEvent;
-                                            setEditingEvent(rest as typeof editingEvent);
-                                        }
-                                    }}
-                                    placeholder="450"
-                                />
                             </div>
 
                             <div>

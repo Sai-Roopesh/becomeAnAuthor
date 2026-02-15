@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "pnpm run dev:web",
+    "beforeDevCommand": "bash ./scripts/dev-web-safe.sh",
     "beforeBuildCommand": "pnpm run build"
   },
   "app": {

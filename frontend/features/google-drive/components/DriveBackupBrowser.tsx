@@ -23,7 +23,7 @@ import {
 const log = logger.scope("DriveBackupBrowser");
 
 interface DriveBackupBrowserProps {
-  onRestore: (fileId: string) => void;
+  onRestore: () => void;
 }
 
 export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
@@ -64,7 +64,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
     try {
       setIsRestoring(fileId);
       await restoreFromGoogleDrive(fileId);
-      onRestore(fileId);
+      onRestore();
     } catch (error) {
       log.error("Restore failed:", error);
       toast.error(
