@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::models::{ProjectMeta, EmergencyBackup, StructureNode, Series, CodexRelation};
 use crate::utils::{get_app_dir, get_projects_dir, get_series_codex_path, get_series_dir, slugify, timestamp};

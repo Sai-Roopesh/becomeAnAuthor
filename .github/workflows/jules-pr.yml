@@ -8,27 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  jules-pr-task:
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Invoke Jules
-        # SECURITY BEST PRACTICE: Only allow trusted users to trigger the AI agent.
-        # Replace 'your-username' with your actual GitHub username.
-        if: ${{ github.event.pull_request.user.login == 'Sai-Roopesh' }}
-        uses: google-labs-code/jules-invoke@v1
-        with:
-          jules_api_key: ${{ secrets.JULES_API_KEY }}
-          prompt: |
-            You are an automated code maintainer for this Next.js and Tauri desktop app.
-            Please review the code changes in this PR and do the following:
-            1. Scan for and remove any leftover `console.log` statements or commented-out debug code.
-            2. If any new Tauri Rust commands were added, ensure they have proper documentation blocks so our AI coding agents can easily understand them in the future.
-            3. Run `npm run lint` and automatically fix any basic formatting errors.
-            4. Push a clean commit with your fixes directly to this PR branch.
-
   jules-main-docs-sync:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip-jules-docs]') }}
     runs-on: ubuntu-latest
@@ -40,15 +19,14 @@ jobs:
         with:
           jules_api_key: ${{ secrets.JULES_API_KEY }}
           prompt: |
-            You are a documentation maintainer for this Next.js + Tauri app.
+            You are a documentation maintainer for this BecomeAnAuthor App.
             A merge landed on `main` (commit: ${{ github.sha }}).
 
             Please do the following:
             1. Analyze what changed in this push to main.
-            2. Create or update these docs files to reflect the change clearly:
-               - docs/CHANGELOG.md
-               - docs/ARCHITECTURE_UPDATES.md
-            3. Keep entries concise, factual, and date-stamped.
-            4. Do not modify source code; only documentation files under /docs.
-            5. Commit and push docs changes directly to main.
-            6. Include `[skip-jules-docs]` in the commit message to avoid workflow loops.
+            2. Update the existing docs present in the /docs directory
+            3. I want you to check every file in /docs directory and update it with relevant info of the new changes
+            4. Keep entries concise, factual, and date-stamped.
+            5. Do not modify source code; only documentation files under /docs.
+            6. Commit and push docs changes directly to main.
+            7. Include `[skip-jules-docs]` in the commit message to avoid workflow loops.
