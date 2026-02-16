@@ -395,11 +395,7 @@ export function PlanView({ projectId }: { projectId: string }) {
           />
         )}
         {viewType === "matrix" && (
-          <MatrixView
-            projectId={projectId}
-            seriesId={project.seriesId}
-            nodes={filteredNodes}
-          />
+          <MatrixView seriesId={project.seriesId} nodes={nodes} />
         )}
         {viewType === "timeline" && (
           <TimelineView
