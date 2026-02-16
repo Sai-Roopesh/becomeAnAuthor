@@ -91,7 +91,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({
       instructions: getModeInstructions(state.selectedMode),
       model:
         state.model ||
-        storage.getItem<string>("last_used_model", "openai/gpt-3.5-turbo"),
+        storage.getItem<string>("last_used_model", "gpt-4.1-mini"),
       mode: state.selectedMode,
       reasoning: state.reasoning,
     });
@@ -161,7 +161,7 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({
                   <div>
                     <div className="font-medium text-sm">CONTINUE WRITING</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Creates a new scene beat to continue writing.
+                      Continue from your current cursor position.
                     </div>
                   </div>
                 </div>

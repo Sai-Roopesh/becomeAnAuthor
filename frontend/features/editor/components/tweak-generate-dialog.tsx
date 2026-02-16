@@ -83,7 +83,7 @@ export function TweakGenerateDialog({
       instructions: state.instructions,
       model:
         state.model ||
-        storage.getItem<string>("last_used_model", "openai/gpt-3.5-turbo"),
+        storage.getItem<string>("last_used_model", "gpt-4.1-mini"),
       selectedContexts: state.selectedContexts,
     });
     onOpenChange(false);

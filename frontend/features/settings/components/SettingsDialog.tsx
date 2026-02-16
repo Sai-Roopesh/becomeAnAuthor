@@ -1,30 +1,57 @@
 "use client";
 
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { Moon, Sun, Zap } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Zap, Sun, Moon } from "lucide-react";
-import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { AIConnectionsTab } from "./ai-connections-tab";
-import { useTheme } from "next-themes";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
-  SettingsMobileNav,
-  SettingsDesktopNav,
+  getSettingsTabMeta,
+  SettingsCompactNav,
+  SettingsSidebarNav,
   type SettingsTab,
 } from "./settings-navigation";
-import {
-  GeneralSettingsTab,
-  BackupTab,
-  TeamsTab,
-  SharedTab,
-  AccountTab,
-  SubscriptionTab,
-} from "./tabs";
+import { BackupTab, GeneralSettingsTab, TeamsTab } from "./tabs";
+
+function ThemeControls({
+  theme,
+  setTheme,
+}: {
+  theme: string | undefined;
+  setTheme: (theme: string) => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      <Button
+        variant={theme === "light" ? "default" : "outline"}
+        size="sm"
+        onClick={() => setTheme("light")}
+        className="flex-1"
+      >
+        <Sun className="mr-1.5 h-3.5 w-3.5" />
+        Light
+      </Button>
+      <Button
+        variant={theme === "dark" ? "default" : "outline"}
+        size="sm"
+        onClick={() => setTheme("dark")}
+        className="flex-1"
+      >
+        <Moon className="mr-1.5 h-3.5 w-3.5" />
+        Dark
+      </Button>
+    </div>
+  );
+}
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>("ai-connections");
   const { theme, setTheme } = useTheme();
+  const activeMeta = getSettingsTabMeta(activeTab);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -33,62 +60,70 @@ export function SettingsDialog() {
       </Button>
 
       <DialogContent
-        className="w-[95vw] max-w-5xl h-[90dvh] sm:h-[85dvh] max-h-[90dvh] sm:max-h-[85dvh] p-0 bg-background fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 flex flex-col overflow-hidden"
         aria-describedby={undefined}
+        className="h-[min(94dvh,56rem)] w-[min(96vw,78rem)] !max-w-none overflow-hidden p-0"
       >
         <VisuallyHidden>
           <DialogTitle>Settings</DialogTitle>
         </VisuallyHidden>
-        <div className="flex flex-col md:flex-row h-full bg-background overflow-hidden">
-          {/* Mobile: Horizontal Scrolling Navigation */}
-          <SettingsMobileNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {/* Desktop: Sidebar Navigation */}
-          <SettingsDesktopNav
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-
-          {/* Theme Toggle - Desktop only */}
-          <div className="hidden md:block absolute bottom-0 left-0 w-64 p-4 border-t bg-background border-r">
-            <div className="text-xs text-muted-foreground mb-2">Theme:</div>
-            <div className="flex gap-2">
-              <Button
-                variant={theme === "light" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTheme("light")}
-                className="flex-1"
-              >
-                <Sun className="h-3 w-3 mr-1" />
-                Light
-              </Button>
-              <Button
-                variant={theme === "dark" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTheme("dark")}
-                className="flex-1"
-              >
-                <Moon className="h-3 w-3 mr-1" />
-                Dark
-              </Button>
+        <div className="flex h-full min-h-0 min-w-0 flex-col xl:flex-row">
+          <aside className="hidden w-[clamp(15rem,24vw,19rem)] shrink-0 border-r bg-muted/20 xl:flex xl:min-h-0 xl:flex-col">
+            <div className="border-b px-5 py-4">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Settings
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Configure your writing environment.
+              </p>
             </div>
-          </div>
 
-          {/* Content Area */}
-          <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
-            {activeTab === "ai-connections" && (
-              <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
-                <AIConnectionsTab />
+            <ScrollArea className="flex-1 px-3 py-3">
+              <SettingsSidebarNav
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+            </ScrollArea>
+
+            <div className="border-t p-4">
+              <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                Theme
+              </p>
+              <ThemeControls theme={theme} setTheme={setTheme} />
+            </div>
+          </aside>
+
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+            <header className="border-b px-4 py-4 md:px-6 md:py-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-lg font-semibold md:text-xl">
+                    {activeMeta.label}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {activeMeta.description}
+                  </p>
+                </div>
+                <div className="w-[10rem] shrink-0 xl:hidden">
+                  <ThemeControls theme={theme} setTheme={setTheme} />
+                </div>
               </div>
-            )}
 
-            {activeTab === "general" && <GeneralSettingsTab />}
-            {activeTab === "backup" && <BackupTab />}
-            {activeTab === "teams" && <TeamsTab />}
-            {activeTab === "shared" && <SharedTab />}
-            {activeTab === "account" && <AccountTab />}
-            {activeTab === "subscription" && <SubscriptionTab />}
-          </div>
+              <div className="mt-4 xl:hidden">
+                <SettingsCompactNav
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                />
+              </div>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {activeTab === "ai-connections" && <AIConnectionsTab />}
+              {activeTab === "general" && <GeneralSettingsTab />}
+              {activeTab === "backup" && <BackupTab />}
+              {activeTab === "teams" && <TeamsTab />}
+            </div>
+          </section>
         </div>
       </DialogContent>
     </Dialog>

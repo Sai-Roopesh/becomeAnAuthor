@@ -2,15 +2,38 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { storage } from "@/core/storage/safe-storage";
-import { AIConnection } from "@/lib/config/ai-vendors";
+import { AIConnection, AIProvider, AI_VENDORS } from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { deleteAPIKey, getAPIKey, storeAPIKey } from "@/core/storage/api-keys";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("useAIConnections");
+const STORAGE_KEY = "ai_connections";
+
+function toStoredConnection(connection: AIConnection): AIConnection {
+  return { ...connection, apiKey: "" };
+}
+
+function persistConnections(connections: AIConnection[]) {
+  storage.setItem(
+    STORAGE_KEY,
+    connections.map((connection) => toStoredConnection(connection)),
+  );
+}
+
+function requiresApiKey(connection: AIConnection): boolean {
+  if (connection.provider !== "openai") {
+    return AI_VENDORS[connection.provider].requiresAuth;
+  }
+
+  const normalizedEndpoint =
+    connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
+  return normalizedEndpoint === AI_VENDORS.openai.defaultEndpoint;
+}
 
 /**
  * Hook for managing AI connections state.
- * Handles CRUD operations and localStorage persistence.
+ * Handles CRUD operations and stores API keys in OS keychain.
  */
 export function useAIConnections() {
   const [connections, setConnections] = useState<AIConnection[]>([]);
@@ -19,20 +42,53 @@ export function useAIConnections() {
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    const loadConnections = () => {
-      const parsed = storage.getItem<AIConnection[]>("ai_connections", []);
+    let cancelled = false;
 
-      if (parsed.length > 0) {
-        setConnections(parsed);
-        setSelectedId(parsed[0]?.id || "");
-      } else {
-        setConnections([]);
-        setSelectedId("");
+    const loadConnections = async () => {
+      const parsed = storage.getItem<AIConnection[]>(STORAGE_KEY, []);
+      if (parsed.length === 0) {
+        if (!cancelled) {
+          setConnections([]);
+          setSelectedId("");
+        }
+        return;
+      }
+      // Ensure local storage never keeps plaintext API keys.
+      persistConnections(parsed);
+
+      const hydrated = await Promise.all(
+        parsed.map(async (connection) => {
+          if (connection.apiKey?.trim()) return connection;
+          const storedKey = await getAPIKey(connection.provider);
+          if (!storedKey) return connection;
+          return { ...connection, apiKey: storedKey };
+        }),
+      );
+
+      if (!cancelled) {
+        setConnections(hydrated);
+        setSelectedId(hydrated[0]?.id || "");
       }
     };
 
-    loadConnections();
+    void loadConnections();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const persistApiKey = useCallback(
+    async (provider: AIProvider, key: string) => {
+      const normalized = key.trim();
+      if (!normalized) {
+        await deleteAPIKey(provider);
+        return;
+      }
+      await storeAPIKey(provider, normalized);
+    },
+    [],
+  );
 
   const saveConnection = useCallback(
     (
@@ -44,6 +100,11 @@ export function useAIConnections() {
         models?: string[];
       },
     ) => {
+      const existing = connections.find((connection) => connection.id === id);
+      if (!existing) return;
+      const provider = existing.provider;
+      const nextApiKey = updates.apiKey;
+
       setConnections((prev) => {
         const updated = prev.map((c) =>
           c.id === id
@@ -54,11 +115,18 @@ export function useAIConnections() {
               }
             : c,
         );
-        storage.setItem("ai_connections", updated);
+        persistConnections(updated);
         return updated;
       });
+
+      if (nextApiKey !== undefined) {
+        void persistApiKey(provider, nextApiKey).catch((err) => {
+          log.error("Failed to persist API key in keychain:", err);
+          setError("Failed to persist API key in secure storage");
+        });
+      }
     },
-    [],
+    [connections, persistApiKey],
   );
 
   const addConnection = (
@@ -72,14 +140,33 @@ export function useAIConnections() {
     };
     const updated = [...connections, newConnection];
     setConnections(updated);
-    storage.setItem("ai_connections", updated);
+    persistConnections(updated);
+    if (newConnection.apiKey.trim()) {
+      void persistApiKey(newConnection.provider, newConnection.apiKey).catch(
+        (err) => {
+          log.error("Failed to store API key in keychain:", err);
+          setError("Failed to store API key in secure storage");
+        },
+      );
+    }
     setSelectedId(newConnection.id);
   };
 
   const deleteConnection = (id: string) => {
+    const removedConnection = connections.find((c) => c.id === id);
     const updated = connections.filter((c) => c.id !== id);
     setConnections(updated);
-    storage.setItem("ai_connections", updated);
+    persistConnections(updated);
+
+    if (
+      removedConnection &&
+      !updated.some((c) => c.provider === removedConnection.provider)
+    ) {
+      void deleteAPIKey(removedConnection.provider).catch((err) => {
+        log.error("Failed to delete API key from keychain:", err);
+      });
+    }
+
     setSelectedId(updated[0]?.id || "");
   };
 
@@ -88,7 +175,7 @@ export function useAIConnections() {
       c.id === id ? { ...c, enabled: !c.enabled, updatedAt: Date.now() } : c,
     );
     setConnections(updated);
-    storage.setItem("ai_connections", updated);
+    persistConnections(updated);
   };
 
   /**
@@ -99,20 +186,28 @@ export function useAIConnections() {
       const connection = connections.find((c) => c.id === id);
       if (!connection) return;
 
-      if (!connection.apiKey) {
-        setError("API key is required to fetch models");
-        return;
-      }
-
       setLoading(true);
       setError("");
 
       try {
+        const keyFromStorage = connection.apiKey || "";
+        const keyFromKeychain =
+          keyFromStorage.trim() || (await getAPIKey(connection.provider)) || "";
+        const canFetchWithoutKey = !requiresApiKey(connection);
+        if (!keyFromKeychain && !canFetchWithoutKey) {
+          setError("API key is required to fetch models");
+          return;
+        }
+
+        if (keyFromKeychain && keyFromStorage !== keyFromKeychain) {
+          saveConnection(id, { apiKey: keyFromKeychain });
+        }
+
         log.info(`Fetching models for ${connection.provider}...`);
 
         const result = await modelDiscoveryService.fetchModels(
           connection.provider,
-          connection.apiKey,
+          keyFromKeychain,
           connection.customEndpoint,
         );
 

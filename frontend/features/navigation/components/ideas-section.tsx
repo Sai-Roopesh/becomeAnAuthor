@@ -63,7 +63,7 @@ export function IdeasSection({
     restoreIdea,
   } = useIdeas({
     projectId,
-    sceneId: sceneId ?? undefined,
+    ...(sceneId ? { sceneId } : {}),
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -106,7 +106,7 @@ export function IdeasSection({
         title="Ideas"
         count={sceneId ? ideas.length : 0}
         defaultOpen={defaultOpen}
-        onAdd={sceneId ? handleOpenModal : undefined}
+        {...(sceneId ? { onAdd: handleOpenModal } : {})}
         addTooltip={sceneId ? "Quick capture (⌘I)" : "Select a scene first"}
       >
         {!sceneId ? (
