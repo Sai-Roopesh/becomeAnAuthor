@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { CodexCategory, CodexEntry } from "@/domain/entities/types";
 import { CATEGORY_CONFIG } from "../../utils/timeline-utils";
 
-export type LaneCategory = "character" | "subplot" | "location";
+export type LaneCategory = CodexCategory;
 
 interface TimelineControlsProps {
   visibleCategories: LaneCategory[];
@@ -24,11 +24,27 @@ export function TimelineControls({
   sceneCount,
   laneCount,
 }: TimelineControlsProps) {
+  const categoryOrder: LaneCategory[] = [
+    "character",
+    "location",
+    "subplot",
+    "item",
+    "lore",
+  ];
+
+  const categoryLabel: Record<LaneCategory, string> = {
+    character: "Characters",
+    location: "Locations",
+    subplot: "Plots",
+    item: "Items",
+    lore: "Lore",
+  };
+
   return (
     <div className="flex items-center justify-between p-3 border-b bg-muted/30">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Show:</span>
-        {(["character", "subplot", "location"] as LaneCategory[]).map((cat) => {
+        {categoryOrder.map((cat) => {
           const config = CATEGORY_CONFIG[cat as CodexCategory];
           const Icon = config.icon;
           const isActive = visibleCategories.includes(cat);
@@ -44,11 +60,7 @@ export function TimelineControls({
               onClick={() => onToggleCategory(cat)}
             >
               <Icon className="h-3 w-3" />
-              {cat === "character"
-                ? "Characters"
-                : cat === "subplot"
-                  ? "Plots"
-                  : "Locations"}
+              {categoryLabel[cat]}
               <span className="text-2xs opacity-70">({count})</span>
             </Button>
           );

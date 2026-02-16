@@ -18,14 +18,12 @@ interface TimelineViewProps {
   projectId: string;
   seriesId: string; // Required - series-first architecture
   nodes: DocumentNode[];
-  searchQuery: string;
 }
 
 export function TimelineView({
   projectId,
   seriesId,
   nodes,
-  searchQuery,
 }: TimelineViewProps) {
   const { codexRepository: codexRepo, sceneCodexLinkRepository: linkRepo } =
     useAppServices();
@@ -35,6 +33,8 @@ export function TimelineView({
     "character",
     "subplot",
     "location",
+    "item",
+    "lore",
   ]);
 
   // Data fetching (series-level codex)
@@ -50,11 +50,7 @@ export function TimelineView({
 
   // Process data
   const scenes = useMemo(() => extractScenes(nodes), [nodes]);
-  const filteredScenes = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return scenes;
-    return scenes.filter((scene) => scene.title.toLowerCase().includes(q));
-  }, [scenes, searchQuery]);
+  const filteredScenes = scenes;
 
   const visibleLanes = useMemo(() => {
     if (!codexEntries) return [];
