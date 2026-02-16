@@ -152,7 +152,7 @@ fn load_scene_from_path(scene_file: &str, file_path: &PathBuf) -> Result<Scene, 
     Ok(Scene { meta, content: body })
 }
 
-fn write_scene_to_path(file_path: &PathBuf, meta: &SceneMeta, content: &str) -> Result<(), String> {
+fn write_scene_to_path(file_path: &Path, meta: &SceneMeta, content: &str) -> Result<(), String> {
     let frontmatter = build_frontmatter(meta);
     let full_content = frontmatter + content;
     atomic_write(file_path, &full_content)

@@ -623,7 +623,7 @@ pub fn import_project_backup(
     Err("Project-level import is disabled. Use series backup import instead.".to_string())
 }
 
-fn create_project_directory_structure(project_dir: &PathBuf) -> Result<(), String> {
+fn create_project_directory_structure(project_dir: &Path) -> Result<(), String> {
     fs::create_dir_all(project_dir.join(".meta/chat/messages")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("manuscript")).map_err(|e| e.to_string())?;
     fs::create_dir_all(project_dir.join("snippets")).map_err(|e| e.to_string())?;
@@ -632,7 +632,7 @@ fn create_project_directory_structure(project_dir: &PathBuf) -> Result<(), Strin
 }
 
 fn restore_scene_files(
-    project_dir: &PathBuf,
+    project_dir: &Path,
     scene_files: Option<&serde_json::Map<String, serde_json::Value>>,
 ) -> Result<(), String> {
     if let Some(files) = scene_files {
@@ -646,8 +646,8 @@ fn restore_scene_files(
     Ok(())
 }
 
-fn ensure_scene_files_exist(project_dir: &PathBuf, nodes: &[StructureNode]) -> Result<(), String> {
-    fn walk(project_dir: &PathBuf, nodes: &[StructureNode]) -> Result<(), String> {
+fn ensure_scene_files_exist(project_dir: &Path, nodes: &[StructureNode]) -> Result<(), String> {
+    fn walk(project_dir: &Path, nodes: &[StructureNode]) -> Result<(), String> {
         for node in nodes {
             if let Some(file_name) = &node.file {
                 let path = project_dir.join("manuscript").join(file_name);
@@ -675,7 +675,7 @@ fn ensure_scene_files_exist(project_dir: &PathBuf, nodes: &[StructureNode]) -> R
 }
 
 fn restore_snippets(
-    project_dir: &PathBuf,
+    project_dir: &Path,
     snippets: Option<&Vec<serde_json::Value>>,
     project_id: &str,
 ) -> Result<(), String> {
@@ -708,7 +708,7 @@ fn normalize_timestamp(value: Option<&serde_json::Value>, fallback: i64) -> i64 
 }
 
 fn restore_chats(
-    project_dir: &PathBuf,
+    project_dir: &Path,
     chats: Option<&Vec<serde_json::Value>>,
     messages: Option<&Vec<serde_json::Value>>,
     project_id: &str,
