@@ -24,7 +24,9 @@ interface MatrixViewProps {
 interface SceneRow {
   scene: Scene;
   chapterTitle: string;
+  chapterId: string;
   actTitle: string;
+  actId: string;
 }
 
 const CATEGORY_META: Array<{
@@ -43,38 +45,42 @@ function escapeRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function normalizeForDetection(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function buildDetector(term: string): RegExp | null {
-  const cleaned = term.trim();
-  if (!cleaned) return null;
+  const normalized = normalizeForDetection(term);
+  if (!normalized) return null;
 
-  const escaped = escapeRegExp(cleaned);
-  const hasWordChar = /[A-Za-z0-9]/.test(cleaned);
-
-  if (hasWordChar) {
-    return new RegExp(`\\b${escaped}\\b`, "i");
-  }
-
-  return new RegExp(`(^|\\s)${escaped}(?=\\s|$)`, "i");
+  return new RegExp(`(^|\\s)${escapeRegExp(normalized)}(?=\\s|$)`, "i");
 }
 
 function sceneSearchBlob(scene: Scene): string {
-  const contentText = extractTextFromContent(scene.content).toLowerCase();
-  const summary = (scene.summary ?? "").toLowerCase();
-  const pov = (scene.pov ?? "").toLowerCase();
-  const labels = (scene.labels ?? []).join(" ").toLowerCase();
+  const contentText = extractTextFromContent(scene.content);
+  const summary = scene.summary ?? "";
+  const pov = scene.pov ?? "";
+  const labels = (scene.labels ?? []).join(" ");
 
-  return [scene.title, summary, pov, labels, contentText]
-    .join(" ")
-    .toLowerCase();
+  return normalizeForDetection(
+    [scene.title, summary, pov, labels, contentText].join(" "),
+  );
 }
 
 function buildSceneRows(nodes: DocumentNode[]): SceneRow[] {
   const acts = nodes
-    .filter((n): n is Act => n.type === "act")
+    .filter((node): node is Act => node.type === "act")
     .sort((a, b) => a.order - b.order);
 
-  const chapters = nodes.filter((n): n is Chapter => n.type === "chapter");
-  const scenes = nodes.filter((n): n is Scene => n.type === "scene");
+  const chapters = nodes.filter(
+    (node): node is Chapter => node.type === "chapter",
+  );
+  const scenes = nodes.filter((node): node is Scene => node.type === "scene");
 
   const rows: SceneRow[] = [];
 
@@ -92,7 +98,9 @@ function buildSceneRows(nodes: DocumentNode[]): SceneRow[] {
         rows.push({
           scene,
           chapterTitle: chapter.title,
+          chapterId: chapter.id,
           actTitle: act.title,
+          actId: act.id,
         });
       }
     }
@@ -101,10 +109,33 @@ function buildSceneRows(nodes: DocumentNode[]): SceneRow[] {
   return rows;
 }
 
+function computeRowSpans(
+  rows: SceneRow[],
+  getGroupKey: (row: SceneRow) => string,
+): number[] {
+  const spans = new Array(rows.length).fill(0);
+  let index = 0;
+
+  while (index < rows.length) {
+    const currentKey = getGroupKey(rows[index]!);
+    let end = index + 1;
+
+    while (end < rows.length && getGroupKey(rows[end]!) === currentKey) {
+      end += 1;
+    }
+
+    spans[index] = end - index;
+    index = end;
+  }
+
+  return spans;
+}
+
 export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
   const [activeCategory, setActiveCategory] =
     useState<CodexCategory>("character");
   const [entrySearch, setEntrySearch] = useState("");
+  const [detectedOnlyEntries, setDetectedOnlyEntries] = useState(false);
 
   const codexRepo = useCodexRepository();
 
@@ -114,6 +145,16 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
   );
 
   const sceneRows = useMemo(() => buildSceneRows(nodes), [nodes]);
+
+  const actRowSpans = useMemo(
+    () => computeRowSpans(sceneRows, (row) => row.actId),
+    [sceneRows],
+  );
+
+  const chapterRowSpans = useMemo(
+    () => computeRowSpans(sceneRows, (row) => `${row.actId}:${row.chapterId}`),
+    [sceneRows],
+  );
 
   const sceneBlobMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -125,14 +166,15 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
 
   const categoryEntries = useMemo(() => {
     const query = entrySearch.trim().toLowerCase();
+
     return (codexEntries ?? [])
       .filter((entry) => entry.category === activeCategory)
       .filter((entry) => {
         if (!query) return true;
-        const blob = [entry.name, ...(entry.aliases ?? [])]
+        const searchable = [entry.name, ...(entry.aliases ?? [])]
           .join(" ")
           .toLowerCase();
-        return blob.includes(query);
+        return searchable.includes(query);
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [codexEntries, activeCategory, entrySearch]);
@@ -160,32 +202,35 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
     return map;
   }, [sceneRows, categoryEntries, sceneBlobMap]);
 
-  const filteredEntries = useMemo(() => {
-    if (sceneRows.length === 0) return categoryEntries;
+  const visibleEntries = useMemo(() => {
+    if (!detectedOnlyEntries) return categoryEntries;
 
     return categoryEntries.filter((entry) =>
       sceneRows.some((row) => detectionMap.get(`${row.scene.id}:${entry.id}`)),
     );
-  }, [categoryEntries, sceneRows, detectionMap]);
+  }, [categoryEntries, sceneRows, detectionMap, detectedOnlyEntries]);
 
   const detectedSceneCount = useMemo(() => {
-    if (filteredEntries.length === 0) return 0;
+    if (visibleEntries.length === 0) return 0;
+
     return sceneRows.filter((row) =>
-      filteredEntries.some((entry) =>
+      visibleEntries.some((entry) =>
         detectionMap.get(`${row.scene.id}:${entry.id}`),
       ),
     ).length;
-  }, [sceneRows, filteredEntries, detectionMap]);
+  }, [sceneRows, visibleEntries, detectionMap]);
 
   const totalDetections = useMemo(() => {
     let total = 0;
     for (const row of sceneRows) {
-      for (const entry of filteredEntries) {
-        if (detectionMap.get(`${row.scene.id}:${entry.id}`)) total += 1;
+      for (const entry of visibleEntries) {
+        if (detectionMap.get(`${row.scene.id}:${entry.id}`)) {
+          total += 1;
+        }
       }
     }
     return total;
-  }, [sceneRows, filteredEntries, detectionMap]);
+  }, [sceneRows, visibleEntries, detectionMap]);
 
   if (sceneRows.length === 0) {
     return (
@@ -231,15 +276,26 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-          <Input
-            value={entrySearch}
-            onChange={(e) => setEntrySearch(e.target.value)}
-            placeholder={`Search ${CATEGORY_META.find((c) => c.id === activeCategory)?.label.toLowerCase()}...`}
-            className="w-56 h-8"
-          />
+          <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              value={entrySearch}
+              onChange={(e) => setEntrySearch(e.target.value)}
+              placeholder={`Search ${CATEGORY_META.find((c) => c.id === activeCategory)?.label.toLowerCase()}...`}
+              className="w-56 h-8"
+            />
+            <Button
+              variant={detectedOnlyEntries ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDetectedOnlyEntries((prev) => !prev)}
+            >
+              {detectedOnlyEntries ? "Detected Entries" : "All Entries"}
+            </Button>
+          </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline">{sceneRows.length} scenes</Badge>
-            <Badge variant="outline">{filteredEntries.length} entries</Badge>
+            <Badge variant="outline">
+              {visibleEntries.length}/{categoryEntries.length} entries
+            </Badge>
             <Badge variant="outline">
               {detectedSceneCount} detected scenes
             </Badge>
@@ -251,19 +307,32 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
       <div className="border border-border/50 rounded-xl overflow-hidden shadow-sm bg-card/30 backdrop-blur-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">
+              Matrix of scenes and auto-detected codex entries
+            </caption>
             <thead className="bg-muted/50 border-b border-border/50 sticky top-0 z-10">
               <tr>
-                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[200px] sticky left-0 bg-muted/95 backdrop-blur z-30">
+                <th
+                  scope="col"
+                  className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[180px]"
+                >
                   Act
                 </th>
-                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[220px] sticky left-[200px] bg-muted/95 backdrop-blur z-30">
+                <th
+                  scope="col"
+                  className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[220px]"
+                >
                   Chapter
                 </th>
-                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[260px] sticky left-[420px] bg-muted/95 backdrop-blur z-30">
+                <th
+                  scope="col"
+                  className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[280px]"
+                >
                   Scene
                 </th>
-                {filteredEntries.map((entry) => (
+                {visibleEntries.map((entry) => (
                   <th
+                    scope="col"
                     key={entry.id}
                     className="p-3 text-center font-medium text-muted-foreground border-r border-border/50 min-w-[170px] max-w-[220px]"
                   >
@@ -275,21 +344,39 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {sceneRows.map((row) => (
+              {sceneRows.map((row, index) => (
                 <tr
                   key={row.scene.id}
                   className="group hover:bg-muted/25 transition-colors"
                 >
-                  <td className="p-4 border-r border-border/50 text-foreground sticky left-0 bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-20">
-                    {row.actTitle}
-                  </td>
-                  <td className="p-4 border-r border-border/50 text-foreground sticky left-[200px] bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-20">
-                    {row.chapterTitle}
-                  </td>
-                  <td className="p-4 border-r border-border/50 font-medium text-foreground sticky left-[420px] bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-20">
+                  {actRowSpans[index] > 0 && (
+                    <th
+                      scope="rowgroup"
+                      rowSpan={actRowSpans[index]}
+                      className="p-4 border-r border-border/50 text-foreground align-top font-medium"
+                    >
+                      {row.actTitle}
+                    </th>
+                  )}
+
+                  {chapterRowSpans[index] > 0 && (
+                    <th
+                      scope="rowgroup"
+                      rowSpan={chapterRowSpans[index]}
+                      className="p-4 border-r border-border/50 text-foreground align-top font-medium"
+                    >
+                      {row.chapterTitle}
+                    </th>
+                  )}
+
+                  <th
+                    scope="row"
+                    className="p-4 border-r border-border/50 text-left font-medium text-foreground"
+                  >
                     {row.scene.title}
-                  </td>
-                  {filteredEntries.map((entry) => {
+                  </th>
+
+                  {visibleEntries.map((entry) => {
                     const detected = detectionMap.get(
                       `${row.scene.id}:${entry.id}`,
                     );
