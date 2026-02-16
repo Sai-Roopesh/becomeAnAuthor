@@ -10,7 +10,6 @@ export { TextReplaceDialog } from "./components/text-replace-dialog";
 export { TweakGenerateDialog } from "./components/tweak-generate-dialog";
 export { ContinueWritingMenu } from "./components/continue-writing-menu";
 export { TextSelectionMenu } from "./components/text-selection-menu";
-export { TinkerMode } from "./components/tinker-mode";
 export { SparkPopover } from "./components/spark-popover";
 
 // Panel Components

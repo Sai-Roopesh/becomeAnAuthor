@@ -39,9 +39,6 @@ export type {
   TextSelectionAction,
 } from "./use-dialog-state";
 
-// Error Handling
-export { useErrorHandler } from "./use-error-handler";
-
 // External Services
 export { useGoogleAuth } from "@/features/google-drive/hooks/use-google-auth";
 export { useGoogleDrive } from "@/features/google-drive/hooks/use-google-drive";
@@ -53,7 +50,6 @@ export { useImportExport } from "./use-import-export";
 
 // Project & Node Management
 export { useOpenProject } from "./use-open-project";
-export { useNodeDeletion } from "./use-node-deletion";
 
 // Data Fetching
 export { useLiveQuery, invalidateQueries } from "./use-live-query";
@@ -63,7 +59,6 @@ export { useMentions } from "./use-mentions";
 export { useDebounce } from "./use-debounce";
 export { useIsMobile } from "./use-mobile";
 export { useQuickCapture } from "./use-quick-capture";
-export { useTabLeader } from "./use-tab-leader";
 
 // Repository Hooks
 export { useRepository } from "./use-repository";

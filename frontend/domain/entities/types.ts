@@ -96,50 +96,6 @@ export interface SceneNote {
   updatedAt: number;
 }
 
-// Arc Point types for character evolution tracking
-export interface KnowledgeState {
-  knows: string[];
-  doesNotKnow: string[];
-  believes: string[];
-  misconceptions: string[];
-}
-
-export interface EmotionalState {
-  primaryEmotion: string;
-  intensity?: number; // 1-10
-  mentalState?: string[];
-  internalConflict?: string;
-  trauma?: string[];
-}
-
-export interface GoalsAndMotivations {
-  primaryGoal?: string;
-  secondaryGoals?: string[];
-  fears?: string[];
-  desires?: string[];
-  obstacles?: string[];
-}
-
-export interface ArcPoint {
-  id: string;
-  bookId: string;
-  sceneId?: string;
-  eventType: "book" | "scene" | "flashback" | "offscreen";
-  eventLabel: string;
-  description: string;
-  timestamp: number;
-  age?: number;
-  status?: string;
-  location?: string;
-  stats?: Record<string, number>;
-  notes?: string;
-  significance?: string;
-  relationships: Record<string, string>;
-  knowledgeState?: KnowledgeState;
-  emotionalState?: EmotionalState;
-  goalsAndMotivations?: GoalsAndMotivations;
-}
-
 export interface CodexEntry {
   id: string;
   seriesId: string; // Required - series-first architecture
@@ -149,7 +105,6 @@ export interface CodexEntry {
   category: CodexCategory;
   description: string;
   coreDescription?: string; // Concise core description for AI context
-  arcPoints?: ArcPoint[]; // Character arc evolution points
   attributes: Record<string, string>;
   tags: string[];
   references: string[];

@@ -14,10 +14,3 @@ export type {
   AIModel,
   ModelDiscoveryResult,
 } from "./IModelDiscoveryService";
-export type {
-  INodeDeletionService,
-  ConfirmationFn,
-  DeletionConfirmOptions,
-  CancelSavesFn,
-  ToastCallbacks,
-} from "./INodeDeletionService";
