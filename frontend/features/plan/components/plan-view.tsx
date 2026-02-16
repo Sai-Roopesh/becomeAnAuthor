@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import {
   LayoutGrid,
   List,
-  Table,
   Search,
   ChevronDown,
   ChevronUp,
@@ -25,19 +24,12 @@ import {
 } from "lucide-react";
 import { GridView } from "./grid-view";
 import { OutlineView } from "./outline-view";
-import { MatrixView } from "./matrix-view";
 import { TimelineView } from "./timeline-view";
 import { MapView } from "./map-view";
 import { WorldTimelineView } from "./world-timeline-view";
 import { CodexFilterBar } from "@/features/plan/components/codex-filter-bar";
 
-type PlanViewType =
-  | "grid"
-  | "outline"
-  | "matrix"
-  | "timeline"
-  | "map"
-  | "world";
+type PlanViewType = "grid" | "outline" | "timeline" | "map" | "world";
 
 const PLAN_TABS: Array<{
   id: PlanViewType;
@@ -53,11 +45,6 @@ const PLAN_TABS: Array<{
     id: "outline",
     label: "Outline",
     description: "Linear narrative outline for quick story review.",
-  },
-  {
-    id: "matrix",
-    label: "Matrix",
-    description: "Track which codex entities appear in each scene.",
   },
   {
     id: "timeline",
@@ -101,10 +88,7 @@ export function PlanView({ projectId }: { projectId: string }) {
   );
 
   const isSceneBasedView =
-    viewType === "grid" ||
-    viewType === "outline" ||
-    viewType === "matrix" ||
-    viewType === "timeline";
+    viewType === "grid" || viewType === "outline" || viewType === "timeline";
 
   const project = useLiveQuery(
     () => projectRepo.get(projectId),
@@ -311,7 +295,6 @@ export function PlanView({ projectId }: { projectId: string }) {
               >
                 {type === "grid" && <LayoutGrid className="h-4 w-4" />}
                 {type === "outline" && <List className="h-4 w-4" />}
-                {type === "matrix" && <Table className="h-4 w-4" />}
                 {type === "timeline" && <Layers className="h-4 w-4" />}
                 {type === "map" && <MapIcon className="h-4 w-4" />}
                 {type === "world" && <Calendar className="h-4 w-4" />}
@@ -326,7 +309,7 @@ export function PlanView({ projectId }: { projectId: string }) {
               placeholder={
                 isSceneBasedView
                   ? "Search scenes, summaries, POV, labels, and linked codex entries..."
-                  : "Search is available in Grid, Outline, Matrix, and Timeline"
+                  : "Search is available in Grid, Outline, and Timeline"
               }
               value={search}
               disabled={!isSceneBasedView}
@@ -392,13 +375,6 @@ export function PlanView({ projectId }: { projectId: string }) {
             projectId={projectId}
             seriesId={project.seriesId}
             nodes={filteredNodes}
-          />
-        )}
-        {viewType === "matrix" && (
-          <MatrixView
-            projectId={projectId}
-            seriesId={project.seriesId}
-            nodes={nodes}
           />
         )}
         {viewType === "timeline" && (
