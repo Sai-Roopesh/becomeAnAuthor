@@ -1,6 +1,12 @@
 "use client";
 
-import { CodexCategory, DocumentNode } from "@/domain/entities/types";
+import {
+  Act,
+  Chapter,
+  CodexCategory,
+  DocumentNode,
+  Scene,
+} from "@/domain/entities/types";
 import { useCodexRepository } from "@/hooks/use-codex-repository";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { useMemo, useState } from "react";
@@ -13,6 +19,12 @@ import { extractTextFromContent } from "@/shared/utils/editor";
 interface MatrixViewProps {
   seriesId: string;
   nodes: DocumentNode[];
+}
+
+interface SceneRow {
+  scene: Scene;
+  chapterTitle: string;
+  actTitle: string;
 }
 
 const CATEGORY_META: Array<{
@@ -35,7 +47,6 @@ function buildDetector(term: string): RegExp | null {
   const cleaned = term.trim();
   if (!cleaned) return null;
 
-  // Use word boundaries for regular terms and a looser boundary for punctuation-heavy terms.
   const escaped = escapeRegExp(cleaned);
   const hasWordChar = /[A-Za-z0-9]/.test(cleaned);
 
@@ -46,9 +57,7 @@ function buildDetector(term: string): RegExp | null {
   return new RegExp(`(^|\\s)${escaped}(?=\\s|$)`, "i");
 }
 
-function sceneSearchBlob(scene: DocumentNode): string {
-  if (scene.type !== "scene") return scene.title.toLowerCase();
-
+function sceneSearchBlob(scene: Scene): string {
   const contentText = extractTextFromContent(scene.content).toLowerCase();
   const summary = (scene.summary ?? "").toLowerCase();
   const pov = (scene.pov ?? "").toLowerCase();
@@ -59,15 +68,15 @@ function sceneSearchBlob(scene: DocumentNode): string {
     .toLowerCase();
 }
 
-function getScenes(nodes: DocumentNode[]): DocumentNode[] {
+function buildSceneRows(nodes: DocumentNode[]): SceneRow[] {
   const acts = nodes
-    .filter((n) => n.type === "act")
+    .filter((n): n is Act => n.type === "act")
     .sort((a, b) => a.order - b.order);
 
-  const chapters = nodes.filter((n) => n.type === "chapter");
-  const scenes = nodes.filter((n) => n.type === "scene");
+  const chapters = nodes.filter((n): n is Chapter => n.type === "chapter");
+  const scenes = nodes.filter((n): n is Scene => n.type === "scene");
 
-  const orderedScenes: DocumentNode[] = [];
+  const rows: SceneRow[] = [];
 
   for (const act of acts) {
     const actChapters = chapters
@@ -78,11 +87,18 @@ function getScenes(nodes: DocumentNode[]): DocumentNode[] {
       const chapterScenes = scenes
         .filter((scene) => scene.parentId === chapter.id)
         .sort((a, b) => a.order - b.order);
-      orderedScenes.push(...chapterScenes);
+
+      for (const scene of chapterScenes) {
+        rows.push({
+          scene,
+          chapterTitle: chapter.title,
+          actTitle: act.title,
+        });
+      }
     }
   }
 
-  return orderedScenes;
+  return rows;
 }
 
 export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
@@ -97,15 +113,15 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
     [seriesId, codexRepo],
   );
 
-  const scenes = useMemo(() => getScenes(nodes), [nodes]);
+  const sceneRows = useMemo(() => buildSceneRows(nodes), [nodes]);
 
   const sceneBlobMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const scene of scenes) {
-      map.set(scene.id, sceneSearchBlob(scene));
+    for (const row of sceneRows) {
+      map.set(row.scene.id, sceneSearchBlob(row.scene));
     }
     return map;
-  }, [scenes]);
+  }, [sceneRows]);
 
   const categoryEntries = useMemo(() => {
     const query = entrySearch.trim().toLowerCase();
@@ -124,8 +140,8 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
   const detectionMap = useMemo(() => {
     const map = new Map<string, boolean>();
 
-    for (const scene of scenes) {
-      const blob = sceneBlobMap.get(scene.id) ?? "";
+    for (const row of sceneRows) {
+      const blob = sceneBlobMap.get(row.scene.id) ?? "";
 
       for (const entry of categoryEntries) {
         const terms = [entry.name, ...(entry.aliases ?? [])]
@@ -137,44 +153,41 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
           return detector ? detector.test(blob) : false;
         });
 
-        map.set(`${scene.id}:${entry.id}`, detected);
+        map.set(`${row.scene.id}:${entry.id}`, detected);
       }
     }
 
     return map;
-  }, [scenes, categoryEntries, sceneBlobMap]);
-
-  const filteredScenes = useMemo(() => {
-    if (categoryEntries.length === 0) return scenes;
-
-    return scenes.filter((scene) =>
-      categoryEntries.some((entry) =>
-        detectionMap.get(`${scene.id}:${entry.id}`),
-      ),
-    );
-  }, [scenes, categoryEntries, detectionMap]);
+  }, [sceneRows, categoryEntries, sceneBlobMap]);
 
   const filteredEntries = useMemo(() => {
-    if (filteredScenes.length === 0) return categoryEntries;
+    if (sceneRows.length === 0) return categoryEntries;
 
     return categoryEntries.filter((entry) =>
-      filteredScenes.some((scene) =>
-        detectionMap.get(`${scene.id}:${entry.id}`),
-      ),
+      sceneRows.some((row) => detectionMap.get(`${row.scene.id}:${entry.id}`)),
     );
-  }, [categoryEntries, filteredScenes, detectionMap]);
+  }, [categoryEntries, sceneRows, detectionMap]);
+
+  const detectedSceneCount = useMemo(() => {
+    if (filteredEntries.length === 0) return 0;
+    return sceneRows.filter((row) =>
+      filteredEntries.some((entry) =>
+        detectionMap.get(`${row.scene.id}:${entry.id}`),
+      ),
+    ).length;
+  }, [sceneRows, filteredEntries, detectionMap]);
 
   const totalDetections = useMemo(() => {
     let total = 0;
-    for (const scene of filteredScenes) {
+    for (const row of sceneRows) {
       for (const entry of filteredEntries) {
-        if (detectionMap.get(`${scene.id}:${entry.id}`)) total += 1;
+        if (detectionMap.get(`${row.scene.id}:${entry.id}`)) total += 1;
       }
     }
     return total;
-  }, [filteredScenes, filteredEntries, detectionMap]);
+  }, [sceneRows, filteredEntries, detectionMap]);
 
-  if (scenes.length === 0) {
+  if (sceneRows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
         <div className="relative">
@@ -225,8 +238,11 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
             className="w-56 h-8"
           />
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline">{filteredScenes.length} scenes</Badge>
+            <Badge variant="outline">{sceneRows.length} scenes</Badge>
             <Badge variant="outline">{filteredEntries.length} entries</Badge>
+            <Badge variant="outline">
+              {detectedSceneCount} detected scenes
+            </Badge>
             <Badge variant="outline">{totalDetections} detections</Badge>
           </div>
         </div>
@@ -237,7 +253,13 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b border-border/50 sticky top-0 z-10">
               <tr>
-                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-table-lg sticky left-0 bg-muted/95 backdrop-blur z-20">
+                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[200px] sticky left-0 bg-muted/95 backdrop-blur z-30">
+                  Act
+                </th>
+                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[220px] sticky left-[200px] bg-muted/95 backdrop-blur z-30">
+                  Chapter
+                </th>
+                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-[260px] sticky left-[420px] bg-muted/95 backdrop-blur z-30">
                   Scene
                 </th>
                 {filteredEntries.map((entry) => (
@@ -253,17 +275,23 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {filteredScenes.map((scene) => (
+              {sceneRows.map((row) => (
                 <tr
-                  key={scene.id}
+                  key={row.scene.id}
                   className="group hover:bg-muted/25 transition-colors"
                 >
-                  <td className="p-4 border-r border-border/50 font-medium text-foreground sticky left-0 bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-10">
-                    {scene.title}
+                  <td className="p-4 border-r border-border/50 text-foreground sticky left-0 bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-20">
+                    {row.actTitle}
+                  </td>
+                  <td className="p-4 border-r border-border/50 text-foreground sticky left-[200px] bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-20">
+                    {row.chapterTitle}
+                  </td>
+                  <td className="p-4 border-r border-border/50 font-medium text-foreground sticky left-[420px] bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-20">
+                    {row.scene.title}
                   </td>
                   {filteredEntries.map((entry) => {
                     const detected = detectionMap.get(
-                      `${scene.id}:${entry.id}`,
+                      `${row.scene.id}:${entry.id}`,
                     );
 
                     return (
@@ -290,18 +318,17 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
         </div>
       </div>
 
-      {(categoryEntries.length === 0 || filteredEntries.length === 0) && (
+      {categoryEntries.length === 0 && (
         <div className="text-center p-8 border-2 border-dashed border-border/30 rounded-xl bg-muted/5">
           <p className="text-muted-foreground mb-2">
-            No auto-detected{" "}
+            No{" "}
             {CATEGORY_META.find(
               (c) => c.id === activeCategory,
             )?.label.toLowerCase()}{" "}
             found
           </p>
           <p className="text-xs text-muted-foreground/70">
-            Detection matches codex names and aliases against scene title,
-            summary, POV, labels, and content.
+            Detection uses codex names and aliases against scene content.
           </p>
         </div>
       )}
