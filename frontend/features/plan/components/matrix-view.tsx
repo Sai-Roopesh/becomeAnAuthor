@@ -4,6 +4,7 @@ import {
   Act,
   Chapter,
   CodexCategory,
+  CodexEntry,
   DocumentNode,
   Scene,
 } from "@/domain/entities/types";
@@ -15,8 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { extractTextFromContent } from "@/shared/utils/editor";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 
 interface MatrixViewProps {
+  projectId: string;
   seriesId: string;
   nodes: DocumentNode[];
 }
@@ -47,9 +50,11 @@ function escapeRegExp(input: string): string {
 
 function normalizeForDetection(input: string): string {
   return input
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
     .toLowerCase()
-    .replace(/[’']/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[’'`]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -70,6 +75,40 @@ function sceneSearchBlob(scene: Scene): string {
   return normalizeForDetection(
     [scene.title, summary, pov, labels, contentText].join(" "),
   );
+}
+
+function termTokens(input: string): string[] {
+  return normalizeForDetection(input)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function entryMatchesScene(
+  blob: string,
+  blobTokenSet: Set<string>,
+  entry: CodexEntry,
+): boolean {
+  const terms = [entry.name, ...(entry.aliases ?? [])]
+    .map((term) => term.trim())
+    .filter(Boolean);
+
+  for (const term of terms) {
+    const detector = buildDetector(term);
+    if (detector && detector.test(blob)) {
+      return true;
+    }
+
+    const tokens = termTokens(term).filter((token) => token.length >= 3);
+    if (tokens.length >= 2) {
+      const matched = tokens.filter((token) => blobTokenSet.has(token)).length;
+      if (matched >= Math.max(2, Math.ceil(tokens.length * 0.6))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function buildSceneRows(nodes: DocumentNode[]): SceneRow[] {
@@ -131,17 +170,22 @@ function computeRowSpans(
   return spans;
 }
 
-export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
+export function MatrixView({ projectId, seriesId, nodes }: MatrixViewProps) {
   const [activeCategory, setActiveCategory] =
     useState<CodexCategory>("character");
   const [entrySearch, setEntrySearch] = useState("");
   const [detectedOnlyEntries, setDetectedOnlyEntries] = useState(false);
 
   const codexRepo = useCodexRepository();
+  const { sceneCodexLinkRepository: linkRepo } = useAppServices();
 
   const codexEntries = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
+  );
+  const sceneCodexLinks = useLiveQuery(
+    () => linkRepo.getByProject(projectId),
+    [projectId, linkRepo],
   );
 
   const sceneRows = useMemo(() => buildSceneRows(nodes), [nodes]);
@@ -159,7 +203,11 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
   const sceneBlobMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const row of sceneRows) {
-      map.set(row.scene.id, sceneSearchBlob(row.scene));
+      const sceneBlob = sceneSearchBlob(row.scene);
+      const contextBlob = normalizeForDetection(
+        [row.actTitle, row.chapterTitle].join(" "),
+      );
+      map.set(row.scene.id, `${sceneBlob} ${contextBlob}`.trim());
     }
     return map;
   }, [sceneRows]);
@@ -181,26 +229,25 @@ export function MatrixView({ seriesId, nodes }: MatrixViewProps) {
 
   const detectionMap = useMemo(() => {
     const map = new Map<string, boolean>();
+    const linkedPairs = new Set(
+      (sceneCodexLinks ?? []).map((link) => `${link.sceneId}:${link.codexId}`),
+    );
 
     for (const row of sceneRows) {
       const blob = sceneBlobMap.get(row.scene.id) ?? "";
+      const blobTokenSet = new Set(blob.split(" ").filter(Boolean));
 
       for (const entry of categoryEntries) {
-        const terms = [entry.name, ...(entry.aliases ?? [])]
-          .map((term) => term.trim())
-          .filter(Boolean);
+        const key = `${row.scene.id}:${entry.id}`;
+        const detected =
+          linkedPairs.has(key) || entryMatchesScene(blob, blobTokenSet, entry);
 
-        const detected = terms.some((term) => {
-          const detector = buildDetector(term);
-          return detector ? detector.test(blob) : false;
-        });
-
-        map.set(`${row.scene.id}:${entry.id}`, detected);
+        map.set(key, detected);
       }
     }
 
     return map;
-  }, [sceneRows, categoryEntries, sceneBlobMap]);
+  }, [sceneRows, categoryEntries, sceneBlobMap, sceneCodexLinks]);
 
   const visibleEntries = useMemo(() => {
     if (!detectedOnlyEntries) return categoryEntries;
