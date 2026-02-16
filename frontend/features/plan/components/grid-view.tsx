@@ -11,15 +11,9 @@ interface GridViewProps {
   projectId: string;
   seriesId: string; // Required - series-first architecture
   nodes: DocumentNode[];
-  searchQuery: string;
 }
 
-export function GridView({
-  projectId,
-  seriesId,
-  nodes,
-  searchQuery,
-}: GridViewProps) {
+export function GridView({ projectId, seriesId, nodes }: GridViewProps) {
   const [collapsedActs, setCollapsedActs] = useState<Set<string>>(new Set());
   const [dialogState, setDialogState] = useState<{
     open: boolean;
@@ -46,17 +40,6 @@ export function GridView({
     type: "act" | "chapter" | "scene",
   ) => {
     setDialogState({ open: true, parentId, type });
-  };
-
-  const filterNodes = (node: DocumentNode): boolean => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      node.title.toLowerCase().includes(query) ||
-      (node.type === "scene" &&
-        "content" in node &&
-        JSON.stringify(node.content).toLowerCase().includes(query))
-    );
   };
 
   if (acts.length === 0) {
@@ -96,7 +79,7 @@ export function GridView({
 
   return (
     <div className="space-y-8 pb-20">
-      {acts.filter(filterNodes).map((act, actIndex) => {
+      {acts.map((act, actIndex) => {
         const chapters = getChildren(act.id);
         const isExpanded = !collapsedActs.has(act.id);
 
@@ -145,7 +128,7 @@ export function GridView({
             {/* Chapters Grid */}
             {isExpanded && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4">
-                {chapters.filter(filterNodes).map((chapter) => {
+                {chapters.map((chapter) => {
                   const scenes = getChildren(chapter.id);
                   return (
                     <div
@@ -173,7 +156,7 @@ export function GridView({
 
                       {/* Scenes List - Index Card Style */}
                       <div className="p-3 space-y-2 flex-1">
-                        {scenes.filter(filterNodes).map((scene) => (
+                        {scenes.map((scene) => (
                           <div
                             key={scene.id}
                             className="transform transition-transform hover:-translate-y-0.5"

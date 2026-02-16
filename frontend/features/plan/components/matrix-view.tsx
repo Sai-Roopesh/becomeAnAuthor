@@ -1,10 +1,14 @@
 "use client";
 
-import { DocumentNode } from "@/domain/entities/types";
+import {
+  CodexCategory,
+  DocumentNode,
+  SceneCodexLinkRole,
+} from "@/domain/entities/types";
 import { invalidateQueries, useLiveQuery } from "@/hooks/use-live-query";
 import { useCodexRepository } from "@/hooks/use-codex-repository";
-import { useState } from "react";
-import { Table } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Table, User, MapPin, Scroll, Sparkles, BookOpen } from "lucide-react";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import {
   Select,
@@ -13,83 +17,166 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface MatrixViewProps {
   projectId: string;
-  seriesId: string; // Required - series-first architecture
+  seriesId: string;
   nodes: DocumentNode[];
-  searchQuery: string;
 }
 
-type MatrixMode = "codex" | "pov" | "labels";
+const CATEGORY_META: Array<{
+  id: CodexCategory;
+  label: string;
+  icon: typeof User;
+}> = [
+  { id: "character", label: "Characters", icon: User },
+  { id: "location", label: "Locations", icon: MapPin },
+  { id: "subplot", label: "Subplots", icon: Scroll },
+  { id: "item", label: "Items", icon: Sparkles },
+  { id: "lore", label: "Lore", icon: BookOpen },
+];
 
-export function MatrixView({
-  projectId,
-  seriesId,
-  nodes,
-  searchQuery,
-}: MatrixViewProps) {
-  const [mode, setMode] = useState<MatrixMode>("codex");
+const ROLE_OPTIONS: Array<{ value: SceneCodexLinkRole; label: string }> = [
+  { value: "appears", label: "Appears" },
+  { value: "mentioned", label: "Mentioned" },
+  { value: "pov", label: "POV" },
+  { value: "location", label: "Setting" },
+  { value: "plot", label: "Plot" },
+];
+
+function defaultRoleForCategory(category: CodexCategory): SceneCodexLinkRole {
+  if (category === "character") return "appears";
+  if (category === "location") return "location";
+  if (category === "subplot") return "plot";
+  return "mentioned";
+}
+
+function roleOptionsForCategory(category: CodexCategory): SceneCodexLinkRole[] {
+  if (category === "character") return ["appears", "mentioned", "pov"];
+  if (category === "location") return ["location", "mentioned", "appears"];
+  if (category === "subplot") return ["plot", "mentioned", "appears"];
+  return ["mentioned", "appears"];
+}
+
+function getScenes(nodes: DocumentNode[]): DocumentNode[] {
+  const acts = nodes
+    .filter((n) => n.type === "act")
+    .sort((a, b) => a.order - b.order);
+
+  const chapters = nodes.filter((n) => n.type === "chapter");
+  const scenes = nodes.filter((n) => n.type === "scene");
+
+  const orderedScenes: DocumentNode[] = [];
+
+  for (const act of acts) {
+    const actChapters = chapters
+      .filter((chapter) => chapter.parentId === act.id)
+      .sort((a, b) => a.order - b.order);
+
+    for (const chapter of actChapters) {
+      const chapterScenes = scenes
+        .filter((scene) => scene.parentId === chapter.id)
+        .sort((a, b) => a.order - b.order);
+      orderedScenes.push(...chapterScenes);
+    }
+  }
+
+  return orderedScenes;
+}
+
+export function MatrixView({ projectId, seriesId, nodes }: MatrixViewProps) {
+  const [activeCategory, setActiveCategory] =
+    useState<CodexCategory>("character");
+  const [entrySearch, setEntrySearch] = useState("");
+  const [linkedOnly, setLinkedOnly] = useState(false);
+
   const codexRepo = useCodexRepository();
   const { sceneCodexLinkRepository: linkRepo } = useAppServices();
+
   const codexEntries = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
   );
+
   const links = useLiveQuery(
     () => linkRepo.getByProject(projectId),
     [projectId, linkRepo],
   );
 
-  const acts = nodes.filter((n) => n.type === "act");
-  const getChildren = (parentId: string) =>
-    nodes.filter((n) => n.parentId === parentId);
+  const scenes = useMemo(() => getScenes(nodes), [nodes]);
 
-  const getScenes = () => {
-    const allScenes: DocumentNode[] = [];
-    acts.forEach((act) => {
-      const chapters = getChildren(act.id);
-      chapters.forEach((chapter) => {
-        const scenes = getChildren(chapter.id);
-        scenes.forEach((scene) => allScenes.push(scene));
+  const categoryEntries = useMemo(() => {
+    const query = entrySearch.trim().toLowerCase();
+    const entries = (codexEntries ?? [])
+      .filter((entry) => entry.category === activeCategory)
+      .filter((entry) => {
+        if (!query) return true;
+        const blob = [entry.name, ...(entry.aliases ?? [])]
+          .join(" ")
+          .toLowerCase();
+        return blob.includes(query);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!linkedOnly || !links) return entries;
+
+    const linkedIds = new Set(links.map((link) => link.codexId));
+    return entries.filter((entry) => linkedIds.has(entry.id));
+  }, [codexEntries, activeCategory, entrySearch, linkedOnly, links]);
+
+  const linkMap = useMemo(() => {
+    const map = new Map<string, { id: string; role: SceneCodexLinkRole }>();
+    for (const link of links ?? []) {
+      map.set(`${link.sceneId}:${link.codexId}`, {
+        id: link.id,
+        role: link.role,
       });
-    });
-    return allScenes;
-  };
+    }
+    return map;
+  }, [links]);
 
-  const scenes = getScenes();
-
-  const filterScenes = (scene: DocumentNode) => {
-    if (!searchQuery) return true;
-    return scene.title.toLowerCase().includes(searchQuery.toLowerCase());
-  };
-
-  const filteredScenes = scenes.filter(filterScenes);
-
-  const isLinked = (sceneId: string, codexId: string) =>
-    links?.some((l) => l.sceneId === sceneId && l.codexId === codexId) ?? false;
-
-  const getLinkId = (sceneId: string, codexId: string) =>
-    links?.find((l) => l.sceneId === sceneId && l.codexId === codexId)?.id;
+  const getLink = (sceneId: string, codexId: string) =>
+    linkMap.get(`${sceneId}:${codexId}`);
 
   const toggleLink = async (
     sceneId: string,
     codexId: string,
-    checked: boolean,
+    category: CodexCategory,
   ) => {
-    if (checked) {
+    const existing = getLink(sceneId, codexId);
+
+    if (existing) {
+      await linkRepo.delete(existing.id);
+    } else {
       await linkRepo.create({
         sceneId,
         codexId,
         projectId,
-        role: "appears",
+        role: defaultRoleForCategory(category),
       });
-    } else {
-      const id = getLinkId(sceneId, codexId);
-      if (id) await linkRepo.delete(id);
     }
+
     invalidateQueries();
   };
+
+  const updateRole = async (
+    sceneId: string,
+    codexId: string,
+    role: SceneCodexLinkRole,
+  ) => {
+    const existing = getLink(sceneId, codexId);
+    if (!existing) return;
+    await linkRepo.update(existing.id, { role });
+    invalidateQueries();
+  };
+
+  const totalActiveLinks = useMemo(() => {
+    const entryIds = new Set(categoryEntries.map((entry) => entry.id));
+    return (links ?? []).filter((link) => entryIds.has(link.codexId)).length;
+  }, [links, categoryEntries]);
 
   if (scenes.length === 0) {
     return (
@@ -101,10 +188,11 @@ export function MatrixView({
           </div>
         </div>
         <div className="space-y-2">
-          <h3 className="text-2xl font-heading font-bold">Story Matrix</h3>
+          <h3 className="text-2xl font-heading font-bold">
+            Entity Coverage Matrix
+          </h3>
           <p className="text-muted-foreground max-w-sm">
-            Visualize your story's connections. Create scenes to populate the
-            matrix.
+            Create scenes to map which codex entities appear where.
           </p>
         </div>
       </div>
@@ -113,123 +201,141 @@ export function MatrixView({
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Toolbar */}
-      <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-2 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <span className="text-sm font-medium text-muted-foreground px-2">
-            Matrix Mode:
-          </span>
-          <Select value={mode} onValueChange={(v) => setMode(v as MatrixMode)}>
-            <SelectTrigger className="w-select-lg bg-background border-border/50">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="codex">Codex Entries</SelectItem>
-              <SelectItem value="pov">Point of View</SelectItem>
-              <SelectItem value="labels">Labels</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="rounded-lg border border-border/50 bg-card/50 p-3 backdrop-blur-sm space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {CATEGORY_META.map((category) => {
+            const Icon = category.icon;
+            const active = category.id === activeCategory;
+            return (
+              <Button
+                key={category.id}
+                variant={active ? "default" : "outline"}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setActiveCategory(category.id)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {category.label}
+              </Button>
+            );
+          })}
         </div>
-        <div className="text-xs text-muted-foreground px-2">
-          {filteredScenes.length} Scenes
+
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              value={entrySearch}
+              onChange={(e) => setEntrySearch(e.target.value)}
+              placeholder={`Search ${CATEGORY_META.find((c) => c.id === activeCategory)?.label.toLowerCase()}...`}
+              className="w-56 h-8"
+            />
+            <Button
+              variant={linkedOnly ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLinkedOnly((prev) => !prev)}
+            >
+              {linkedOnly ? "Showing Linked" : "Show Linked Only"}
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline">{scenes.length} scenes</Badge>
+            <Badge variant="outline">{categoryEntries.length} entries</Badge>
+            <Badge variant="outline">{totalActiveLinks} links</Badge>
+          </div>
         </div>
       </div>
 
-      {/* Matrix Table */}
       <div className="border border-border/50 rounded-xl overflow-hidden shadow-sm bg-card/30 backdrop-blur-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b border-border/50">
+            <thead className="bg-muted/50 border-b border-border/50 sticky top-0 z-10">
               <tr>
-                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-table-lg sticky left-0 bg-muted/95 backdrop-blur z-10">
+                <th className="p-4 text-left font-heading font-semibold text-foreground border-r border-border/50 min-w-table-lg sticky left-0 bg-muted/95 backdrop-blur z-20">
                   Scene
                 </th>
-                {mode === "codex" &&
-                  codexEntries?.map((entry) => (
-                    <th
-                      key={entry.id}
-                      className="p-4 text-center font-medium text-muted-foreground border-r border-border/50 min-w-table-sm whitespace-nowrap"
-                    >
+                {categoryEntries.map((entry) => (
+                  <th
+                    key={entry.id}
+                    className="p-3 text-center font-medium text-muted-foreground border-r border-border/50 min-w-[190px] max-w-[230px]"
+                  >
+                    <div className="truncate" title={entry.name}>
                       {entry.name}
-                    </th>
-                  ))}
-                {mode === "pov" && (
-                  <th className="p-4 text-left font-medium text-muted-foreground border-r border-border/50 min-w-select-lg">
-                    POV Character
+                    </div>
                   </th>
-                )}
-                {mode === "labels" && (
-                  <th className="p-4 text-left font-medium text-muted-foreground border-r border-border/50 min-w-popover">
-                    Labels
-                  </th>
-                )}
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {filteredScenes.map((scene) => (
+              {scenes.map((scene) => (
                 <tr
                   key={scene.id}
-                  className="group hover:bg-muted/30 transition-colors"
+                  className="group hover:bg-muted/25 transition-colors"
                 >
                   <td className="p-4 border-r border-border/50 font-medium text-foreground sticky left-0 bg-background/95 group-hover:bg-muted/95 transition-colors backdrop-blur z-10">
                     {scene.title}
                   </td>
-                  {mode === "codex" &&
-                    codexEntries?.map((entry) => (
+                  {categoryEntries.map((entry) => {
+                    const link = getLink(scene.id, entry.id);
+                    const allowedRoles = roleOptionsForCategory(entry.category);
+
+                    return (
                       <td
                         key={entry.id}
-                        className="p-4 border-r border-border/50 text-center"
+                        className="p-2 border-r border-border/50 align-top"
                       >
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 transition-all cursor-pointer"
-                          checked={isLinked(scene.id, entry.id)}
-                          onChange={(e) =>
-                            void toggleLink(
-                              scene.id,
-                              entry.id,
-                              e.target.checked,
-                            )
-                          }
-                        />
-                      </td>
-                    ))}
-                  {mode === "pov" && (
-                    <td className="p-4 border-r border-border/50">
-                      {scene.type === "scene" && "pov" in scene && scene.pov ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {scene.pov}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50 italic">
-                          None
-                        </span>
-                      )}
-                    </td>
-                  )}
-                  {mode === "labels" && (
-                    <td className="p-4 border-r border-border/50">
-                      <div className="flex gap-1.5 flex-wrap">
-                        {scene.type === "scene" &&
-                        "labels" in scene &&
-                        scene.labels &&
-                        scene.labels.length > 0 ? (
-                          scene.labels.map((label) => (
-                            <span
-                              key={label}
-                              className="px-2 py-0.5 bg-secondary text-secondary-foreground text-xs rounded-md border border-border/50"
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            className={`h-8 rounded-md border text-xs font-medium transition-colors ${
+                              link
+                                ? "border-primary/40 bg-primary/10 text-primary"
+                                : "border-border/60 bg-background hover:bg-muted"
+                            }`}
+                            onClick={() =>
+                              void toggleLink(
+                                scene.id,
+                                entry.id,
+                                entry.category,
+                              )
+                            }
+                          >
+                            {link
+                              ? `Linked: ${ROLE_OPTIONS.find((r) => r.value === link.role)?.label ?? link.role}`
+                              : "Add Link"}
+                          </button>
+
+                          {link && (
+                            <Select
+                              value={link.role}
+                              onValueChange={(value) =>
+                                void updateRole(
+                                  scene.id,
+                                  entry.id,
+                                  value as SceneCodexLinkRole,
+                                )
+                              }
                             >
-                              {label}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-muted-foreground/50 italic text-xs">
-                            No labels
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  )}
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ROLE_OPTIONS.filter((option) =>
+                                  allowedRoles.includes(option.value),
+                                ).map((option) => (
+                                  <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -237,11 +343,17 @@ export function MatrixView({
         </div>
       </div>
 
-      {mode === "codex" && (!codexEntries || codexEntries.length === 0) && (
+      {categoryEntries.length === 0 && (
         <div className="text-center p-8 border-2 border-dashed border-border/30 rounded-xl bg-muted/5">
-          <p className="text-muted-foreground mb-2">No codex entries found</p>
+          <p className="text-muted-foreground mb-2">
+            No{" "}
+            {CATEGORY_META.find(
+              (c) => c.id === activeCategory,
+            )?.label.toLowerCase()}{" "}
+            found
+          </p>
           <p className="text-xs text-muted-foreground/70">
-            Create characters and locations in the Codex to track them here.
+            Add codex entries to map their appearance across scenes.
           </p>
         </div>
       )}
