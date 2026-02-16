@@ -1,0 +1,26 @@
+name: Jules PR Assistant
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  jules-task:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Invoke Jules
+        # SECURITY BEST PRACTICE: Only allow trusted users to trigger the AI agent.
+        # Replace 'your-username' with your actual GitHub username.
+        if: ${{ github.event.pull_request.user.login == 'Sai-Roopesh' }}
+        uses: google-labs-code/jules-invoke@v1
+        with:
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          prompt: |
+            You are an automated code maintainer for this Next.js and Tauri desktop app.
+            Please review the code changes in this PR and do the following:
+            1. Scan for and remove any leftover `console.log` statements or commented-out debug code.
+            2. If any new Tauri Rust commands were added, ensure they have proper documentation blocks so our AI coding agents can easily understand them in the future.
+            3. Run `npm run lint` and automatically fix any basic formatting errors.
+            4. Push a clean commit with your fixes directly to this PR branch.
