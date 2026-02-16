@@ -265,7 +265,7 @@ function splitChapterIntoScenes(chapter: ChapterDraft): SceneDraft[] {
     }
 
     scenes.push({
-      title: pendingTitle,
+      ...(pendingTitle ? { title: pendingTitle } : {}),
       lines: currentLines,
     });
     pendingTitle = undefined;
