@@ -1,27 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { AI_VENDORS } from "@/lib/config/ai-vendors";
-import { NewConnectionDialog } from "./new-connection-dialog";
 import { useConfirmation } from "@/hooks/use-confirmation";
+import { AI_VENDORS } from "@/lib/config/ai-vendors";
+import { logger } from "@/shared/utils/logger";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAIConnections } from "../hooks/useAIConnections";
 import { useConnectionValidation } from "../hooks/useConnectionValidation";
-import { ConnectionList } from "./ai-connections/ConnectionList";
 import { ConnectionForm } from "./ai-connections/ConnectionForm";
-import { logger } from "@/shared/utils/logger";
+import { ConnectionList } from "./ai-connections/ConnectionList";
+import { NewConnectionDialog } from "./new-connection-dialog";
 
 const log = logger.scope("AIConnectionsTab");
 
-/**
- * AI Connections Tab - Refactored
- * Orchestrates connection management UI with extracted hooks and components.
- * Reduced from 377 lines to ~120 lines.
- */
 export function AIConnectionsTab() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const { confirm, ConfirmationDialog } = useConfirmation();
 
-  // State management hook
   const {
     connections,
     selectedId,
@@ -33,10 +28,8 @@ export function AIConnectionsTab() {
     toggleEnabled,
   } = useAIConnections();
 
-  // Validation hook
   const { loading, error, refreshModels } = useConnectionValidation();
 
-  // Handle model refresh
   const handleRefreshModels = async () => {
     if (!selectedConnection) return;
 
@@ -47,7 +40,6 @@ export function AIConnectionsTab() {
         selectedConnection.customEndpoint,
       );
 
-      // Update connection with fetched models
       await saveConnection(selectedId, {
         models: fetchedModels,
         apiKey: selectedConnection.apiKey,
@@ -56,12 +48,10 @@ export function AIConnectionsTab() {
         }),
       });
     } catch (err) {
-      // Error already handled by hook
       log.error("Failed to refresh models:", err);
     }
   };
 
-  // Handle connection delete with confirmation
   const handleDelete = async () => {
     if (connections.length === 1) {
       return;
@@ -80,7 +70,6 @@ export function AIConnectionsTab() {
     }
   };
 
-  // Handle connection save
   const handleSave = (updates: {
     name?: string;
     apiKey?: string;
@@ -95,69 +84,63 @@ export function AIConnectionsTab() {
     : null;
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="flex-none border-b bg-background p-4 sm:p-6 sm:pr-16">
-        <h3 className="text-sm font-medium mb-2 uppercase tracking-wide text-muted-foreground">
-          CONNECTED AI VENDORS
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          These are all your AI connections on this device. Add or edit
-          connections in the right column. Organize the list on the left by
-          priority, as the first entry that supports a specific model will be
-          used.
-        </p>
-      </div>
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="min-w-0 space-y-5 p-4 sm:space-y-6 sm:p-6">
+          <section className="rounded-xl border bg-muted/20 p-4 sm:p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Connected AI Vendors
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Add and prioritize the providers this device can use. The first
+              active provider that supports a requested model will be selected
+              by default.
+            </p>
+          </section>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col gap-4 bg-background overflow-hidden p-4 sm:gap-6 sm:p-6 lg:flex-row">
-        {/* Connection List */}
-        <ConnectionList
-          connections={connections}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onAddNew={() => setShowNewDialog(true)}
-        />
+          <section className="grid min-w-0 items-start gap-4 2xl:grid-cols-[18rem_minmax(0,1fr)]">
+            <ConnectionList
+              connections={connections}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onAddNew={() => setShowNewDialog(true)}
+            />
 
-        {/* Connection Form */}
-        {selectedConnection && vendor && (
-          <ConnectionForm
-            connection={selectedConnection}
-            vendor={vendor}
-            onSave={handleSave}
-            onToggleEnabled={() => toggleEnabled(selectedId)}
-            onDelete={handleDelete}
-            onRefreshModels={handleRefreshModels}
-            loading={loading}
-            error={error}
-          />
-        )}
-        {!selectedConnection && (
-          <div className="flex-1 border rounded-md p-6 flex items-center justify-center text-center">
-            <div>
-              <p className="font-medium mb-1">No connection selected</p>
-              <p className="text-sm text-muted-foreground">
-                Add a new connection from the left panel to start using AI
-                features.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+            {selectedConnection && vendor ? (
+              <ConnectionForm
+                connection={selectedConnection}
+                vendor={vendor}
+                onSave={handleSave}
+                onToggleEnabled={() => toggleEnabled(selectedId)}
+                onDelete={handleDelete}
+                onRefreshModels={handleRefreshModels}
+                loading={loading}
+                error={error}
+              />
+            ) : (
+              <div className="min-w-0 rounded-xl border p-6 text-center">
+                <p className="font-medium">No connection selected</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add a connection from the left column to configure model
+                  access.
+                </p>
+              </div>
+            )}
+          </section>
 
-      {/* Footer */}
-      <div className="flex-none border-t bg-background p-4 sm:p-6">
-        <h4 className="text-sm font-medium mb-2 uppercase tracking-wide text-muted-foreground">
-          CREDENTIALS ARE STORED PER MACHINE
-        </h4>
-        <p className="text-sm text-muted-foreground">
-          Your settings are stored <strong>locally on this machine.</strong> You
-          will need to enter credentials again on a different device. We do not
-          store any credentials on our servers.
-        </p>
-      </div>
+          <section className="rounded-xl border bg-muted/20 p-4 sm:p-5">
+            <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Credentials Storage
+            </h4>
+            <p className="mt-2 text-sm text-muted-foreground">
+              API keys are saved in your operating system keychain. Connection
+              metadata stays local to this machine and is not uploaded to
+              servers.
+            </p>
+          </section>
+        </div>
+      </ScrollArea>
 
-      {/* Dialogs */}
       <NewConnectionDialog
         open={showNewDialog}
         onClose={() => setShowNewDialog(false)}

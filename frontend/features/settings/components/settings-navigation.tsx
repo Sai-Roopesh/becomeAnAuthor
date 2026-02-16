@@ -3,64 +3,54 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import {
-  Zap,
-  Settings,
-  Cloud,
-  Users,
-  Share2,
-  Lock,
-  CreditCard,
-  LogOut,
-} from "lucide-react";
+import { Zap, Settings, Cloud, Users, LogOut } from "lucide-react";
 
-export type SettingsTab =
-  | "ai-connections"
-  | "general"
-  | "backup"
-  | "teams"
-  | "shared"
-  | "account"
-  | "subscription";
+export type SettingsTab = "ai-connections" | "general" | "backup" | "teams";
 
 interface NavItem {
   id: SettingsTab;
   label: string;
-  mobileLabel?: string;
+  description: string;
+  compactLabel?: string;
   icon: LucideIcon;
-  separator?: "after";
 }
 
 export const SETTINGS_NAV_ITEMS: NavItem[] = [
-  { id: "ai-connections", label: "AI Connections", icon: Zap },
+  {
+    id: "ai-connections",
+    label: "AI Connections",
+    compactLabel: "AI",
+    description: "Manage providers, models, and secure API keys.",
+    icon: Zap,
+  },
   {
     id: "general",
     label: "General Settings",
-    mobileLabel: "General",
+    compactLabel: "General",
+    description: "Editor behavior, formatting defaults, and interface options.",
     icon: Settings,
   },
-  { id: "backup", label: "Backup", icon: Cloud },
-  { id: "teams", label: "Teams", icon: Users },
   {
-    id: "shared",
-    label: "Shared with me",
-    mobileLabel: "Shared",
-    icon: Share2,
-    separator: "after",
+    id: "backup",
+    label: "Backup",
+    compactLabel: "Backup",
+    description: "Back up and restore local or cloud data safely.",
+    icon: Cloud,
   },
   {
-    id: "account",
-    label: "Account / Security",
-    mobileLabel: "Account",
-    icon: Lock,
-  },
-  {
-    id: "subscription",
-    label: "Manage Subscription",
-    mobileLabel: "Subscription",
-    icon: CreditCard,
+    id: "teams",
+    label: "Teams",
+    compactLabel: "Teams",
+    description: "Collaboration room guidance and sync capabilities.",
+    icon: Users,
   },
 ];
+
+export function getSettingsTabMeta(tab: SettingsTab): NavItem {
+  return (
+    SETTINGS_NAV_ITEMS.find((item) => item.id === tab) ?? SETTINGS_NAV_ITEMS[0]!
+  );
+}
 
 interface SettingsNavigationProps {
   activeTab: SettingsTab;
@@ -68,26 +58,23 @@ interface SettingsNavigationProps {
   onLogout?: () => void;
 }
 
-/**
- * Mobile horizontal navigation for Settings
- */
-export function SettingsMobileNav({
+export function SettingsCompactNav({
   activeTab,
   onTabChange,
 }: SettingsNavigationProps) {
   return (
-    <div className="md:hidden flex-shrink-0 border-b bg-secondary/30 overflow-x-auto">
-      <div className="flex w-max min-w-full gap-2 p-2">
+    <div className="flex-shrink-0 overflow-x-auto">
+      <div className="flex w-max min-w-full gap-2">
         {SETTINGS_NAV_ITEMS.map((item) => (
           <Button
             key={item.id}
-            variant={activeTab === item.id ? "secondary" : "ghost"}
+            variant={activeTab === item.id ? "default" : "outline"}
             size="sm"
             onClick={() => onTabChange(item.id)}
             className="whitespace-nowrap"
           >
             <item.icon className="h-4 w-4 mr-2" />
-            {item.mobileLabel || item.label}
+            {item.compactLabel || item.label}
           </Button>
         ))}
       </div>
@@ -95,41 +82,38 @@ export function SettingsMobileNav({
   );
 }
 
-/**
- * Desktop sidebar navigation for Settings
- */
-export function SettingsDesktopNav({
+export function SettingsSidebarNav({
   activeTab,
   onTabChange,
   onLogout,
 }: SettingsNavigationProps) {
   return (
-    <div className="hidden md:flex w-64 border-r bg-secondary/30 flex-col flex-shrink-0">
-      <div className="p-4 border-b bg-background">
-        <h2 className="text-lg font-semibold">Settings</h2>
+    <div className="flex h-full flex-col">
+      <div className="space-y-1">
+        {SETTINGS_NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => onTabChange(item.id)}
+            className={cn(
+              "w-full rounded-lg border px-3 py-3 text-left transition-colors",
+              activeTab === item.id
+                ? "border-primary/40 bg-primary/10"
+                : "border-transparent hover:border-border hover:bg-muted/40",
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <item.icon className="h-4 w-4" />
+              <span className="text-sm font-medium">{item.label}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {item.description}
+            </p>
+          </button>
+        ))}
       </div>
 
-      <div className="flex-1 p-2 space-y-1 bg-secondary/30 overflow-y-auto">
-        {SETTINGS_NAV_ITEMS.map((item) => (
-          <div key={item.id}>
-            <button
-              onClick={() => onTabChange(item.id)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                activeTab === item.id
-                  ? "bg-background shadow-sm"
-                  : "hover:bg-background/50",
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              <span className="text-sm">{item.label}</span>
-            </button>
-            {item.separator === "after" && <div className="my-2 border-t" />}
-          </div>
-        ))}
-
+      <div className="mt-auto">
         <div className="my-2 border-t" />
-
         {onLogout && (
           <button
             onClick={onLogout}

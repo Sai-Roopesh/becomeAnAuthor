@@ -7,151 +7,196 @@
  * @see CODING_GUIDELINES.md - 8-Layer Architecture, Layer 2 (Hook)
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { modelDiscoveryService } from '@/infrastructure/services/ModelDiscoveryService';
-import type { AIModel, ModelDiscoveryResult } from '@/domain/services/IModelDiscoveryService';
-import type { AIConnection } from '@/lib/config/ai-vendors';
-import { storage } from '@/core/storage/safe-storage';
-import { logger } from '@/shared/utils/logger';
+import { useState, useCallback, useEffect } from "react";
+import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import type {
+  AIModel,
+  ModelDiscoveryResult,
+} from "@/domain/services/IModelDiscoveryService";
+import type { AIConnection } from "@/lib/config/ai-vendors";
+import { AI_VENDORS } from "@/lib/config/ai-vendors";
+import { storage } from "@/core/storage/safe-storage";
+import { getAPIKey } from "@/core/storage/api-keys";
+import { logger } from "@/shared/utils/logger";
 
-const log = logger.scope('useModelDiscovery');
+const log = logger.scope("useModelDiscovery");
 
 interface UseModelDiscoveryOptions {
-    /** Auto-fetch models on mount */
-    autoFetch?: boolean;
-    /** Fetch models for all enabled connections */
-    fetchAll?: boolean;
+  /** Auto-fetch models on mount */
+  autoFetch?: boolean;
+  /** Fetch models for all enabled connections */
+  fetchAll?: boolean;
 }
 
 interface UseModelDiscoveryReturn {
-    /** All available models grouped by provider */
-    models: AIModel[];
-    /** Loading state */
-    isLoading: boolean;
-    /** Error message if any */
-    error: string | null;
-    /** Fetch models for a specific connection */
-    fetchModelsForConnection: (connection: AIConnection) => Promise<ModelDiscoveryResult>;
-    /** Fetch models for all enabled connections */
-    fetchAllModels: () => Promise<void>;
-    /** Refresh models (clear cache and re-fetch) */
-    refreshModels: () => Promise<void>;
+  /** All available models grouped by provider */
+  models: AIModel[];
+  /** Loading state */
+  isLoading: boolean;
+  /** Error message if any */
+  error: string | null;
+  /** Fetch models for a specific connection */
+  fetchModelsForConnection: (
+    connection: AIConnection,
+  ) => Promise<ModelDiscoveryResult>;
+  /** Fetch models for all enabled connections */
+  fetchAllModels: () => Promise<void>;
+  /** Refresh models (clear cache and re-fetch) */
+  refreshModels: () => Promise<void>;
 }
 
 /**
  * Hook for discovering available AI models from configured connections
  */
 export function useModelDiscovery(
-    options: UseModelDiscoveryOptions = {}
+  options: UseModelDiscoveryOptions = {},
 ): UseModelDiscoveryReturn {
-    const { autoFetch = true, fetchAll = true } = options;
+  const { autoFetch = true, fetchAll = true } = options;
 
-    const [models, setModels] = useState<AIModel[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<AIModel[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    /**
-     * Fetch models for a single connection
-     */
-    const fetchModelsForConnection = useCallback(
-        async (connection: AIConnection): Promise<ModelDiscoveryResult> => {
-            if (!connection.enabled || !connection.apiKey) {
-                return { models: [], error: 'Connection not enabled or missing API key' };
-            }
+  const requiresApiKey = useCallback((connection: AIConnection): boolean => {
+    if (connection.provider !== "openai") {
+      return AI_VENDORS[connection.provider].requiresAuth;
+    }
+    const endpoint =
+      connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
+    return endpoint === AI_VENDORS.openai.defaultEndpoint;
+  }, []);
 
-            log.debug(`Fetching models for ${connection.provider}...`);
+  const resolveConnectionApiKey = useCallback(
+    async (connection: AIConnection): Promise<string> => {
+      if (connection.apiKey.trim()) return connection.apiKey.trim();
+      return (await getAPIKey(connection.provider)) || "";
+    },
+    [],
+  );
 
-            const result = await modelDiscoveryService.fetchModels(
-                connection.provider,
-                connection.apiKey,
-                connection.customEndpoint
-            );
+  /**
+   * Fetch models for a single connection
+   */
+  const fetchModelsForConnection = useCallback(
+    async (connection: AIConnection): Promise<ModelDiscoveryResult> => {
+      if (!connection.enabled) {
+        return { models: [], error: "Connection is disabled" };
+      }
 
-            return result;
-        },
-        []
-    );
+      const resolvedKey = await resolveConnectionApiKey(connection);
+      if (!resolvedKey && requiresApiKey(connection)) {
+        return { models: [], error: "Connection is missing an API key" };
+      }
 
-    /**
-     * Fetch models for all enabled connections
-     */
-    const fetchAllModels = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+      log.debug(`Fetching models for ${connection.provider}...`);
 
-        try {
-            // Get all enabled connections
-            const connections = storage.getItem<AIConnection[]>('ai_connections', []);
-            const enabledConnections = connections.filter((c) => c.enabled && c.apiKey);
+      const result = await modelDiscoveryService.fetchModels(
+        connection.provider,
+        resolvedKey,
+        connection.customEndpoint,
+      );
 
-            if (enabledConnections.length === 0) {
-                setModels([]);
-                return;
-            }
+      return result;
+    },
+    [requiresApiKey, resolveConnectionApiKey],
+  );
 
-            // Fetch models from all connections in parallel
-            const results = await Promise.allSettled(
-                enabledConnections.map((conn) => fetchModelsForConnection(conn))
-            );
+  /**
+   * Fetch models for all enabled connections
+   */
+  const fetchAllModels = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
 
-            // Combine all models
-            const allModels: AIModel[] = [];
-            const errors: string[] = [];
+    try {
+      // Get all enabled connections
+      const connections = storage.getItem<AIConnection[]>("ai_connections", []);
+      const enabledConnections = connections.filter((c) => c.enabled);
+      if (enabledConnections.length === 0) {
+        setModels([]);
+        return;
+      }
 
-            results.forEach((result, index) => {
-                const connection = enabledConnections[index];
-                if (!connection) return;
+      const resolvedConnections = await Promise.all(
+        enabledConnections.map(async (connection) => ({
+          ...connection,
+          apiKey: await resolveConnectionApiKey(connection),
+        })),
+      );
+      const usableConnections = resolvedConnections.filter(
+        (connection) => connection.apiKey || !requiresApiKey(connection),
+      );
+      if (usableConnections.length === 0) {
+        setModels([]);
+        setError("No usable AI connections. Add an API key in Settings.");
+        return;
+      }
 
-                if (result.status === 'fulfilled') {
-                    const { value } = result;
-                    if (value.error) {
-                        errors.push(`${connection.provider}: ${value.error}`);
-                    } else {
-                        allModels.push(...value.models);
-                    }
-                } else {
-                    errors.push(`${connection.provider}: ${String(result.reason)}`);
-                }
-            });
+      // Fetch models from all connections in parallel
+      const results = await Promise.allSettled(
+        usableConnections.map((conn) => fetchModelsForConnection(conn)),
+      );
 
-            setModels(allModels);
+      // Combine all models
+      const allModels: AIModel[] = [];
+      const errors: string[] = [];
 
-            if (errors.length > 0) {
-                log.warn('Some model fetches failed:', errors);
-                setError(errors.join('; '));
-            }
+      results.forEach((result, index) => {
+        const connection = usableConnections[index];
+        if (!connection) return;
 
-            log.info(`Loaded ${allModels.length} models from ${enabledConnections.length} providers`);
-        } catch (err) {
-            log.error('Failed to fetch models:', err);
-            setError(err instanceof Error ? err.message : 'Failed to fetch models');
-        } finally {
-            setIsLoading(false);
+        if (result.status === "fulfilled") {
+          const { value } = result;
+          if (value.error) {
+            errors.push(`${connection.provider}: ${value.error}`);
+          } else {
+            allModels.push(...value.models);
+          }
+        } else {
+          errors.push(`${connection.provider}: ${String(result.reason)}`);
         }
-    }, [fetchModelsForConnection]);
+      });
 
-    /**
-     * Clear cache and re-fetch all models
-     */
-    const refreshModels = useCallback(async () => {
-        log.info('Refreshing models (clearing cache)...');
-        modelDiscoveryService.clearCache();
-        await fetchAllModels();
-    }, [fetchAllModels]);
+      setModels(allModels);
 
-    // Auto-fetch on mount if enabled
-    useEffect(() => {
-        if (autoFetch && fetchAll) {
-            fetchAllModels();
-        }
-    }, [autoFetch, fetchAll, fetchAllModels]);
+      if (errors.length > 0) {
+        log.warn("Some model fetches failed:", errors);
+        setError(errors.join("; "));
+      }
 
-    return {
-        models,
-        isLoading,
-        error,
-        fetchModelsForConnection,
-        fetchAllModels,
-        refreshModels,
-    };
+      log.info(
+        `Loaded ${allModels.length} models from ${usableConnections.length} providers`,
+      );
+    } catch (err) {
+      log.error("Failed to fetch models:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch models");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchModelsForConnection, requiresApiKey, resolveConnectionApiKey]);
+
+  /**
+   * Clear cache and re-fetch all models
+   */
+  const refreshModels = useCallback(async () => {
+    log.info("Refreshing models (clearing cache)...");
+    modelDiscoveryService.clearCache();
+    await fetchAllModels();
+  }, [fetchAllModels]);
+
+  // Auto-fetch on mount if enabled
+  useEffect(() => {
+    if (autoFetch && fetchAll) {
+      fetchAllModels();
+    }
+  }, [autoFetch, fetchAll, fetchAllModels]);
+
+  return {
+    models,
+    isLoading,
+    error,
+    fetchModelsForConnection,
+    fetchAllModels,
+    refreshModels,
+  };
 }

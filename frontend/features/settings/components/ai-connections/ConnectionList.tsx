@@ -1,9 +1,10 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus } from "lucide-react";
 import { AIConnection, AI_VENDORS } from "@/lib/config/ai-vendors";
+import { cn } from "@/lib/utils";
 import { VendorLogo } from "../VendorLogo";
 
 interface ConnectionListProps {
@@ -13,9 +14,6 @@ interface ConnectionListProps {
   onAddNew: () => void;
 }
 
-/**
- * Left sidebar displaying list of AI connections.
- */
 export function ConnectionList({
   connections,
   selectedId,
@@ -23,45 +21,55 @@ export function ConnectionList({
   onAddNew,
 }: ConnectionListProps) {
   return (
-    <div className="w-full lg:w-64 flex flex-col gap-4">
-      <ScrollArea className="h-52 flex-1 border rounded-md lg:h-auto">
-        <div className="p-2 space-y-2">
+    <div className="min-w-0 overflow-hidden rounded-xl border bg-card p-3">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">Connections</h4>
+        <span className="text-xs text-muted-foreground">
+          {connections.length}
+        </span>
+      </div>
+
+      <ScrollArea className="h-[16rem] xl:h-[24rem]">
+        <div className="space-y-2 pr-2">
           {connections.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
               No connections yet
             </div>
           ) : (
-            connections.map((conn) => {
-              const vendor = AI_VENDORS[conn.provider];
+            connections.map((connection) => {
+              const vendor = AI_VENDORS[connection.provider];
+
               return (
                 <button
-                  key={conn.id}
-                  onClick={() => onSelect(conn.id)}
-                  className={`
-                                        w-full p-3 rounded-md text-left transition-colors
-                                        hover:bg-accent
-                                        ${selectedId === conn.id ? "bg-accent border-2 border-primary" : "border border-border"}
-                                    `}
+                  key={connection.id}
+                  onClick={() => onSelect(connection.id)}
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-3 text-left transition-colors",
+                    selectedId === connection.id
+                      ? "border-primary/40 bg-primary/10"
+                      : "border-border hover:bg-accent",
+                  )}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <VendorLogo providerId={conn.provider} size={20} />
-                    <span className="font-medium text-sm truncate">
-                      {conn.name}
+                  <div className="mb-1 flex min-w-0 items-center gap-2">
+                    <VendorLogo providerId={connection.provider} size={20} />
+                    <span className="truncate text-sm font-medium">
+                      {connection.name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="truncate text-muted-foreground">
                       {vendor.name}
                     </span>
-                    {conn.enabled ? (
-                      <span className="text-xs bg-green-500/20 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-gray-500/20 text-gray-700 dark:text-gray-400 px-1.5 py-0.5 rounded">
-                        Disabled
-                      </span>
-                    )}
+                    <span
+                      className={cn(
+                        "rounded px-1.5 py-0.5",
+                        connection.enabled
+                          ? "bg-green-500/20 text-green-700 dark:text-green-400"
+                          : "bg-zinc-500/20 text-zinc-700 dark:text-zinc-400",
+                      )}
+                    >
+                      {connection.enabled ? "Active" : "Disabled"}
+                    </span>
                   </div>
                 </button>
               );
@@ -70,8 +78,12 @@ export function ConnectionList({
         </div>
       </ScrollArea>
 
-      <Button onClick={onAddNew} className="w-full" variant="outline">
-        <Plus className="w-4 h-4 mr-2" />
+      <Button
+        onClick={onAddNew}
+        className="mt-3 w-full whitespace-normal text-center"
+        variant="outline"
+      >
+        <Plus className="mr-2 h-4 w-4" />
         Add New Connection
       </Button>
     </div>

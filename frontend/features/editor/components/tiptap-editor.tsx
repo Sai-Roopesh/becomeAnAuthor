@@ -51,10 +51,12 @@ interface StructureNode {
 
 // Generation options passed from ContinueWritingMenu
 interface GenerateOptions {
+  model?: string;
   wordCount?: number;
   mode?: string;
   instructions?: string;
   selectedContexts?: ContextItem[];
+  reasoning?: "enabled" | "disabled";
 }
 
 export function TiptapEditor({
@@ -413,6 +415,7 @@ When continuing a story, extend the narrative naturally while honoring the estab
 
   const generate = async (options: GenerateOptions) => {
     if (!editor) return;
+    const modelToUse = options.model || model;
 
     const currentText = editor.getText();
     const lastContext = currentText.slice(-AI_DEFAULTS.CONTEXT_WINDOW_CHARS);
@@ -425,7 +428,7 @@ When continuing a story, extend the narrative naturally while honoring the estab
       options.selectedContexts && options.selectedContexts.length > 0
         ? await assembleContextPack(options.selectedContexts, {
             query: `${options.instructions || ""}\n${lastContext}`.trim(),
-            model,
+            model: modelToUse,
             maxBlocks: 10,
           })
         : null;
@@ -500,11 +503,12 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
 
     await generateStream(
       {
+        model: modelToUse,
         messages,
         // Use word count from UI with fallback
         maxTokens: (
           await import("@/lib/config/model-specs")
-        ).calculateMaxTokens(model, options.wordCount || 400),
+        ).calculateMaxTokens(modelToUse, options.wordCount || 400),
         temperature: AI_DEFAULTS.TEMPERATURE,
       },
       {

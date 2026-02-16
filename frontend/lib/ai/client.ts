@@ -6,7 +6,8 @@ import {
 import type { ZodType } from "zod";
 import { getModel } from "./providers";
 import { storage } from "@/core/storage/safe-storage";
-import type { AIConnection } from "@/lib/config/ai-vendors";
+import { AI_VENDORS, type AIConnection } from "@/lib/config/ai-vendors";
+import { getAPIKey } from "@/core/storage/api-keys";
 
 export type AIMessageRole = "system" | "user" | "assistant";
 
@@ -48,24 +49,42 @@ function assertMessages(messages: AIModelMessage[]): void {
  * Finds the connection configuration for a given model.
  * Searches enabled connections that include the model in their models list.
  */
-function getConnection(modelId: string): AIConnection {
+function requiresApiKey(connection: AIConnection): boolean {
+  if (connection.provider !== "openai") {
+    return AI_VENDORS[connection.provider].requiresAuth;
+  }
+
+  const endpoint =
+    connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
+  return endpoint === AI_VENDORS.openai.defaultEndpoint;
+}
+
+async function getConnection(modelId: string): Promise<AIConnection> {
+  const normalizedModel = modelId.trim();
+  if (!normalizedModel) {
+    throw new Error("A model must be selected before using AI features.");
+  }
+
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
   const connection = connections.find(
-    (c) => c.enabled && c.models?.includes(modelId),
+    (c) => c.enabled && c.models?.includes(normalizedModel),
   );
 
   if (!connection) {
-    // Fallback: try to find any enabled connection
-    const fallback = connections.find((c) => c.enabled);
-    if (fallback) {
-      return fallback;
-    }
     throw new Error(
-      `No AI connection found for model: ${modelId}. Please configure a connection in Settings.`,
+      `No enabled AI connection supports model "${normalizedModel}". Refresh models in Settings or pick another model.`,
     );
   }
 
-  return connection;
+  const apiKey =
+    connection.apiKey.trim() || (await getAPIKey(connection.provider)) || "";
+  if (requiresApiKey(connection) && !apiKey) {
+    throw new Error(
+      `Missing API key for ${AI_VENDORS[connection.provider].name}. Add it in Settings.`,
+    );
+  }
+
+  return { ...connection, apiKey };
 }
 
 /**
@@ -74,7 +93,7 @@ function getConnection(modelId: string): AIConnection {
  */
 export async function generate(opts: GenerateOptions) {
   assertMessages(opts.messages);
-  const connection = getConnection(opts.model);
+  const connection = await getConnection(opts.model);
   const model = getModel(connection, opts.model);
 
   // Conditionally include optional properties to satisfy exactOptionalPropertyTypes
@@ -101,7 +120,7 @@ export async function generate(opts: GenerateOptions) {
  */
 export async function stream(opts: GenerateOptions) {
   assertMessages(opts.messages);
-  const connection = getConnection(opts.model);
+  const connection = await getConnection(opts.model);
   const model = getModel(connection, opts.model);
 
   // Conditionally include optional properties to satisfy exactOptionalPropertyTypes
@@ -128,7 +147,7 @@ export async function stream(opts: GenerateOptions) {
  */
 export async function object<T>(opts: GenerateObjectOptions<T>) {
   assertMessages(opts.messages);
-  const connection = getConnection(opts.model);
+  const connection = await getConnection(opts.model);
   const model = getModel(connection, opts.model);
 
   return sdkGenerateObject({
