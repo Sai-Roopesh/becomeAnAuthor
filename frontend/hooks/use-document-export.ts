@@ -113,7 +113,7 @@ export function useDocumentExport() {
      * Export to ePub format using native Tauri command
      */
     const exportToEpub = async (
-        projectId: string,
+        _projectId: string,
         config: ExportConfig
     ) => {
         setIsExporting(true);

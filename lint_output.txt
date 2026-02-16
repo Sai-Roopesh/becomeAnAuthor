@@ -1,0 +1,3 @@
+
+> become-an-author@1.0.0 lint /app
+> eslint frontend app --ext .ts,.tsx

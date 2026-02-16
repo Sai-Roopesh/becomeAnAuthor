@@ -62,7 +62,7 @@ export function EditorToolbar({
 }) {
     return (
         <TooltipProvider delayDuration={300}>
-            <div className="sticky top-0 z-20 mx-auto max-w-3xl mt-4 mb-6 rounded-full border border-border/40 bg-background/80 backdrop-blur-md shadow-sm px-4 py-2 flex items-center gap-1 transition-all hover:border-border/60 hover:shadow-md supports-[backdrop-filter]:bg-background/60">
+            <div className="sticky top-0 z-20 mx-auto max-w-3xl mt-4 mb-6 rounded-full border border-border/40 bg-background/80 backdrop-blur-md shadow-sm px-4 py-2 flex items-center gap-1 transition-all hover:border-border/60 hover:shadow-md supports-[backdrop-filter]:bg-background/60 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {/* History */}
                 <div className="flex items-center gap-0.5">
                     <ToolbarButton

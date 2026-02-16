@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { SearchResultItem } from "./SearchResultItem";
 import { SearchEmptyState } from "./SearchEmptyState";
 import type {
