@@ -3,9 +3,13 @@ name: Jules PR Assistant
 on:
   pull_request:
     types: [opened, synchronize]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  jules-task:
+  jules-pr-task:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,3 +28,27 @@ jobs:
             2. If any new Tauri Rust commands were added, ensure they have proper documentation blocks so our AI coding agents can easily understand them in the future.
             3. Run `npm run lint` and automatically fix any basic formatting errors.
             4. Push a clean commit with your fixes directly to this PR branch.
+
+  jules-main-docs-sync:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip-jules-docs]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Invoke Jules (Main Docs Sync)
+        uses: google-labs-code/jules-invoke@v1
+        with:
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          prompt: |
+            You are a documentation maintainer for this Next.js + Tauri app.
+            A merge landed on `main` (commit: ${{ github.sha }}).
+
+            Please do the following:
+            1. Analyze what changed in this push to main.
+            2. Create or update these docs files to reflect the change clearly:
+               - docs/CHANGELOG.md
+               - docs/ARCHITECTURE_UPDATES.md
+            3. Keep entries concise, factual, and date-stamped.
+            4. Do not modify source code; only documentation files under /docs.
+            5. Commit and push docs changes directly to main.
+            6. Include `[skip-jules-docs]` in the commit message to avoid workflow loops.
