@@ -3,14 +3,16 @@ name: Jules Main Docs Sync
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+    paths-ignore:
+      - 'docs/**'
 
 jobs:
   jules-main-docs-sync:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip-jules-docs]') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Invoke Jules (Main Docs Sync)
         uses: google-labs-code/jules-invoke@v1
@@ -18,7 +20,7 @@ jobs:
           jules_api_key: ${{ secrets.JULES_API_KEY }}
           prompt: |
             You are a documentation maintainer for this BecomeAnAuthor App.
-            A merge landed on `main` (commit: ${{ github.sha }}).
+            A pull request was merged into `main` (new main commit: ${{ github.sha }}).
 
             Please do the following:
             1. Analyze what changed in this push to main.
@@ -26,5 +28,5 @@ jobs:
             3. I want you to check every file in /docs directory and update it with relevant info of the new changes
             4. Keep entries concise, factual, and date-stamped.
             5. Do not modify source code; only documentation files under /docs.
-            6. Commit and push docs changes directly to main.
-            7. Include `[skip-jules-docs]` in the commit message to avoid workflow loops.
+            6. Main is protected; do not push directly to `main`.
+            7. Create or update a docs branch and open a pull request targeting `main` with only docs changes.
