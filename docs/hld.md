@@ -96,7 +96,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 │  │                                                          │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │  │
 │  │  │ Features │  │  Hooks   │  │  Stores  │  │   UI   │  │  │
-│  │  │ (18 mod) │  │ (33 hks) │  │(3 Zustand)│ │(37 cmp)│  │  │
+│  │  │ (18 mod) │  │ (31 hks) │  │(3 Zustand)│ │(37 cmp)│  │  │
 │  │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────────┘  │  │
 │  │       └──────────────┴─────────────┘                     │  │
 │  │                      │                                    │  │
@@ -263,7 +263,7 @@ flowchart LR
     subgraph Frontend["Frontend (Next.js)"]
         Pages["App Routes<br/>(Dashboard, Project, Series)"]
         Features["Feature Modules<br/>(18 features)"]
-        Hooks["Custom Hooks<br/>(33 hooks)"]
+        Hooks["Custom Hooks<br/>(31 hooks)"]
         Stores["Zustand Stores<br/>(3 stores)"]
         DI["DI Container<br/>(AppContext)"]
         Repos["Repositories<br/>(17 interfaces)"]
@@ -342,7 +342,7 @@ The frontend follows a strict 8-layer Clean Architecture with enforced dependenc
 graph TB
     L1["Layer 1: UI Components<br/>components/ui/ (37+ primitives)"]
     L2["Layer 2: Feature Components<br/>features/*/components/"]
-    L3["Layer 3: Custom Hooks<br/>hooks/ (33) + features/*/hooks/"]
+    L3["Layer 3: Custom Hooks<br/>hooks/ (31) + features/*/hooks/"]
     L4["Layer 4: Repository Interfaces<br/>domain/repositories/ (17)"]
     L5["Layer 5: Entity Types<br/>domain/entities/types.ts (30+ types)"]
     L6["Layer 6: Service Interfaces<br/>domain/services/ (3)"]
@@ -841,6 +841,7 @@ Accidental delete → Trash System
 | Zod schemas | Runtime validation for forms and imports |
 | Rust compiler | Memory safety, type checking, exhaustive pattern matching |
 | CI pipeline | GitHub Actions for linting and build verification |
+| Jules PR Assistant | Automated docs sync and PR checks |
 
 ---
 

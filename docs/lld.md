@@ -530,8 +530,8 @@ features/{feature-name}/
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
 | **chat** | 10 | 1 | AI chat interface with thread management, context assembly |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
-| **plan** | 15 | 2 | Outline view, grid view, timeline, maps, world timeline |
-| **settings** | 13 | 2 | AI connections, appearance, editor preferences |
+| **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
+| **settings** | 8 | 2 | AI connections, appearance, editor preferences |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
