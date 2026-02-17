@@ -37,8 +37,8 @@ export interface ProjectMeta {
   cover_image?: string; // base64 data URL
   series_id: string; // Required - all projects must belong to a series
   series_index: string; // e.g., "Book 1", "Book 2"
-  created_at: number;
-  updated_at: number;
+  created_at: string; // RFC3339 timestamp from backend
+  updated_at: string; // RFC3339 timestamp from backend
 }
 
 export interface RecentProject {
@@ -82,8 +82,8 @@ export interface SceneMeta {
   exclude_from_ai?: boolean;
   summary?: string;
   archived?: boolean;
-  created_at: number; // ✅ Changed from string
-  updated_at: number; // ✅ Changed from string
+  created_at: string; // RFC3339 timestamp from backend
+  updated_at: string; // RFC3339 timestamp from backend
 }
 
 export interface Scene {
