@@ -464,6 +464,7 @@ ${htmlContent}
      * Build chapters array for ePub
      * NOTE: Currently unused - will be used when Tauri ePub export is fully integrated
      */
+    /*
     private buildEpubChapters(
         nodes: DocumentNode[],
         scenes: Scene[],
@@ -475,8 +476,8 @@ ${htmlContent}
         if (config.frontMatter?.titlePage) {
             chapters.push({
                 title: 'Title Page',
-                data: `< h1 style = "text-align: center; margin-top: 30%;" > ${config.epubMetadata?.title || 'Untitled'} </h1>
-                    < p style = "text-align: center;" > by ${config.epubMetadata?.author || 'Unknown'} </p>`,
+                data: `<h1 style="text-align: center; margin-top: 30%;">${config.epubMetadata?.title || 'Untitled'}</h1>
+                    <p style="text-align: center;">by ${config.epubMetadata?.author || 'Unknown'}</p>`,
             });
         }
 
@@ -531,6 +532,7 @@ ${htmlContent}
 
         return chapters;
     }
+    */
 
     /**
      * Build preview pages for live preview
@@ -576,6 +578,7 @@ ${htmlContent}
     /**
      * Process template variables in text
      */
+    /*
     private processTemplateVariables(
         text: string,
         config: import('@/domain/types/export-types').ExportConfig
@@ -586,4 +589,5 @@ ${htmlContent}
             .replace(/\{\{year\}\}/g, new Date().getFullYear().toString())
             .replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
     }
+    */
 }

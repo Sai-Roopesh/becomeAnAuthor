@@ -30,7 +30,7 @@ export class TauriMapRepository implements IMapRepository {
         }
     }
 
-    async save(projectId: string, map: ProjectMap): Promise<void> {
+    async save(_projectId: string, map: ProjectMap): Promise<void> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) {
             throw new Error('No project path set');
@@ -47,7 +47,7 @@ export class TauriMapRepository implements IMapRepository {
         }
     }
 
-    async delete(projectId: string, mapId: string): Promise<void> {
+    async delete(_projectId: string, mapId: string): Promise<void> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) return;
 
@@ -59,7 +59,7 @@ export class TauriMapRepository implements IMapRepository {
         }
     }
 
-    async uploadImage(projectId: string, mapId: string, imageData: number[], fileName: string): Promise<string> {
+    async uploadImage(_projectId: string, mapId: string, imageData: number[], fileName: string): Promise<string> {
         const projectPath = TauriNodeRepository.getInstance().getProjectPath();
         if (!projectPath) {
             throw new Error('No project path set');
