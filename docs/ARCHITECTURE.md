@@ -510,7 +510,7 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 
 | Component | Lines | Purpose |
 |---|---|---|
-| `SettingsDialog` | 97 | 7-tab dialog orchestrator with theme toggle |
+| `SettingsDialog` | 131 | 4-tab dialog orchestrator with theme toggle |
 | `AIConnectionsTab` | 171 | AI vendor connection CRUD with model refresh |
 | `useAIConnections` | 158 | Hook: CRUD, localStorage persistence, model discovery |
 
@@ -714,12 +714,12 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `lib/config/` | `constants.ts`, `ai-vendors.ts`, `model-specs.ts`, `timing.ts` |
 | `lib/core/` | `save-coordinator.ts`, `editor-state-manager.ts` |
 | `store/` | `use-project-store.ts`, `use-chat-store.ts`, `use-format-store.ts` |
-| `hooks/` | 17 shared hooks |
+| `hooks/` | 31 shared hooks |
 | `shared/utils/` | `context-engine.ts`, `context-packer.ts`, `toast-service.ts`, `logger.ts` |
 | `shared/prompts/` | `templates.ts` |
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |
 | `features/codex/` | ~8 components, 2 hooks |
-| `features/plan/` | 6 views + orchestrator |
+| `features/plan/` | 5 views + orchestrator |
 | `features/chat/` | ~5 components, 1 hook |
 | `features/navigation/` | 2 components |
 | `features/settings/` | ~8 components, 2 hooks |
