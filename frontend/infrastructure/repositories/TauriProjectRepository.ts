@@ -32,6 +32,7 @@ function projectMetaToProject(
     id: meta.id,
     title: meta.title,
     author: meta.author || "",
+    // Backend sends RFC3339 strings, convert to timestamps
     createdAt: new Date(meta.created_at).getTime(),
     updatedAt: new Date(meta.updated_at).getTime(),
     language: meta.language || "English (US)",

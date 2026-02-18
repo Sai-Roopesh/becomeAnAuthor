@@ -100,6 +100,13 @@ function extractSceneMetadata(data: Record<string, unknown>) {
 
     const archived = Boolean(data['archived'] ?? false);
 
+    const createdAtStr = data['created_at'] as string | undefined;
+    const updatedAtStr = data['updated_at'] as string | undefined;
+
+    // Fallback to now if missing (e.g. legacy files)
+    const createdAt = createdAtStr ? new Date(createdAtStr).getTime() : Date.now();
+    const updatedAt = updatedAtStr ? new Date(updatedAtStr).getTime() : Date.now();
+
     return {
         wordCount,
         status: status as 'draft' | 'revised' | 'final',
@@ -109,6 +116,8 @@ function extractSceneMetadata(data: Record<string, unknown>) {
         excludeFromAI,
         summary,
         archived,
+        createdAt,
+        updatedAt,
     };
 }
 
