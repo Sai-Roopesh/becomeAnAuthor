@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 1.0.0  
-> **Last Updated:** February 16, 2026  
+> **Last Updated:** February 18, 2026
 > **Status:** Living Document
 
 ---
@@ -197,7 +197,7 @@ pub fn command_name(param1: Type1, param2: Type2) -> Result<ReturnType, String> 
 ```
 
 - All errors are marshalled as `String` for IPC compatibility
-- All timestamps use RFC 3339 for storage, Unix millis for frontend
+- All timestamps use RFC 3339 for storage and IPC; Repositories convert to Unix millis for domain entities
 - UUIDs generated via `uuid::Uuid::new_v4()`
 
 ### 4.3 File System Layout (Runtime Data)
@@ -531,7 +531,7 @@ features/{feature-name}/
 | **chat** | 10 | 1 | AI chat interface with thread management, context assembly |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
-| **settings** | 8 | 2 | AI connections, appearance, editor preferences |
+| **settings** | 10 | 2 | AI connections, appearance, editor preferences |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
