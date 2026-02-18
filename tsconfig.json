@@ -17,6 +17,9 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    // Enable unused checks
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     // Additional strict options for 10/10 maintainability
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
