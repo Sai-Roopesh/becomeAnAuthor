@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 1.0.0  
-> **Last Updated:** February 16, 2026  
+> **Last Updated:** February 18, 2026
 > **Status:** Living Document
 
 ---
@@ -591,6 +591,7 @@ Promise<T>             ◄──────────  Ok(T) | Err(String)
 - **Synchronous semantics**: Each `invoke()` returns a `Promise` that resolves with the Rust return value
 - **Error handling**: Rust errors marshalled as `String`; frontend catches and displays via toast
 - **Type safety**: TypeScript interfaces mirror Rust structs (manually maintained)
+- **Data Conversion**: Timestamps are transmitted as RFC 3339 strings and converted to Unix milliseconds by the Repository layer.
 
 ### 11.2 Frontend ↔ AI Providers
 

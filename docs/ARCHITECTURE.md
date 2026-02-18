@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 16, 2026  
+> **Last Updated:** February 18, 2026
 > **Codebase Stats:** 311 frontend source files (42,416 lines) · 40 backend source files (5,785 lines) · 8 app route files  
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -722,7 +722,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `features/plan/` | 5 views + orchestrator |
 | `features/chat/` | ~5 components, 1 hook |
 | `features/navigation/` | 2 components |
-| `features/settings/` | ~8 components, 2 hooks |
+| `features/settings/` | ~10 components, 2 hooks |
 | `features/dashboard/` | 2 components |
 | `features/ai/` | 2 components |
 | `features/collaboration/` | 3 components, 1 hook, 1 provider |
