@@ -3,6 +3,7 @@ import type { INodeRepository } from '@/domain/repositories/INodeRepository';
 import type { Scene, DocumentNode } from '@/domain/entities/types';
 import { extractTextFromContent } from '@/shared/utils/editor';
 import { BUILT_IN_PRESETS } from '@/shared/constants/export/export-presets';
+import DOMPurify from 'dompurify';
 import {
     Document,
     Packer,
@@ -35,7 +36,8 @@ export class DocumentExportService implements IExportService {
         const markdown = await this.exportToMarkdown(projectId, options);
 
         // Convert markdown to HTML
-        const htmlContent = await marked(markdown);
+        const rawHtmlContent = await marked(markdown);
+        const htmlContent = DOMPurify.sanitize(rawHtmlContent);
 
         // Create styled HTML document
         const styledHtml = `
@@ -114,6 +116,9 @@ ${htmlContent}
 
         // Create a temporary container for html2pdf
         const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.top = '-9999px';
         container.innerHTML = styledHtml;
         document.body.appendChild(container);
 
@@ -420,14 +425,148 @@ ${htmlContent}
         projectId: string,
         config: import('@/domain/types/export-types').ExportConfig
     ): Promise<Blob> {
-        // Use existing exportToDOCX logic but apply config settings
-        // For now, delegate to existing method
-        // TODO: Enhance to use config.fontFamily, config.margins, etc.
-        const options: ExportOptions = {};
-        if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
-        if (config.epubMetadata?.title !== undefined) options.title = config.epubMetadata.title;
-        if (config.epubMetadata?.author !== undefined) options.author = config.epubMetadata.author;
-        return this.exportToDOCX(projectId, options);
+        const nodes = await this.nodeRepository.getByProject(projectId);
+        const scenes = nodes.filter(n => n.type === 'scene') as Scene[];
+
+        // Helper to convert mm to twips (1 mm approx 56.6929 twips)
+        const mmToTwip = (mm: number) => Math.round(mm * 56.6929);
+
+        const children: Paragraph[] = [];
+
+        // Title page
+        if (config.epubMetadata?.title) {
+            children.push(
+                new Paragraph({
+                    text: config.epubMetadata.title,
+                    heading: HeadingLevel.TITLE,
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 400 },
+                })
+            );
+        }
+        if (config.epubMetadata?.author) {
+            children.push(
+                new Paragraph({
+                    text: `By ${config.epubMetadata.author}`,
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 800 },
+                })
+            );
+        }
+        if (config.epubMetadata?.title || config.epubMetadata?.author) {
+            children.push(new Paragraph({ children: [new PageBreak()] }));
+        }
+
+        // Table of contents
+        if (config.includeTOC) {
+            children.push(
+                new Paragraph({
+                    text: 'Table of Contents',
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { after: 400 },
+                })
+            );
+            const acts = nodes.filter(n => n.type === 'act');
+            for (const act of acts) {
+                children.push(new Paragraph({ text: act.title, bullet: { level: 0 } }));
+                const chapters = nodes.filter(n => n.parentId === act.id && n.type === 'chapter');
+                for (const chapter of chapters) {
+                    children.push(new Paragraph({ text: chapter.title, bullet: { level: 1 } }));
+                }
+            }
+            children.push(new Paragraph({ children: [new PageBreak()] }));
+        }
+
+        // Content
+        const acts = nodes.filter(n => n.type === 'act');
+        for (const act of acts) {
+            children.push(
+                new Paragraph({
+                    text: act.title,
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 400, after: 200 },
+                })
+            );
+
+            const chapters = nodes.filter(n => n.parentId === act.id && n.type === 'chapter');
+            for (const chapter of chapters) {
+                children.push(
+                    new Paragraph({
+                        text: chapter.title,
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 300, after: 150 },
+                    })
+                );
+
+                const chapterScenes = scenes.filter(n => n.parentId === chapter.id);
+                for (const scene of chapterScenes) {
+                    children.push(
+                        new Paragraph({
+                            text: scene.title,
+                            heading: HeadingLevel.HEADING_3,
+                            spacing: { before: 200, after: 100 },
+                        })
+                    );
+
+                    const sceneText = extractTextFromContent(scene.content);
+                    const paragraphs = sceneText.split(/\n\n+/).filter(p => p.trim());
+                    for (const para of paragraphs) {
+                        children.push(
+                            new Paragraph({
+                                children: [new TextRun(para.trim())],
+                                spacing: { after: 200 },
+                            })
+                        );
+                    }
+                }
+                children.push(new Paragraph({ children: [new PageBreak()] }));
+            }
+        }
+
+        const doc = new Document({
+            sections: [{
+                properties: {
+                    page: {
+                        ...(config.margins ? {
+                            margin: {
+                                top: mmToTwip(config.margins.top),
+                                right: mmToTwip(config.margins.right),
+                                bottom: mmToTwip(config.margins.bottom),
+                                left: mmToTwip(config.margins.left),
+                            }
+                        } : {}),
+                        ...(config.pageSize ? {
+                            size: {
+                                width: mmToTwip(config.pageSize.width),
+                                height: mmToTwip(config.pageSize.height),
+                            }
+                        } : {}),
+                    },
+                },
+                children,
+            }],
+            styles: {
+                default: {
+                    document: {
+                        run: {
+                            font: config.fontFamily || "Times New Roman",
+                            size: config.fontSize ? config.fontSize * 2 : 24,
+                        },
+                        paragraph: {
+                            spacing: {
+                                line: config.lineHeight ? config.lineHeight * 240 : 360,
+                            },
+                            alignment: config.alignment === 'justify' ? AlignmentType.JUSTIFIED :
+                                       config.alignment === 'center' ? AlignmentType.CENTER :
+                                       config.alignment === 'right' ? AlignmentType.RIGHT :
+                                       AlignmentType.LEFT,
+                        },
+                    },
+                },
+            },
+        });
+
+        return await Packer.toBlob(doc);
     }
 
     /**
@@ -437,13 +576,118 @@ ${htmlContent}
         projectId: string,
         config: import('@/domain/types/export-types').ExportConfig
     ): Promise<Blob> {
-        // Use existing exportToPDF logic but apply config settings
-        // TODO: Enhance to use config.pageSize, config.margins, config.trimSize, etc.
+        const [{ default: html2pdf }, { marked }] = await Promise.all([
+            import('html2pdf.js'),
+            import('marked'),
+        ]);
+
         const options: ExportOptions = {};
         if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
         if (config.epubMetadata?.title !== undefined) options.title = config.epubMetadata.title;
         if (config.epubMetadata?.author !== undefined) options.author = config.epubMetadata.author;
-        return this.exportToPDF(projectId, options);
+
+        const markdown = await this.exportToMarkdown(projectId, options);
+        const rawHtmlContent = await marked(markdown);
+        const htmlContent = DOMPurify.sanitize(rawHtmlContent);
+
+        const fontFamily = config.fontFamily || "'Georgia', 'Times New Roman', serif";
+        const fontSize = config.fontSize ? `${config.fontSize}pt` : '12pt';
+        const lineHeight = config.lineHeight || 1.6;
+        const textAlign = config.alignment || 'justify';
+
+        const styledHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: ${fontFamily};
+            font-size: ${fontSize};
+            line-height: ${lineHeight};
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            text-align: ${textAlign};
+        }
+        h1 {
+            font-size: 2em;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+            page-break-before: always;
+            color: #1a1a1a;
+            text-align: center;
+        }
+        h1:first-child {
+            page-break-before: avoid;
+        }
+        h2 {
+            font-size: 1.5em;
+            margin-top: 1.2em;
+            margin-bottom: 0.6em;
+            color: #2a2a2a;
+        }
+        h3 {
+            font-size: 1.17em;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            color: #3a3a3a;
+        }
+        p {
+            margin-bottom: 0.8em;
+            text-indent: 1.5em;
+        }
+        p:first-of-type {
+            text-indent: 0;
+        }
+        blockquote {
+            border-left: 3px solid #ccc;
+            padding-left: 15px;
+            margin-left: 0;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`;
+
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.top = '-9999px';
+        container.innerHTML = styledHtml;
+        document.body.appendChild(container);
+
+        try {
+            const margins: [number, number, number, number] = config.margins
+                ? [config.margins.top, config.margins.left, config.margins.bottom, config.margins.right]
+                : [20, 20, 20, 20];
+
+            return await html2pdf()
+                .from(container.querySelector('body') ?? container)
+                .set({
+                    margin: margins,
+                    filename: `${options.title || 'manuscript'}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: {
+                        scale: 2,
+                        useCORS: true,
+                        letterRendering: true,
+                    },
+                    jsPDF: {
+                        unit: 'mm',
+                        format: config.pageSize?.name?.toLowerCase() === 'letter' ? 'letter' : 'a4',
+                        orientation: 'portrait',
+                    },
+                })
+                .outputPdf('blob');
+        } finally {
+            document.body.removeChild(container);
+        }
     }
 
     /**
