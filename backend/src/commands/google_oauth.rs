@@ -312,11 +312,11 @@ pub async fn google_oauth_connect(
     let state = Uuid::new_v4().simple().to_string();
 
     let scopes_joined = if scopes.is_empty() {
-        vec![
-            "https://www.googleapis.com/auth/drive.file".to_string(),
-            "https://www.googleapis.com/auth/drive.metadata.readonly".to_string(),
-            "https://www.googleapis.com/auth/userinfo.email".to_string(),
-            "https://www.googleapis.com/auth/userinfo.profile".to_string(),
+        [
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/drive.metadata.readonly",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
         ]
         .join(" ")
     } else {
