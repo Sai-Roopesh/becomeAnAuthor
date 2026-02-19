@@ -3,18 +3,37 @@
 use std::fs;
 use std::path::PathBuf;
 
-fn data_channel_dir() -> &'static str {
-    if cfg!(debug_assertions) {
-        "dev"
-    } else {
-        "release"
+const APP_DATA_DIR_NAME: &str = "BecomeAnAuthor";
+const DEV_DATA_CHANNEL: &str = "dev";
+const RELEASE_DATA_CHANNEL: &str = "release-v1";
+
+fn data_channel_dir() -> String {
+    if let Ok(channel) = std::env::var("BAA_DATA_CHANNEL") {
+        let trimmed = channel.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
     }
+
+    if cfg!(debug_assertions) {
+        DEV_DATA_CHANNEL.to_string()
+    } else {
+        RELEASE_DATA_CHANNEL.to_string()
+    }
+}
+
+fn app_data_root_dir() -> Result<PathBuf, String> {
+    if let Some(local_data) = dirs::data_local_dir() {
+        return Ok(local_data.join(APP_DATA_DIR_NAME));
+    }
+
+    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    Ok(home.join(APP_DATA_DIR_NAME))
 }
 
 /// Get the application root directory
 pub fn get_app_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("Could not find home directory")?;
-    let app_dir = home.join("BecomeAnAuthor").join(data_channel_dir());
+    let app_dir = app_data_root_dir()?.join(data_channel_dir());
     fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
     Ok(app_dir)
 }

@@ -80,3 +80,14 @@ Backend commands:
 - `google_oauth_sign_out`
 
 Use a **Google OAuth Desktop App client ID** for `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (not the client secret).
+
+## 6. App data location and clean first-run behavior
+
+App data is stored in OS local app-data under the `BecomeAnAuthor` folder, separated by channel:
+
+- dev: `dev`
+- production release: `release-v1`
+
+For local QA, if you want a fresh state each install, remove prior data folders before launching:
+
+- macOS example: `~/Library/Application Support/BecomeAnAuthor/release-v1`
