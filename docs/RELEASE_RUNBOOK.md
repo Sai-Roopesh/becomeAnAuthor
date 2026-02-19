@@ -9,6 +9,7 @@ Set these repository secrets:
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 - `JULES_API_KEY` (for docs workflow only)
+- Repository variable: `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 
 Generate updater signing keys locally:
 
@@ -17,6 +18,19 @@ python scripts/generate-keys.py ~/.tauri/becomeAnAuthor.key
 ```
 
 Then set `plugins.updater.pubkey` in `backend/tauri.conf.json` to the public key content, or provide `TAURI_UPDATER_PUBLIC_KEY` during build.
+
+GitHub locations:
+
+- Secrets: **Settings -> Secrets and variables -> Actions -> Secrets**
+- Variables: **Settings -> Secrets and variables -> Actions -> Variables**
+
+CLI equivalents:
+
+```bash
+gh secret set TAURI_SIGNING_PRIVATE_KEY --repo Sai-Roopesh/becomeAnAuthor < ~/.tauri/becomeAnAuthor.key
+printf '%s' 'YOUR_KEY_PASSWORD' | gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo Sai-Roopesh/becomeAnAuthor
+gh variable set NEXT_PUBLIC_GOOGLE_CLIENT_ID --repo Sai-Roopesh/becomeAnAuthor --body "YOUR_CLIENT_ID.apps.googleusercontent.com"
+```
 
 ## 2. Prepare a release
 
@@ -65,4 +79,4 @@ Backend commands:
 - `google_oauth_get_user`
 - `google_oauth_sign_out`
 
-Use a **Google OAuth Desktop App client ID** for `NEXT_PUBLIC_GOOGLE_CLIENT_ID`.
+Use a **Google OAuth Desktop App client ID** for `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (not the client secret).

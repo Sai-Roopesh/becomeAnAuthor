@@ -53,7 +53,7 @@
       "endpoints": [
         "https://github.com/Sai-Roopesh/becomeAnAuthor/releases/latest/download/latest.json"
       ],
-      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJCOUU3QkJCODI2NTNCMTUKUldRVk8yV0N1M3VlS3lvWVM5WWtMNVZ5dGpSelRQTmpZd1VmSFJ3M1NIZ08zYmhGSlRpeFBjdDkK"
     }
   }
 }
