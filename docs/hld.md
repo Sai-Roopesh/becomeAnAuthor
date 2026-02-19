@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
-> **Version:** 1.0.0  
-> **Last Updated:** February 18, 2026
+> **Version:** 1.0.1
+> **Last Updated:** February 19, 2026
 > **Status:** Living Document
 
 ---
@@ -63,6 +63,7 @@ Authors need a dedicated writing environment that combines the organizational po
 | **AI-Integrated** | Deep integration with 14 AI providers for writing, rewriting, summarizing, and brainstorming |
 | **Professional Authoring** | Support full novel lifecycle: ideation → drafting → revision → export/publish |
 | **Extensible** | Clean architecture enabling new features, AI providers, and export formats |
+| **Self-Updating** | Built-in secure auto-update mechanism using Minisign verification |
 
 ### 2.3 Target Users
 
@@ -242,10 +243,11 @@ graph TB
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
 | **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF, Markdown, plain text) |
 | **Data Management** | 2 | 0 | Series backup import/export, novel archive conversion |
-| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in, cloud backup upload/download/restore |
+| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
 | **AI** | 1 | 0 | AI-specific UI components |
 | **Project** | 2 | 0 | Project-level settings and metadata editing |
+| **Updater** | 1 | 0 | Auto-update notifier and installer |
 | **Shared** | 5 | 0 | ErrorBoundary, ThemeProvider, LoadingSpinner, withErrorBoundary HOC, ContextSelector |
 
 ---
@@ -648,6 +650,10 @@ AI Request  → get_api_key(provider)         → OS Keychain
               → AI Provider API (HTTPS)
 ```
 
+**Updater Security:**
+- Updates signed with Minisign private key in CI/CD.
+- App verifies signature using public key (`tauri.conf.json`) before installing.
+
 ---
 
 ## 13. Collaboration Architecture
@@ -869,9 +875,10 @@ npm run tauri:build
 
 ### 19.2 Update Strategy
 
-- Tauri's built-in updater plugin for auto-updates
-- Updates delivered as full binary replacements
-- User data is never modified during updates (stored in user's documents directory)
+- **Mechanism**: `tauri-plugin-updater` with GitHub Releases as the artifact source.
+- **Workflow**: `.github/workflows/release.yml` triggers on `v*.*.*` tags.
+- **Validation**: CI verifies version match, builds multi-platform binaries, and generates signatures.
+- **Notification**: `UpdateNotifier` component checks for updates on launch and notifies user.
 
 ---
 
