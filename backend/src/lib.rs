@@ -6,11 +6,12 @@
 // - utils: Utility functions
 // - commands: Tauri commands organized by domain
 
+pub mod commands;
 pub mod models;
 pub mod utils;
-pub mod commands;
 
 use commands::*;
+use std::env;
 
 #[tauri::command]
 fn get_app_info() -> serde_json::Value {
@@ -24,6 +25,13 @@ fn get_app_info() -> serde_json::Value {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let mut updater_builder = tauri_plugin_updater::Builder::new();
+    if let Ok(pubkey) = env::var("TAURI_UPDATER_PUBLIC_KEY") {
+        if !pubkey.trim().is_empty() {
+            updater_builder = updater_builder.pubkey(pubkey);
+        }
+    }
+
     tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::default()
@@ -37,6 +45,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(updater_builder.build())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             // Project commands
@@ -149,6 +158,10 @@ pub fn run() {
             security::get_api_key,
             security::delete_api_key,
             security::list_api_key_providers,
+            google_oauth_connect,
+            google_oauth_get_access_token,
+            google_oauth_get_user,
+            google_oauth_sign_out,
             // Mention tracking commands
             find_mentions,
             count_mentions,

@@ -61,7 +61,6 @@ export const FEATURE_FLAGS = {
  */
 export const GOOGLE_CONFIG = {
   CLIENT_ID: process.env["NEXT_PUBLIC_GOOGLE_CLIENT_ID"] || "",
-  CLIENT_SECRET: process.env["NEXT_PUBLIC_GOOGLE_CLIENT_SECRET"] || "",
   REDIRECT_URI:
     typeof window !== "undefined"
       ? `${window.location.origin}/auth/callback`

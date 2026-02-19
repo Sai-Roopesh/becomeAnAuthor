@@ -128,10 +128,12 @@ export function useImportExport() {
         throw new Error("Series ID is required for Drive backup.");
       }
 
-      if (!googleAuthService.isAuthenticated()) {
+      if (!(await googleAuthService.isAuthenticated())) {
         toast.info("Please sign in with Google to backup to Drive.");
         await googleAuthService.signIn();
-        return null;
+        if (!(await googleAuthService.isAuthenticated())) {
+          return null;
+        }
       }
 
       toast.info("Preparing series backup...");
@@ -165,10 +167,12 @@ export function useImportExport() {
     fileId: string,
   ): Promise<ImportSeriesResult> => {
     try {
-      if (!googleAuthService.isAuthenticated()) {
+      if (!(await googleAuthService.isAuthenticated())) {
         toast.info("Please sign in with Google to restore from Drive.");
         await googleAuthService.signIn();
-        throw new Error("Authentication required");
+        if (!(await googleAuthService.isAuthenticated())) {
+          throw new Error("Authentication required");
+        }
       }
 
       toast.info("Downloading backup from Google Drive...");
@@ -200,7 +204,7 @@ export function useImportExport() {
 
   const listDriveBackups = async (): Promise<DriveFile[]> => {
     try {
-      if (!googleAuthService.isAuthenticated()) {
+      if (!(await googleAuthService.isAuthenticated())) {
         return [];
       }
       return await googleDriveService.listBackups();
