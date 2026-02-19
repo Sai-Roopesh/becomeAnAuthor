@@ -4,6 +4,8 @@ This project now releases from **tags only** and does not push commits to `main`
 
 ## 1. Prerequisites
 
+Ensure local `pnpm` version matches `packageManager` in `package.json` (currently 10.29.2).
+
 Set these repository secrets:
 
 - `TAURI_SIGNING_PRIVATE_KEY`

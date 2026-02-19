@@ -1,6 +1,6 @@
 # Become An Author — Low Level Design Document
 
-> **Version:** 1.0.1
+> **Version:** 1.0.2
 > **Last Updated:** February 19, 2026
 > **Status:** Living Document
 
@@ -92,6 +92,7 @@
 | Drag & Drop | @dnd-kit | 6.3+ |
 | Markdown | react-markdown + marked | 10.1 / 17.0 |
 | Export | docx, JSZip, html2pdf.js | Various |
+| Package Manager | pnpm | 10.29.2 |
 
 ### Backend
 

@@ -1,6 +1,6 @@
 # Become An Author — High Level Design Document
 
-> **Version:** 1.0.1
+> **Version:** 1.0.2
 > **Last Updated:** February 19, 2026
 > **Status:** Living Document
 
@@ -855,6 +855,8 @@ Accidental delete → Trash System
 ## 19. Deployment Architecture
 
 ### 19.1 Build Pipeline
+
+- **Reproducibility**: CI uses pinned `pnpm` version matching `package.json`.
 
 ```
 Source Code
