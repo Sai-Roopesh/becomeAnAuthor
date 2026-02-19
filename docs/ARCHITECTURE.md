@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 18, 2026
-> **Codebase Stats:** 311 frontend source files (42,416 lines) · 40 backend source files (5,785 lines) · 8 app route files  
+> **Last Updated:** February 19, 2026
+> **Codebase Stats:** 313 frontend source files (42,500+ lines) · 41 backend source files (6,200+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -47,7 +47,8 @@
 │                                                      │
 │  External APIs: OpenAI, Anthropic, Google, Mistral,  │
 │  DeepSeek, Groq, Cohere, xAI, Azure, TogetherAI,    │
-│  Fireworks, Perplexity, OpenRouter, Kimi             │
+│  Fireworks, Perplexity, OpenRouter, Kimi,            │
+│  Google Drive (OAuth 2.0)                            │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -185,7 +186,7 @@ isScene(node)  → node is Scene    // node.type === "scene"
 
 ### 5.1 Entry Point — `lib.rs` (188 lines)
 
-Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_handler![]` macro. Includes plugins: `tauri-plugin-log`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `tauri-plugin-notification`, `tauri-plugin-shell`, `tauri-plugin-process`.
+Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_handler![]` macro. Includes plugins: `tauri-plugin-log`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `tauri-plugin-notification`, `tauri-plugin-shell`, `tauri-plugin-process`, `tauri-plugin-updater`.
 
 ### 5.2 Command Modules — `commands/mod.rs`
 
@@ -210,6 +211,7 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `world_map` | `world_map.rs` | ~120 | `list_maps`, `save_map`, `delete_map`, `upload_map_image` | Map image + marker storage |
 | `world_timeline` | `world_timeline.rs` | ~80 | `list_world_events`, `save_world_event`, `delete_world_event` | World event timeline |
 | `preset` | `preset.rs` | ~60 | `list_custom_presets`, `save_custom_preset`, `delete_custom_preset` | Custom export presets |
+| `google_oauth` | `google_oauth.rs` | 428 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
 
 ### 5.3 Models — `models/mod.rs`
 
@@ -448,7 +450,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | `DocumentExportService` | `DocumentExportService.ts` | 590 | Multi-format export engine: PDF (html2pdf.js), DOCX (docx lib), Markdown, ePub (Rust backend). Includes preset system, template variables, live preview |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 340 | Singleton with cache. Fetches models from provider APIs with provider-specific parsers (OpenAI, Anthropic, Google, OpenRouter formats). Falls back to curated defaults |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry |
-| `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 with PKCE flow. Sign-in, callback, token refresh, user info fetch |
+| `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). **Web:** Standard PKCE flow. |
 | `GoogleDriveService` | `google-drive-service.ts` | 286 | Drive API: app folder management, backup upload/download/delete, storage quota |
 
 ---
@@ -529,6 +531,7 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 | `collaboration/` | `CollaborationProvider`, `CursorOverlay`, `useCollaboration` | Yjs + WebRTC P2P editing |
 | `export/` | `ExportDialog`, `ExportPreview`, `useDocumentExport` | Multi-format export UI |
 | `search/` | `SearchDialog` | Full-text search via Tauri backend |
+| `updater/` | `UpdateNotifier` | Checks for updates on startup, shows toast notification |
 
 ---
 
@@ -589,8 +592,11 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ## 13. Security Architecture
 
-- **API Keys**: Tauri keychain via `security.rs` commands; localStorage fallback
-- **OAuth 2.0 + PKCE**: `google-auth-service.ts` (301 lines) — code_verifier + SHA256 challenge
+- **API Keys**: Tauri keychain (`keyring`) via `security.rs`; Google tokens also stored in keychain on desktop.
+- **OAuth 2.0**:
+  - **Desktop:** System browser + localhost loopback + PKCE. Tokens in OS keychain.
+  - **Web:** Standard PKCE flow. Tokens in localStorage.
+- **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **Input Validation**: `validate_no_null_bytes()`, `validate_json_size()`, `validate_file_size()` (10MB max)
 - **Atomic Writes**: All backend writes use temp-file-then-rename
 
@@ -663,7 +669,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 | File | Lines | Purpose |
 |---|---|---|
-| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG`, `STORAGE_KEYS`, `INFRASTRUCTURE`, `APP_NAME`, limits |
+| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG` (Client ID), `STORAGE_KEYS`, `INFRASTRUCTURE`, `APP_NAME`, limits |
 | `lib/config/ai-vendors.ts` | ~300 | 14 provider registry with name, icon, color, default models, endpoints |
 | `lib/config/model-specs.ts` | ~150 | Token limits and capabilities per model (context windows) |
 | `lib/config/timing.ts` | ~40 | `SAVE_DEBOUNCE`, `SEARCH_DEBOUNCE`, `AUTOSAVE_INTERVAL` |

@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
-> **Version:** 1.0.0  
-> **Last Updated:** February 18, 2026
+> **Version:** 1.0.1
+> **Last Updated:** February 19, 2026
 > **Status:** Living Document
 
 ---
@@ -158,7 +158,8 @@ backend/src/
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
 │   ├── world_map.rs     # Map management with image upload (2.7KB)
 │   ├── world_timeline.rs# World-level timeline events (1.8KB)
-│   └── preset.rs        # Custom AI presets (1.8KB)
+│   ├── preset.rs        # Custom AI presets (1.8KB)
+│   └── google_oauth.rs  # Desktop OAuth via loopback + keyring (15KB)
 ├── models/              # Data structures (11 modules)
 │   ├── mod.rs
 │   ├── project.rs       # ProjectMeta, StructureNode, Series
@@ -504,7 +505,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | `DocumentExportService` | `DocumentExportService.ts` | 21.4KB | Full manuscript export (DOCX, EPUB, PDF, plain text, JSON backup) |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 9.4KB | Fetches models per provider (static defaults + OpenRouter dynamic) |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
-| `GoogleAuthService` | `google-auth-service.ts` | 8.7KB | Google OAuth 2.0 flow |
+| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
 | `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
 
 ---
@@ -543,6 +544,7 @@ features/{feature-name}/
 | **collaboration** | 1 | 0 | Real-time collaboration via Yjs |
 | **ai** | 1 | 0 | AI-specific UI components |
 | **project** | 2 | 0 | Project-level settings and metadata |
+| **updater** | 1 | 0 | UpdateNotifier component |
 | **shared** | 5 | 0 | ErrorBoundary, ThemeProvider, LoadingSpinner, withErrorBoundary HOC |
 
 ### 9.2 Editor Feature (Deep Dive)
@@ -724,6 +726,7 @@ export async function loadScene(
 | **Backup** | 4 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups` |
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
 | **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
+| **Google OAuth** | 4 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` |
 | **Other** | ~10 | Ideas, scene notes, maps, world events, presets, app info |
 
 ### 12.3 Environment Detection
@@ -849,9 +852,9 @@ Rust: security::store_api_key()
 OS Keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)
 ```
 
-- Keys are **never** stored in the filesystem or localStorage
-- Retrieval via `get_api_key(provider)` → OS keychain lookup
-- Provider list tracked separately for enumeration
+- Keys are **never** stored in the filesystem or localStorage.
+- Retrieval via `get_api_key(provider)` → OS keychain lookup.
+- **Google OAuth Tokens**: Also stored in `keyring` (Service: `com.becomeauthor.app`, Account: `google-oauth-tokens`).
 
 ### 15.2 Content Security
 
