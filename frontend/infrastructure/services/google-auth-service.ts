@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * Google OAuth 2.0 Service with PKCE Flow
- * Implements secure authentication for Single Page Applications
- * No backend required - follows OAuth 2.0 best practices
+ * Google OAuth 2.0 Service
+ * - Desktop (Tauri): system-browser loopback OAuth via backend command + keychain token storage
+ * - Web fallback: PKCE SPA flow with localStorage session
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import {
   GOOGLE_CONFIG,
   STORAGE_KEYS,
@@ -14,12 +15,10 @@ import {
 import { GoogleTokens, GoogleUser } from "@/domain/entities/types";
 import { storage } from "@/core/storage/safe-storage";
 import { logger } from "@/shared/utils/logger";
+import { isTauri } from "@/core/tauri/commands";
 
 const log = logger.scope("GoogleAuthService");
 
-/**
- * Generate cryptographically secure random string for PKCE
- */
 function generateRandomString(length: number): string {
   const charset =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -30,34 +29,38 @@ function generateRandomString(length: number): string {
     .join("");
 }
 
-/**
- * Generate SHA256 hash and base64url encode (for PKCE code challenge)
- */
 async function sha256(plain: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(plain);
   const hash = await crypto.subtle.digest("SHA-256", data);
 
-  // Convert to base64url
   const base64 = btoa(String.fromCharCode(...new Uint8Array(hash)));
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 class GoogleAuthService {
-  /**
-   * Initiate OAuth 2.0 with PKCE flow
-   * Redirects user to Google sign-in page
-   */
   async signIn(): Promise<void> {
+    if (!GOOGLE_CONFIG.CLIENT_ID) {
+      throw new Error("Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID");
+    }
+
+    // Desktop flow: backend command opens browser and handles callback securely.
+    if (isTauri()) {
+      const user = await invoke<GoogleUser>("google_oauth_connect", {
+        clientId: GOOGLE_CONFIG.CLIENT_ID,
+        scopes: GOOGLE_CONFIG.SCOPES,
+      });
+      storage.setItem(STORAGE_KEYS.GOOGLE_USER, user);
+      return;
+    }
+
+    // Web fallback flow (PKCE SPA)
     try {
-      // Generate PKCE code verifier and challenge
       const codeVerifier = generateRandomString(128);
       const codeChallenge = await sha256(codeVerifier);
 
-      // Store code verifier in localStorage (needed for token exchange)
       storage.setItem(STORAGE_KEYS.GOOGLE_PKCE_VERIFIER, codeVerifier);
 
-      // Build authorization URL
       const params = new URLSearchParams({
         client_id: GOOGLE_CONFIG.CLIENT_ID,
         redirect_uri: GOOGLE_CONFIG.REDIRECT_URI,
@@ -65,11 +68,10 @@ class GoogleAuthService {
         scope: GOOGLE_CONFIG.SCOPES.join(" "),
         code_challenge: codeChallenge,
         code_challenge_method: "S256",
-        access_type: "offline", // Request refresh token
-        prompt: "consent", // Force consent to get refresh token
+        access_type: "offline",
+        prompt: "consent",
       });
 
-      // Redirect to Google OAuth
       window.location.href = `${GOOGLE_CONFIG.AUTH_ENDPOINT}?${params}`;
     } catch (error) {
       log.error("OAuth sign-in error:", error);
@@ -77,13 +79,13 @@ class GoogleAuthService {
     }
   }
 
-  /**
-   * Complete OAuth flow after redirect
-   * Exchange authorization code for tokens
-   */
   async handleCallback(code: string): Promise<void> {
+    if (isTauri()) {
+      // Desktop flow does not use frontend callback route.
+      return;
+    }
+
     try {
-      // Retrieve code verifier
       const codeVerifier = storage.getItem<string>(
         STORAGE_KEYS.GOOGLE_PKCE_VERIFIER,
         "",
@@ -92,7 +94,6 @@ class GoogleAuthService {
         throw new Error("Missing code verifier");
       }
 
-      // Exchange code for tokens (Google requires client_secret even with PKCE for web apps)
       const response = await fetch(GOOGLE_CONFIG.TOKEN_ENDPOINT, {
         method: "POST",
         headers: {
@@ -100,7 +101,6 @@ class GoogleAuthService {
         },
         body: new URLSearchParams({
           client_id: GOOGLE_CONFIG.CLIENT_ID,
-          client_secret: GOOGLE_CONFIG.CLIENT_SECRET,
           code,
           code_verifier: codeVerifier,
           grant_type: "authorization_code",
@@ -115,7 +115,6 @@ class GoogleAuthService {
 
       const data = await response.json();
 
-      // Store tokens
       const tokens: GoogleTokens = {
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
@@ -124,11 +123,7 @@ class GoogleAuthService {
       };
 
       storage.setItem(STORAGE_KEYS.GOOGLE_TOKENS, tokens);
-
-      // Fetch and store user info
       await this.fetchUserInfo(tokens.accessToken);
-
-      // Clean up code verifier
       storage.removeItem(STORAGE_KEYS.GOOGLE_PKCE_VERIFIER);
     } catch (error) {
       log.error("OAuth callback error:", error);
@@ -136,9 +131,6 @@ class GoogleAuthService {
     }
   }
 
-  /**
-   * Fetch user profile information
-   */
   private async fetchUserInfo(accessToken: string): Promise<void> {
     const response = await fetch(
       "https://www.googleapis.com/oauth2/v2/userinfo",
@@ -164,43 +156,49 @@ class GoogleAuthService {
     storage.setItem(STORAGE_KEYS.GOOGLE_USER, user);
   }
 
-  /**
-   * Sign out and revoke access
-   */
   async signOut(): Promise<void> {
     try {
-      const tokens = storage.getItem<GoogleTokens | null>(
-        STORAGE_KEYS.GOOGLE_TOKENS,
-        null,
-      );
+      if (isTauri()) {
+        await invoke("google_oauth_sign_out");
+      } else {
+        const tokens = storage.getItem<GoogleTokens | null>(
+          STORAGE_KEYS.GOOGLE_TOKENS,
+          null,
+        );
 
-      if (tokens?.accessToken) {
-        // Revoke token with Google
-        await fetch(GOOGLE_CONFIG.REVOKE_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: new URLSearchParams({
-            token: tokens.accessToken,
-          }),
-        });
+        if (tokens?.accessToken) {
+          await fetch(GOOGLE_CONFIG.REVOKE_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              token: tokens.accessToken,
+            }),
+          });
+        }
       }
     } catch (error) {
       log.error("Sign-out error:", error);
-      // Continue even if revoke fails
     } finally {
-      // Clear local storage
       storage.removeItem(STORAGE_KEYS.GOOGLE_TOKENS);
       storage.removeItem(STORAGE_KEYS.GOOGLE_USER);
       storage.removeItem(STORAGE_KEYS.GOOGLE_PKCE_VERIFIER);
     }
   }
 
-  /**
-   * Get valid access token (refreshes if expired)
-   */
   async getAccessToken(): Promise<string | null> {
+    if (isTauri()) {
+      try {
+        return await invoke<string | null>("google_oauth_get_access_token", {
+          clientId: GOOGLE_CONFIG.CLIENT_ID,
+        });
+      } catch (error) {
+        log.error("Failed to get desktop OAuth token", error);
+        return null;
+      }
+    }
+
     const tokens = storage.getItem<GoogleTokens | null>(
       STORAGE_KEYS.GOOGLE_TOKENS,
       null,
@@ -210,15 +208,12 @@ class GoogleAuthService {
       return null;
     }
 
-    // Check if token is expired (with 5 minute buffer)
     const isExpired =
       tokens.expiresAt < Date.now() + INFRASTRUCTURE.TOKEN_REFRESH_BUFFER_MS;
 
     if (isExpired && tokens.refreshToken) {
-      // Refresh access token
       await this.refreshAccessToken(tokens.refreshToken);
 
-      // Get new tokens
       const newTokens = storage.getItem<GoogleTokens | null>(
         STORAGE_KEYS.GOOGLE_TOKENS,
         null,
@@ -229,12 +224,8 @@ class GoogleAuthService {
     return tokens.accessToken;
   }
 
-  /**
-   * Refresh access token using refresh token
-   */
   private async refreshAccessToken(refreshToken: string): Promise<void> {
     try {
-      // Refresh token request (Google requires client_secret for web apps)
       const response = await fetch(GOOGLE_CONFIG.TOKEN_ENDPOINT, {
         method: "POST",
         headers: {
@@ -242,7 +233,6 @@ class GoogleAuthService {
         },
         body: new URLSearchParams({
           client_id: GOOGLE_CONFIG.CLIENT_ID,
-          client_secret: GOOGLE_CONFIG.CLIENT_SECRET,
           refresh_token: refreshToken,
           grant_type: "refresh_token",
         }),
@@ -254,10 +244,9 @@ class GoogleAuthService {
 
       const data = await response.json();
 
-      // Update stored tokens
       const newTokens: GoogleTokens = {
         accessToken: data.access_token,
-        refreshToken: refreshToken, // Keep existing refresh token
+        refreshToken: refreshToken,
         expiresAt: Date.now() + data.expires_in * 1000,
         scope: data.scope,
       };
@@ -265,36 +254,32 @@ class GoogleAuthService {
       storage.setItem(STORAGE_KEYS.GOOGLE_TOKENS, newTokens);
     } catch (error) {
       log.error("Token refresh error:", error);
-      // Clear invalid tokens
       await this.signOut();
       throw new Error("Session expired. Please sign in again.");
     }
   }
 
-  /**
-   * Check if user is authenticated
-   * Returns false if no tokens exist OR if token is expired
-   */
-  isAuthenticated(): boolean {
-    const tokens = storage.getItem<GoogleTokens | null>(
-      STORAGE_KEYS.GOOGLE_TOKENS,
-      null,
-    );
-    if (!tokens?.accessToken) {
-      return false;
-    }
-    // Check expiry - expired token means not authenticated
-    // (getAccessToken can attempt refresh, but isAuthenticated is a sync check)
-    return tokens.expiresAt > Date.now();
+  async isAuthenticated(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return Boolean(token);
   }
 
-  /**
-   * Get stored user information
-   */
-  getUserInfo(): GoogleUser | null {
+  async getUserInfo(): Promise<GoogleUser | null> {
+    if (isTauri()) {
+      try {
+        const user = await invoke<GoogleUser | null>("google_oauth_get_user");
+        if (user) {
+          storage.setItem(STORAGE_KEYS.GOOGLE_USER, user);
+        }
+        return user;
+      } catch (error) {
+        log.error("Failed to get desktop Google user", error);
+        return null;
+      }
+    }
+
     return storage.getItem<GoogleUser | null>(STORAGE_KEYS.GOOGLE_USER, null);
   }
 }
 
-// Export singleton instance
 export const googleAuthService = new GoogleAuthService();

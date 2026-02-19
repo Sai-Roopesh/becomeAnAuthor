@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Become An Author",
   "version": "1.0.0",
-  "identifier": "com.becomeauthor.app",
+  "identifier": "com.becomeauthor.desktop",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self' data: blob: asset: tauri: http: https: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http: https:; connect-src 'self' data: blob: http: https: ws: wss:; font-src 'self' data: https:;",
       "assetProtocol": {
         "enable": true,
         "scope": [
@@ -36,7 +36,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -48,5 +48,12 @@
       "minimumSystemVersion": "10.15"
     }
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Sai-Roopesh/becomeAnAuthor/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQzODg4QTZCMEFDQTYxQjMKUldTelljb0thNHFJUTljYkxpeFltSUxsakpYQVhvUXJsMWFYMzVPeHlBVWxSYWh0MGFCNG1zdmoK"
+    }
+  }
 }

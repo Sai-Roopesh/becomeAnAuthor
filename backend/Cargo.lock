@@ -396,6 +396,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 name = "become-an-author"
 version = "1.0.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "dirs 5.0.1",
  "docx-rs",
@@ -403,9 +404,12 @@ dependencies = [
  "gray_matter",
  "keyring",
  "log",
+ "open",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "slug",
  "tauri",
  "tauri-build",
@@ -416,6 +420,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
+ "url",
  "uuid",
  "walkdir",
 ]
