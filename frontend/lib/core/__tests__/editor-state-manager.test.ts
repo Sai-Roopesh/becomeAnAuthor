@@ -18,7 +18,7 @@
  * 10. MUST expose current status via getStatus()
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 // Editor removed
 
 // ============================================
@@ -29,11 +29,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface MockEditor extends Partial<import('@tiptap/core').Editor> {
     _emit(event: string): void;
-    on: any;
-    off: any;
-    getJSON: any;
+    on: Mock;
+    off: Mock;
+    getJSON: Mock;
     isDestroyed: boolean;
     commands: any;
+    storage: any;
+    _handlers: Map<string, Array<() => void>>;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -99,6 +101,7 @@ function createMockEditor(options: {
             handlers.get(event)?.forEach(h => h());
         },
         _handlers: handlers,
+        commands: {},
     } as unknown as MockEditor;
 }
 
@@ -525,13 +528,12 @@ describe('EditorStateManager Specifications', () => {
 
         it('MUST still throw error after creating backup', async () => {
             const editor = createMockEditor();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const manager = new EditorStateManager(editor as any, 'scene-123');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
             const error = new Error('Save failed');
             mockScheduleSave.mockRejectedValueOnce(error);
 
-            (editor as unknown as MockEditor)._emit('update');
+            editor._emit('update');
 
             await expect(manager.saveImmediate()).rejects.toThrow('Save failed');
 
@@ -546,10 +548,9 @@ describe('EditorStateManager Specifications', () => {
     describe('SPEC: SaveCoordinator - MUST use coordinator for saves', () => {
         it('MUST call saveCoordinator.scheduleSave with scene ID', async () => {
             const editor = createMockEditor();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const manager = new EditorStateManager(editor as any, 'my-scene-456');
+            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'my-scene-456');
 
-            (editor as unknown as MockEditor)._emit('update');
+            editor._emit('update');
             await manager.saveImmediate();
 
             expect(mockScheduleSave).toHaveBeenCalledWith(
@@ -566,7 +567,7 @@ describe('EditorStateManager Specifications', () => {
             const editor = createMockEditor({ content: expectedContent });
             const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
 
-            (editor as unknown as MockEditor)._emit('update');
+            editor._emit('update');
             await manager.saveImmediate();
 
             const calls = mockScheduleSave.mock.calls[0] as [string, () => unknown];
@@ -597,7 +598,7 @@ describe('EditorStateManager Specifications', () => {
             const editor = createMockEditor();
             const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
 
-            (editor as unknown as MockEditor)._emit('update');
+            editor._emit('update');
 
             manager.destroy();
 

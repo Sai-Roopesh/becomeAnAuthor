@@ -16,7 +16,7 @@ export function TimelineHeader({
   getScenesForLane,
 }: TimelineHeaderProps) {
   return (
-    <div className="absolute left-0 top-0 bottom-0 z-10 bg-background border-r w-48 flex flex-col">
+    <div className="z-10 bg-background border-r w-48 flex flex-col">
       {/* Chapter header row */}
       <div className="h-10 border-b bg-muted/50 flex items-center px-3 flex-shrink-0">
         <span className="text-xs font-medium text-muted-foreground">

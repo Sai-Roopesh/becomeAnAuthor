@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Settings, Trash2, Archive, Upload, Loader2 } from "lucide-react";
@@ -61,8 +61,7 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     watch,
     formState: { errors },
   } = useForm<ProjectSettingsFormData>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(projectSettingsSchema) as any,
+    resolver: zodResolver(projectSettingsSchema) as Resolver<ProjectSettingsFormData>,
     defaultValues: {
       title: "",
       author: "",
@@ -109,6 +108,18 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("Invalid file type. Please upload an image.");
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File too large. Max size is 5MB.");
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setValue("coverImage", reader.result as string);
