@@ -203,8 +203,15 @@ pub fn command_name(param1: Type1, param2: Type2) -> Result<ReturnType, String> 
 
 ### 4.3 File System Layout (Runtime Data)
 
+Data is stored in the OS-specific local data directory (e.g., `~/Library/Application Support/` on macOS, `%LOCALAPPDATA%` on Windows).
+
+Channel logic:
+- `dev`: Default for debug builds.
+- `release-v1`: Default for release builds.
+- Overridable via `BAA_DATA_CHANNEL` environment variable.
+
 ```
-~/BecomeAnAuthor/{dev|release}/
+[AppData]/BecomeAnAuthor/{channel}/
 ├── Projects/
 │   └── {project-slug}/
 │       ├── project.json          # ProjectMeta

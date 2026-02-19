@@ -567,8 +567,10 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ### 12.1 Disk Layout
 
+Data is stored in the OS-specific local application data directory (e.g., `~/Library/Application Support/BecomeAnAuthor` on macOS).
+
 ```
-~/BecomeAnAuthor/
+[AppData]/BecomeAnAuthor/{dev|release-v1}/
 ├── Projects/{series}/{project}/
 │   ├── project.json, structure.json
 │   ├── scenes/{file}.md (YAML frontmatter + TipTap JSON)

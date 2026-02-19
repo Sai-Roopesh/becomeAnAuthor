@@ -517,7 +517,7 @@ The `useContextAssembly` hook builds AI context by:
 
 ```mermaid
 graph TD
-    App["Application Data Dir<br/>~/BecomeAnAuthor/{dev|release}/"]
+    App["Application Data Dir<br/>[AppData]/BecomeAnAuthor/{dev|release-v1}/"]
     Meta[".meta/<br/>series.json, recent.json, presets.json"]
     Series["Series/<br/>(multiple series)"]
     S1["Series A/"]
