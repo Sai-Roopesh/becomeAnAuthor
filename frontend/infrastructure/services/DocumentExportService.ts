@@ -48,11 +48,8 @@ export class DocumentExportService implements IExportService {
       this.getHydratedNodes(projectId),
     ]);
 
-    // Upstream v4.x has instability around dynamic text render callbacks.
-    // Use deterministic text flow + explicit post-processing for page numbers.
-    Font.registerHyphenationCallback((word: string) =>
-      createHyphenationChunks(word),
-    );
+    // Keep line breaking deterministic and fast for long manuscripts.
+    Font.registerHyphenationCallback((word: string) => [word]);
 
     const orderedNodes = this.getOrderedNodes(nodes);
     const sceneRecords = this.getSceneRecords(orderedNodes);
@@ -109,6 +106,10 @@ export class DocumentExportService implements IExportService {
       paragraph: {
         textAlign: resolved.alignment,
         marginBottom: resolved.paragraphSpacingPt,
+      },
+      paragraphContinuation: {
+        textAlign: resolved.alignment,
+        marginBottom: 0,
       },
       summary: {
         fontSize: Math.max(9, resolved.fontSizePt - 1),
@@ -260,16 +261,22 @@ export class DocumentExportService implements IExportService {
 
       const paragraphs = this.getSceneParagraphs(node);
       paragraphs.forEach((paragraph, paraIndex) => {
-        pageChildren.push(
-          createElement(
-            Text,
-            {
-              key: `scene-${node.id}-para-${paraIndex}`,
-              style: styles.paragraph,
-            },
-            sanitizePdfText(paragraph),
-          ),
-        );
+        const segments = splitParagraphForPdf(sanitizePdfText(paragraph));
+        segments.forEach((segment, segmentIndex) => {
+          pageChildren.push(
+            createElement(
+              Text,
+              {
+                key: `scene-${node.id}-para-${paraIndex}-seg-${segmentIndex}`,
+                style:
+                  segmentIndex === segments.length - 1
+                    ? styles.paragraph
+                    : styles.paragraphContinuation,
+              },
+              segment,
+            ),
+          );
+        });
       });
 
       if (record.nextSceneExists) {
@@ -930,13 +937,34 @@ function stripUnpairedSurrogates(value: string): string {
   return output;
 }
 
-function createHyphenationChunks(word: string): string[] {
-  if (word.length <= 28) return [word];
-  if (/\s/.test(word)) return [word];
-
-  const parts: string[] = [];
-  for (let index = 0; index < word.length; index += 16) {
-    parts.push(word.slice(index, index + 16));
+function splitParagraphForPdf(paragraph: string): string[] {
+  const MAX_SEGMENT_LENGTH = 1200;
+  const normalized = paragraph.trim();
+  if (normalized.length <= MAX_SEGMENT_LENGTH) {
+    return [normalized];
   }
-  return parts;
+
+  const segments: string[] = [];
+  let remaining = normalized;
+
+  while (remaining.length > MAX_SEGMENT_LENGTH) {
+    const slice = remaining.slice(0, MAX_SEGMENT_LENGTH);
+    const sentenceBreak = slice.lastIndexOf(". ");
+    const lineBreak = slice.lastIndexOf("\n");
+    const whitespaceBreak = slice.lastIndexOf(" ");
+    const breakIndex = Math.max(sentenceBreak + 1, lineBreak, whitespaceBreak);
+
+    const safeBreak = breakIndex > 200 ? breakIndex : MAX_SEGMENT_LENGTH;
+    const current = remaining.slice(0, safeBreak).trim();
+    if (current.length > 0) {
+      segments.push(current);
+    }
+    remaining = remaining.slice(safeBreak).trimStart();
+  }
+
+  if (remaining.length > 0) {
+    segments.push(remaining);
+  }
+
+  return segments;
 }
