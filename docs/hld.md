@@ -165,7 +165,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 | **UI Primitives** | Radix UI | Accessible, unstyled headless components; WAI-ARIA compliant |
 | **AI Integration** | Vercel AI SDK 6 | Unified streaming API across 14+ providers; structured output with Zod schemas |
 | **Collaboration** | Yjs + y-webrtc | CRDT-based conflict-free real-time editing; peer-to-peer via WebRTC |
-| **Document Export** | docx (npm) + html2pdf.js + DOMPurify | Configurable DOCX/PDF generation in browser with HTML sanitization |
+| **Document Export** | docx (npm) + @react-pdf/renderer | Configurable DOCX/PDF generation in browser (React native rendering) |
 
 ### 4.2 Backend Stack
 
@@ -690,7 +690,7 @@ AI Request  → get_api_key(provider)         → OS Keychain
 |---|---|---|
 | **DOCX** | Frontend `docx` (npm) | Native Word document with config (font, size, margins, TOC) |
 | **EPUB** | Rust `epub-builder` | eBook with chapters, metadata, CSS styling |
-| **PDF** | Frontend `html2pdf.js` + `DOMPurify` | Browser-rendered PDF from sanitized HTML |
+| **PDF** | Frontend `@react-pdf/renderer` | Native React PDF rendering |
 | **Markdown** | Rust string assembly | Plain markdown with scene concatenation |
 | **Plain Text** | Rust string assembly | Scene content with act/chapter headers |
 
