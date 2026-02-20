@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
 > **Last Updated:** February 20, 2026
-> **Codebase Stats:** 332 frontend source files (43,000+ lines) · 41 backend source files (6,200+ lines) · 8 app route files
+> **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -79,7 +79,7 @@ becomeAnAuthor/
 │   │   ├── layout.tsx            # Project workspace layout
 │   │   └── page.tsx              # Project workspace (editor/plan/chat)
 │   └── series/page.tsx           # Series management
-├── frontend/                     # Frontend source (311 files, 43K lines)
+├── frontend/                     # Frontend source (311 files, 42K lines)
 │   ├── core/                     # Tauri bridge & low-level utilities
 │   ├── domain/                   # Domain entities, repositories, services (interfaces)
 │   ├── features/                 # Feature modules (editor, codex, plan, chat, etc.)
@@ -89,7 +89,7 @@ becomeAnAuthor/
 │   ├── shared/                   # Cross-cutting utilities, prompts, types
 │   ├── store/                    # Zustand state stores
 │   └── components/               # Shared UI component library
-├── backend/                      # Rust/Tauri backend (40 files, 6.2K lines)
+├── backend/                      # Rust/Tauri backend (40 files, 5.8K lines)
 │   └── src/
 │       ├── lib.rs                # Entry point, command registration (188 lines)
 │       ├── commands/             # 18 command modules
@@ -195,13 +195,13 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | Module | File | Lines | Commands | Description |
 |---|---|---|---|---|
 | `project` | `project.rs` | ~480 | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management |
-| `scene` | `scene.rs` | ~370 | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene` | Scene content I/O with YAML frontmatter + strict filename validation |
+| `scene` | `scene.rs` | 320 | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene` | Scene content I/O with YAML frontmatter + path security |
 | `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
 | `chat` | `chat.rs` | 180 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message` | Thread & message persistence |
 | `snippet` | `snippet.rs` | ~80 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
 | `backup` | `backup.rs` | ~400 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup`, `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Multi-format export & import |
 | `search` | `search.rs` | ~100 | `search_project` | Full-text search using walkdir + regex |
-| `trash` | `trash.rs` | ~200 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore + UUID/path validation |
+| `trash` | `trash.rs` | ~120 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
 | `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
 | `security` | `security.rs` | ~60 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
 | `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
@@ -447,8 +447,8 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | Service | File | Lines | Purpose |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 124 | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()` |
-| `DocumentExportService` | `DocumentExportService.ts` | ~950 | Multi-format export engine: PDF (html2pdf.js + DOMPurify), DOCX (docx npm), Markdown, ePub (Rust backend). Includes preset system, template variables, live preview |
-| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~500 | Singleton with cache. Fetches models from provider APIs with provider-specific parsers. Supports caching (localStorage + TTL) and dynamic fetching strategies. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 | Multi-format export engine with configurable presets: PDF (html2pdf.js + DOMPurify sanitization), DOCX (docx npm), Markdown. Supports custom styling, margins, and template variables. |
+| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with fallback to manual entry. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry |
 | `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). **Web:** Standard PKCE flow. |
 | `GoogleDriveService` | `google-drive-service.ts` | 286 | Drive API: app folder management, backup upload/download/delete, storage quota |
@@ -480,7 +480,7 @@ The primary writing environment. 15+ components:
 | Component | Lines | Purpose |
 |---|---|---|
 | `CodexList` | 311 | Virtualized scrolling list with category filtering, template selection, search |
-| `EntityEditor` | 217 | Sub-component architecture — template fields, image upload, delete/save |
+| `EntityEditor` | ~400 | Tabbed entity management (Details, Research, Relations, Mentions) with cascading delete support |
 | `CodexRelationGraph` | ~400 | Force-directed relationship visualization |
 | `MentionTracker` | ~150 | Tracks @mentions of codex entries across manuscript |
 
@@ -596,10 +596,10 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 - **OAuth 2.0**:
   - **Desktop:** System browser + localhost loopback + PKCE. Tokens in OS keychain.
   - **Web:** Standard PKCE flow. Tokens in localStorage.
+- **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: Ad-hoc signing (`-`) used for v0.0.1 release cycle; proper Developer ID signing required for production distribution.
-- **Input Validation**: `validate_no_null_bytes()`, `validate_json_size()`, `validate_file_size()` (10MB max).
-- **Path Traversal Prevention**: Strict filename validation (`validate_scene_file_name`, `validate_trash_item_id`) and UUID format enforcement in backend commands.
+- **Input Validation**: `validate_no_null_bytes()`, `validate_json_size()`, `validate_file_size()` (10MB max)
 - **Atomic Writes**: All backend writes use temp-file-then-rename
 
 ---
@@ -610,8 +610,8 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location |
 |---|---|---|
-| PDF | html2pdf.js + DOMPurify | Frontend (`DocumentExportService`) with config (font, size, margins) |
-| DOCX | docx (npm) | Frontend with config (font, size, margins) |
+| PDF | html2pdf.js + DOMPurify | Frontend (`DocumentExportService`) |
+| DOCX | docx (npm) | Frontend |
 | Markdown | String assembly | Frontend |
 | ePub | Rust command | Backend |
 | Plain Text | Rust command | Backend |
@@ -736,7 +736,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `features/collaboration/` | 3 components, 1 hook, 1 provider |
 | `features/export/` | 3 components, 1 hook |
 | `features/search/` | 1 component |
-| `components/ui/` | 37+ shadcn/ui components |
+| `components/ui/` | 36+ shadcn/ui components |
 
 ### 19.2 Backend — `backend/src/` (40 source files)
 

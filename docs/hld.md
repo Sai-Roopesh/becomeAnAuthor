@@ -165,7 +165,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 | **UI Primitives** | Radix UI | Accessible, unstyled headless components; WAI-ARIA compliant |
 | **AI Integration** | Vercel AI SDK 6 | Unified streaming API across 14+ providers; structured output with Zod schemas |
 | **Collaboration** | Yjs + y-webrtc | CRDT-based conflict-free real-time editing; peer-to-peer via WebRTC |
-| **Document Export** | docx (npm) + html2pdf.js + DOMPurify | Configurable DOCX/PDF generation in browser |
+| **Document Export** | docx (npm) + html2pdf.js + DOMPurify | Configurable DOCX/PDF generation in browser with HTML sanitization |
 
 ### 4.2 Backend Stack
 
@@ -192,7 +192,7 @@ graph TB
 
     subgraph "AI & Intelligence"
         CHAT["💬 Chat<br/>AI assistant<br/>Context-aware<br/>Multi-model"]
-        AI["🤖 AI<br/>14 providers<br/>Streaming<br/>Token mgmt"]
+        AI["🤖 AI<br/>14+ providers<br/>Streaming<br/>Dynamic Discovery"]
     end
 
     subgraph "World Building"
@@ -242,7 +242,7 @@ graph TB
 | **Search** | 6 | 1 | Full-text search across scenes and codex entries with relevance scoring |
 | **Navigation** | 3 | 1 | Sidebar manuscript tree, codex browser, snippet list, breadcrumbs |
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
-| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF, Markdown, plain text) |
+| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via html2pdf, Markdown, plain text) with presets |
 | **Data Management** | 2 | 0 | Series backup import/export, novel archive conversion |
 | **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
@@ -635,7 +635,7 @@ OAuth 2.0 PKCE flow:
 | Threat | Mitigation |
 |---|---|
 | API key exposure | Stored in OS keychain (encrypted at rest); never in filesystem or localStorage |
-| Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation. Strict validation of scene filenames and trash item IDs. |
+| Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |
 | Oversized payloads | `validate_json_size()` + `validate_scene_content()` enforce limits (10MB JSON, 50MB scene) |
