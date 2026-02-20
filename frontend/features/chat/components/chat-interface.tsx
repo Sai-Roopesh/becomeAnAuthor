@@ -157,6 +157,68 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
     (t.name || "Untitled").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const renderThreadActions = (threadId: string, compact = false) => (
+    <>
+      {threadView === "active" && (
+        <Button
+          variant="ghost"
+          size={compact ? "sm" : "icon"}
+          className={cn(
+            compact
+              ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-muted hover:text-foreground"
+              : "h-7 w-7 text-foreground/90 hover:bg-muted hover:text-foreground",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleArchiveThread(threadId);
+          }}
+          title="Archive chat"
+        >
+          {!compact && <Archive className="h-3.5 w-3.5" />}
+          {compact && "Archive"}
+        </Button>
+      )}
+      {(threadView === "archived" || threadView === "deleted") && (
+        <Button
+          variant="ghost"
+          size={compact ? "sm" : "icon"}
+          className={cn(
+            compact
+              ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-muted hover:text-foreground"
+              : "h-7 w-7 text-foreground/90 hover:bg-muted hover:text-foreground",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleRestoreThread(threadId);
+          }}
+          title="Restore chat"
+        >
+          {!compact && <RotateCcw className="h-3.5 w-3.5" />}
+          {compact && "Restore"}
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size={compact ? "sm" : "icon"}
+        className={cn(
+          compact
+            ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-destructive/10 hover:text-destructive"
+            : "h-7 w-7 text-foreground/90 hover:bg-destructive/10 hover:text-destructive",
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          void handleDeleteThread(threadId);
+        }}
+        title={
+          threadView === "deleted" ? "Delete permanently" : "Move to Deleted"
+        }
+      >
+        {!compact && <Trash2 className="h-3.5 w-3.5" />}
+        {compact && (threadView === "deleted" ? "Delete" : "Move to Deleted")}
+      </Button>
+    </>
+  );
+
   const tabButtonClass = (view: "active" | "archived" | "deleted") =>
     cn(
       "h-8 w-full min-w-0 px-2 text-xs",
@@ -262,53 +324,15 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <span>{new Date(thread.updatedAt).toLocaleDateString()}</span>
                 </div>
+                {isMobile && (
+                  <div className="mt-1 flex items-center gap-1">
+                    {renderThreadActions(thread.id, true)}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-1 opacity-100 transition-all md:opacity-70 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                {threadView === "active" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 hover:bg-muted"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleArchiveThread(thread.id);
-                    }}
-                    title="Archive chat"
-                  >
-                    <Archive className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                {(threadView === "archived" || threadView === "deleted") && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 hover:bg-muted"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleRestoreThread(thread.id);
-                    }}
-                    title="Restore chat"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive -mr-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleDeleteThread(thread.id);
-                  }}
-                  title={
-                    threadView === "deleted"
-                      ? "Delete permanently"
-                      : "Move to Deleted"
-                  }
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+              <div className="ml-2 w-[72px] shrink-0 items-center justify-end gap-1 hidden md:flex">
+                {renderThreadActions(thread.id)}
               </div>
             </div>
           ))}
