@@ -26,6 +26,7 @@ export function useDocumentExport() {
     config: Partial<ExportConfigV2>,
   ): Promise<void> => {
     const resolved = withExportDefaults(config);
+    let progressToastId: string | number | undefined;
 
     setIsExporting(true);
     try {
@@ -47,7 +48,9 @@ export function useDocumentExport() {
         return;
       }
 
-      toast.info(`Generating ${resolved.format.toUpperCase()}...`);
+      progressToastId = toast.loading(
+        `Generating ${resolved.format.toUpperCase()}...`,
+      );
 
       const blob =
         resolved.format === "pdf"
@@ -60,6 +63,7 @@ export function useDocumentExport() {
 
       toast.success(
         `${resolved.format.toUpperCase()} exported to ${savePath.split("/").pop()}`,
+        progressToastId !== undefined ? { id: progressToastId } : undefined,
       );
       log.debug("Document exported", {
         format: resolved.format,
@@ -67,7 +71,10 @@ export function useDocumentExport() {
       });
     } catch (error) {
       log.error("Document export failed", error);
-      toast.error("Failed to export document");
+      toast.error(
+        "Failed to export document",
+        progressToastId !== undefined ? { id: progressToastId } : undefined,
+      );
       throw error;
     } finally {
       setIsExporting(false);
