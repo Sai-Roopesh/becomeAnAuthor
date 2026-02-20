@@ -6,7 +6,7 @@ import type { INodeRepository } from "@/domain/repositories/INodeRepository";
 import type { Scene, DocumentNode } from "@/domain/entities/types";
 import { extractTextFromTiptapJSON } from "@/shared/utils/editor";
 import { BUILT_IN_PRESETS } from "@/shared/constants/export/export-presets";
-import DOMPurify from "dompurify";
+import { createElement, type ReactElement } from "react";
 import {
   Document,
   Packer,
@@ -23,9 +23,6 @@ import {
  */
 export class DocumentExportService implements IExportService {
   constructor(private nodeRepository: INodeRepository) {}
-
-  private static readonly UNSUPPORTED_COLOR_FUNCTION_RE =
-    /\b(?:oklch|oklab|lab|lch|color)\s*\(/i;
 
   private sceneHasTextContent(scene: Scene): boolean {
     const text = extractTextFromTiptapJSON(scene.content);
@@ -74,115 +71,218 @@ export class DocumentExportService implements IExportService {
   }
 
   /**
-   * Export to PDF using html2pdf.js
-   * Converts Markdown → HTML → PDF with professional styling
+   * Export to PDF using react-pdf/renderer.
+   * This avoids html2canvas/CSS compatibility issues in desktop WebViews.
    */
   async exportToPDF(projectId: string, options?: ExportOptions): Promise<Blob> {
-    // Dynamic import to avoid SSR issues
-    const [{ default: html2pdf }, { marked }] = await Promise.all([
-      import("html2pdf.js"),
-      import("marked"),
-    ]);
+    const [{ pdf, Document: PdfDocument, Page, Text, View, StyleSheet }] =
+      await Promise.all([import("@react-pdf/renderer")]);
 
-    // Generate markdown first
     const markdown = await this.exportToMarkdown(projectId, options);
+    const blocks = this.parseMarkdownToPdfBlocks(markdown);
 
-    // Convert markdown to HTML
-    const rawHtmlContent = await marked(markdown);
-    const htmlContent = DOMPurify.sanitize(rawHtmlContent);
-
-    const { container, exportRoot } = this.createPdfContainer(
-      htmlContent,
-      `
-        font-family: 'Georgia', 'Times New Roman', serif;
-        font-size: 12pt;
-        line-height: 1.6;
-        text-align: justify;
-      `,
-      `
-        [data-baa-export-root] h1 {
-          font-size: 24pt;
-          margin-top: 40px;
-          margin-bottom: 20px;
-          page-break-before: always;
-          color: #1a1a1a;
-        }
-        [data-baa-export-root] h1:first-child {
-          page-break-before: avoid;
-          text-align: center;
-        }
-        [data-baa-export-root] h2 {
-          font-size: 18pt;
-          margin-top: 30px;
-          margin-bottom: 15px;
-          color: #2a2a2a;
-        }
-        [data-baa-export-root] h3 {
-          font-size: 14pt;
-          margin-top: 20px;
-          margin-bottom: 10px;
-          color: #3a3a3a;
-        }
-        [data-baa-export-root] p {
-          margin-bottom: 12px;
-          text-indent: 1.5em;
-        }
-        [data-baa-export-root] p:first-of-type {
-          text-indent: 0;
-        }
-        [data-baa-export-root] blockquote {
-          border-left: 3px solid #ccc;
-          padding-left: 15px;
-          margin-left: 0;
-          color: #666;
-          font-style: italic;
-        }
-        [data-baa-export-root] hr {
-          border: none;
-          border-top: 1px solid #ddd;
-          margin: 30px 0;
-        }
-        [data-baa-export-root] ul,
-        [data-baa-export-root] ol {
-          padding-left: 25px;
-        }
-        [data-baa-export-root] li {
-          margin-bottom: 5px;
-        }
-        [data-baa-export-root] strong {
-          color: #000;
-        }
-      `,
-    );
-
-    try {
-      const pdfBlob = await html2pdf()
-        .from(exportRoot)
-        .set({
-          margin: [20, 20, 20, 20], // mm: top, left, bottom, right
-          filename: `${options?.title || "manuscript"}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            onclone: (clonedDocument: Document) => {
-              this.normalizeUnsupportedColors(clonedDocument);
-            },
-          },
-          jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "portrait",
-          },
-        })
-        .outputPdf("blob");
-
-      return pdfBlob;
-    } finally {
-      // Clean up temporary container
-      document.body.removeChild(container);
+    if (blocks.length === 0) {
+      blocks.push({
+        kind: "paragraph",
+        text: "No manuscript content found.",
+      });
     }
+
+    const styles = StyleSheet.create({
+      page: {
+        paddingTop: 54,
+        paddingBottom: 54,
+        paddingHorizontal: 56,
+        fontFamily: "Times-Roman",
+        fontSize: 11,
+        lineHeight: 1.5,
+        color: "#111827",
+      },
+      title: {
+        fontFamily: "Times-Bold",
+        fontSize: 22,
+        marginBottom: 8,
+        textAlign: "center",
+      },
+      author: {
+        fontSize: 12,
+        marginBottom: 20,
+        textAlign: "center",
+      },
+      h1: {
+        fontFamily: "Times-Bold",
+        fontSize: 18,
+        marginTop: 16,
+        marginBottom: 8,
+      },
+      h2: {
+        fontFamily: "Times-Bold",
+        fontSize: 15,
+        marginTop: 14,
+        marginBottom: 6,
+      },
+      h3: {
+        fontFamily: "Times-Bold",
+        fontSize: 12.5,
+        marginTop: 12,
+        marginBottom: 4,
+      },
+      paragraph: {
+        fontSize: 11,
+        marginBottom: 8,
+        textAlign: "justify",
+      },
+      rule: {
+        marginTop: 8,
+        marginBottom: 8,
+        borderBottomColor: "#d1d5db",
+        borderBottomWidth: 1,
+      },
+    });
+
+    const pageChildren: ReactElement[] = [];
+
+    if (options?.title) {
+      pageChildren.push(
+        createElement(
+          Text,
+          { key: "meta-title", style: styles.title },
+          options.title,
+        ),
+      );
+    }
+    if (options?.author) {
+      pageChildren.push(
+        createElement(
+          Text,
+          { key: "meta-author", style: styles.author },
+          `By ${options.author}`,
+        ),
+      );
+    }
+
+    blocks.forEach((block, index) => {
+      if (block.kind === "rule") {
+        pageChildren.push(
+          createElement(View, { key: `rule-${index}`, style: styles.rule }),
+        );
+        return;
+      }
+
+      const style =
+        block.kind === "h1"
+          ? styles.h1
+          : block.kind === "h2"
+            ? styles.h2
+            : block.kind === "h3"
+              ? styles.h3
+              : styles.paragraph;
+
+      pageChildren.push(
+        createElement(
+          Text,
+          { key: `${block.kind}-${index}`, style },
+          block.text,
+        ),
+      );
+    });
+
+    const documentProps: { title: string; author?: string } = {
+      title: options?.title || "Manuscript",
+    };
+    if (options?.author) {
+      documentProps.author = options.author;
+    }
+
+    const documentNode = createElement(
+      PdfDocument,
+      documentProps,
+      createElement(
+        Page,
+        { size: "A4", style: styles.page, wrap: true },
+        ...pageChildren,
+      ),
+    ) as ReactElement;
+
+    return await pdf(documentNode).toBlob();
+  }
+
+  private parseMarkdownToPdfBlocks(
+    markdown: string,
+  ): Array<
+    | { kind: "h1" | "h2" | "h3"; text: string }
+    | { kind: "paragraph"; text: string }
+    | { kind: "rule" }
+  > {
+    const blocks: Array<
+      | { kind: "h1" | "h2" | "h3"; text: string }
+      | { kind: "paragraph"; text: string }
+      | { kind: "rule" }
+    > = [];
+    const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+    let paragraphBuffer: string[] = [];
+
+    const flushParagraph = () => {
+      if (paragraphBuffer.length === 0) return;
+      const text = paragraphBuffer.join(" ").replace(/\s+/g, " ").trim();
+      if (text.length > 0) {
+        blocks.push({ kind: "paragraph", text });
+      }
+      paragraphBuffer = [];
+    };
+
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        flushParagraph();
+        return;
+      }
+
+      if (trimmed === "---" || trimmed === "***") {
+        flushParagraph();
+        blocks.push({ kind: "rule" });
+        return;
+      }
+
+      if (trimmed.startsWith("### ")) {
+        flushParagraph();
+        blocks.push({ kind: "h3", text: trimmed.slice(4).trim() });
+        return;
+      }
+
+      if (trimmed.startsWith("## ")) {
+        flushParagraph();
+        blocks.push({ kind: "h2", text: trimmed.slice(3).trim() });
+        return;
+      }
+
+      if (trimmed.startsWith("# ")) {
+        flushParagraph();
+        blocks.push({ kind: "h1", text: trimmed.slice(2).trim() });
+        return;
+      }
+
+      if (/^[-*]\s+/.test(trimmed)) {
+        paragraphBuffer.push(`• ${trimmed.replace(/^[-*]\s+/, "")}`);
+        return;
+      }
+
+      if (/^\d+\.\s+/.test(trimmed)) {
+        paragraphBuffer.push(trimmed.replace(/^\d+\.\s+/, ""));
+        return;
+      }
+
+      if (trimmed.startsWith(">")) {
+        paragraphBuffer.push(trimmed.replace(/^>\s?/, ""));
+        return;
+      }
+
+      paragraphBuffer.push(trimmed);
+    });
+
+    flushParagraph();
+    return blocks;
   }
 
   /**
@@ -648,220 +748,13 @@ export class DocumentExportService implements IExportService {
     projectId: string,
     config: import("@/domain/types/export-types").ExportConfig,
   ): Promise<Blob> {
-    const [{ default: html2pdf }, { marked }] = await Promise.all([
-      import("html2pdf.js"),
-      import("marked"),
-    ]);
-
     const options: ExportOptions = {};
     if (config.includeTOC !== undefined) options.includeTOC = config.includeTOC;
     if (config.epubMetadata?.title !== undefined)
       options.title = config.epubMetadata.title;
     if (config.epubMetadata?.author !== undefined)
       options.author = config.epubMetadata.author;
-
-    const markdown = await this.exportToMarkdown(projectId, options);
-    const rawHtmlContent = await marked(markdown);
-    const htmlContent = DOMPurify.sanitize(rawHtmlContent);
-
-    const fontFamily =
-      config.fontFamily || "'Georgia', 'Times New Roman', serif";
-    const fontSize = config.fontSize ? `${config.fontSize}pt` : "12pt";
-    const lineHeight = config.lineHeight || 1.6;
-    const textAlign = config.alignment || "justify";
-
-    const { container, exportRoot } = this.createPdfContainer(
-      htmlContent,
-      `
-        font-family: ${fontFamily};
-        font-size: ${fontSize};
-        line-height: ${lineHeight};
-        text-align: ${textAlign};
-      `,
-      `
-        [data-baa-export-root] h1 {
-          font-size: 2em;
-          margin-top: 1.5em;
-          margin-bottom: 0.8em;
-          page-break-before: always;
-          color: #1a1a1a;
-          text-align: center;
-        }
-        [data-baa-export-root] h1:first-child {
-          page-break-before: avoid;
-        }
-        [data-baa-export-root] h2 {
-          font-size: 1.5em;
-          margin-top: 1.2em;
-          margin-bottom: 0.6em;
-          color: #2a2a2a;
-        }
-        [data-baa-export-root] h3 {
-          font-size: 1.17em;
-          margin-top: 1em;
-          margin-bottom: 0.5em;
-          color: #3a3a3a;
-        }
-        [data-baa-export-root] p {
-          margin-bottom: 0.8em;
-          text-indent: 1.5em;
-        }
-        [data-baa-export-root] p:first-of-type {
-          text-indent: 0;
-        }
-        [data-baa-export-root] blockquote {
-          border-left: 3px solid #ccc;
-          padding-left: 15px;
-          margin-left: 0;
-          color: #666;
-          font-style: italic;
-        }
-      `,
-    );
-
-    try {
-      const margins: [number, number, number, number] = config.margins
-        ? [
-            config.margins.top,
-            config.margins.left,
-            config.margins.bottom,
-            config.margins.right,
-          ]
-        : [20, 20, 20, 20];
-
-      return await html2pdf()
-        .from(exportRoot)
-        .set({
-          margin: margins,
-          filename: `${options.title || "manuscript"}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            onclone: (clonedDocument: Document) => {
-              this.normalizeUnsupportedColors(clonedDocument);
-            },
-          },
-          jsPDF: {
-            unit: "mm",
-            format:
-              config.pageSize?.name?.toLowerCase() === "letter"
-                ? "letter"
-                : "a4",
-            orientation: "portrait",
-          },
-        })
-        .outputPdf("blob");
-    } finally {
-      document.body.removeChild(container);
-    }
-  }
-
-  private createPdfContainer(
-    htmlContent: string,
-    baseCss: string,
-    contentCss: string,
-  ): { container: HTMLDivElement; exportRoot: HTMLDivElement } {
-    const container = document.createElement("div");
-    container.setAttribute("data-baa-export-container", "true");
-    container.style.position = "fixed";
-    container.style.left = "-10000px";
-    container.style.top = "0";
-    container.style.width = "210mm";
-    container.style.backgroundColor = "#ffffff";
-    container.style.zIndex = "-1";
-
-    const style = document.createElement("style");
-    style.textContent = `
-      [data-baa-export-root] {
-        background-color: #ffffff !important;
-        color: #1f2937 !important;
-        margin: 0;
-        padding: 40px;
-        max-width: 100%;
-        ${baseCss}
-      }
-
-      [data-baa-export-root],
-      [data-baa-export-root] * {
-        border-color: #d1d5db !important;
-        outline-color: transparent !important;
-        text-decoration-color: currentColor !important;
-        box-shadow: none !important;
-        text-shadow: none !important;
-        filter: none !important;
-      }
-
-      [data-baa-export-root] a {
-        color: #1d4ed8 !important;
-      }
-
-      ${contentCss}
-    `;
-
-    const exportRoot = document.createElement("div");
-    exportRoot.setAttribute("data-baa-export-root", "true");
-    exportRoot.innerHTML = htmlContent;
-
-    container.appendChild(style);
-    container.appendChild(exportRoot);
-    document.body.appendChild(container);
-
-    return { container, exportRoot };
-  }
-
-  private normalizeUnsupportedColors(clonedDocument: Document): void {
-    const { body, defaultView } = clonedDocument;
-    if (!body || !defaultView) return;
-
-    const colorProps = [
-      "color",
-      "background-color",
-      "border-top-color",
-      "border-right-color",
-      "border-bottom-color",
-      "border-left-color",
-      "outline-color",
-      "text-decoration-color",
-      "caret-color",
-      "column-rule-color",
-    ] as const;
-
-    const rootAndChildren = [
-      body as HTMLElement,
-      ...(Array.from(body.querySelectorAll("*")) as HTMLElement[]),
-    ];
-
-    for (const element of rootAndChildren) {
-      const computed = defaultView.getComputedStyle(element);
-
-      for (const prop of colorProps) {
-        const value = computed.getPropertyValue(prop).trim();
-        if (!this.hasUnsupportedColorFunction(value)) continue;
-
-        element.style.setProperty(
-          prop,
-          this.getSafeFallbackColor(prop),
-          "important",
-        );
-      }
-
-      element.style.setProperty("box-shadow", "none", "important");
-      element.style.setProperty("text-shadow", "none", "important");
-      element.style.setProperty("filter", "none", "important");
-    }
-  }
-
-  private hasUnsupportedColorFunction(value: string): boolean {
-    return DocumentExportService.UNSUPPORTED_COLOR_FUNCTION_RE.test(value);
-  }
-
-  private getSafeFallbackColor(property: string): string {
-    if (property === "background-color") return "#ffffff";
-    if (property.startsWith("border-")) return "#d1d5db";
-    if (property === "outline-color") return "transparent";
-    return "#1f2937";
+    return this.exportToPDF(projectId, options);
   }
 
   /**

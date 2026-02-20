@@ -1,62 +1,26 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useExportPresets } from "../hooks/use-export-presets";
-import { useExportPreview } from "../hooks/use-export-preview";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useDocumentExport } from "@/hooks/use-document-export";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
-import DOMPurify from "dompurify";
-import type {
-  ExportConfig,
-  ExportFormat,
-  ExportPreset,
-} from "@/domain/types/export-types";
 
 const log = logger.scope("ExportDialog");
 
-/**
- * Safe HTML preview component that sanitizes content with DOMPurify
- */
-function SafePreviewContent({ html }: { html: string }) {
-  const sanitizedHtml = useMemo(() => {
-    return DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: [
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "p",
-        "br",
-        "strong",
-        "em",
-        "u",
-        "blockquote",
-        "ul",
-        "ol",
-        "li",
-        "a",
-        "span",
-        "div",
-      ],
-      ALLOWED_ATTR: ["class", "id", "style", "href"],
-    });
-  }, [html]);
-
-  return <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
-}
+type ExportFormat = "docx" | "pdf";
 
 interface ExportDialogProps {
   projectId: string;
@@ -64,345 +28,121 @@ interface ExportDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Main export dialog with template selection, configuration, and preview
- */
 export function ExportDialog({
   projectId,
   open,
   onOpenChange,
 }: ExportDialogProps) {
   const { projectRepository } = useAppServices();
-  const {
-    presets,
-    selectedPreset,
-    setSelectedPreset,
-    isLoading: presetsLoading,
-  } = useExportPresets();
-  const { exportWithPreset, isExporting } = useDocumentExport();
-  const {
-    preview,
-    currentPage,
-    isGenerating,
-    hasPreview,
-    totalPages,
-    canGoNext,
-    canGoPrevious,
-    error: previewError,
-    generatePreview,
-    nextPage,
-    previousPage,
-    clearPreview,
-  } = useExportPreview(projectId);
+  const { exportToDocx, exportToPDF, isExporting } = useDocumentExport();
 
-  // Fetch project data to get title and author
   const project = useLiveQuery(async () => {
     return await projectRepository.get(projectId);
   }, [projectId, projectRepository]);
 
-  const [customConfig, setCustomConfig] = useState<Partial<ExportConfig>>({});
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(
-    null,
-  );
-  const [activeTab, setActiveTab] = useState<"presets" | "config" | "preview">(
-    "presets",
-  );
-
-  // Auto-populate Title and Author from project data
-  useEffect(() => {
-    if (project && open) {
-      setCustomConfig((prev) => ({
-        ...prev,
-        epubMetadata: {
-          ...prev.epubMetadata,
-          title: prev.epubMetadata?.title || project.title || "",
-          author: prev.epubMetadata?.author || project.author || "",
-        },
-      }));
-    }
-  }, [project, open]);
+  const [format, setFormat] = useState<ExportFormat>("docx");
+  const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("");
+  const [includeTOC, setIncludeTOC] = useState(true);
 
   useEffect(() => {
-    if (selectedPreset) {
-      setSelectedFormat(selectedPreset.defaultFormat);
-    } else {
-      setSelectedFormat(null);
-    }
-  }, [selectedPreset]);
-
-  const effectivePreset: ExportPreset | null = useMemo(() => {
-    if (!selectedPreset) return null;
-    return {
-      ...selectedPreset,
-      defaultFormat: selectedFormat ?? selectedPreset.defaultFormat,
-    };
-  }, [selectedPreset, selectedFormat]);
+    if (!open || !project) return;
+    setTitle(project.title || "");
+    setAuthor(project.author || "");
+  }, [open, project]);
 
   const handleExport = async () => {
-    if (!effectivePreset) return;
-
     try {
-      await exportWithPreset(projectId, effectivePreset, customConfig);
+      if (format === "docx") {
+        await exportToDocx(projectId, { title, author, includeTOC });
+      } else {
+        await exportToPDF(projectId, { title, author, includeTOC });
+      }
       onOpenChange(false);
-      // Reset state
-      setCustomConfig({});
-      setSelectedFormat(null);
-      clearPreview();
     } catch (error) {
       log.error("Export failed:", error);
     }
   };
 
-  const handlePreview = async () => {
-    if (!effectivePreset) return;
-    await generatePreview(effectivePreset, customConfig);
-    setActiveTab("preview");
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-6xl h-[90dvh] sm:h-[85dvh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <DialogContent className="w-dialog-md">
         <DialogHeader>
           <DialogTitle>Export Manuscript</DialogTitle>
+          <DialogDescription>
+            Export is temporarily simplified to stable DOCX/PDF only.
+          </DialogDescription>
         </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-          className="flex-1 flex flex-col min-h-0"
-        >
-          <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
-            <TabsTrigger value="presets">Templates</TabsTrigger>
-            <TabsTrigger value="config" disabled={!selectedPreset}>
-              Configuration
-            </TabsTrigger>
-            <TabsTrigger value="preview" disabled={!hasPreview}>
-              Preview {hasPreview && `(${totalPages})`}
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <TabsContent
-              value="presets"
-              className="h-full overflow-y-auto mt-4"
-            >
-              {presetsLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">Loading presets...</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
-                  {presets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelectedPreset(preset);
-                        setActiveTab("config");
-                      }}
-                      className={`p-4 border-2 rounded-lg text-left transition-all hover:border-primary ${
-                        selectedPreset?.id === preset.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border"
-                      }`}
-                    >
-                      <h3 className="font-semibold text-lg mb-2">
-                        {preset.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {preset.description}
-                      </p>
-                      <div className="flex gap-2 flex-wrap">
-                        {preset.supportedFormats.map((format) => (
-                          <span
-                            key={format}
-                            className="text-xs px-2 py-1 rounded bg-secondary"
-                          >
-                            {format.toUpperCase()}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="config" className="h-full overflow-y-auto mt-4">
-              {selectedPreset ? (
-                <div className="p-4 space-y-4">
-                  <div className="rounded-lg border p-4 bg-muted/50">
-                    <h3 className="font-semibold mb-2">Selected Template</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedPreset.name}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Export format:{" "}
-                      {(
-                        selectedFormat || selectedPreset.defaultFormat
-                      ).toUpperCase()}
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg border p-4">
-                    <h3 className="font-semibold mb-3">Basic Configuration</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium">Format</label>
-                        <select
-                          className="w-full mt-1 px-3 py-2 border rounded bg-background"
-                          value={selectedFormat || selectedPreset.defaultFormat}
-                          onChange={(e) =>
-                            setSelectedFormat(e.target.value as ExportFormat)
-                          }
-                          disabled={selectedPreset.supportedFormats.length <= 1}
-                        >
-                          {selectedPreset.supportedFormats.map((format) => (
-                            <option key={format} value={format}>
-                              {format.toUpperCase()}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Title</label>
-                        <input
-                          type="text"
-                          placeholder="Enter title..."
-                          className="w-full mt-1 px-3 py-2 border rounded"
-                          value={customConfig.epubMetadata?.title || ""}
-                          onChange={(e) =>
-                            setCustomConfig({
-                              ...customConfig,
-                              epubMetadata: {
-                                ...customConfig.epubMetadata,
-                                title: e.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Author</label>
-                        <input
-                          type="text"
-                          placeholder="Enter author name..."
-                          className="w-full mt-1 px-3 py-2 border rounded"
-                          value={customConfig.epubMetadata?.author || ""}
-                          onChange={(e) =>
-                            setCustomConfig({
-                              ...customConfig,
-                              epubMetadata: {
-                                ...customConfig.epubMetadata,
-                                author: e.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-sm text-muted-foreground">
-                    <p>
-                      Full configuration options (front/back matter, CSS themes)
-                      will be available in the next update.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">
-                    Select a template first
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="preview" className="h-full flex flex-col mt-4">
-              {hasPreview ? (
-                <div className="flex-1 min-h-0 flex flex-col">
-                  <div className="mb-4 flex flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={previousPage}
-                        disabled={!canGoPrevious}
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-sm text-muted-foreground">
-                        Page {currentPage + 1} of {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={nextPage}
-                        disabled={!canGoNext}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={clearPreview}>
-                      Close Preview
-                    </Button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto border rounded-lg p-4 bg-white">
-                    <SafePreviewContent
-                      html={preview[currentPage]?.content || ""}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  {previewError ? (
-                    <div className="text-center">
-                      <p className="text-destructive font-medium">
-                        Preview Error
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {previewError}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      No preview available
-                    </p>
-                  )}
-                </div>
-              )}
-            </TabsContent>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Format</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={format === "docx" ? "default" : "outline"}
+                onClick={() => setFormat("docx")}
+                disabled={isExporting}
+              >
+                DOCX
+              </Button>
+              <Button
+                type="button"
+                variant={format === "pdf" ? "default" : "outline"}
+                onClick={() => setFormat("pdf")}
+                disabled={isExporting}
+              >
+                PDF
+              </Button>
+            </div>
           </div>
-        </Tabs>
 
-        <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+          <div className="space-y-2">
+            <Label htmlFor="export-title">Title</Label>
+            <Input
+              id="export-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Manuscript title"
+              disabled={isExporting}
+            />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={handlePreview}
-              disabled={!selectedPreset || isGenerating}
-            >
-              {isGenerating ? "Generating..." : "Preview"}
-            </Button>
-            <Button
-              onClick={handleExport}
-              disabled={!effectivePreset || isExporting}
-            >
-              {isExporting
-                ? "Exporting..."
-                : `Export${effectivePreset ? ` (${effectivePreset.defaultFormat.toUpperCase()})` : ""}`}
-            </Button>
+
+          <div className="space-y-2">
+            <Label htmlFor="export-author">Author</Label>
+            <Input
+              id="export-author"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              placeholder="Author name"
+              disabled={isExporting}
+            />
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="export-toc"
+              checked={includeTOC}
+              onCheckedChange={(checked) => setIncludeTOC(Boolean(checked))}
+              disabled={isExporting}
+            />
+            <Label htmlFor="export-toc">Include table of contents</Label>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isExporting}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleExport} disabled={isExporting}>
+            {isExporting
+              ? `Exporting ${format.toUpperCase()}...`
+              : `Export ${format.toUpperCase()}`}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
