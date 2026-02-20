@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { AIConnection, AIVendor } from "@/lib/config/ai-vendors";
+import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { formatModelIds, parseModelIds } from "@/lib/ai/model-ids";
 import { VendorLogo } from "../VendorLogo";
 
 const MAX_VISIBLE_MODELS = 10;
@@ -42,17 +45,24 @@ export function ConnectionForm({
   const [customEndpoint, setCustomEndpoint] = useState(
     connection.customEndpoint || "",
   );
+  const [manualModelInput, setManualModelInput] = useState(
+    formatModelIds(connection.models),
+  );
+  const [manualModelError, setManualModelError] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     setConnectionName(connection.name);
     setApiKey(connection.apiKey);
     setCustomEndpoint(connection.customEndpoint || "");
+    setManualModelInput(formatModelIds(connection.models));
+    setManualModelError("");
   }, [
     connection.id,
     connection.name,
     connection.apiKey,
     connection.customEndpoint,
+    connection.models,
   ]);
 
   const isOpenAICloudEndpoint =
@@ -60,7 +70,11 @@ export function ConnectionForm({
     (!customEndpoint.trim() ||
       customEndpoint.trim() === "https://api.openai.com/v1");
   const requiresApiKey = vendor.requiresAuth || isOpenAICloudEndpoint;
-  const canRefreshModels = loading || (requiresApiKey && !apiKey.trim());
+  const supportsAutoListing = modelDiscoveryService.supportsModelListing(
+    connection.provider,
+  );
+  const canRefreshModels =
+    loading || !supportsAutoListing || (requiresApiKey && !apiKey.trim());
 
   const handleNameChange = (value: string) => {
     setConnectionName(value);
@@ -75,6 +89,17 @@ export function ConnectionForm({
   const handleEndpointChange = (value: string) => {
     setCustomEndpoint(value);
     onSave({ customEndpoint: value });
+  };
+
+  const applyManualModels = () => {
+    const models = parseModelIds(manualModelInput);
+    if (models.length === 0) {
+      setManualModelError("Enter at least one model ID.");
+      return;
+    }
+
+    setManualModelError("");
+    onSave({ models });
   };
 
   return (
@@ -167,10 +192,46 @@ export function ConnectionForm({
             <RefreshCw
               className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
             />
-            {loading ? "Fetching Models..." : "Refresh Models"}
+            {loading
+              ? "Fetching Models..."
+              : supportsAutoListing
+                ? "Refresh Models"
+                : "Auto Discovery Unavailable"}
           </Button>
 
+          {!supportsAutoListing && (
+            <p className="text-xs text-muted-foreground">
+              This provider does not support automatic model discovery here. Add
+              model IDs manually below.
+            </p>
+          )}
+
           {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <div className="space-y-2">
+            <Label htmlFor="manual-models">Manual Model IDs</Label>
+            <Textarea
+              id="manual-models"
+              value={manualModelInput}
+              onChange={(e) => setManualModelInput(e.target.value)}
+              placeholder={"gpt-4.1-mini\nclaude-sonnet-4-20250514"}
+              className="min-h-24"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={applyManualModels}
+            >
+              Save Manual Model IDs
+            </Button>
+            {manualModelError && (
+              <p className="text-sm text-destructive">{manualModelError}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              One model ID per line or comma-separated.
+            </p>
+          </div>
 
           {connection.models && connection.models.length > 0 && (
             <div className="mt-2 rounded-md bg-muted p-3">

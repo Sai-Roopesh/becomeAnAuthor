@@ -394,11 +394,28 @@ pub fn save_series_codex_entry(series_id: String, entry: CodexEntry) -> Result<(
     let codex_dir = get_series_codex_path(&series_id)?;
     let category_dir = codex_dir.join(&entry.category);
     fs::create_dir_all(&category_dir).map_err(|e| e.to_string())?;
-    
+
+    // Remove stale copies of this entry from other category folders.
+    let entry_filename = format!("{}.json", entry.id);
+    if codex_dir.exists() {
+        for candidate in WalkDir::new(&codex_dir)
+            .min_depth(2)
+            .max_depth(2)
+            .into_iter()
+            .flatten()
+        {
+            if candidate.file_type().is_file()
+                && candidate.file_name().to_string_lossy() == entry_filename
+            {
+                fs::remove_file(candidate.path()).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
     let entry_path = category_dir.join(format!("{}.json", entry.id));
     let json = serde_json::to_string_pretty(&entry).map_err(|e| e.to_string())?;
     fs::write(&entry_path, json).map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
@@ -406,12 +423,37 @@ pub fn save_series_codex_entry(series_id: String, entry: CodexEntry) -> Result<(
 #[tauri::command]
 pub fn delete_series_codex_entry(series_id: String, entry_id: String, category: String) -> Result<(), String> {
     let codex_dir = get_series_codex_path(&series_id)?;
-    let entry_path = codex_dir.join(&category).join(format!("{}.json", entry_id));
-    
+    let entry_filename = format!("{}.json", entry_id);
+
+    // Delete all copies of this entry across categories.
+    if codex_dir.exists() {
+        for candidate in WalkDir::new(&codex_dir)
+            .min_depth(2)
+            .max_depth(2)
+            .into_iter()
+            .flatten()
+        {
+            if candidate.file_type().is_file()
+                && candidate.file_name().to_string_lossy() == entry_filename
+            {
+                fs::remove_file(candidate.path()).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    // Backstop the provided category path.
+    let entry_path = codex_dir.join(&category).join(&entry_filename);
     if entry_path.exists() {
         fs::remove_file(&entry_path).map_err(|e| e.to_string())?;
     }
-    
+
+    // Cascade remove relations that reference the deleted entry.
+    let relations_path = get_relations_path(&series_id)?;
+    let mut relations = list_series_codex_relations(series_id).unwrap_or_default();
+    relations.retain(|r| r.parent_id != entry_id && r.child_id != entry_id);
+    let json = serde_json::to_string_pretty(&relations).map_err(|e| e.to_string())?;
+    fs::write(&relations_path, json).map_err(|e| e.to_string())?;
+
     Ok(())
 }
 

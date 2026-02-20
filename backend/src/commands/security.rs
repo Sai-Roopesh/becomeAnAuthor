@@ -7,22 +7,30 @@ use tauri::command;
 
 const SERVICE_NAME: &str = "com.becomeauthor.app";
 
+fn keychain_account(provider: &str, connection_id: &str) -> String {
+    format!("api-key-{}-{}", provider, connection_id)
+}
+
 /// Store an API key in the OS keychain
 ///
 /// # Arguments
 /// * `provider` - The AI provider name (e.g., "openai", "anthropic", "google")
+/// * `connection_id` - The unique AI connection ID
 /// * `key` - The API key to store (will be encrypted by OS)
 ///
 /// # Returns
 /// * `Ok(())` on success
 /// * `Err(String)` with error message on failure
 #[command]
-pub fn store_api_key(provider: String, key: String) -> Result<(), String> {
+pub fn store_api_key(provider: String, connection_id: String, key: String) -> Result<(), String> {
     log::info!("Storing API key for provider: {}", provider);
 
     // Validate inputs
     if provider.is_empty() {
         return Err("Provider name cannot be empty".to_string());
+    }
+    if connection_id.is_empty() {
+        return Err("Connection ID cannot be empty".to_string());
     }
 
     if key.is_empty() {
@@ -32,8 +40,8 @@ pub fn store_api_key(provider: String, key: String) -> Result<(), String> {
     // Create keyring entry
     // This creates an account in OS keychain:
     // - Service: "com.becomeauthor.app"
-    // - Account: "api-key-<provider>"
-    let account = format!("api-key-{}", provider);
+    // - Account: "api-key-<provider>-<connection_id>"
+    let account = keychain_account(&provider, &connection_id);
     let entry = Entry::new(SERVICE_NAME, &account)
         .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
 
@@ -50,20 +58,24 @@ pub fn store_api_key(provider: String, key: String) -> Result<(), String> {
 ///
 /// # Arguments
 /// * `provider` - The AI provider name
+/// * `connection_id` - The unique AI connection ID
 ///
 /// # Returns
 /// * `Ok(Some(String))` with the API key if found
 /// * `Ok(None)` if no key is stored for this provider
 /// * `Err(String)` on error
 #[command]
-pub fn get_api_key(provider: String) -> Result<Option<String>, String> {
+pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<String>, String> {
     log::info!("Retrieving API key for provider: {}", provider);
 
     if provider.is_empty() {
         return Err("Provider name cannot be empty".to_string());
     }
+    if connection_id.is_empty() {
+        return Err("Connection ID cannot be empty".to_string());
+    }
 
-    let account = format!("api-key-{}", provider);
+    let account = keychain_account(&provider, &connection_id);
     let entry = Entry::new(SERVICE_NAME, &account)
         .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
 
@@ -88,19 +100,23 @@ pub fn get_api_key(provider: String) -> Result<Option<String>, String> {
 ///
 /// # Arguments
 /// * `provider` - The AI provider name
+/// * `connection_id` - The unique AI connection ID
 ///
 /// # Returns
 /// * `Ok(())` on success (even if key didn't exist)
 /// * `Err(String)` on error
 #[command]
-pub fn delete_api_key(provider: String) -> Result<(), String> {
+pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), String> {
     log::info!("Deleting API key for provider: {}", provider);
 
     if provider.is_empty() {
         return Err("Provider name cannot be empty".to_string());
     }
+    if connection_id.is_empty() {
+        return Err("Connection ID cannot be empty".to_string());
+    }
 
-    let account = format!("api-key-{}", provider);
+    let account = keychain_account(&provider, &connection_id);
     let entry = Entry::new(SERVICE_NAME, &account)
         .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
 
@@ -158,15 +174,22 @@ mod tests {
     #[test]
     fn test_validate_provider_name() {
         // Empty provider should error
-        assert!(store_api_key("".to_string(), "test-key".to_string()).is_err());
-        assert!(get_api_key("".to_string()).is_err());
-        assert!(delete_api_key("".to_string()).is_err());
+        assert!(store_api_key("".to_string(), "conn-1".to_string(), "test-key".to_string()).is_err());
+        assert!(get_api_key("".to_string(), "conn-1".to_string()).is_err());
+        assert!(delete_api_key("".to_string(), "conn-1".to_string()).is_err());
+    }
+
+    #[test]
+    fn test_validate_connection_id() {
+        assert!(store_api_key("test".to_string(), "".to_string(), "test-key".to_string()).is_err());
+        assert!(get_api_key("test".to_string(), "".to_string()).is_err());
+        assert!(delete_api_key("test".to_string(), "".to_string()).is_err());
     }
 
     #[test]
     fn test_validate_api_key() {
         // Empty key should error
-        assert!(store_api_key("test".to_string(), "".to_string()).is_err());
+        assert!(store_api_key("test".to_string(), "conn-1".to_string(), "".to_string()).is_err());
     }
 
     // Integration tests for actual keychain operations
@@ -174,16 +197,17 @@ mod tests {
     #[ignore] // Run with: cargo test -- --ignored
     fn test_store_and_retrieve() {
         let provider = "test-provider".to_string();
+        let connection_id = "test-connection".to_string();
         let api_key = "test-key-12345".to_string();
 
         // Store
-        assert!(store_api_key(provider.clone(), api_key.clone()).is_ok());
+        assert!(store_api_key(provider.clone(), connection_id.clone(), api_key.clone()).is_ok());
 
         // Retrieve
-        let retrieved = get_api_key(provider.clone()).unwrap();
+        let retrieved = get_api_key(provider.clone(), connection_id.clone()).unwrap();
         assert_eq!(retrieved, Some(api_key));
 
         // Cleanup
-        assert!(delete_api_key(provider).is_ok());
+        assert!(delete_api_key(provider, connection_id).is_ok());
     }
 }

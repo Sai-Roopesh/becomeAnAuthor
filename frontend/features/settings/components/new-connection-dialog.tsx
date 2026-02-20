@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -22,7 +23,8 @@ import {
   getAllVendors,
   validateApiKey,
 } from "@/lib/config/ai-vendors";
-import { fetchModelsForConnection } from "@/lib/ai";
+import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { parseModelIds } from "@/lib/ai/model-ids";
 import { Loader2, Eye, EyeOff, Check } from "lucide-react";
 import { VendorLogo } from "./VendorLogo";
 
@@ -31,6 +33,7 @@ const connectionSchema = z.object({
   name: z.string().min(1, "Connection name is required"),
   customEndpoint: z.string().optional(),
   apiKey: z.string().optional(),
+  manualModels: z.string().optional(),
 });
 
 type ConnectionFormData = z.infer<typeof connectionSchema>;
@@ -51,6 +54,9 @@ export function NewConnectionDialog({
   );
   const [showApiKey, setShowApiKey] = useState(false);
   const [loading, setLoading] = useState(false);
+  const supportsAutoListing = selectedProvider
+    ? modelDiscoveryService.supportsModelListing(selectedProvider)
+    : false;
 
   const vendors = getAllVendors();
 
@@ -72,12 +78,13 @@ export function NewConnectionDialog({
       name: vendor.name,
       apiKey: "",
       customEndpoint: vendor.defaultEndpoint || "",
+      manualModels: "",
     });
   };
 
   const handleBack = () => {
     setSelectedProvider(null);
-    reset({ name: "", apiKey: "", customEndpoint: "" });
+    reset({ name: "", apiKey: "", customEndpoint: "", manualModels: "" });
   };
 
   const onSubmit = async (data: ConnectionFormData) => {
@@ -87,6 +94,7 @@ export function NewConnectionDialog({
     const normalizedApiKey = data.apiKey?.trim() || "";
     const normalizedEndpoint =
       data.customEndpoint?.trim() || vendor.defaultEndpoint;
+    const manualModels = parseModelIds(data.manualModels || "");
 
     // Manual validation based on provider
     if (vendor.requiresAuth && !normalizedApiKey) {
@@ -132,8 +140,41 @@ export function NewConnectionDialog({
         updatedAt: Date.now(),
       };
 
-      const models = await fetchModelsForConnection(connection);
-      connection.models = models;
+      if (manualModels.length > 0) {
+        connection.models = manualModels;
+      } else {
+        if (!supportsAutoListing) {
+          setError("root", {
+            message:
+              "Automatic model discovery is unavailable for this provider. Enter model IDs manually to continue.",
+          });
+          return;
+        }
+
+        const result = await modelDiscoveryService.fetchModels(
+          selectedProvider,
+          normalizedApiKey,
+          normalizedEndpoint,
+        );
+
+        if (result.error) {
+          setError("root", {
+            message: `${result.error} Add model IDs manually below.`,
+          });
+          return;
+        }
+
+        const models = result.models.map((model) => model.id);
+        if (models.length === 0) {
+          setError("root", {
+            message:
+              "No models were returned for this connection. Enter model IDs manually or verify the API key and endpoint.",
+          });
+          return;
+        }
+
+        connection.models = models;
+      }
 
       onSave(connection);
       handleClose();
@@ -149,7 +190,7 @@ export function NewConnectionDialog({
 
   const handleClose = () => {
     setSelectedProvider(null);
-    reset({ name: "", apiKey: "", customEndpoint: "" });
+    reset({ name: "", apiKey: "", customEndpoint: "", manualModels: "" });
     onClose();
   };
 
@@ -292,6 +333,28 @@ export function NewConnectionDialog({
                 </p>
               </div>
             )}
+
+            <div>
+              <Label htmlFor="manualModels" className="text-sm font-medium">
+                Manual Model IDs (Optional)
+              </Label>
+              <Textarea
+                id="manualModels"
+                {...register("manualModels")}
+                placeholder={"gpt-4.1-mini\nclaude-sonnet-4-20250514"}
+                className="mt-2 min-h-24"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter one model ID per line (or comma-separated). If provided,
+                these will be used instead of auto-discovery.
+              </p>
+              {!supportsAutoListing && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Auto-discovery is unavailable for this provider in the app, so
+                  manual model IDs are required.
+                </p>
+              )}
+            </div>
 
             {errors.root && (
               <div className="p-3 bg-destructive/10 border border-destructive rounded-md">

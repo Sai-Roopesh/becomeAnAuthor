@@ -124,7 +124,7 @@ export interface CodexEntry {
     doNotTrack?: boolean;
   };
   // NEW: Phase 1 enhancements
-  templateId?: string; // which template was used
+  templateId?: string | undefined; // which template was used
   customFields?: Record<string, unknown>; // template field values
   gallery?: string[]; // multiple images (Base64 or URLs)
   completeness?: number; // % of template filled (0-100)

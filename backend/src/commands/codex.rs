@@ -1,10 +1,35 @@
 // Codex commands
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use serde::{de::DeserializeOwned, Serialize};
 use walkdir::WalkDir;
 
 use crate::models::{CodexEntry, CodexRelation, CodexTag, CodexEntryTag, CodexTemplate, CodexRelationType, SceneCodexLink};
+
+fn read_json_vec<T>(path: &Path) -> Result<Vec<T>, String>
+where
+    T: DeserializeOwned,
+{
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    Ok(serde_json::from_str(&content).unwrap_or_default())
+}
+
+fn write_json_vec<T>(path: &Path, items: &[T]) -> Result<(), String>
+where
+    T: Serialize,
+{
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    let json = serde_json::to_string_pretty(items).map_err(|e| e.to_string())?;
+    fs::write(path, json).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub fn list_codex_entries(project_path: String) -> Result<Vec<CodexEntry>, String> {
@@ -43,15 +68,75 @@ pub fn save_codex_entry(project_path: String, entry: CodexEntry) -> Result<(), S
 
 #[tauri::command]
 pub fn delete_codex_entry(project_path: String, entry_id: String, category: String) -> Result<(), String> {
-    let entry_path = PathBuf::from(&project_path)
-        .join("codex")
-        .join(&category)
-        .join(format!("{}.json", entry_id));
-    
-    if entry_path.exists() {
-        fs::remove_file(&entry_path).map_err(|e| e.to_string())?;
+    let project_root = PathBuf::from(&project_path);
+    let codex_root = project_root.join(".meta").join("codex");
+    let entry_filename = format!("{}.json", entry_id);
+
+    // Delete every matching codex entry file to avoid stale duplicates across categories.
+    if codex_root.exists() {
+        for entry in WalkDir::new(&codex_root).min_depth(2).max_depth(2).into_iter().flatten() {
+            if entry.file_type().is_file() && entry.file_name().to_string_lossy() == entry_filename {
+                fs::remove_file(entry.path()).map_err(|e| e.to_string())?;
+            }
+        }
     }
-    
+
+    // Backstop the provided category path as well.
+    let entry_path = codex_root.join(&category).join(&entry_filename);
+    if entry_path.exists() {
+        fs::remove_file(entry_path).map_err(|e| e.to_string())?;
+    }
+
+    // Cascade remove relationships involving this entry.
+    let relations_path = project_root.join(".meta").join("codex_relations.json");
+    let mut relations: Vec<CodexRelation> = read_json_vec(&relations_path)?;
+    relations.retain(|relation| relation.parent_id != entry_id && relation.child_id != entry_id);
+    write_json_vec(&relations_path, &relations)?;
+
+    // Cascade remove scene links pointing to this entry.
+    let scene_links_path = project_root.join(".meta").join("scene_codex_links.json");
+    let mut scene_links: Vec<SceneCodexLink> = read_json_vec(&scene_links_path)?;
+    scene_links.retain(|link| link.codex_id != entry_id);
+    write_json_vec(&scene_links_path, &scene_links)?;
+
+    // Cascade remove entry-tag associations for this entry.
+    let entry_tags_path = project_root.join(".meta").join("codex_entry_tags.json");
+    let mut entry_tags: Vec<CodexEntryTag> = read_json_vec(&entry_tags_path)?;
+    entry_tags.retain(|entry_tag| entry_tag.entry_id != entry_id);
+    write_json_vec(&entry_tags_path, &entry_tags)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_codex_tag(project_path: String, tag_id: String) -> Result<(), String> {
+    let project_root = PathBuf::from(&project_path);
+    let tags_path = project_root.join(".meta").join("codex_tags.json");
+    let mut tags: Vec<CodexTag> = read_json_vec(&tags_path)?;
+    tags.retain(|tag| tag.id != tag_id);
+    write_json_vec(&tags_path, &tags)?;
+
+    let entry_tags_path = project_root.join(".meta").join("codex_entry_tags.json");
+    let mut entry_tags: Vec<CodexEntryTag> = read_json_vec(&entry_tags_path)?;
+    entry_tags.retain(|entry_tag| entry_tag.tag_id != tag_id);
+    write_json_vec(&entry_tags_path, &entry_tags)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_codex_relation_type(project_path: String, type_id: String) -> Result<(), String> {
+    let project_root = PathBuf::from(&project_path);
+    let relation_types_path = project_root.join(".meta").join("codex_relation_types.json");
+    let mut relation_types: Vec<CodexRelationType> = read_json_vec(&relation_types_path)?;
+    relation_types.retain(|rel_type| rel_type.id != type_id);
+    write_json_vec(&relation_types_path, &relation_types)?;
+
+    let relations_path = project_root.join(".meta").join("codex_relations.json");
+    let mut relations: Vec<CodexRelation> = read_json_vec(&relations_path)?;
+    relations.retain(|relation| relation.type_id.as_deref() != Some(type_id.as_str()));
+    write_json_vec(&relations_path, &relations)?;
+
     Ok(())
 }
 
@@ -122,16 +207,6 @@ pub fn save_codex_tag(project_path: String, tag: CodexTag) -> Result<(), String>
     } else {
         tags.push(tag);
     }
-    let json = serde_json::to_string_pretty(&tags).map_err(|e| e.to_string())?;
-    fs::write(&path, json).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-pub fn delete_codex_tag(project_path: String, tag_id: String) -> Result<(), String> {
-    let path = PathBuf::from(&project_path).join(".meta/codex_tags.json");
-    let mut tags = list_codex_tags(project_path).unwrap_or_default();
-    tags.retain(|t| t.id != tag_id);
     let json = serde_json::to_string_pretty(&tags).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
     Ok(())
@@ -239,16 +314,6 @@ pub fn save_codex_relation_type(project_path: String, rel_type: CodexRelationTyp
     } else {
         types.push(rel_type);
     }
-    let json = serde_json::to_string_pretty(&types).map_err(|e| e.to_string())?;
-    fs::write(&path, json).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-pub fn delete_codex_relation_type(project_path: String, type_id: String) -> Result<(), String> {
-    let path = PathBuf::from(&project_path).join(".meta/codex_relation_types.json");
-    let mut types = list_codex_relation_types(project_path).unwrap_or_default();
-    types.retain(|t| t.id != type_id);
     let json = serde_json::to_string_pretty(&types).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
     Ok(())

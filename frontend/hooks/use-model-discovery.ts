@@ -69,7 +69,7 @@ export function useModelDiscovery(
   const resolveConnectionApiKey = useCallback(
     async (connection: AIConnection): Promise<string> => {
       if (connection.apiKey.trim()) return connection.apiKey.trim();
-      return (await getAPIKey(connection.provider)) || "";
+      return (await getAPIKey(connection.provider, connection.id)) || "";
     },
     [],
   );
@@ -95,6 +95,25 @@ export function useModelDiscovery(
         resolvedKey,
         connection.customEndpoint,
       );
+
+      if (result.models.length > 0) {
+        return result;
+      }
+
+      const manualModels = (connection.models || [])
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+
+      if (manualModels.length > 0) {
+        return {
+          models: manualModels.map((id) => ({
+            id,
+            name: id,
+            provider: connection.provider,
+          })),
+          cachedAt: Date.now(),
+        };
+      }
 
       return result;
     },

@@ -47,10 +47,12 @@ import {
 interface ProjectNavigationProps {
   projectId: string;
   onSelectSnippet?: (id: string) => void;
+  onDeleteSnippet?: (id: string) => void;
   // Slot props for cross-feature components
   renderSnippetList?: (props: {
     projectId: string;
     onSelect: (id: string) => void;
+    onDeleteSnippet?: (id: string) => void;
   }) => ReactNode;
   renderCodexList?: (props: {
     seriesId: string;
@@ -67,6 +69,7 @@ interface ProjectNavigationProps {
 export function ProjectNavigation({
   projectId,
   onSelectSnippet,
+  onDeleteSnippet,
   renderSnippetList,
   renderCodexList,
   renderNodeActionsMenu,
@@ -444,6 +447,7 @@ export function ProjectNavigation({
             renderSnippetList({
               projectId,
               onSelect: (id) => onSelectSnippet?.(id),
+              onDeleteSnippet: (id) => onDeleteSnippet?.(id),
             })
           ) : (
             <div className="p-4 text-center text-muted-foreground text-sm">

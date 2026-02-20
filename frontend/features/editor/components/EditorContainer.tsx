@@ -69,6 +69,10 @@ export function EditorContainer({ projectId }: { projectId: string }) {
     [isMobile, setShowSidebar],
   );
 
+  const handleSnippetDelete = useCallback((id: string) => {
+    setActiveSnippetId((current) => (current === id ? null : current));
+  }, []);
+
   const handleCloseSnippet = () => setActiveSnippetId(null);
 
   // Check if we have an active scene
@@ -80,8 +84,15 @@ export function EditorContainer({ projectId }: { projectId: string }) {
       <ProjectNavigation
         projectId={projectId}
         onSelectSnippet={handleSnippetSelect}
+        onDeleteSnippet={handleSnippetDelete}
         renderSnippetList={(props) => (
-          <SnippetList projectId={props.projectId} onSelect={props.onSelect} />
+          <SnippetList
+            projectId={props.projectId}
+            onSelect={props.onSelect}
+            {...(props.onDeleteSnippet && {
+              onDeleteSnippet: props.onDeleteSnippet,
+            })}
+          />
         )}
         renderCodexList={(props) => (
           <CodexList
@@ -99,7 +110,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
         )}
       />
     ),
-    [projectId, handleSnippetSelect],
+    [projectId, handleSnippetSelect, handleSnippetDelete],
   );
 
   const renderSnippetEditor = useCallback(

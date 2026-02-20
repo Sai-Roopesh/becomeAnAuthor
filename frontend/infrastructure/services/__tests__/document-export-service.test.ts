@@ -202,6 +202,69 @@ describe("DocumentExportService Contract", () => {
 
       expect(markdown).toContain("Story content here");
     });
+
+    it("MUST preserve paragraph breaks in scene content", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockAct({ id: "act-1" }),
+        createMockChapter({ id: "chapter-1", parentId: "act-1" }),
+        createMockScene({
+          id: "scene-1",
+          parentId: "chapter-1",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "First paragraph." }],
+              },
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Second paragraph." }],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1");
+
+      expect(markdown).toContain("First paragraph.\n\nSecond paragraph.");
+    });
+
+    it("MUST hydrate scene content when project listing has empty placeholders", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockAct({ id: "act-1" }),
+        createMockChapter({ id: "chapter-1", parentId: "act-1" }),
+        createMockScene({
+          id: "scene-empty",
+          parentId: "chapter-1",
+          title: "Hydrated Scene",
+          content: { type: "doc", content: [] },
+        }),
+      ]);
+
+      vi.mocked(mockRepo.get).mockResolvedValue(
+        createMockScene({
+          id: "scene-empty",
+          parentId: "chapter-1",
+          title: "Hydrated Scene",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Loaded full content" }],
+              },
+            ],
+          },
+        }),
+      );
+
+      const markdown = await service.exportToMarkdown("proj-1");
+
+      expect(mockRepo.get).toHaveBeenCalledWith("scene-empty");
+      expect(markdown).toContain("Loaded full content");
+    });
   });
 
   // ========================================

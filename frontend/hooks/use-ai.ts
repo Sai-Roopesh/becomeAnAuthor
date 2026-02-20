@@ -70,7 +70,7 @@ function getDefaultModel(preferred?: string): string {
   if (preferred) return preferred;
   const lastUsed = storage.getItem<string>("last_used_model", "");
   if (lastUsed) return lastUsed;
-  return "gpt-4.1-mini"; // Fallback default
+  return "";
 }
 
 /**

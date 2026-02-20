@@ -86,6 +86,27 @@ export function ChatHeader({
         </h2>
       )}
 
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full hover:bg-muted"
+          onClick={onArchive}
+          title={isArchived ? "Restore Chat" : "Archive Chat"}
+        >
+          <Archive className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full hover:bg-destructive/10 hover:text-destructive"
+          onClick={onDelete}
+          title="Delete Chat"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
       {/* Actions Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

@@ -341,6 +341,15 @@ export async function deleteSceneNote(
   return invoke("delete_scene_note", { projectPath, sceneId });
 }
 
+// ============ Collaboration Commands ============
+
+export async function deleteYjsState(
+  projectPath: string,
+  sceneId: string,
+): Promise<void> {
+  return invoke("delete_yjs_state", { projectPath, sceneId });
+}
+
 // ==========================================
 // Codex Commands
 // ==========================================

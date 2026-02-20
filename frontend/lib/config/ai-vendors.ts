@@ -28,7 +28,6 @@ export interface AIVendor {
   setupUrl: string;
   requiresAuth: boolean;
   defaultEndpoint?: string;
-  defaultModels?: string[];
   apiKeyPlaceholder?: string;
 }
 
@@ -49,11 +48,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🔷",
     setupUrl: "https://aistudio.google.com/app/apikey",
     requiresAuth: true,
-    defaultModels: [
-      "gemini-2.5-flash",
-      "gemini-2.5-pro",
-      "gemini-2.5-flash-thinking",
-    ],
   },
   anthropic: {
     id: "anthropic",
@@ -62,11 +56,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🧠",
     setupUrl: "https://console.anthropic.com/settings/keys",
     requiresAuth: true,
-    defaultModels: [
-      "claude-sonnet-4-20250514",
-      "claude-3-7-sonnet-20250219",
-      "claude-3-5-haiku-20241022",
-    ],
   },
   openai: {
     id: "openai",
@@ -76,7 +65,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     setupUrl: "https://platform.openai.com/api-keys",
     requiresAuth: false,
     defaultEndpoint: "https://api.openai.com/v1",
-    defaultModels: ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"],
   },
   mistral: {
     id: "mistral",
@@ -85,12 +73,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🌫️",
     setupUrl: "https://console.mistral.ai/api-keys/",
     requiresAuth: true,
-    defaultModels: [
-      "mistral-large-latest",
-      "mistral-medium-latest",
-      "mistral-small-latest",
-      "codestral-latest",
-    ],
   },
   deepseek: {
     id: "deepseek",
@@ -99,7 +81,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🔍",
     setupUrl: "https://platform.deepseek.com/api_keys",
     requiresAuth: true,
-    defaultModels: ["deepseek-chat", "deepseek-reasoner"],
   },
   groq: {
     id: "groq",
@@ -108,12 +89,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "⚡",
     setupUrl: "https://console.groq.com/keys",
     requiresAuth: true,
-    defaultModels: [
-      "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
-      "mixtral-8x7b-32768",
-      "gemma2-9b-it",
-    ],
   },
   cohere: {
     id: "cohere",
@@ -122,7 +97,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "📊",
     setupUrl: "https://dashboard.cohere.com/api-keys",
     requiresAuth: true,
-    defaultModels: ["command-r-plus", "command-r", "command-light"],
   },
   xai: {
     id: "xai",
@@ -131,7 +105,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🤖",
     setupUrl: "https://x.ai/",
     requiresAuth: true,
-    defaultModels: ["grok-2", "grok-2-mini"],
   },
   azure: {
     id: "azure",
@@ -149,11 +122,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🤝",
     setupUrl: "https://api.together.xyz/settings/api-keys",
     requiresAuth: true,
-    defaultModels: [
-      "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-      "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-      "mistralai/Mixtral-8x7B-Instruct-v0.1",
-    ],
   },
   fireworks: {
     id: "fireworks",
@@ -162,10 +130,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🎆",
     setupUrl: "https://fireworks.ai/account/api-keys",
     requiresAuth: true,
-    defaultModels: [
-      "accounts/fireworks/models/llama-v3p1-70b-instruct",
-      "accounts/fireworks/models/llama-v3p1-8b-instruct",
-    ],
   },
   perplexity: {
     id: "perplexity",
@@ -174,11 +138,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🔎",
     setupUrl: "https://www.perplexity.ai/settings/api",
     requiresAuth: true,
-    defaultModels: [
-      "llama-3.1-sonar-small-128k-online",
-      "llama-3.1-sonar-large-128k-online",
-      "llama-3.1-sonar-huge-128k-online",
-    ],
   },
   kimi: {
     id: "kimi",
@@ -187,7 +146,6 @@ export const AI_VENDORS: Record<AIProvider, AIVendor> = {
     icon: "🌙",
     setupUrl: "https://platform.moonshot.cn/console/api-keys",
     requiresAuth: true,
-    defaultModels: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
   },
 };
 
