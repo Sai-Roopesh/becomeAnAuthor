@@ -24,6 +24,9 @@ import {
 export class DocumentExportService implements IExportService {
   constructor(private nodeRepository: INodeRepository) {}
 
+  private static readonly UNSUPPORTED_COLOR_FUNCTION_RE =
+    /\b(?:oklch|oklab|lab|lch|color)\s*\(/i;
+
   private sceneHasTextContent(scene: Scene): boolean {
     const text = extractTextFromTiptapJSON(scene.content);
     return text.trim().length > 0;
@@ -88,92 +91,73 @@ export class DocumentExportService implements IExportService {
     const rawHtmlContent = await marked(markdown);
     const htmlContent = DOMPurify.sanitize(rawHtmlContent);
 
-    // Create styled HTML document
-    const styledHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body {
-            font-family: 'Georgia', 'Times New Roman', serif;
-            font-size: 12pt;
-            line-height: 1.6;
-            max-width: 100%;
-            margin: 0;
-            padding: 40px;
-            color: #333;
+    const { container, exportRoot } = this.createPdfContainer(
+      htmlContent,
+      `
+        font-family: 'Georgia', 'Times New Roman', serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        text-align: justify;
+      `,
+      `
+        [data-baa-export-root] h1 {
+          font-size: 24pt;
+          margin-top: 40px;
+          margin-bottom: 20px;
+          page-break-before: always;
+          color: #1a1a1a;
         }
-        h1 {
-            font-size: 24pt;
-            margin-top: 40px;
-            margin-bottom: 20px;
-            page-break-before: always;
-            color: #1a1a1a;
+        [data-baa-export-root] h1:first-child {
+          page-break-before: avoid;
+          text-align: center;
         }
-        h1:first-child {
-            page-break-before: avoid;
-            text-align: center;
+        [data-baa-export-root] h2 {
+          font-size: 18pt;
+          margin-top: 30px;
+          margin-bottom: 15px;
+          color: #2a2a2a;
         }
-        h2 {
-            font-size: 18pt;
-            margin-top: 30px;
-            margin-bottom: 15px;
-            color: #2a2a2a;
+        [data-baa-export-root] h3 {
+          font-size: 14pt;
+          margin-top: 20px;
+          margin-bottom: 10px;
+          color: #3a3a3a;
         }
-        h3 {
-            font-size: 14pt;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            color: #3a3a3a;
+        [data-baa-export-root] p {
+          margin-bottom: 12px;
+          text-indent: 1.5em;
         }
-        p {
-            margin-bottom: 12px;
-            text-align: justify;
-            text-indent: 1.5em;
+        [data-baa-export-root] p:first-of-type {
+          text-indent: 0;
         }
-        p:first-of-type {
-            text-indent: 0;
+        [data-baa-export-root] blockquote {
+          border-left: 3px solid #ccc;
+          padding-left: 15px;
+          margin-left: 0;
+          color: #666;
+          font-style: italic;
         }
-        blockquote {
-            border-left: 3px solid #ccc;
-            padding-left: 15px;
-            margin-left: 0;
-            color: #666;
-            font-style: italic;
+        [data-baa-export-root] hr {
+          border: none;
+          border-top: 1px solid #ddd;
+          margin: 30px 0;
         }
-        hr {
-            border: none;
-            border-top: 1px solid #ddd;
-            margin: 30px 0;
+        [data-baa-export-root] ul,
+        [data-baa-export-root] ol {
+          padding-left: 25px;
         }
-        ul, ol {
-            padding-left: 25px;
+        [data-baa-export-root] li {
+          margin-bottom: 5px;
         }
-        li {
-            margin-bottom: 5px;
+        [data-baa-export-root] strong {
+          color: #000;
         }
-        strong {
-            color: #000;
-        }
-    </style>
-</head>
-<body>
-${htmlContent}
-</body>
-</html>`;
-
-    // Create a temporary container for html2pdf
-    const container = document.createElement("div");
-    container.style.position = "absolute";
-    container.style.left = "-9999px";
-    container.style.top = "-9999px";
-    container.innerHTML = styledHtml;
-    document.body.appendChild(container);
+      `,
+    );
 
     try {
       const pdfBlob = await html2pdf()
-        .from(container.querySelector("body") ?? container)
+        .from(exportRoot)
         .set({
           margin: [20, 20, 20, 20], // mm: top, left, bottom, right
           filename: `${options?.title || "manuscript"}.pdf`,
@@ -182,6 +166,9 @@ ${htmlContent}
             scale: 2,
             useCORS: true,
             letterRendering: true,
+            onclone: (clonedDocument: Document) => {
+              this.normalizeUnsupportedColors(clonedDocument);
+            },
           },
           jsPDF: {
             unit: "mm",
@@ -683,72 +670,54 @@ ${htmlContent}
     const lineHeight = config.lineHeight || 1.6;
     const textAlign = config.alignment || "justify";
 
-    const styledHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body {
-            font-family: ${fontFamily};
-            font-size: ${fontSize};
-            line-height: ${lineHeight};
-            max-width: 100%;
-            margin: 0;
-            padding: 0;
-            color: #333;
-            text-align: ${textAlign};
+    const { container, exportRoot } = this.createPdfContainer(
+      htmlContent,
+      `
+        font-family: ${fontFamily};
+        font-size: ${fontSize};
+        line-height: ${lineHeight};
+        text-align: ${textAlign};
+      `,
+      `
+        [data-baa-export-root] h1 {
+          font-size: 2em;
+          margin-top: 1.5em;
+          margin-bottom: 0.8em;
+          page-break-before: always;
+          color: #1a1a1a;
+          text-align: center;
         }
-        h1 {
-            font-size: 2em;
-            margin-top: 1.5em;
-            margin-bottom: 0.8em;
-            page-break-before: always;
-            color: #1a1a1a;
-            text-align: center;
+        [data-baa-export-root] h1:first-child {
+          page-break-before: avoid;
         }
-        h1:first-child {
-            page-break-before: avoid;
+        [data-baa-export-root] h2 {
+          font-size: 1.5em;
+          margin-top: 1.2em;
+          margin-bottom: 0.6em;
+          color: #2a2a2a;
         }
-        h2 {
-            font-size: 1.5em;
-            margin-top: 1.2em;
-            margin-bottom: 0.6em;
-            color: #2a2a2a;
+        [data-baa-export-root] h3 {
+          font-size: 1.17em;
+          margin-top: 1em;
+          margin-bottom: 0.5em;
+          color: #3a3a3a;
         }
-        h3 {
-            font-size: 1.17em;
-            margin-top: 1em;
-            margin-bottom: 0.5em;
-            color: #3a3a3a;
+        [data-baa-export-root] p {
+          margin-bottom: 0.8em;
+          text-indent: 1.5em;
         }
-        p {
-            margin-bottom: 0.8em;
-            text-indent: 1.5em;
+        [data-baa-export-root] p:first-of-type {
+          text-indent: 0;
         }
-        p:first-of-type {
-            text-indent: 0;
+        [data-baa-export-root] blockquote {
+          border-left: 3px solid #ccc;
+          padding-left: 15px;
+          margin-left: 0;
+          color: #666;
+          font-style: italic;
         }
-        blockquote {
-            border-left: 3px solid #ccc;
-            padding-left: 15px;
-            margin-left: 0;
-            color: #666;
-            font-style: italic;
-        }
-    </style>
-</head>
-<body>
-${htmlContent}
-</body>
-</html>`;
-
-    const container = document.createElement("div");
-    container.style.position = "absolute";
-    container.style.left = "-9999px";
-    container.style.top = "-9999px";
-    container.innerHTML = styledHtml;
-    document.body.appendChild(container);
+      `,
+    );
 
     try {
       const margins: [number, number, number, number] = config.margins
@@ -761,7 +730,7 @@ ${htmlContent}
         : [20, 20, 20, 20];
 
       return await html2pdf()
-        .from(container.querySelector("body") ?? container)
+        .from(exportRoot)
         .set({
           margin: margins,
           filename: `${options.title || "manuscript"}.pdf`,
@@ -770,6 +739,9 @@ ${htmlContent}
             scale: 2,
             useCORS: true,
             letterRendering: true,
+            onclone: (clonedDocument: Document) => {
+              this.normalizeUnsupportedColors(clonedDocument);
+            },
           },
           jsPDF: {
             unit: "mm",
@@ -784,6 +756,112 @@ ${htmlContent}
     } finally {
       document.body.removeChild(container);
     }
+  }
+
+  private createPdfContainer(
+    htmlContent: string,
+    baseCss: string,
+    contentCss: string,
+  ): { container: HTMLDivElement; exportRoot: HTMLDivElement } {
+    const container = document.createElement("div");
+    container.setAttribute("data-baa-export-container", "true");
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    container.style.width = "210mm";
+    container.style.backgroundColor = "#ffffff";
+    container.style.zIndex = "-1";
+
+    const style = document.createElement("style");
+    style.textContent = `
+      [data-baa-export-root] {
+        background-color: #ffffff !important;
+        color: #1f2937 !important;
+        margin: 0;
+        padding: 40px;
+        max-width: 100%;
+        ${baseCss}
+      }
+
+      [data-baa-export-root],
+      [data-baa-export-root] * {
+        border-color: #d1d5db !important;
+        outline-color: transparent !important;
+        text-decoration-color: currentColor !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        filter: none !important;
+      }
+
+      [data-baa-export-root] a {
+        color: #1d4ed8 !important;
+      }
+
+      ${contentCss}
+    `;
+
+    const exportRoot = document.createElement("div");
+    exportRoot.setAttribute("data-baa-export-root", "true");
+    exportRoot.innerHTML = htmlContent;
+
+    container.appendChild(style);
+    container.appendChild(exportRoot);
+    document.body.appendChild(container);
+
+    return { container, exportRoot };
+  }
+
+  private normalizeUnsupportedColors(clonedDocument: Document): void {
+    const { body, defaultView } = clonedDocument;
+    if (!body || !defaultView) return;
+
+    const colorProps = [
+      "color",
+      "background-color",
+      "border-top-color",
+      "border-right-color",
+      "border-bottom-color",
+      "border-left-color",
+      "outline-color",
+      "text-decoration-color",
+      "caret-color",
+      "column-rule-color",
+    ] as const;
+
+    const rootAndChildren = [
+      body as HTMLElement,
+      ...(Array.from(body.querySelectorAll("*")) as HTMLElement[]),
+    ];
+
+    for (const element of rootAndChildren) {
+      const computed = defaultView.getComputedStyle(element);
+
+      for (const prop of colorProps) {
+        const value = computed.getPropertyValue(prop).trim();
+        if (!this.hasUnsupportedColorFunction(value)) continue;
+
+        element.style.setProperty(
+          prop,
+          this.getSafeFallbackColor(prop),
+          "important",
+        );
+      }
+
+      element.style.setProperty("box-shadow", "none", "important");
+      element.style.setProperty("text-shadow", "none", "important");
+      element.style.setProperty("filter", "none", "important");
+    }
+  }
+
+  private hasUnsupportedColorFunction(value: string): boolean {
+    return DocumentExportService.UNSUPPORTED_COLOR_FUNCTION_RE.test(value);
+  }
+
+  private getSafeFallbackColor(property: string): string {
+    if (property === "background-color") return "#ffffff";
+    if (property.startsWith("border-")) return "#d1d5db";
+    if (property === "outline-color") return "transparent";
+    return "#1f2937";
   }
 
   /**
