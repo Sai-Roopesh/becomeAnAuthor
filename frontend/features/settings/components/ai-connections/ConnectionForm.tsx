@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AIConnection, AIVendor } from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
 import { formatModelIds, parseModelIds } from "@/lib/ai/model-ids";
-import { VendorLogo } from "../VendorLogo";
+import { VendorLogo } from "@/features/shared/components/VendorLogo";
 
 const MAX_VISIBLE_MODELS = 10;
 

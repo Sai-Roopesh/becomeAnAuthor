@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AIConnection, AI_VENDORS } from "@/lib/config/ai-vendors";
 import { cn } from "@/lib/utils";
-import { VendorLogo } from "../VendorLogo";
+import { VendorLogo } from "@/features/shared/components/VendorLogo";
 
 interface ConnectionListProps {
   connections: AIConnection[];

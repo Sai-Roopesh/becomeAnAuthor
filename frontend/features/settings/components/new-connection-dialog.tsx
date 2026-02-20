@@ -26,7 +26,7 @@ import {
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
 import { parseModelIds } from "@/lib/ai/model-ids";
 import { Loader2, Eye, EyeOff, Check } from "lucide-react";
-import { VendorLogo } from "./VendorLogo";
+import { VendorLogo } from "@/features/shared/components/VendorLogo";
 
 // Static schema for form
 const connectionSchema = z.object({
