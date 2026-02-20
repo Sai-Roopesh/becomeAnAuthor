@@ -36,3 +36,11 @@ next-env.d.ts
 
 # tauri generated files
 backend/gen/
+
+# local check artifacts
+*_results.txt
+*_audit.txt
+circular_deps.txt
+cargo_check_results.txt
+dev_web_output.log
+lint_output.txt
