@@ -536,9 +536,9 @@ export class TauriNodeRepository implements INodeRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async deleteCascade(
     id: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _type: "act" | "chapter" | "scene",
   ): Promise<void> {
     if (!this.projectPath) return;
