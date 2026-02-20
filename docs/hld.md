@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 20, 2026
+> **Last Updated:** February 21, 2026
 > **Status:** Living Document
 
 ---
@@ -800,7 +800,7 @@ Currently controlled via `FEATURE_FLAGS` constant:
 |---|---|---|
 | **Global** | ErrorBoundary | Catches unhandled React errors; displays fallback UI |
 | **Feature** | withErrorBoundary HOC | Wraps each feature with named boundary + retry logic |
-| **Hook** | try/catch + toast | User-facing errors shown as toast notifications |
+| **Hook** | try/catch + toast | User-facing errors shown as toast notifications with progress feedback |
 | **AI** | AbortController + retry | Streaming cancellation; 3 retry attempts with backoff |
 | **Background** | Emergency backup | On save failure, content persisted to `.backups/` |
 
