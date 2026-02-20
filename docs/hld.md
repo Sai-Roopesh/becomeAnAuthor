@@ -1,6 +1,6 @@
 # Become An Author — High Level Design Document
 
-> **Version:** 1.0.2
+> **Version:** 0.0.1
 > **Last Updated:** February 19, 2026
 > **Status:** Living Document
 
@@ -879,7 +879,7 @@ npm run tauri:build
 ### 19.2 Update Strategy
 
 - **Mechanism**: `tauri-plugin-updater` with GitHub Releases as the artifact source.
-- **Workflow**: `.github/workflows/release.yml` triggers on `v*.*.*` tags.
+- **Workflow**: `.github/workflows/release.yml` triggers on `v*.*.*` or `*.*.*` tags.
 - **Validation**: CI verifies version match, builds multi-platform binaries, and generates signatures.
 - **Notification**: `UpdateNotifier` component checks for updates on launch and notifies user.
 
