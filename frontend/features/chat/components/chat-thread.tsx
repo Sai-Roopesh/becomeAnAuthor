@@ -157,8 +157,29 @@ export function ChatThread({ threadId }: ChatThreadProps) {
       }
     });
 
+    // Check for existing last message to reuse (e.g. during regeneration)
+    const allMessages = await chatRepo.getMessagesByThread(threadId);
+    const lastMessage = allMessages[allMessages.length - 1];
+
+    let userMessageId = crypto.randomUUID();
+    let shouldCreateMessage = true;
+
+    if (
+      lastMessage &&
+      lastMessage.role === "user" &&
+      lastMessage.content === messageToSend.trim()
+    ) {
+      userMessageId = lastMessage.id;
+      shouldCreateMessage = false;
+      // Update existing message timestamp to now so it stays as "latest"
+      await chatRepo.updateMessage(userMessageId, {
+        context: Object.keys(context).length > 0 ? context : undefined,
+        timestamp: Date.now(),
+      });
+    }
+
     const userMessage = {
-      id: crypto.randomUUID(),
+      id: userMessageId,
       threadId,
       role: "user" as const,
       content: messageToSend.trim(),
@@ -167,7 +188,9 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     };
 
     setMessage("");
-    await chatRepo.createMessage(userMessage);
+    if (shouldCreateMessage) {
+      await chatRepo.createMessage(userMessage);
+    }
 
     let aiMessageId: string | null = null;
     try {

@@ -28,7 +28,7 @@ import { RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { useModelDiscovery } from "@/hooks/use-model-discovery";
 import type { AIModel } from "@/domain/services/IModelDiscoveryService";
 import { cn } from "@/lib/utils";
-import { VendorLogo } from "@/features/settings/components/VendorLogo";
+import { VendorLogo } from "@/features/shared/components/VendorLogo";
 import type { AIProvider } from "@/lib/config/ai-vendors";
 
 interface ModelSelectorProps {
