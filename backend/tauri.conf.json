@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Become An Author",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "identifier": "com.becomeauthor.desktop",
   "build": {
     "frontendDist": "../out",
@@ -45,7 +45,8 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.15"
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": "-"
     }
   },
   "plugins": {
