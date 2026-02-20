@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 20, 2026
+> **Last Updated:** February 21, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -687,7 +687,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | Repository | Try-catch around `invoke()`, scoped `logger` |
 | Service | Domain error messages, graceful degradation |
 | Hook | Error states in `useLiveQuery` |
-| UI | Toast notifications via `toast-service.ts` (sonner) |
+| UI | Toast notifications via `toast-service.ts` (sonner) with state updates (loading → success/error) |
 
 ### 18.2 Data Recovery
 

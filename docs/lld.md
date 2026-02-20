@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 20, 2026
+> **Last Updated:** February 21, 2026
 > **Status:** Living Document
 
 ---
@@ -501,7 +501,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support (custom fonts, margins, page size). |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Includes robust text sanitization for PDF stability. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
@@ -544,7 +544,7 @@ features/{feature-name}/
 | **ai** | 1 | 0 | AI-specific UI components |
 | **project** | 2 | 0 | Project-level settings and metadata |
 | **updater** | 1 | 0 | UpdateNotifier component |
-| **shared** | 5 | 0 | ErrorBoundary, ThemeProvider, LoadingSpinner, withErrorBoundary HOC |
+| **shared** | 5 | 0 | ErrorBoundary, ThemeProvider, LoadingSpinner, withErrorBoundary HOC, toast-service |
 
 ### 9.2 Editor Feature (Deep Dive)
 
@@ -877,6 +877,7 @@ OS Keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)
   });
   ```
 - Toast notifications via Sonner for user-facing errors
+- `toast-service` wrapper provides consistent feedback loops (loading → success/error) for async operations
 - Console logging for development debugging
 
 ### 16.2 Backend Error Pattern
