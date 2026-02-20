@@ -4,6 +4,7 @@ import type {
 } from "@/domain/services/IExportService";
 import type { INodeRepository } from "@/domain/repositories/INodeRepository";
 import type { Scene, DocumentNode } from "@/domain/entities/types";
+import type { DocumentProps as ReactPdfDocumentProps } from "@react-pdf/renderer";
 import { extractTextFromTiptapJSON } from "@/shared/utils/editor";
 import { BUILT_IN_PRESETS } from "@/shared/constants/export/export-presets";
 import { createElement, type ReactElement } from "react";
@@ -202,7 +203,7 @@ export class DocumentExportService implements IExportService {
         { size: "A4", style: styles.page, wrap: true },
         ...pageChildren,
       ),
-    ) as ReactElement;
+    ) as ReactElement<ReactPdfDocumentProps>;
 
     return await pdf(documentNode).toBlob();
   }
