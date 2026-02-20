@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 20, 2026
+> **Last Updated:** February 21, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 

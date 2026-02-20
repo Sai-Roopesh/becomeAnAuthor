@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 20, 2026
+> **Last Updated:** February 21, 2026
 > **Status:** Living Document
 
 ---
@@ -530,11 +530,11 @@ features/{feature-name}/
 | Feature | Components | Hooks | Description |
 |---|---|---|---|
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 10 | 1 | AI chat interface with thread management, context assembly |
+| **chat** | 10 | 1 | AI chat interface with thread management (active/archived/deleted views) and context assembly |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
 | **settings** | 10 | 2 | AI connections, appearance, editor preferences |
-| **dashboard** | 6 | 0 | Project grid, cards, empty state, header |
+| **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with race-condition prevention (pending states) |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
 | **snippets** | 3 | 0 | Reusable text snippets |
