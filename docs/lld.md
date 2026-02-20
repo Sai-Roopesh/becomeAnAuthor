@@ -1,6 +1,6 @@
 # Become An Author — Low Level Design Document
 
-> **Version:** 1.0.2
+> **Version:** 0.0.1
 > **Last Updated:** February 19, 2026
 > **Status:** Living Document
 
