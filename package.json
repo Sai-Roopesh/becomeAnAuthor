@@ -111,6 +111,7 @@
     "marked": "^17.0.1",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-hook-form": "^7.68.0",
