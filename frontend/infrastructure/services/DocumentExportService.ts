@@ -41,12 +41,18 @@ export class DocumentExportService implements IExportService {
   async exportToPDF(projectId: string, config: ExportConfigV2): Promise<Blob> {
     const resolved = withExportDefaults(config);
     const [
-      { pdf, Document: PdfDocument, Page, Text, View, StyleSheet },
+      { pdf, Document: PdfDocument, Page, Text, View, StyleSheet, Font },
       nodes,
     ] = await Promise.all([
       import("@react-pdf/renderer"),
       this.getHydratedNodes(projectId),
     ]);
+
+    // Upstream v4.x has instability around dynamic text render callbacks.
+    // Use deterministic text flow + explicit post-processing for page numbers.
+    Font.registerHyphenationCallback((word: string) =>
+      createHyphenationChunks(word),
+    );
 
     const orderedNodes = this.getOrderedNodes(nodes);
     const sceneRecords = this.getSceneRecords(orderedNodes);
@@ -68,7 +74,7 @@ export class DocumentExportService implements IExportService {
         paddingLeft: marginLeft,
         fontFamily: baseFont,
         fontSize: resolved.fontSizePt,
-        lineHeight: resolved.lineHeight,
+        lineHeight: resolved.fontSizePt * resolved.lineHeight,
         color: "#111111",
       },
       title: {
@@ -136,13 +142,6 @@ export class DocumentExportService implements IExportService {
         marginVertical: 8,
         letterSpacing: 2,
       },
-      pageNumber: {
-        position: "absolute",
-        right: marginRight,
-        bottom: mmToPt(8),
-        fontSize: 9,
-        color: "#6b7280",
-      },
     });
 
     const pageChildren: ReactElement[] = [];
@@ -153,7 +152,7 @@ export class DocumentExportService implements IExportService {
           createElement(
             Text,
             { key: "meta-title", style: styles.title },
-            resolved.title,
+            sanitizePdfText(resolved.title),
           ),
         );
       }
@@ -162,7 +161,7 @@ export class DocumentExportService implements IExportService {
           createElement(
             Text,
             { key: "meta-author", style: styles.author },
-            `By ${resolved.author}`,
+            `By ${sanitizePdfText(resolved.author)}`,
           ),
         );
       }
@@ -191,7 +190,7 @@ export class DocumentExportService implements IExportService {
               key: `toc-${entry.level}-${index}`,
               style: entry.level === 1 ? styles.tocItem1 : styles.tocItem2,
             },
-            entry.text,
+            sanitizePdfText(entry.text),
           ),
         );
       });
@@ -210,7 +209,7 @@ export class DocumentExportService implements IExportService {
           createElement(
             Text,
             { key: `act-${node.id}-${index}`, style: styles.h1 },
-            node.title,
+            sanitizePdfText(node.title),
           ),
         );
         return;
@@ -229,7 +228,7 @@ export class DocumentExportService implements IExportService {
               style: styles.h2,
               break: shouldPageBreak,
             },
-            node.title,
+            sanitizePdfText(node.title),
           ),
         );
         return;
@@ -244,7 +243,7 @@ export class DocumentExportService implements IExportService {
           createElement(
             Text,
             { key: `scene-title-${node.id}-${index}`, style: styles.h3 },
-            node.title,
+            sanitizePdfText(node.title),
           ),
         );
       }
@@ -254,7 +253,7 @@ export class DocumentExportService implements IExportService {
           createElement(
             Text,
             { key: `scene-summary-${node.id}-${index}`, style: styles.summary },
-            node.summary.trim(),
+            sanitizePdfText(node.summary.trim()),
           ),
         );
       }
@@ -268,7 +267,7 @@ export class DocumentExportService implements IExportService {
               key: `scene-${node.id}-para-${paraIndex}`,
               style: styles.paragraph,
             },
-            paragraph,
+            sanitizePdfText(paragraph),
           ),
         );
       });
@@ -311,20 +310,7 @@ export class DocumentExportService implements IExportService {
     }
 
     if (resolved.includePageNumbers) {
-      pageChildren.push(
-        createElement(Text, {
-          key: "page-numbers",
-          fixed: true,
-          style: styles.pageNumber,
-          render: ({
-            pageNumber,
-            totalPages,
-          }: {
-            pageNumber: number;
-            totalPages: number;
-          }) => `${pageNumber} / ${totalPages}`,
-        }),
-      );
+      // Page numbers are stamped after render via pdf-lib.
     }
 
     const pdfDocumentProps: ReactPdfDocumentProps = {
@@ -348,9 +334,19 @@ export class DocumentExportService implements IExportService {
       ),
     );
 
-    return await pdf(
+    const rendered = await pdf(
       documentNode as ReactElement<ReactPdfDocumentProps>,
     ).toBlob();
+
+    if (!resolved.includePageNumbers) {
+      return rendered;
+    }
+
+    return this.stampPdfPageNumbers(rendered, {
+      marginRightPt: marginRight,
+      marginBottomPt: marginBottom,
+      fontSize: 9,
+    });
   }
 
   async exportToDOCX(projectId: string, config: ExportConfigV2): Promise<Blob> {
@@ -367,7 +363,7 @@ export class DocumentExportService implements IExportService {
       if (resolved.title) {
         children.push(
           new Paragraph({
-            text: resolved.title,
+            text: sanitizePdfText(resolved.title),
             heading: HeadingLevel.TITLE,
             alignment: AlignmentType.CENTER,
             spacing: { after: 320 },
@@ -377,7 +373,7 @@ export class DocumentExportService implements IExportService {
       if (resolved.author) {
         children.push(
           new Paragraph({
-            text: `By ${resolved.author}`,
+            text: `By ${sanitizePdfText(resolved.author)}`,
             alignment: AlignmentType.CENTER,
             spacing: { after: 600 },
           }),
@@ -398,7 +394,7 @@ export class DocumentExportService implements IExportService {
       this.getTocEntries(orderedNodes, resolved).forEach((entry) => {
         children.push(
           new Paragraph({
-            text: `${entry.level === 1 ? "" : "  "}${entry.text}`,
+            text: `${entry.level === 1 ? "" : "  "}${sanitizePdfText(entry.text)}`,
             spacing: { after: 80 },
           }),
         );
@@ -426,7 +422,7 @@ export class DocumentExportService implements IExportService {
         if (!resolved.includeActHeadings) return;
         children.push(
           new Paragraph({
-            text: node.title,
+            text: sanitizePdfText(node.title),
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 320, after: 180 },
           }),
@@ -444,7 +440,7 @@ export class DocumentExportService implements IExportService {
         chapterCount += 1;
         children.push(
           new Paragraph({
-            text: node.title,
+            text: sanitizePdfText(node.title),
             heading: HeadingLevel.HEADING_2,
             spacing: { before: 240, after: 140 },
           }),
@@ -459,7 +455,7 @@ export class DocumentExportService implements IExportService {
       if (resolved.includeSceneTitles) {
         children.push(
           new Paragraph({
-            text: node.title,
+            text: sanitizePdfText(node.title),
             heading: HeadingLevel.HEADING_3,
             spacing: { before: 180, after: 100 },
           }),
@@ -471,7 +467,7 @@ export class DocumentExportService implements IExportService {
           new Paragraph({
             children: [
               new TextRun({
-                text: node.summary.trim(),
+                text: sanitizePdfText(node.summary.trim()),
                 italics: true,
                 color: "555555",
               }),
@@ -689,7 +685,9 @@ export class DocumentExportService implements IExportService {
 
     return text
       .split(/\n\s*\n+/)
-      .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+      .map((paragraph) =>
+        sanitizePdfText(paragraph).replace(/\s+/g, " ").trim(),
+      )
       .filter((paragraph) => paragraph.length > 0);
   }
 
@@ -799,6 +797,48 @@ export class DocumentExportService implements IExportService {
       }),
     );
   }
+
+  private async stampPdfPageNumbers(
+    pdfBlob: Blob,
+    options: {
+      marginRightPt: number;
+      marginBottomPt: number;
+      fontSize: number;
+    },
+  ): Promise<Blob> {
+    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+
+    const bytes = new Uint8Array(await pdfBlob.arrayBuffer());
+    const document = await PDFDocument.load(bytes);
+    const pages = document.getPages();
+    const totalPages = pages.length;
+    if (totalPages === 0) return pdfBlob;
+
+    const font = await document.embedFont(StandardFonts.Helvetica);
+    const color = rgb(0.42, 0.45, 0.5);
+
+    pages.forEach((page, pageIndex) => {
+      const label = `${pageIndex + 1} / ${totalPages}`;
+      const textWidth = font.widthOfTextAtSize(label, options.fontSize);
+      const x = Math.max(
+        16,
+        page.getWidth() - options.marginRightPt - textWidth,
+      );
+      const y = Math.max(14, options.marginBottomPt * 0.33);
+
+      page.drawText(label, {
+        x,
+        y,
+        size: options.fontSize,
+        font,
+        color,
+      });
+    });
+
+    const output = await document.save();
+    const outputBytes = Uint8Array.from(output);
+    return new Blob([outputBytes], { type: "application/pdf" });
+  }
 }
 
 function mapPdfPageSize(size: ExportConfigV2["pageSize"]): "A4" | "LETTER" {
@@ -855,4 +895,48 @@ function mmToTwip(mm: number): number {
 
 function mmToPt(mm: number): number {
   return (mm * 72) / 25.4;
+}
+
+function sanitizePdfText(value: string): string {
+  const withoutControl = value.replace(
+    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
+    "",
+  );
+  const withoutUnpaired = stripUnpairedSurrogates(withoutControl);
+  return withoutUnpaired.normalize("NFC");
+}
+
+function stripUnpairedSurrogates(value: string): string {
+  let output = "";
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(i + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        output += value.charAt(i) + value.charAt(i + 1);
+        i += 1;
+      }
+      continue;
+    }
+
+    if (code >= 0xdc00 && code <= 0xdfff) {
+      continue;
+    }
+
+    output += value.charAt(i);
+  }
+
+  return output;
+}
+
+function createHyphenationChunks(word: string): string[] {
+  if (word.length <= 28) return [word];
+  if (/\s/.test(word)) return [word];
+
+  const parts: string[] = [];
+  for (let index = 0; index < word.length; index += 16) {
+    parts.push(word.slice(index, index + 16));
+  }
+  return parts;
 }
