@@ -90,7 +90,7 @@ Use a **Google OAuth Desktop App client ID** for `NEXT_PUBLIC_GOOGLE_CLIENT_ID` 
 App data is stored in OS local app-data under the `BecomeAnAuthor` folder, separated by channel:
 
 - dev: `dev`
-- production release: `release-v1`
+- production release: `release-v1` (Clean-slate channel introduced in v0.0.1 to isolate from pre-release data)
 
 For local QA, if you want a fresh state each install, remove prior data folders before launching:
 

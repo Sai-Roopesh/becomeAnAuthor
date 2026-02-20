@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 19, 2026
+> **Last Updated:** February 20, 2026
 > **Status:** Living Document
 
 ---
@@ -165,7 +165,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 | **UI Primitives** | Radix UI | Accessible, unstyled headless components; WAI-ARIA compliant |
 | **AI Integration** | Vercel AI SDK 6 | Unified streaming API across 14+ providers; structured output with Zod schemas |
 | **Collaboration** | Yjs + y-webrtc | CRDT-based conflict-free real-time editing; peer-to-peer via WebRTC |
-| **Document Export** | docx (npm) + html2pdf.js + DOMPurify | Configurable DOCX/PDF generation in browser |
+| **Document Export** | docx (npm) + html2pdf.js + DOMPurify | Configurable DOCX/PDF generation in browser with HTML sanitization |
 
 ### 4.2 Backend Stack
 
@@ -192,7 +192,7 @@ graph TB
 
     subgraph "AI & Intelligence"
         CHAT["💬 Chat<br/>AI assistant<br/>Context-aware<br/>Multi-model"]
-        AI["🤖 AI<br/>14 providers<br/>Streaming<br/>Token mgmt"]
+        AI["🤖 AI<br/>14+ providers<br/>Streaming<br/>Dynamic Discovery"]
     end
 
     subgraph "World Building"
@@ -242,7 +242,7 @@ graph TB
 | **Search** | 6 | 1 | Full-text search across scenes and codex entries with relevance scoring |
 | **Navigation** | 3 | 1 | Sidebar manuscript tree, codex browser, snippet list, breadcrumbs |
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
-| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF, Markdown, plain text) |
+| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via html2pdf, Markdown, plain text) with presets |
 | **Data Management** | 2 | 0 | Series backup import/export, novel archive conversion |
 | **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
@@ -759,7 +759,7 @@ Built on **Radix UI** primitives with **class-variance-authority** for variant s
 | **Layout** | Card, Tabs, Collapsible, CollapsibleSection, ScrollArea, Resizable, Separator |
 | **Display** | Badge, Progress, Skeleton, EmptyState, SaveStatusIndicator |
 | **Specialized** | TagInput, TimeWheelPicker, QuickCaptureModal, CommandPalette |
-| **Composite** | Sidebar (5-part system), VendorLogo (AI provider icons) |
+| **Composite** | Sidebar (5-part system) |
 
 ---
 
