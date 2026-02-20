@@ -1,74 +1,45 @@
 /**
  * Document export hook.
  *
- * Focused on stable DOCX/PDF flows using native save dialogs.
+ * Routes DOCX/PDF export through the shared ExportConfigV2 pipeline.
  */
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
-import { toast } from "@/shared/utils/toast-service";
-import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
-import { showSaveDialog, exportManuscriptDocx } from "@/core/tauri/commands";
+import {
+  DEFAULT_EXPORT_CONFIG,
+  type ExportConfigV2,
+  withExportDefaults,
+} from "@/domain/types/export-types";
+import { showSaveDialog } from "@/core/tauri/commands";
 import { logger } from "@/shared/utils/logger";
+import { toast } from "@/shared/utils/toast-service";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 
 const log = logger.scope("DocumentExport");
-
-export interface DocumentExportOptions {
-  title?: string;
-  author?: string;
-  includeTOC?: boolean;
-}
 
 export function useDocumentExport() {
   const { exportService } = useAppServices();
   const [isExporting, setIsExporting] = useState(false);
 
-  const exportToDocx = async (
-    _projectId: string,
-    options?: DocumentExportOptions,
-  ) => {
-    setIsExporting(true);
-    try {
-      const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-      if (!projectPath) throw new Error("No project selected");
-
-      const defaultName = `${toSafeFilename(options?.title || "manuscript")}.docx`;
-      const savePath = await showSaveDialog({
-        defaultPath: defaultName,
-        filters: [{ name: "Word Document", extensions: ["docx"] }],
-        title: "Export as DOCX",
-      });
-
-      if (!savePath) {
-        toast.info("Export cancelled");
-        return;
-      }
-
-      toast.info("Generating DOCX...");
-      await exportManuscriptDocx(projectPath, savePath);
-
-      toast.success(`DOCX exported to ${savePath.split("/").pop()}`);
-      log.debug("DOCX exported", { path: savePath });
-    } catch (error) {
-      log.error("DOCX export failed", error);
-      toast.error("Failed to export DOCX");
-      throw error;
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const exportToPDF = async (
+  const exportDocument = async (
     projectId: string,
-    options?: DocumentExportOptions,
-  ) => {
+    config: Partial<ExportConfigV2>,
+  ): Promise<void> => {
+    const resolved = withExportDefaults(config);
+
     setIsExporting(true);
     try {
-      const defaultName = `${toSafeFilename(options?.title || "manuscript")}.pdf`;
+      const extension = resolved.format === "pdf" ? "pdf" : "docx";
+      const defaultName = `${toSafeFilename(resolved.title || "manuscript")}.${extension}`;
       const savePath = await showSaveDialog({
         defaultPath: defaultName,
-        filters: [{ name: "PDF Document", extensions: ["pdf"] }],
-        title: "Export as PDF",
+        filters: [
+          {
+            name: resolved.format === "pdf" ? "PDF Document" : "Word Document",
+            extensions: [extension],
+          },
+        ],
+        title: `Export as ${resolved.format.toUpperCase()}`,
       });
 
       if (!savePath) {
@@ -76,27 +47,27 @@ export function useDocumentExport() {
         return;
       }
 
-      toast.info("Generating PDF...");
+      toast.info(`Generating ${resolved.format.toUpperCase()}...`);
 
-      const exportOptions: import("@/domain/services/IExportService").ExportOptions =
-        {};
-      if (options?.title) exportOptions.title = options.title;
-      if (options?.author) exportOptions.author = options.author;
-      if (typeof options?.includeTOC === "boolean") {
-        exportOptions.includeTOC = options.includeTOC;
-      }
-
-      const blob = await exportService.exportToPDF(projectId, exportOptions);
+      const blob =
+        resolved.format === "pdf"
+          ? await exportService.exportToPDF(projectId, resolved)
+          : await exportService.exportToDOCX(projectId, resolved);
 
       const buffer = await blob.arrayBuffer();
       const data = Array.from(new Uint8Array(buffer));
       await invoke("write_export_file", { filePath: savePath, data });
 
-      toast.success(`PDF exported to ${savePath.split("/").pop()}`);
-      log.debug("PDF exported", { path: savePath });
+      toast.success(
+        `${resolved.format.toUpperCase()} exported to ${savePath.split("/").pop()}`,
+      );
+      log.debug("Document exported", {
+        format: resolved.format,
+        path: savePath,
+      });
     } catch (error) {
-      log.error("PDF export failed", error);
-      toast.error("Failed to export PDF");
+      log.error("Document export failed", error);
+      toast.error("Failed to export document");
       throw error;
     } finally {
       setIsExporting(false);
@@ -104,9 +75,9 @@ export function useDocumentExport() {
   };
 
   return {
-    exportToDocx,
-    exportToPDF,
+    exportDocument,
     isExporting,
+    defaultConfig: DEFAULT_EXPORT_CONFIG,
   };
 }
 

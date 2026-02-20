@@ -8,7 +8,7 @@ export type {
   ChatSettings,
   GenerateResponseParams,
 } from "./IChatService";
-export type { IExportService, ExportOptions } from "./IExportService";
+export type { IExportService } from "./IExportService";
 export type {
   IModelDiscoveryService,
   AIModel,
