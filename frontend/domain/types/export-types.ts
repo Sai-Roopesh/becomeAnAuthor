@@ -1,157 +1,115 @@
 /**
- * Export Domain Types
- * 
- * Type definitions for the dynamic export system with template presets,
- * live preview, and multi-format support.
+ * Shared export customization types for DOCX/PDF.
+ *
+ * The app currently supports two stable outputs:
+ * - DOCX (editable manuscript)
+ * - PDF (print/share output)
  */
 
-export type ExportFormat = 'docx' | 'pdf' | 'epub' | 'markdown';
+export type ExportFormat = "docx" | "pdf";
 
-export type ExportPresetType =
-    | 'industry-standard'
-    | 'query-package'
-    | 'beta-reader'
-    | 'self-publish-ebook'
-    | 'print-ready-pdf';
+export type ExportPageSize = "A4" | "Letter";
 
-/**
- * Export preset configuration
- * Defines a complete export template with formatting and content options
- */
-export interface ExportPreset {
-    id: string;
-    type: ExportPresetType;
-    name: string;
-    description: string;
-    defaultFormat: ExportFormat;
-    supportedFormats: ExportFormat[];
-    config: ExportConfig;
+export type ExportFontFamily = "times" | "georgia" | "arial" | "courier";
+
+export type ExportAlignment = "left" | "justify";
+
+export type ExportSceneBreakStyle = "blank-line" | "asterisks" | "divider";
+
+export interface ExportMarginsMm {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
 
-/**
- * Complete export configuration
- * Can be used standalone or merged with preset config
- */
-export interface ExportConfig {
-    // Typography
-    fontFamily?: string;
-    fontSize?: number;
-    lineHeight?: number;
-    alignment?: 'left' | 'center' | 'right' | 'justify';
+export interface ExportConfigV2 {
+  format: ExportFormat;
+  title: string;
+  author: string;
 
-    // Layout
-    pageSize?: PageSize;
-    margins?: Margins;
-    trimSize?: TrimSize;  // For print
-    bleed?: number;       // For print (mm)
+  includeTitlePage: boolean;
+  includeTOC: boolean;
+  includeActHeadings: boolean;
+  includeChapterHeadings: boolean;
+  includeSceneTitles: boolean;
+  includeSummaries: boolean;
+  includePageNumbers: boolean;
+  chapterStartsOnNewPage: boolean;
 
-    // Content
-    includeTOC?: boolean;
-    includeCoverPage?: boolean;
-    includePageNumbers?: boolean;
-    sceneBreakStyle?: 'centered-hash' | 'blank-line' | 'asterisks';
-    chapterBreakStyle?: 'new-page' | 'same-page';
+  sceneBreakStyle: ExportSceneBreakStyle;
+  pageSize: ExportPageSize;
+  marginsMm: ExportMarginsMm;
 
-    // Front/Back Matter
-    frontMatter?: FrontMatterConfig;
-    backMatter?: BackMatterConfig;
-
-    // ePub specific
-    epubCSSTheme?: string;
-    epubMetadata?: EpubMetadata;
+  fontFamily: ExportFontFamily;
+  fontSizePt: number;
+  lineHeight: number;
+  paragraphSpacingPt: number;
+  alignment: ExportAlignment;
 }
 
-/**
- * Front matter configuration
- * Content that appears before the main text
- */
-export interface FrontMatterConfig {
-    titlePage?: boolean;
-    dedication?: string;
-    epigraph?: string;
-    copyright?: string;
-    tableOfContents?: boolean;
-}
-
-/**
- * Back matter configuration
- * Content that appears after the main text
- */
-export interface BackMatterConfig {
-    authorBio?: string;
-    acknowledgments?: string;
-    alsoBy?: string[];
-    contactInfo?: string;
-}
-
-/**
- * Page size definition
- */
-export interface PageSize {
-    width: number;  // mm
-    height: number; // mm
-    name: 'A4' | 'Letter' | '5.5x8.5' | '6x9' | 'Custom';
-}
-
-/**
- * Page margins
- */
-export interface Margins {
-    top: number;    // mm
-    right: number;  // mm
-    bottom: number; // mm
-    left: number;   // mm
-}
-
-/**
- * Trim size for print formatting
- */
-export interface TrimSize {
-    width: number;  // inches
-    height: number; // inches
-}
-
-/**
- * ePub metadata
- */
-export interface EpubMetadata {
-    title?: string;
-    author?: string;
-    language?: string;
-    publisher?: string;
-    publicationDate?: string;
-    isbn?: string;
-    cover?: string; // path to cover image
-}
-
-/**
- * Export state for UI management
- */
-export interface ExportState {
-    format: ExportFormat;
-    preset: ExportPreset;
-    customConfig?: Partial<ExportConfig>;
-    previewPages?: PreviewPage[];
-    isGenerating: boolean;
-}
-
-/**
- * Preview page representation
- * Used for live preview rendering
- */
-export interface PreviewPage {
-    pageNumber: number;
-    content: string; // HTML representation
-    width?: number;  // px
-    height?: number; // px
-}
-
-/**
- * Template variable for front/back matter
- */
-export type TemplateVariable = {
-    key: string;
-    label: string;
-    placeholder: string;
-    value?: string;
+export const EXPORT_PAGE_SIZES_MM: Record<
+  ExportPageSize,
+  { width: number; height: number }
+> = {
+  A4: { width: 210, height: 297 },
+  Letter: { width: 215.9, height: 279.4 },
 };
+
+export const DEFAULT_EXPORT_CONFIG: ExportConfigV2 = {
+  format: "docx",
+  title: "",
+  author: "",
+  includeTitlePage: true,
+  includeTOC: true,
+  includeActHeadings: true,
+  includeChapterHeadings: true,
+  includeSceneTitles: true,
+  includeSummaries: false,
+  includePageNumbers: true,
+  chapterStartsOnNewPage: true,
+  sceneBreakStyle: "asterisks",
+  pageSize: "Letter",
+  marginsMm: {
+    top: 25.4,
+    right: 25.4,
+    bottom: 25.4,
+    left: 25.4,
+  },
+  fontFamily: "times",
+  fontSizePt: 12,
+  lineHeight: 1.6,
+  paragraphSpacingPt: 6,
+  alignment: "left",
+};
+
+export function withExportDefaults(
+  value?: Partial<ExportConfigV2>,
+): ExportConfigV2 {
+  const merged: ExportConfigV2 = {
+    ...DEFAULT_EXPORT_CONFIG,
+    ...value,
+    marginsMm: {
+      ...DEFAULT_EXPORT_CONFIG.marginsMm,
+      ...(value?.marginsMm ?? {}),
+    },
+  };
+
+  return {
+    ...merged,
+    fontSizePt: clampNumber(merged.fontSizePt, 9, 18),
+    lineHeight: clampNumber(merged.lineHeight, 1.2, 2.5),
+    paragraphSpacingPt: clampNumber(merged.paragraphSpacingPt, 0, 24),
+    marginsMm: {
+      top: clampNumber(merged.marginsMm.top, 8, 50),
+      right: clampNumber(merged.marginsMm.right, 8, 50),
+      bottom: clampNumber(merged.marginsMm.bottom, 8, 50),
+      left: clampNumber(merged.marginsMm.left, 8, 50),
+    },
+  };
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}

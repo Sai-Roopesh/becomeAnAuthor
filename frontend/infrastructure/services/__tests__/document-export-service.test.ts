@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DocumentExportService } from "../DocumentExportService";
 import type { INodeRepository } from "@/domain/repositories/INodeRepository";
+import { DEFAULT_EXPORT_CONFIG } from "@/domain/types/export-types";
 
 // ============================================
 // Mock Dependencies
@@ -92,6 +93,7 @@ const createMockScene = (overrides = {}) => ({
 describe("DocumentExportService Contract", () => {
   let service: DocumentExportService;
   let mockRepo: INodeRepository;
+  const docxConfig = { ...DEFAULT_EXPORT_CONFIG, format: "docx" as const };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -265,6 +267,30 @@ describe("DocumentExportService Contract", () => {
       expect(mockRepo.get).toHaveBeenCalledWith("scene-empty");
       expect(markdown).toContain("Loaded full content");
     });
+
+    it("MUST include scenes even when no acts/chapters exist", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockScene({
+          id: "root-scene",
+          parentId: null,
+          title: "Root Scene",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Standalone scene content" }],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1");
+
+      expect(markdown).toContain("Root Scene");
+      expect(markdown).toContain("Standalone scene content");
+    });
   });
 
   // ========================================
@@ -279,7 +305,7 @@ describe("DocumentExportService Contract", () => {
         createMockScene({ content: { type: "doc", content: [] } }),
       ]);
 
-      const blob = await service.exportToDOCX("proj-1");
+      const blob = await service.exportToDOCX("proj-1", docxConfig);
 
       expect(blob).toBeInstanceOf(Blob);
     });
@@ -291,7 +317,7 @@ describe("DocumentExportService Contract", () => {
         createMockScene(),
       ]);
 
-      const blob = await service.exportToDOCX("proj-1");
+      const blob = await service.exportToDOCX("proj-1", docxConfig);
 
       expect(blob.type).toBe(
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -301,13 +327,15 @@ describe("DocumentExportService Contract", () => {
     it("MUST handle empty project without throwing", async () => {
       vi.mocked(mockRepo.getByProject).mockResolvedValue([]);
 
-      await expect(service.exportToDOCX("empty-proj")).resolves.not.toThrow();
+      await expect(
+        service.exportToDOCX("empty-proj", docxConfig),
+      ).resolves.not.toThrow();
     });
   });
 
   // ========================================
   // SPECIFICATION: PDF Export
-  // Note: PDF export uses html2canvas which requires real DOM.
+  // Note: PDF export uses react-pdf rendering.
   // Full testing requires integration/e2e tests.
   // ========================================
 
