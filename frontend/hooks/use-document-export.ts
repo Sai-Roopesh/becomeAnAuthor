@@ -54,12 +54,27 @@ export function useDocumentExport() {
 
       const blob =
         resolved.format === "pdf"
-          ? await exportService.exportToPDF(projectId, resolved)
-          : await exportService.exportToDOCX(projectId, resolved);
+          ? await withTimeout(
+              exportService.exportToPDF(projectId, resolved),
+              180000,
+              "PDF generation timed out",
+            )
+          : await withTimeout(
+              exportService.exportToDOCX(projectId, resolved),
+              120000,
+              "DOCX generation timed out",
+            );
 
       const buffer = await blob.arrayBuffer();
       const data = Array.from(new Uint8Array(buffer));
-      await invoke("write_export_file", { filePath: savePath, data });
+      toast.loading(`Saving ${resolved.format.toUpperCase()}...`, {
+        id: progressToastId,
+      });
+      await withTimeout(
+        invoke("write_export_file", { filePath: savePath, data }),
+        120000,
+        "File save timed out",
+      );
 
       toast.success(
         `${resolved.format.toUpperCase()} exported to ${savePath.split("/").pop()}`,
@@ -97,4 +112,23 @@ function toSafeFilename(value: string): string {
     .replace(/\s+/g, " ")
     .slice(0, 120)
     .trim();
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
