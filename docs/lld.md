@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 19, 2026
+> **Last Updated:** February 20, 2026
 > **Status:** Living Document
 
 ---
@@ -503,8 +503,8 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | 21.4KB | Full manuscript export (DOCX via frontend, PDF via html2pdf+DOMPurify, EPUB via backend, plain text, JSON backup) |
-| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 9.4KB | Fetches models per provider (static defaults + OpenRouter dynamic) |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via html2pdf, Markdown) with configurable presets, margins, and template support. |
+| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
 | `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
@@ -962,7 +962,6 @@ render(
 | `empty-state`, `decorative-grid`, `async-content` | Container patterns |
 | `tippy-popover` | Tippy.js wrapper |
 | `sidebar/` | 5-part sidebar component system |
-| `vendor-logo/` | AI vendor brand icons |
 
 All components built on **Radix UI** primitives with **class-variance-authority** for variant styling and **tailwind-merge** for class composition.
 
