@@ -86,7 +86,7 @@ export function ChatHeader({
         </h2>
       )}
 
-      <div className="flex items-center gap-1">
+      <div className="ml-auto shrink-0 flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
@@ -113,7 +113,7 @@ export function ChatHeader({
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full hover:bg-muted"
+            className="shrink-0 rounded-full hover:bg-muted"
           >
             <MoreVertical className="h-4 w-4" />
           </Button>
