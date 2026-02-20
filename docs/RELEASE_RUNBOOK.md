@@ -41,11 +41,13 @@ gh variable set NEXT_PUBLIC_GOOGLE_CLIENT_ID --repo Sai-Roopesh/becomeAnAuthor -
    - `backend/tauri.conf.json`
    - `backend/Cargo.toml`
 2. Merge to `main` via PR.
-3. Create and push a tag that matches the version, for example:
+3. Create and push a tag that matches the version (with or without `v` prefix), for example:
 
 ```bash
-git tag v1.2.3
-git push origin v1.2.3
+git tag v0.0.1
+# or
+git tag 0.0.1
+git push origin <tag>
 ```
 
 This triggers `.github/workflows/release.yml`.
