@@ -501,7 +501,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Includes robust text sanitization for PDF stability. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Includes robust text sanitization and paragraph segmentation (>1200 chars) for PDF stability. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
@@ -536,7 +536,7 @@ features/{feature-name}/
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
 | **snippets** | 3 | 0 | Reusable text snippets |
-| **export** | 1 | 2 | Export dialog with customization support (DOCX/PDF) |
+| **export** | 1 | 2 | Export dialog with customization support (DOCX/PDF) and timeout protection (3m PDF / 2m DOCX) |
 | **navigation** | 3 | 1 | Sidebar, breadcrumbs, navigation state |
 | **data-management** | 2 | 0 | Import/export of project data |
 | **google-drive** | 2 | 2 | Google Drive backup integration |

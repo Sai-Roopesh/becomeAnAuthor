@@ -690,7 +690,7 @@ AI Request  → get_api_key(provider)         → OS Keychain
 |---|---|---|
 | **DOCX** | Frontend `docx` (npm) | Native Word document with config (font, size, margins, TOC) |
 | **EPUB** | Rust `epub-builder` | eBook with chapters, metadata, CSS styling |
-| **PDF** | Frontend `@react-pdf/renderer` | Native React PDF rendering |
+| **PDF** | Frontend `@react-pdf/renderer` | Native React PDF rendering with paragraph segmentation for stability |
 | **Markdown** | Rust string assembly | Plain markdown with scene concatenation |
 | **Plain Text** | Rust string assembly | Scene content with act/chapter headers |
 

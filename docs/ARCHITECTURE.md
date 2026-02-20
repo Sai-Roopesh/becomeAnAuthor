@@ -609,7 +609,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location |
 |---|---|---|
-| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) |
+| PDF | @react-pdf/renderer | Frontend (`DocumentExportService` with paragraph segmentation) |
 | DOCX | docx (npm) | Frontend |
 | Markdown | String assembly | Frontend |
 | ePub | Rust command | Backend |
