@@ -242,7 +242,7 @@ graph TB
 | **Search** | 6 | 1 | Full-text search across scenes and codex entries with relevance scoring |
 | **Navigation** | 3 | 1 | Sidebar manuscript tree, codex browser, snippet list, breadcrumbs |
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
-| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via html2pdf, Markdown, plain text) with presets |
+| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with customizable settings |
 | **Data Management** | 2 | 0 | Series backup import/export, novel archive conversion |
 | **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
@@ -427,7 +427,7 @@ The Rust backend is organized into three top-level module groups:
 | **Trash** | `trash.rs` | 5 | Soft delete, restore, permanent delete, list, empty |
 | **Mention** | `mention.rs` | 2 | Cross-content @mention tracking |
 | **Collaboration** | `collaboration.rs` | 4 | Yjs binary state persistence |
-| **Other** | 6 modules | ~12 | Snippets, ideas, scene notes, world maps, world events, presets |
+| **Other** | 5 modules | ~10 | Snippets, ideas, scene notes, world maps, world events |
 
 ### 8.3 Backend Design Patterns
 
@@ -519,7 +519,7 @@ The `useContextAssembly` hook builds AI context by:
 ```mermaid
 graph TD
     App["Application Data Dir<br/>~/BecomeAnAuthor/{dev|release}/"]
-    Meta[".meta/<br/>series.json, recent.json, presets.json"]
+    Meta[".meta/<br/>series.json, recent.json"]
     Series["Series/<br/>(multiple series)"]
     S1["Series A/"]
     S1Codex["codex/<br/>(shared across books)"]
