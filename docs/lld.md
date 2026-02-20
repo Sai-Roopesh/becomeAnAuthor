@@ -91,7 +91,7 @@
 | Charts | Recharts | 3.6.0 |
 | Drag & Drop | @dnd-kit | 6.3+ |
 | Markdown | react-markdown + marked | 10.1 / 17.0 |
-| Export | docx (npm), JSZip, html2pdf.js, DOMPurify | Various |
+| Export | docx (npm), JSZip, @react-pdf/renderer | Various |
 | Package Manager | pnpm | 10.29.2 |
 
 ### Backend
@@ -503,7 +503,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via html2pdf, Markdown) with configurable presets, margins, and template support. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with configurable presets, margins, and template support. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
@@ -530,11 +530,11 @@ features/{feature-name}/
 | Feature | Components | Hooks | Description |
 |---|---|---|---|
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 10 | 1 | AI chat interface with thread management, context assembly |
+| **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
 | **settings** | 10 | 2 | AI connections, appearance, editor preferences |
-| **dashboard** | 6 | 0 | Project grid, cards, empty state, header |
+| **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
 | **snippets** | 3 | 0 | Reusable text snippets |

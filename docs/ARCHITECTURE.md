@@ -113,7 +113,7 @@ becomeAnAuthor/
 | **State Management** | Zustand + persist middleware | Client-side reactive state with localStorage persistence |
 | **Styling** | Tailwind CSS 4 + shadcn/ui | Utility-first CSS, accessible component primitives |
 | **Collaboration** | Yjs + y-webrtc + y-indexeddb | CRDT-based P2P real-time editing |
-| **Document Export** | docx (npm), html2pdf.js, dompurify | PDF, DOCX generation (frontend); ePub via Rust backend |
+| **Document Export** | docx (npm), @react-pdf/renderer | PDF, DOCX generation (frontend); ePub via Rust backend |
 | **Serialization** | serde, serde_json, serde_yaml | Rust data serialization for all storage formats |
 | **Search** | walkdir + regex (Rust) | Full-text project-wide search |
 | **Positioning** | tippy.js | Floating menus, popovers for editor UI |
@@ -610,7 +610,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location |
 |---|---|---|
-| PDF | html2pdf.js + DOMPurify | Frontend (`DocumentExportService`) |
+| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) |
 | DOCX | docx (npm) | Frontend |
 | Markdown | String assembly | Frontend |
 | ePub | Rust command | Backend |
