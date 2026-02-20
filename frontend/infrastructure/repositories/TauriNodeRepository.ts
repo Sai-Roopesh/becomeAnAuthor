@@ -536,10 +536,9 @@ export class TauriNodeRepository implements INodeRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async deleteCascade(
     id: string,
-    _type: "act" | "chapter" | "scene",
+    type: "act" | "chapter" | "scene",
   ): Promise<void> {
     if (!this.projectPath) return;
 
@@ -564,6 +563,14 @@ export class TauriNodeRepository implements INodeRepository {
     const removed = removeNode(structure, id);
 
     if (removed) {
+      if (removed.type !== type) {
+        log.warn("deleteCascade type mismatch", {
+          id,
+          requestedType: type,
+          actualType: removed.type,
+        });
+      }
+
       const removedScenes = this.collectSceneMetadata([removed]);
       for (const file of new Set(removedScenes.files)) {
         await deleteScene(this.projectPath, file);

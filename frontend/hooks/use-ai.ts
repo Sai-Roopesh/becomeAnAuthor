@@ -55,12 +55,12 @@ export interface StreamCallbacks {
 
 function withSystemMessage(
   messages: AIModelMessage[],
-  defaultSystem?: string,
+  systemPrompt?: string,
 ): AIModelMessage[] {
-  if (!defaultSystem) return messages;
+  if (!systemPrompt) return messages;
 
   // Ensure system instruction is always the first message and never mixed into user content.
-  return [{ role: "system", content: defaultSystem }, ...messages];
+  return [{ role: "system", content: systemPrompt }, ...messages];
 }
 
 /**
@@ -96,13 +96,14 @@ export function useAI(options: UseAIOptions = {}) {
   );
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const inFlightRef = useRef(false);
 
   /**
    * Non-streaming generation
    */
   const generateText = useCallback(
     async (genOptions: GenerateOptions): Promise<string> => {
-      if (isGenerating) {
+      if (inFlightRef.current || isGenerating) {
         log.warn("Generation already in progress");
         return "";
       }
@@ -113,6 +114,7 @@ export function useAI(options: UseAIOptions = {}) {
         return "";
       }
 
+      inFlightRef.current = true;
       setIsGenerating(true);
       setError(null);
       const controller = new AbortController();
@@ -120,10 +122,8 @@ export function useAI(options: UseAIOptions = {}) {
 
       try {
         const modelToUse = genOptions.model || model;
-        const messages = withSystemMessage(
-          genOptions.messages,
-          options.defaultSystem,
-        );
+        const systemPrompt = genOptions.system ?? options.defaultSystem;
+        const messages = withSystemMessage(genOptions.messages, systemPrompt);
         const result = await generate({
           model: modelToUse,
           messages,
@@ -155,6 +155,7 @@ export function useAI(options: UseAIOptions = {}) {
         }
         return "";
       } finally {
+        inFlightRef.current = false;
         setIsGenerating(false);
         abortControllerRef.current = null;
       }
@@ -170,7 +171,7 @@ export function useAI(options: UseAIOptions = {}) {
       genOptions: GenerateOptions,
       callbacks: StreamCallbacks = {},
     ): Promise<string> => {
-      if (isGenerating) {
+      if (inFlightRef.current || isGenerating) {
         log.warn("Generation already in progress");
         return "";
       }
@@ -181,6 +182,7 @@ export function useAI(options: UseAIOptions = {}) {
         return "";
       }
 
+      inFlightRef.current = true;
       setIsGenerating(true);
       setError(null);
       const controller = new AbortController();
@@ -188,10 +190,8 @@ export function useAI(options: UseAIOptions = {}) {
 
       try {
         const modelToUse = genOptions.model || model;
-        const messages = withSystemMessage(
-          genOptions.messages,
-          options.defaultSystem,
-        );
+        const systemPrompt = genOptions.system ?? options.defaultSystem;
+        const messages = withSystemMessage(genOptions.messages, systemPrompt);
         const result = await stream({
           model: modelToUse,
           messages,
@@ -231,6 +231,7 @@ export function useAI(options: UseAIOptions = {}) {
         }
         return "";
       } finally {
+        inFlightRef.current = false;
         setIsGenerating(false);
         abortControllerRef.current = null;
       }

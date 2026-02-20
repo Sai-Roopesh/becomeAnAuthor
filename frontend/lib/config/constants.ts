@@ -28,17 +28,6 @@ export const DEBOUNCE_DELAYS = {
 } as const;
 
 /**
- * Search Constants
- * Configuration for Fuse.js fuzzy search
- */
-export const SEARCH_CONSTANTS = {
-  /** Fuse.js threshold (0 = exact match, 1 = match anything) */
-  FUSE_THRESHOLD: 0.4,
-  /** Minimum characters to trigger match */
-  MIN_MATCH_CHARS: 2,
-} as const;
-
-/**
  * Default Model Limits
  * Fallback values when model not found in registry
  */

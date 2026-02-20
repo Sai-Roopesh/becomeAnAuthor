@@ -1,14 +1,47 @@
 // Scene commands
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use serde::Deserialize;
 
 use crate::models::{Scene, SceneMeta, YamlSceneMeta};
 use crate::utils::{
-    atomic_write, count_words, project_dir, timestamp, validate_file_size, MAX_SCENE_SIZE,
+    atomic_write, count_words, project_dir, timestamp, validate_file_size, validate_no_null_bytes,
+    MAX_SCENE_SIZE,
 };
+
+fn validate_scene_file_name(scene_file: &str) -> Result<(), String> {
+    let trimmed = scene_file.trim();
+    if trimmed.is_empty() {
+        return Err("Scene file cannot be empty".to_string());
+    }
+
+    validate_no_null_bytes(trimmed, "Scene file")?;
+
+    let path = Path::new(trimmed);
+    if path.is_absolute() {
+        return Err("Scene file must be a relative filename".to_string());
+    }
+
+    let mut components = path.components();
+    let Some(first) = components.next() else {
+        return Err("Scene file cannot be empty".to_string());
+    };
+    if components.next().is_some() {
+        return Err("Scene file cannot contain path separators".to_string());
+    }
+
+    if !matches!(first, Component::Normal(_)) {
+        return Err("Scene file contains invalid path components".to_string());
+    }
+
+    if path.extension().and_then(|e| e.to_str()) != Some("md") {
+        return Err("Scene file must end with .md".to_string());
+    }
+
+    Ok(())
+}
 
 fn default_scene_meta(scene_file: &str, now: i64) -> SceneMeta {
     SceneMeta {
@@ -38,8 +71,8 @@ fn parse_scene_document(scene_file: &str, raw: &str) -> Result<(SceneMeta, Strin
     let body = parts[2].trim().to_string();
     let now = timestamp::now_millis();
 
-    let yaml_meta: YamlSceneMeta = serde_yaml::from_str(yaml_str)
-        .map_err(|e| format!("Failed to parse scene YAML: {}", e))?;
+    let yaml_meta: YamlSceneMeta =
+        serde_yaml::from_str(yaml_str).map_err(|e| format!("Failed to parse scene YAML: {}", e))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&yaml_meta.created_at)
         .map(|dt| dt.timestamp_millis())
@@ -80,9 +113,13 @@ fn parse_scene_document(scene_file: &str, raw: &str) -> Result<(SceneMeta, Strin
         order: yaml_meta.order,
         status: yaml_meta.status,
         word_count,
-        pov_character: yaml_meta
-            .pov_character
-            .and_then(|p| if p.trim().is_empty() { None } else { Some(p) }),
+        pov_character: yaml_meta.pov_character.and_then(|p| {
+            if p.trim().is_empty() {
+                None
+            } else {
+                Some(p)
+            }
+        }),
         subtitle: yaml_meta
             .subtitle
             .and_then(|s| if s.trim().is_empty() { None } else { Some(s) }),
@@ -149,7 +186,10 @@ fn load_scene_from_path(scene_file: &str, file_path: &PathBuf) -> Result<Scene, 
 
     let raw = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
     let (meta, body) = parse_scene_document(scene_file, &raw)?;
-    Ok(Scene { meta, content: body })
+    Ok(Scene {
+        meta,
+        content: body,
+    })
 }
 
 fn write_scene_to_path(file_path: &Path, meta: &SceneMeta, content: &str) -> Result<(), String> {
@@ -160,6 +200,7 @@ fn write_scene_to_path(file_path: &Path, meta: &SceneMeta, content: &str) -> Res
 
 #[tauri::command]
 pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, String> {
+    validate_scene_file_name(&scene_file)?;
     let project_path_buf = project_dir(&project_path)?;
     let file_path = project_path_buf.join("manuscript").join(&scene_file);
     load_scene_from_path(&scene_file, &file_path)
@@ -173,7 +214,13 @@ pub fn save_scene(
     title: Option<String>,
     word_count: i32,
 ) -> Result<SceneMeta, String> {
-    let file_path = PathBuf::from(&project_path).join("manuscript").join(&scene_file);
+    validate_scene_file_name(&scene_file)?;
+    let file_path = PathBuf::from(&project_path)
+        .join("manuscript")
+        .join(&scene_file);
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
     let now = timestamp::now_millis();
 
     let mut meta = if file_path.exists() {
@@ -222,7 +269,10 @@ pub fn update_scene_metadata(
     scene_file: String,
     updates: SceneMetadataUpdates,
 ) -> Result<SceneMeta, String> {
-    let file_path = PathBuf::from(&project_path).join("manuscript").join(&scene_file);
+    validate_scene_file_name(&scene_file)?;
+    let file_path = PathBuf::from(&project_path)
+        .join("manuscript")
+        .join(&scene_file);
     let scene = load_scene_from_path(&scene_file, &file_path)?;
     let mut meta = scene.meta;
     let body = scene.content;
@@ -275,7 +325,10 @@ pub fn update_scene_metadata(
 
 #[tauri::command]
 pub fn delete_scene(project_path: String, scene_file: String) -> Result<(), String> {
-    let file_path = PathBuf::from(&project_path).join("manuscript").join(&scene_file);
+    validate_scene_file_name(&scene_file)?;
+    let file_path = PathBuf::from(&project_path)
+        .join("manuscript")
+        .join(&scene_file);
     if file_path.exists() {
         fs::remove_file(&file_path).map_err(|e| e.to_string())?;
     }
@@ -292,8 +345,8 @@ pub fn save_scene_by_id(
     word_count: i32,
 ) -> Result<SceneMeta, String> {
     let structure_path = PathBuf::from(&project_path).join(".meta/structure.json");
-    let structure_content =
-        fs::read_to_string(&structure_path).map_err(|e| format!("Failed to read structure: {}", e))?;
+    let structure_content = fs::read_to_string(&structure_path)
+        .map_err(|e| format!("Failed to read structure: {}", e))?;
 
     let structure: Vec<crate::models::StructureNode> = serde_json::from_str(&structure_content)
         .map_err(|e| format!("Failed to parse structure: {}", e))?;
