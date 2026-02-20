@@ -93,3 +93,28 @@ App data is stored in OS local app-data under the `BecomeAnAuthor` folder, separ
 For local QA, if you want a fresh state each install, remove prior data folders before launching:
 
 - macOS example: `~/Library/Application Support/BecomeAnAuthor/release-v1`
+
+## 7. macOS "is damaged and can't be opened" troubleshooting
+
+If macOS shows:
+
+`"<App Name>" is damaged and can't be opened. You should move it to the Trash.`
+
+check signature validity first:
+
+```bash
+codesign --verify --deep --strict --verbose=2 "/Applications/Become An Author.app"
+```
+
+If this fails on a user machine, use this temporary local workaround:
+
+```bash
+sudo codesign --force --deep --sign - "/Applications/Become An Author.app"
+sudo xattr -dr com.apple.quarantine "/Applications/Become An Author.app"
+open "/Applications/Become An Author.app"
+```
+
+Notes:
+
+- This is a workaround for unsigned/not-notarized distribution and local signature issues.
+- Proper production distribution still requires Developer ID signing and notarization.

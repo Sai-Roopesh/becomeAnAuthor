@@ -1,6 +1,6 @@
 [package]
 name = "become-an-author"
-version = "1.0.0"
+version = "0.0.1"
 description = "A novel writing application with AI assistance"
 authors = ["Become An Author Team"]
 license = "MIT"
