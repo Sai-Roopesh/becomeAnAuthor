@@ -175,7 +175,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 | **Serialization** | serde (JSON/YAML) | Rust ecosystem standard; zero-cost abstractions; type-safe |
 | **Secret Storage** | OS Keychain (keyring crate) | macOS Keychain, Windows Credential Manager, Linux Secret Service; encrypted at rest |
 | **Document Export** | epub-builder | ePub generation (Rust); DOCX/PDF via Frontend |
-| **Search** | Full-text scan + Fuse.js | Simple file-based search; Fuse.js for fuzzy matching on frontend |
+| **Search** | Full-text scan (Rust command) | Simple file-based search with deterministic backend ranking for scenes and codex |
 
 ---
 

@@ -87,7 +87,7 @@
 | Forms | React Hook Form + Zod | 7.68 / 4.1 |
 | UI Primitives | Radix UI | Various |
 | AI SDK | Vercel AI SDK (`ai`) | 6.0.3 |
-| Search | Fuse.js | 7.1.0 |
+| Search | Backend `search_project` command | Rust std/walkdir |
 | Charts | Recharts | 3.6.0 |
 | Drag & Drop | @dnd-kit | 6.3+ |
 | Markdown | react-markdown + marked | 10.1 / 17.0 |
