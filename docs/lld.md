@@ -145,7 +145,7 @@ backend/src/
 │   ├── mod.rs           # Module declarations and re-exports
 │   ├── project.rs       # Project CRUD, structure, node management (32KB)
 │   ├── scene.rs         # Scene load/save with YAML frontmatter (9.7KB)
-│   ├── codex.rs         # Codex entries, relations, tags, templates (12KB)
+│   ├── codex.rs         # Codex entries, relations, tags, templates (recursive delete) (12KB)
 │   ├── series.rs        # Series management + series codex (16.5KB)
 │   ├── chat.rs          # Chat threads and messages CRUD (6.8KB)
 │   ├── search.rs        # Full-text search across project (7.3KB)
@@ -503,7 +503,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | 21.4KB | Full manuscript export (DOCX via frontend, PDF via html2pdf+DOMPurify, EPUB via backend, plain text, JSON backup) |
+| `DocumentExportService` | `DocumentExportService.ts` | 21.4KB | Template-based export (DOCX/PDF/Markdown/Presets). ePub delegated to backend `exportManuscriptEpub`. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 9.4KB | Fetches models per provider (static defaults + OpenRouter dynamic) |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
@@ -531,7 +531,7 @@ features/{feature-name}/
 |---|---|---|---|
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
 | **chat** | 10 | 1 | AI chat interface with thread management, context assembly |
-| **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
+| **codex** | 14 | 0 | Encyclopedia with tabbed editor, relations, tags, templates |
 | **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
 | **settings** | 10 | 2 | AI connections, appearance, editor preferences |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header |

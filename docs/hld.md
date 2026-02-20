@@ -234,7 +234,7 @@ graph TB
 |---|---|---|---|
 | **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, @mentions, sections, focus mode, typewriter scroll |
 | **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
-| **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
+| **Codex** | 14 | 0 | Encyclopedia with tabbed editor, relations, tags, templates, and cascading deletes |
 | **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline |
 | **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
 | **Series** | 5 | 0 | Multi-book series management, shared codex, book ordering |
@@ -688,10 +688,10 @@ AI Request  → get_api_key(provider)         → OS Keychain
 
 | Format | Engine | Output |
 |---|---|---|
-| **DOCX** | Frontend `docx` (npm) | Native Word document with config (font, size, margins, TOC) |
-| **EPUB** | Rust `epub-builder` | eBook with chapters, metadata, CSS styling |
-| **PDF** | Frontend `html2pdf.js` + `DOMPurify` | Browser-rendered PDF from sanitized HTML |
-| **Markdown** | Rust string assembly | Plain markdown with scene concatenation |
+| **DOCX** | Frontend `docx` (npm) + Presets | Native Word document with template config (font, size, margins, TOC) |
+| **EPUB** | Rust `epub-builder` | eBook with chapters, metadata, CSS styling (Backend) |
+| **PDF** | Frontend `html2pdf.js` + Presets | Browser-rendered PDF from sanitized HTML with layout config |
+| **Markdown** | Frontend + Presets | Plain markdown with headers and optional stats |
 | **Plain Text** | Rust string assembly | Scene content with act/chapter headers |
 
 ### 14.2 Backup Strategy

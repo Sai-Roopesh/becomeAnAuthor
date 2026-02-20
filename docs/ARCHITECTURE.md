@@ -196,7 +196,7 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 |---|---|---|---|---|
 | `project` | `project.rs` | ~480 | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management |
 | `scene` | `scene.rs` | 320 | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene` | Scene content I/O with YAML frontmatter |
-| `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
+| `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD with cascading deletes |
 | `chat` | `chat.rs` | 180 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message` | Thread & message persistence |
 | `snippet` | `snippet.rs` | ~80 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
 | `backup` | `backup.rs` | ~400 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup`, `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Multi-format export & import |
@@ -447,7 +447,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | Service | File | Lines | Purpose |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 124 | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()` |
-| `DocumentExportService` | `DocumentExportService.ts` | 590 | Multi-format export engine: PDF (html2pdf.js + DOMPurify), DOCX (docx npm), Markdown, ePub (Rust backend). Includes preset system, template variables, live preview |
+| `DocumentExportService` | `DocumentExportService.ts` | 590 | Multi-format export engine: PDF (html2pdf.js + DOMPurify), DOCX (docx npm), Markdown. Includes preset system, template variables, live preview. ePub delegated to backend. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 340 | Singleton with cache. Fetches models from provider APIs with provider-specific parsers (OpenAI, Anthropic, Google, OpenRouter formats). Falls back to curated defaults |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry |
 | `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). **Web:** Standard PKCE flow. |
@@ -480,7 +480,7 @@ The primary writing environment. 15+ components:
 | Component | Lines | Purpose |
 |---|---|---|
 | `CodexList` | 311 | Virtualized scrolling list with category filtering, template selection, search |
-| `EntityEditor` | 217 | Sub-component architecture — template fields, image upload, delete/save |
+| `EntityEditor` | ~500 | Tabbed editor orchestration (`DetailsTab`, `ResearchTab`, `RelationsTab`, `MentionsTab`, `TrackingTab`, `TagManager`) |
 | `CodexRelationGraph` | ~400 | Force-directed relationship visualization |
 | `MentionTracker` | ~150 | Tracks @mentions of codex entries across manuscript |
 
@@ -609,10 +609,10 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location |
 |---|---|---|
-| PDF | html2pdf.js + DOMPurify | Frontend (`DocumentExportService`) |
-| DOCX | docx (npm) | Frontend |
-| Markdown | String assembly | Frontend |
-| ePub | Rust command | Backend |
+| PDF | html2pdf.js + DOMPurify | Frontend (`DocumentExportService`) + Presets |
+| DOCX | docx (npm) | Frontend + Presets |
+| Markdown | String assembly | Frontend + Presets |
+| ePub | Rust command (`epub-builder`) | Backend |
 | Plain Text | Rust command | Backend |
 | JSON | Rust commands | Backend |
 
