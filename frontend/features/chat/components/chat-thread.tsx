@@ -173,7 +173,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
       shouldCreateMessage = false;
       // Update existing message timestamp to now so it stays as "latest"
       await chatRepo.updateMessage(userMessageId, {
-        context: Object.keys(context).length > 0 ? context : undefined,
+        ...(Object.keys(context).length > 0 ? { context } : {}),
         timestamp: Date.now(),
       });
     }
