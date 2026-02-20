@@ -91,7 +91,7 @@
 | Charts | Recharts | 3.6.0 |
 | Drag & Drop | @dnd-kit | 6.3+ |
 | Markdown | react-markdown + marked | 10.1 / 17.0 |
-| Export | docx, JSZip, html2pdf.js | Various |
+| Export | docx (npm), JSZip, html2pdf.js, DOMPurify | Various |
 | Package Manager | pnpm | 10.29.2 |
 
 ### Backend
@@ -105,7 +105,7 @@
 | Time | chrono | 0.4 |
 | File Ops | walkdir | 2.x |
 | Markdown | gray_matter | 0.2 |
-| Doc Gen | docx-rs, epub-builder | 0.4 / 0.7 |
+| Doc Gen | docx-rs (legacy), epub-builder | 0.4 / 0.7 |
 | Secret Store | keyring (OS keychain) | 2.3 |
 | Logging | tauri-plugin-log | 2.1 |
 
@@ -503,7 +503,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | 21.4KB | Full manuscript export (DOCX, EPUB, PDF, plain text, JSON backup) |
+| `DocumentExportService` | `DocumentExportService.ts` | 21.4KB | Full manuscript export (DOCX via frontend, PDF via html2pdf+DOMPurify, EPUB via backend, plain text, JSON backup) |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 9.4KB | Fetches models per provider (static defaults + OpenRouter dynamic) |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |

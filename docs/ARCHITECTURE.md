@@ -113,7 +113,7 @@ becomeAnAuthor/
 | **State Management** | Zustand + persist middleware | Client-side reactive state with localStorage persistence |
 | **Styling** | Tailwind CSS 4 + shadcn/ui | Utility-first CSS, accessible component primitives |
 | **Collaboration** | Yjs + y-webrtc + y-indexeddb | CRDT-based P2P real-time editing |
-| **Document Export** | docx, html2pdf.js | PDF, DOCX generation; ePub via Rust backend |
+| **Document Export** | docx (npm), html2pdf.js, dompurify | PDF, DOCX generation (frontend); ePub via Rust backend |
 | **Serialization** | serde, serde_json, serde_yaml | Rust data serialization for all storage formats |
 | **Search** | walkdir + regex (Rust) | Full-text project-wide search |
 | **Positioning** | tippy.js | Floating menus, popovers for editor UI |
@@ -447,7 +447,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | Service | File | Lines | Purpose |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 124 | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()` |
-| `DocumentExportService` | `DocumentExportService.ts` | 590 | Multi-format export engine: PDF (html2pdf.js), DOCX (docx lib), Markdown, ePub (Rust backend). Includes preset system, template variables, live preview |
+| `DocumentExportService` | `DocumentExportService.ts` | 590 | Multi-format export engine: PDF (html2pdf.js + DOMPurify), DOCX (docx npm), Markdown, ePub (Rust backend). Includes preset system, template variables, live preview |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 340 | Singleton with cache. Fetches models from provider APIs with provider-specific parsers (OpenAI, Anthropic, Google, OpenRouter formats). Falls back to curated defaults |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry |
 | `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). **Web:** Standard PKCE flow. |
@@ -608,8 +608,8 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location |
 |---|---|---|
-| PDF | html2pdf.js | Frontend (`DocumentExportService`) |
-| DOCX | docx library | Frontend |
+| PDF | html2pdf.js + DOMPurify | Frontend (`DocumentExportService`) |
+| DOCX | docx (npm) | Frontend |
 | Markdown | String assembly | Frontend |
 | ePub | Rust command | Backend |
 | Plain Text | Rust command | Backend |

@@ -165,6 +165,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 | **UI Primitives** | Radix UI | Accessible, unstyled headless components; WAI-ARIA compliant |
 | **AI Integration** | Vercel AI SDK 6 | Unified streaming API across 14+ providers; structured output with Zod schemas |
 | **Collaboration** | Yjs + y-webrtc | CRDT-based conflict-free real-time editing; peer-to-peer via WebRTC |
+| **Document Export** | docx (npm) + html2pdf.js + DOMPurify | Configurable DOCX/PDF generation in browser |
 
 ### 4.2 Backend Stack
 
@@ -173,7 +174,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 | **Storage** | File-based (JSON + YAML/Markdown) | No database installation; human-readable; easy backup/migration; Git-friendly |
 | **Serialization** | serde (JSON/YAML) | Rust ecosystem standard; zero-cost abstractions; type-safe |
 | **Secret Storage** | OS Keychain (keyring crate) | macOS Keychain, Windows Credential Manager, Linux Secret Service; encrypted at rest |
-| **Document Export** | docx-rs + epub-builder | Native Rust libraries for document generation; no external dependencies |
+| **Document Export** | epub-builder | ePub generation (Rust); DOCX/PDF via Frontend |
 | **Search** | Full-text scan + Fuse.js | Simple file-based search; Fuse.js for fuzzy matching on frontend |
 
 ---
@@ -687,9 +688,9 @@ AI Request  → get_api_key(provider)         → OS Keychain
 
 | Format | Engine | Output |
 |---|---|---|
-| **DOCX** | Rust `docx-rs` | Native Word document with headings, paragraphs |
+| **DOCX** | Frontend `docx` (npm) | Native Word document with config (font, size, margins, TOC) |
 | **EPUB** | Rust `epub-builder` | eBook with chapters, metadata, CSS styling |
-| **PDF** | Frontend `html2pdf.js` | Browser-rendered PDF from HTML |
+| **PDF** | Frontend `html2pdf.js` + `DOMPurify` | Browser-rendered PDF from sanitized HTML |
 | **Markdown** | Rust string assembly | Plain markdown with scene concatenation |
 | **Plain Text** | Rust string assembly | Scene content with act/chapter headers |
 
