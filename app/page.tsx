@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Plus, FolderOpen, Loader2, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "@/shared/utils/toast-service";
+import { useConfirmation } from "@/hooks/use-confirmation";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -24,6 +25,15 @@ export default function Dashboard() {
   const projectRepo = useProjectRepository();
   const [createSeriesDialogOpen, setCreateSeriesDialogOpen] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
+  const [pendingProjectAction, setPendingProjectAction] = useState<{
+    trashPath: string;
+    action: "restore" | "delete";
+  } | null>(null);
+  const [pendingSeriesAction, setPendingSeriesAction] = useState<{
+    oldSeriesId: string;
+    action: "restore" | "delete";
+  } | null>(null);
+  const { confirm, ConfirmationDialog } = useConfirmation();
 
   const trashedProjects = useLiveQuery(
     () => projectRepo.listTrash(),
@@ -45,6 +55,9 @@ export default function Dashboard() {
   };
 
   const handleRestoreFromTrash = async (trashPath: string) => {
+    if (pendingProjectAction || pendingSeriesAction) return;
+
+    setPendingProjectAction({ trashPath, action: "restore" });
     try {
       const restoredId = await projectRepo.restoreFromTrash(trashPath);
       toast.success("Project restored from Trash");
@@ -53,15 +66,23 @@ export default function Dashboard() {
       const message =
         error instanceof Error ? error.message : "Failed to restore project";
       toast.error(message);
+    } finally {
+      setPendingProjectAction(null);
     }
   };
 
   const handlePermanentDelete = async (trashPath: string, title: string) => {
-    const confirmed = window.confirm(
-      `Permanently delete \"${title}\" from Trash? This cannot be undone.`,
-    );
+    if (pendingProjectAction || pendingSeriesAction) return;
+
+    const confirmed = await confirm({
+      title: "Delete Novel Forever",
+      description: `Permanently delete "${title}" from Trash? This cannot be undone.`,
+      confirmText: "Delete Forever",
+      variant: "destructive",
+    });
     if (!confirmed) return;
 
+    setPendingProjectAction({ trashPath, action: "delete" });
     try {
       await projectRepo.permanentlyDeleteFromTrash(trashPath);
       toast.success("Project permanently deleted");
@@ -69,10 +90,15 @@ export default function Dashboard() {
       const message =
         error instanceof Error ? error.message : "Failed to delete project";
       toast.error(message);
+    } finally {
+      setPendingProjectAction(null);
     }
   };
 
   const handleRestoreSeries = async (oldSeriesId: string) => {
+    if (pendingProjectAction || pendingSeriesAction) return;
+
+    setPendingSeriesAction({ oldSeriesId, action: "restore" });
     try {
       const restored = await restoreDeletedSeries(oldSeriesId);
       invalidateQueries(["series", "projects"]);
@@ -82,6 +108,8 @@ export default function Dashboard() {
       const message =
         error instanceof Error ? error.message : "Failed to restore series";
       toast.error(message);
+    } finally {
+      setPendingSeriesAction(null);
     }
   };
 
@@ -89,11 +117,17 @@ export default function Dashboard() {
     oldSeriesId: string,
     title: string,
   ) => {
-    const confirmed = window.confirm(
-      `Permanently remove deleted series record "${title}" from Trash? This cannot be undone.`,
-    );
+    if (pendingProjectAction || pendingSeriesAction) return;
+
+    const confirmed = await confirm({
+      title: "Delete Series Record Forever",
+      description: `Permanently remove deleted series record "${title}" from Trash? This cannot be undone.`,
+      confirmText: "Delete Forever",
+      variant: "destructive",
+    });
     if (!confirmed) return;
 
+    setPendingSeriesAction({ oldSeriesId, action: "delete" });
     try {
       await permanentlyDeleteDeletedSeries(oldSeriesId);
       invalidateQueries("series");
@@ -104,6 +138,8 @@ export default function Dashboard() {
           ? error.message
           : "Failed to delete series record";
       toast.error(message);
+    } finally {
+      setPendingSeriesAction(null);
     }
   };
 
@@ -155,7 +191,7 @@ export default function Dashboard() {
             <div>
               <h3 className="font-semibold">Trash</h3>
               <p className="text-sm text-muted-foreground">
-                Restore novels and series, or permanently delete novels.
+                Restore novels and series, or permanently delete records.
               </p>
             </div>
             <Button
@@ -189,16 +225,28 @@ export default function Dashboard() {
                         <Button
                           size="sm"
                           variant="outline"
+                          disabled={Boolean(
+                            pendingProjectAction || pendingSeriesAction,
+                          )}
                           onClick={() =>
                             handleRestoreSeries(series.oldSeriesId)
                           }
                         >
-                          <RotateCcw className="w-4 h-4 mr-1" />
+                          {pendingSeriesAction?.oldSeriesId ===
+                            series.oldSeriesId &&
+                          pendingSeriesAction.action === "restore" ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <RotateCcw className="w-4 h-4 mr-1" />
+                          )}
                           Restore Series
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
+                          disabled={Boolean(
+                            pendingProjectAction || pendingSeriesAction,
+                          )}
                           onClick={() =>
                             handleDeleteSeriesRecord(
                               series.oldSeriesId,
@@ -206,7 +254,13 @@ export default function Dashboard() {
                             )
                           }
                         >
-                          <Trash2 className="w-4 h-4 mr-1" />
+                          {pendingSeriesAction?.oldSeriesId ===
+                            series.oldSeriesId &&
+                          pendingSeriesAction.action === "delete" ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 mr-1" />
+                          )}
                           Delete Forever
                         </Button>
                       </div>
@@ -235,16 +289,28 @@ export default function Dashboard() {
                         <Button
                           size="sm"
                           variant="outline"
+                          disabled={Boolean(
+                            pendingProjectAction || pendingSeriesAction,
+                          )}
                           onClick={() =>
                             handleRestoreFromTrash(project.trashPath)
                           }
                         >
-                          <RotateCcw className="w-4 h-4 mr-1" />
+                          {pendingProjectAction?.trashPath ===
+                            project.trashPath &&
+                          pendingProjectAction.action === "restore" ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <RotateCcw className="w-4 h-4 mr-1" />
+                          )}
                           Restore
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
+                          disabled={Boolean(
+                            pendingProjectAction || pendingSeriesAction,
+                          )}
                           onClick={() =>
                             handlePermanentDelete(
                               project.trashPath,
@@ -252,7 +318,13 @@ export default function Dashboard() {
                             )
                           }
                         >
-                          <Trash2 className="w-4 h-4 mr-1" />
+                          {pendingProjectAction?.trashPath ===
+                            project.trashPath &&
+                          pendingProjectAction.action === "delete" ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 mr-1" />
+                          )}
                           Delete Forever
                         </Button>
                       </div>
@@ -283,6 +355,7 @@ export default function Dashboard() {
         onOpenChange={setCreateSeriesDialogOpen}
         onCreated={(seriesId) => router.push(`/series?id=${seriesId}`)}
       />
+      <ConfirmationDialog />
     </div>
   );
 }
