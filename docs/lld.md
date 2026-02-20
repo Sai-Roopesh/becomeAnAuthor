@@ -159,7 +159,6 @@ backend/src/
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
 │   ├── world_map.rs     # Map management with image upload (2.7KB)
 │   ├── world_timeline.rs# World-level timeline events (1.8KB)
-│   ├── preset.rs        # Custom AI presets (1.8KB)
 │   └── google_oauth.rs  # Desktop OAuth via loopback + keyring (15KB)
 ├── models/              # Data structures (11 modules)
 │   ├── mod.rs
@@ -238,8 +237,7 @@ pub fn command_name(param1: Type1, param2: Type2) -> Result<ReturnType, String> 
 │       └── codex/                # Series-level codex entries
 ├── .meta/
 │   ├── series.json               # All series metadata
-│   ├── recent.json               # Recently opened projects
-│   └── presets.json              # Custom AI presets
+│   └── recent.json               # Recently opened projects
 └── .trash/                       # Trashed projects
 ```
 
@@ -400,7 +398,7 @@ DocumentNode = Act | Chapter | Scene
 - `Beat` — Scene outline beat (id, text, isCompleted)
 - `Section` — Editor section within a scene
 - `CodexAddition` — Scene-codex link
-- `CodexTag`, `CodexEntryTag`, `CodexTemplate`, `CodexRelationType`, `SceneCodexLink`
+- `CodexTag`, `CodexEntryTag`, `CodexTemplate`, `CodexRelationType`, `SceneCodexLink`, `ExportConfigV2`
 - `ChatContext` — Contextual data for AI (novelText, acts, chapters, scenes, snippets, codexEntries)
 - `AIConnection` — Provider config (provider, apiKey, models, customEndpoint, enabled)
 - `TrashedProject` — Soft-deleted project metadata
@@ -503,7 +501,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with configurable presets, margins, and template support. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support (custom fonts, margins, page size). |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
@@ -538,7 +536,7 @@ features/{feature-name}/
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
 | **snippets** | 3 | 0 | Reusable text snippets |
-| **export** | 1 | 2 | Export dialog with format selection |
+| **export** | 1 | 2 | Export dialog with customization support (DOCX/PDF) |
 | **navigation** | 3 | 1 | Sidebar, breadcrumbs, navigation state |
 | **data-management** | 2 | 0 | Import/export of project data |
 | **google-drive** | 2 | 2 | Google Drive backup integration |
@@ -728,7 +726,7 @@ export async function loadScene(
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
 | **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
 | **Google OAuth** | 4 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` |
-| **Other** | ~10 | Ideas, scene notes, maps, world events, presets, app info |
+| **Other** | ~10 | Ideas, scene notes, maps, world events, app info |
 
 ### 12.3 Environment Detection
 

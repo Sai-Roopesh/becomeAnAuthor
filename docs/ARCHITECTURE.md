@@ -210,7 +210,6 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
 | `world_map` | `world_map.rs` | ~120 | `list_maps`, `save_map`, `delete_map`, `upload_map_image` | Map image + marker storage |
 | `world_timeline` | `world_timeline.rs` | ~80 | `list_world_events`, `save_world_event`, `delete_world_event` | World event timeline |
-| `preset` | `preset.rs` | ~60 | `list_custom_presets`, `save_custom_preset`, `delete_custom_preset` | Custom export presets |
 | `google_oauth` | `google_oauth.rs` | 428 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
 
 ### 5.3 Models — `models/mod.rs`
@@ -447,7 +446,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | Service | File | Lines | Purpose |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 124 | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()` |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 | Multi-format export engine with configurable presets: PDF (html2pdf.js + DOMPurify sanitization), DOCX (docx npm), Markdown. Supports custom styling, margins, and template variables. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, and inclusion options. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with fallback to manual entry. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry |
 | `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). **Web:** Standard PKCE flow. |
@@ -574,7 +573,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 │   ├── scenes/{file}.md (YAML frontmatter + TipTap JSON)
 │   └── .meta/ (chat/, snippets.json, ideas.json, scene-notes/, maps/,
 │         world-timeline.json, codex/{category}/, codex-relations.json,
-│         codex-tags.json, emergency_backups/, yjs-states/, custom-presets.json)
+│         codex-tags.json, emergency_backups/, yjs-states/)
 ├── Series/ (series-list.json, {id}/codex/)
 └── .recent.json
 ```
@@ -743,7 +742,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | Directory | Files |
 |---|---|
 | Root | `lib.rs` (188 lines), `main.rs` |
-| `commands/` | `mod.rs` + 18 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `idea`, `scene_note`, `world_map`, `world_timeline`, `preset` |
+| `commands/` | `mod.rs` + 17 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `idea`, `scene_note`, `world_map`, `world_timeline` |
 | `models/` | `mod.rs` + 11 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `trash`, `series`, `idea`, `scene_note`, `world` |
 | `utils/` | `mod.rs` + 7 utils: `atomic_write`, `timestamp`, `count_words`, `project_dir`, `validate_file_size`, `validate_json_size`, `validate_no_null_bytes` |
 
