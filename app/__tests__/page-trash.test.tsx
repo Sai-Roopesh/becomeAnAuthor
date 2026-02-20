@@ -120,7 +120,9 @@ describe("Dashboard Trash", () => {
     const deleteButtons = screen.getAllByRole("button", {
       name: /delete forever/i,
     });
-    fireEvent.click(deleteButtons[0]);
+    const firstButton = deleteButtons[0];
+    if (!firstButton) throw new Error("Delete button not found");
+    fireEvent.click(firstButton);
 
     await waitFor(() => {
       expect(mocks.confirm).toHaveBeenCalledTimes(1);
@@ -139,7 +141,9 @@ describe("Dashboard Trash", () => {
     const deleteButtons = screen.getAllByRole("button", {
       name: /delete forever/i,
     });
-    fireEvent.click(deleteButtons[0]);
+    const firstButton = deleteButtons[0];
+    if (!firstButton) throw new Error("Delete button not found");
+    fireEvent.click(firstButton);
 
     await waitFor(() => {
       expect(mocks.permanentlyDeleteDeletedSeries).toHaveBeenCalledWith(
