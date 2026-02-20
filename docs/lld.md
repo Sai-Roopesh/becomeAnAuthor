@@ -528,10 +528,10 @@ features/{feature-name}/
 | Feature | Components | Hooks | Description |
 |---|---|---|---|
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly |
+| **chat** | 9 | 1 | AI chat interface with active/archived/deleted views, thread management (prevents duplicates via `ChatThread` logic), context assembly |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
-| **settings** | 10 | 2 | AI connections, appearance, editor preferences |
+| **settings** | 9 | 2 | AI connections, appearance, editor preferences |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
@@ -541,10 +541,10 @@ features/{feature-name}/
 | **data-management** | 2 | 0 | Import/export of project data |
 | **google-drive** | 2 | 2 | Google Drive backup integration |
 | **collaboration** | 1 | 0 | Real-time collaboration via Yjs |
-| **ai** | 1 | 0 | AI-specific UI components |
+| **ai** | 1 | 0 | AI-specific UI components (ModelSelector) |
 | **project** | 2 | 0 | Project-level settings and metadata |
 | **updater** | 1 | 0 | UpdateNotifier component |
-| **shared** | 5 | 0 | ErrorBoundary, ThemeProvider, LoadingSpinner, withErrorBoundary HOC, toast-service |
+| **shared** | 5 | 0 | ContextSelector, CreateNodeDialog, ErrorBoundary, ThemeProvider, VendorLogo |
 
 ### 9.2 Editor Feature (Deep Dive)
 

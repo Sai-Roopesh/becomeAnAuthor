@@ -727,15 +727,16 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |
 | `features/codex/` | ~8 components, 2 hooks |
 | `features/plan/` | 5 views + orchestrator |
-| `features/chat/` | ~5 components, 1 hook |
+| `features/chat/` | 9 components, 1 hook |
 | `features/navigation/` | 2 components |
-| `features/settings/` | ~10 components, 2 hooks |
+| `features/settings/` | 9 components, 2 hooks |
 | `features/dashboard/` | 2 components |
-| `features/ai/` | 2 components |
+| `features/ai/` | 1 component |
+| `features/shared/` | 5 components (ContextSelector, CreateNodeDialog, ErrorBoundary, ThemeProvider, VendorLogo) |
 | `features/collaboration/` | 3 components, 1 hook, 1 provider |
 | `features/export/` | 3 components, 1 hook |
 | `features/search/` | 1 component |
-| `components/ui/` | 36+ shadcn/ui components |
+| `components/ui/` | 37+ shadcn/ui components |
 
 ### 19.2 Backend — `backend/src/` (40 source files)
 
