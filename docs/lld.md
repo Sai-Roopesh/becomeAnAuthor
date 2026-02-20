@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 19, 2026
+> **Last Updated:** February 20, 2026
 > **Status:** Living Document
 
 ---
@@ -144,13 +144,13 @@ backend/src/
 ├── commands/            # Tauri command implementations (18 modules)
 │   ├── mod.rs           # Module declarations and re-exports
 │   ├── project.rs       # Project CRUD, structure, node management (32KB)
-│   ├── scene.rs         # Scene load/save with YAML frontmatter (9.7KB)
+│   ├── scene.rs         # Scene load/save with YAML frontmatter + strict validation (370 lines)
 │   ├── codex.rs         # Codex entries, relations, tags, templates (12KB)
 │   ├── series.rs        # Series management + series codex (16.5KB)
 │   ├── chat.rs          # Chat threads and messages CRUD (6.8KB)
 │   ├── search.rs        # Full-text search across project (7.3KB)
 │   ├── backup.rs        # Emergency backup + export/import (40KB)
-│   ├── trash.rs         # Soft delete with restore (5.4KB)
+│   ├── trash.rs         # Soft delete with restore + UUID validation (200 lines)
 │   ├── security.rs      # OS keychain API key management (5.9KB)
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
@@ -503,8 +503,8 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | 21.4KB | Full manuscript export (DOCX via frontend, PDF via html2pdf+DOMPurify, EPUB via backend, plain text, JSON backup) |
-| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 9.4KB | Fetches models per provider (static defaults + OpenRouter dynamic) |
+| `DocumentExportService` | `DocumentExportService.ts` | 950 lines | Full manuscript export (DOCX/PDF via frontend with presets, ePub via backend). Includes live preview & DOMPurify sanitization. |
+| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | 500 lines | Fetches models per provider. Implements caching (localStorage + TTL) and dynamic fetching for 7+ providers. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
 | `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
@@ -962,7 +962,6 @@ render(
 | `empty-state`, `decorative-grid`, `async-content` | Container patterns |
 | `tippy-popover` | Tippy.js wrapper |
 | `sidebar/` | 5-part sidebar component system |
-| `vendor-logo/` | AI vendor brand icons |
 
 All components built on **Radix UI** primitives with **class-variance-authority** for variant styling and **tailwind-merge** for class composition.
 

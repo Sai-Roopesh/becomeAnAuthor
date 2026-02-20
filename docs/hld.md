@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 19, 2026
+> **Last Updated:** February 20, 2026
 > **Status:** Living Document
 
 ---
@@ -635,7 +635,7 @@ OAuth 2.0 PKCE flow:
 | Threat | Mitigation |
 |---|---|
 | API key exposure | Stored in OS keychain (encrypted at rest); never in filesystem or localStorage |
-| Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
+| Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation. Strict validation of scene filenames and trash item IDs. |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |
 | Oversized payloads | `validate_json_size()` + `validate_scene_content()` enforce limits (10MB JSON, 50MB scene) |
@@ -759,7 +759,7 @@ Built on **Radix UI** primitives with **class-variance-authority** for variant s
 | **Layout** | Card, Tabs, Collapsible, CollapsibleSection, ScrollArea, Resizable, Separator |
 | **Display** | Badge, Progress, Skeleton, EmptyState, SaveStatusIndicator |
 | **Specialized** | TagInput, TimeWheelPicker, QuickCaptureModal, CommandPalette |
-| **Composite** | Sidebar (5-part system), VendorLogo (AI provider icons) |
+| **Composite** | Sidebar (5-part system) |
 
 ---
 
