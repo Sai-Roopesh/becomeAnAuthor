@@ -9,6 +9,7 @@ import {
   Sparkles,
   ExternalLink,
 } from "lucide-react";
+import { TauriCodexRepository } from "@/infrastructure/repositories/TauriCodexRepository";
 
 interface CodexMentionTooltipProps {
   entry: CodexEntry | null;
@@ -124,8 +125,6 @@ export function createMentionTooltipContent(
   codexId: string,
   seriesId: string,
 ): HTMLElement {
-  void codexId;
-  void seriesId;
   const wrapper = document.createElement("div");
   wrapper.className =
     "codex-mention-tooltip bg-popover text-popover-foreground rounded-md border shadow-md overflow-hidden";
@@ -134,5 +133,69 @@ export function createMentionTooltipContent(
       <div class="text-sm text-muted-foreground">Loading...</div>
     </div>
   `;
+
+  const escapeHtml = (value: string) =>
+    value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
+  const categoryLabel: Record<CodexCategory, string> = {
+    character: "Character",
+    location: "Location",
+    subplot: "Plot Thread",
+    item: "Item",
+    lore: "Lore",
+  };
+
+  const repo = new TauriCodexRepository();
+  void repo
+    .get(seriesId, codexId)
+    .then((entry) => {
+      if (!entry) {
+        wrapper.innerHTML = `
+          <div class="min-w-48 max-w-64 p-2">
+            <div class="text-sm text-muted-foreground">Mention not found</div>
+          </div>
+        `;
+        return;
+      }
+
+      const description =
+        (entry.description || "").split("\n")[0] || "No description";
+      const shortDescription =
+        description.length > 100
+          ? `${description.slice(0, 100)}...`
+          : description;
+
+      wrapper.innerHTML = `
+        <div class="min-w-48 max-w-64">
+          <div class="flex items-start gap-2 p-2">
+            <div class="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+              ${
+                entry.thumbnail
+                  ? `<img src="${escapeHtml(entry.thumbnail)}" alt="" class="h-full w-full rounded-full object-cover" />`
+                  : `<span class="text-xs font-semibold text-muted-foreground">@</span>`
+              }
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm">${escapeHtml(entry.name)}</div>
+              <div class="text-xs text-muted-foreground">${escapeHtml(categoryLabel[entry.category])}</div>
+            </div>
+          </div>
+          <div class="px-2 pb-2 text-xs text-muted-foreground">${escapeHtml(shortDescription)}</div>
+        </div>
+      `;
+    })
+    .catch(() => {
+      wrapper.innerHTML = `
+        <div class="min-w-48 max-w-64 p-2">
+          <div class="text-sm text-muted-foreground">Unable to load mention details</div>
+        </div>
+      `;
+    });
+
   return wrapper;
 }

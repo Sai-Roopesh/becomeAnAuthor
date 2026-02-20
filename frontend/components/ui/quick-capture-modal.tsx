@@ -199,6 +199,3 @@ export function QuickCaptureModal({
     </Dialog>
   );
 }
-
-// Re-export from proper hooks location for backwards compatibility
-export { useQuickCapture } from "@/hooks/use-quick-capture";

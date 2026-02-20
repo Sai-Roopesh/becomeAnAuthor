@@ -59,7 +59,7 @@ export function useAIConnections() {
       const hydrated = await Promise.all(
         parsed.map(async (connection) => {
           if (connection.apiKey?.trim()) return connection;
-          const storedKey = await getAPIKey(connection.provider);
+          const storedKey = await getAPIKey(connection.provider, connection.id);
           if (!storedKey) return connection;
           return { ...connection, apiKey: storedKey };
         }),
@@ -79,13 +79,13 @@ export function useAIConnections() {
   }, []);
 
   const persistApiKey = useCallback(
-    async (provider: AIProvider, key: string) => {
+    async (provider: AIProvider, connectionId: string, key: string) => {
       const normalized = key.trim();
       if (!normalized) {
-        await deleteAPIKey(provider);
+        await deleteAPIKey(provider, connectionId);
         return;
       }
-      await storeAPIKey(provider, normalized);
+      await storeAPIKey(provider, connectionId, normalized);
     },
     [],
   );
@@ -120,7 +120,7 @@ export function useAIConnections() {
       });
 
       if (nextApiKey !== undefined) {
-        void persistApiKey(provider, nextApiKey).catch((err) => {
+        void persistApiKey(provider, id, nextApiKey).catch((err) => {
           log.error("Failed to persist API key in keychain:", err);
           setError("Failed to persist API key in secure storage");
         });
@@ -142,12 +142,14 @@ export function useAIConnections() {
     setConnections(updated);
     persistConnections(updated);
     if (newConnection.apiKey.trim()) {
-      void persistApiKey(newConnection.provider, newConnection.apiKey).catch(
-        (err) => {
-          log.error("Failed to store API key in keychain:", err);
-          setError("Failed to store API key in secure storage");
-        },
-      );
+      void persistApiKey(
+        newConnection.provider,
+        newConnection.id,
+        newConnection.apiKey,
+      ).catch((err) => {
+        log.error("Failed to store API key in keychain:", err);
+        setError("Failed to store API key in secure storage");
+      });
     }
     setSelectedId(newConnection.id);
   };
@@ -158,13 +160,12 @@ export function useAIConnections() {
     setConnections(updated);
     persistConnections(updated);
 
-    if (
-      removedConnection &&
-      !updated.some((c) => c.provider === removedConnection.provider)
-    ) {
-      void deleteAPIKey(removedConnection.provider).catch((err) => {
-        log.error("Failed to delete API key from keychain:", err);
-      });
+    if (removedConnection) {
+      void deleteAPIKey(removedConnection.provider, removedConnection.id).catch(
+        (err) => {
+          log.error("Failed to delete API key from keychain:", err);
+        },
+      );
     }
 
     setSelectedId(updated[0]?.id || "");
@@ -192,7 +193,9 @@ export function useAIConnections() {
       try {
         const keyFromStorage = connection.apiKey || "";
         const keyFromKeychain =
-          keyFromStorage.trim() || (await getAPIKey(connection.provider)) || "";
+          keyFromStorage.trim() ||
+          (await getAPIKey(connection.provider, connection.id)) ||
+          "";
         const canFetchWithoutKey = !requiresApiKey(connection);
         if (!keyFromKeychain && !canFetchWithoutKey) {
           setError("API key is required to fetch models");

@@ -264,7 +264,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 opacity-100 transition-all md:opacity-0 md:group-hover:opacity-100">
+              <div className="flex items-center gap-1 opacity-100 transition-all md:opacity-70 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
                 {threadView === "active" && (
                   <Button
                     variant="ghost"

@@ -17,7 +17,11 @@ import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
 import DOMPurify from "dompurify";
-import type { ExportConfig } from "@/domain/types/export-types";
+import type {
+  ExportConfig,
+  ExportFormat,
+  ExportPreset,
+} from "@/domain/types/export-types";
 
 const log = logger.scope("ExportDialog");
 
@@ -97,6 +101,9 @@ export function ExportDialog({
   }, [projectId, projectRepository]);
 
   const [customConfig, setCustomConfig] = useState<Partial<ExportConfig>>({});
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(
+    null,
+  );
   const [activeTab, setActiveTab] = useState<"presets" | "config" | "preview">(
     "presets",
   );
@@ -115,14 +122,31 @@ export function ExportDialog({
     }
   }, [project, open]);
 
+  useEffect(() => {
+    if (selectedPreset) {
+      setSelectedFormat(selectedPreset.defaultFormat);
+    } else {
+      setSelectedFormat(null);
+    }
+  }, [selectedPreset]);
+
+  const effectivePreset: ExportPreset | null = useMemo(() => {
+    if (!selectedPreset) return null;
+    return {
+      ...selectedPreset,
+      defaultFormat: selectedFormat ?? selectedPreset.defaultFormat,
+    };
+  }, [selectedPreset, selectedFormat]);
+
   const handleExport = async () => {
-    if (!selectedPreset) return;
+    if (!effectivePreset) return;
 
     try {
-      await exportWithPreset(projectId, selectedPreset, customConfig);
+      await exportWithPreset(projectId, effectivePreset, customConfig);
       onOpenChange(false);
       // Reset state
       setCustomConfig({});
+      setSelectedFormat(null);
       clearPreview();
     } catch (error) {
       log.error("Export failed:", error);
@@ -130,8 +154,8 @@ export function ExportDialog({
   };
 
   const handlePreview = async () => {
-    if (!selectedPreset) return;
-    await generatePreview(selectedPreset, customConfig);
+    if (!effectivePreset) return;
+    await generatePreview(effectivePreset, customConfig);
     setActiveTab("preview");
   };
 
@@ -216,11 +240,34 @@ export function ExportDialog({
                     <p className="text-sm text-muted-foreground">
                       {selectedPreset.name}
                     </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Export format:{" "}
+                      {(
+                        selectedFormat || selectedPreset.defaultFormat
+                      ).toUpperCase()}
+                    </p>
                   </div>
 
                   <div className="rounded-lg border p-4">
                     <h3 className="font-semibold mb-3">Basic Configuration</h3>
                     <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium">Format</label>
+                        <select
+                          className="w-full mt-1 px-3 py-2 border rounded bg-background"
+                          value={selectedFormat || selectedPreset.defaultFormat}
+                          onChange={(e) =>
+                            setSelectedFormat(e.target.value as ExportFormat)
+                          }
+                          disabled={selectedPreset.supportedFormats.length <= 1}
+                        >
+                          {selectedPreset.supportedFormats.map((format) => (
+                            <option key={format} value={format}>
+                              {format.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <div>
                         <label className="text-sm font-medium">Title</label>
                         <input
@@ -349,9 +396,11 @@ export function ExportDialog({
             </Button>
             <Button
               onClick={handleExport}
-              disabled={!selectedPreset || isExporting}
+              disabled={!effectivePreset || isExporting}
             >
-              {isExporting ? "Exporting..." : "Export"}
+              {isExporting
+                ? "Exporting..."
+                : `Export${effectivePreset ? ` (${effectivePreset.defaultFormat.toUpperCase()})` : ""}`}
             </Button>
           </div>
         </DialogFooter>

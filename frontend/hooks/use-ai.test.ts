@@ -29,11 +29,11 @@ describe("useAI", () => {
     vi.mocked(storage.getItem).mockReturnValue("");
   });
 
-  it("initializes with fallback model when storage is empty", () => {
+  it("initializes with no model when storage is empty", () => {
     const { result } = renderHook(() => useAI());
 
     expect(result.current.isGenerating).toBe(false);
-    expect(result.current.model).toBe("gpt-4.1-mini");
+    expect(result.current.model).toBe("");
   });
 
   it("allows setting model explicitly", () => {

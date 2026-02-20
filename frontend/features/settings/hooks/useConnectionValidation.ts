@@ -24,6 +24,16 @@ export function useConnectionValidation() {
     const vendor = AI_VENDORS[connection.provider];
     const normalizedApiKey = apiKey.trim();
     const endpoint = customEndpoint?.trim() || vendor.defaultEndpoint;
+    const supportsAutoListing = modelDiscoveryService.supportsModelListing(
+      connection.provider,
+    );
+
+    if (!supportsAutoListing) {
+      const message =
+        "Automatic model discovery is unavailable for this provider. Enter model IDs manually.";
+      setError(message);
+      throw new Error(message);
+    }
 
     if (vendor.requiresAuth && !normalizedApiKey) {
       setError("Please enter an API key first");

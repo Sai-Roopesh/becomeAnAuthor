@@ -1,11 +1,11 @@
 /**
  * Model Discovery Service
  *
- * Fetches available AI models from provider APIs with fallback to defaults.
+ * Fetches available AI models from provider APIs.
  *
  * Strategy:
- * - Try dynamic fetch for providers with reliable APIs
- * - Fall back to curated defaults from ai-vendors.ts on failure
+ * - Use dynamic fetch for providers with model-listing endpoints
+ * - Require manual model IDs when listing endpoints are unavailable
  * - Cache results to avoid repeated API calls
  *
  * @see CODING_GUIDELINES.md - 8-Layer Architecture, Layer 5 (Infrastructure)
@@ -23,8 +23,10 @@ import { CACHE_CONSTANTS } from "@/lib/config/constants";
 
 const log = logger.scope("ModelDiscoveryService");
 
-// Provider API endpoints for model listing
-const MODEL_ENDPOINTS: Record<string, string> = {
+const CACHE_PREFIX = "model_cache_";
+
+// Provider API endpoints with reliable model listing support
+const MODEL_ENDPOINTS: Partial<Record<AIProvider, string>> = {
   openai: "https://api.openai.com/v1/models",
   anthropic: "https://api.anthropic.com/v1/models",
   google: "https://generativelanguage.googleapis.com/v1beta/models",
@@ -37,7 +39,7 @@ const MODEL_ENDPOINTS: Record<string, string> = {
 /**
  * ModelDiscoveryService - Returns available models for AI providers
  *
- * Attempts dynamic fetch, falls back to curated defaults.
+ * Uses dynamic provider APIs where available.
  */
 export class ModelDiscoveryService implements IModelDiscoveryService {
   private static instance: ModelDiscoveryService;
@@ -52,11 +54,15 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
   }
 
   supportsModelListing(provider: string): boolean {
-    return provider in AI_VENDORS;
+    return provider in MODEL_ENDPOINTS;
   }
 
   getCachedModels(provider: string): ModelDiscoveryResult | null {
-    const cacheKey = `model_cache_${provider}`;
+    const cacheKey = this.getCacheKey(provider);
+    return this.getCachedModelsForKey(cacheKey);
+  }
+
+  private getCachedModelsForKey(cacheKey: string): ModelDiscoveryResult | null {
     const cached = storage.getItem<ModelDiscoveryResult | null>(cacheKey, null);
 
     if (!cached || !cached.cachedAt) return null;
@@ -71,50 +77,173 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
 
   clearCache(provider?: string): void {
     if (provider) {
-      storage.removeItem(`model_cache_${provider}`);
+      this.clearCacheByPrefix(`${CACHE_PREFIX}${provider}`);
     } else {
-      Object.keys(AI_VENDORS).forEach((p) => {
-        storage.removeItem(`model_cache_${p}`);
-      });
+      this.clearCacheByPrefix(CACHE_PREFIX);
     }
+  }
+
+  private clearCacheByPrefix(prefix: string): void {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return;
+    }
+
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith(prefix)) {
+        storage.removeItem(key);
+      }
+    });
+  }
+
+  private getCacheKey(provider: string, endpoint?: string): string {
+    if (!endpoint) return `${CACHE_PREFIX}${provider}`;
+    return `${CACHE_PREFIX}${provider}_${encodeURIComponent(endpoint.toLowerCase())}`;
+  }
+
+  private normalizeOpenAIEndpoint(endpoint: string): string {
+    const trimmed = endpoint.trim();
+    if (!trimmed) {
+      return MODEL_ENDPOINTS.openai || "https://api.openai.com/v1/models";
+    }
+
+    try {
+      const url = new URL(trimmed);
+      const path = url.pathname.replace(/\/+$/, "");
+
+      if (path.endsWith("/models")) return url.toString();
+      if (!path || path === "/") {
+        url.pathname = "/v1/models";
+        return url.toString();
+      }
+      if (path.endsWith("/chat/completions")) {
+        url.pathname = path.replace(/\/chat\/completions$/, "/models");
+        return url.toString();
+      }
+      if (path.endsWith("/completions")) {
+        url.pathname = path.replace(/\/completions$/, "/models");
+        return url.toString();
+      }
+      if (path.endsWith("/v1")) {
+        url.pathname = `${path}/models`;
+        return url.toString();
+      }
+
+      url.pathname = `${path}/models`;
+      return url.toString();
+    } catch {
+      const normalized = trimmed.replace(/\/+$/, "");
+      if (normalized.endsWith("/models")) return normalized;
+      if (normalized.endsWith("/chat/completions")) {
+        return normalized.replace(/\/chat\/completions$/, "/models");
+      }
+      if (normalized.endsWith("/completions")) {
+        return normalized.replace(/\/completions$/, "/models");
+      }
+      if (normalized.endsWith("/v1")) return `${normalized}/models`;
+      return `${normalized}/models`;
+    }
+  }
+
+  private resolveEndpoint(provider: string, customEndpoint?: string): string {
+    const normalizedCustom = customEndpoint?.trim();
+
+    if (provider === "openai") {
+      const endpoint = normalizedCustom || MODEL_ENDPOINTS.openai || "";
+      return this.normalizeOpenAIEndpoint(endpoint);
+    }
+
+    if (normalizedCustom) return normalizedCustom;
+    return MODEL_ENDPOINTS[provider as AIProvider] || "";
+  }
+
+  private requiresApiKeyForListing(
+    provider: string,
+    endpoint: string,
+  ): boolean {
+    if (provider !== "openai") return true;
+
+    const openAIDefault = this.normalizeOpenAIEndpoint(
+      MODEL_ENDPOINTS.openai || "https://api.openai.com/v1/models",
+    );
+    return endpoint === openAIDefault;
+  }
+
+  private providerDisplayName(provider: string): string {
+    return AI_VENDORS[provider as AIProvider]?.name || provider;
+  }
+
+  private noModelsError(provider: string): string {
+    return `No compatible text models returned by ${this.providerDisplayName(provider)}.`;
+  }
+
+  private dynamicFetchError(provider: string, error?: string): string {
+    if (error) {
+      return `Failed to fetch models from ${this.providerDisplayName(provider)}: ${error}`;
+    }
+    return `Failed to fetch models from ${this.providerDisplayName(provider)}.`;
   }
 
   /**
    * Get models for a provider.
    *
    * 1. Check cache first
-   * 2. Try dynamic fetch from provider API
-   * 3. Fall back to static defaults on failure
+   * 2. Try dynamic fetch for providers with model-list APIs
+   * 3. Require manual model IDs for providers without listing APIs
    */
   async fetchModels(
     provider: string,
     apiKey: string,
     customEndpoint?: string,
   ): Promise<ModelDiscoveryResult> {
+    const endpoint = this.resolveEndpoint(provider, customEndpoint);
+    const cacheKey = this.getCacheKey(provider, endpoint || undefined);
+
     // Check cache first
-    const cached = this.getCachedModels(provider);
+    const cached = this.getCachedModelsForKey(cacheKey);
     if (cached) {
       log.debug(`Using cached models for ${provider}`);
       return cached;
     }
 
-    // Try dynamic fetch if we have an endpoint and API key
-    const endpoint = MODEL_ENDPOINTS[provider];
-    if (endpoint && apiKey) {
-      const dynamicResult = await this.fetchFromApi(
-        provider,
-        apiKey,
-        customEndpoint || endpoint,
-      );
-      if (dynamicResult.models.length > 0) {
-        return dynamicResult;
-      }
-      // Dynamic fetch failed, fall through to defaults
-      log.debug(`Dynamic fetch failed for ${provider}, using defaults`);
+    // Providers without a model-list API require manual model IDs.
+    if (!this.supportsModelListing(provider)) {
+      return {
+        models: [],
+        error: `${this.providerDisplayName(provider)} does not support automatic model discovery in this app. Enter model IDs manually.`,
+      };
     }
 
-    // Return static defaults from config
-    return this.getDefaultModels(provider);
+    // Listing provider with missing required auth should return a real error.
+    if (this.requiresApiKeyForListing(provider, endpoint) && !apiKey.trim()) {
+      return {
+        models: [],
+        error: `${this.providerDisplayName(provider)} API key is required to fetch models.`,
+      };
+    }
+
+    // Try dynamic fetch.
+    const dynamicResult = await this.fetchFromApi(
+      provider,
+      apiKey.trim(),
+      endpoint,
+      cacheKey,
+    );
+
+    if (dynamicResult.models.length > 0) {
+      return dynamicResult;
+    }
+
+    if (dynamicResult.error) {
+      return {
+        models: [],
+        error: this.dynamicFetchError(provider, dynamicResult.error),
+      };
+    }
+
+    return {
+      models: [],
+      error: this.noModelsError(provider),
+    };
   }
 
   /**
@@ -124,6 +253,7 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
     provider: string,
     apiKey: string,
     endpoint: string,
+    cacheKey: string,
   ): Promise<ModelDiscoveryResult> {
     try {
       log.debug(`Fetching models from ${provider}...`);
@@ -138,20 +268,40 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
       });
 
       if (!response.ok) {
-        log.warn(`API error from ${provider}: ${response.status}`);
-        return { models: [], error: `API error: ${response.status}` };
+        let apiError = `${response.status}`;
+        try {
+          const payload = await response.json();
+          const message =
+            (payload as { error?: { message?: string } }).error?.message ||
+            (payload as { message?: string }).message;
+          if (message) {
+            apiError = `${response.status} ${message}`;
+          }
+        } catch {
+          // Ignore JSON parse errors and keep status-only message.
+        }
+
+        log.warn(`API error from ${provider}: ${apiError}`);
+        return { models: [], error: apiError };
       }
 
       const data = await response.json();
       const models = this.parseResponse(provider, data);
 
-      // Cache successful result
+      if (models.length === 0) {
+        return {
+          models: [],
+          error: this.noModelsError(provider),
+        };
+      }
+
+      // Cache successful non-empty result.
       const result: ModelDiscoveryResult = {
         models,
         cachedAt: Date.now(),
       };
 
-      storage.setItem(`model_cache_${provider}`, result);
+      storage.setItem(cacheKey, result);
       log.info(`Fetched ${models.length} models from ${provider}`);
 
       return result;
@@ -184,7 +334,9 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
         break;
       default:
         // OpenAI-compatible providers
-        headers["Authorization"] = `Bearer ${apiKey}`;
+        if (apiKey) {
+          headers["Authorization"] = `Bearer ${apiKey}`;
+        }
         break;
     }
 
@@ -193,7 +345,8 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
 
   private buildUrl(provider: string, endpoint: string, apiKey: string): string {
     if (provider === "google") {
-      return `${endpoint}?key=${apiKey}`;
+      const separator = endpoint.includes("?") ? "&" : "?";
+      return `${endpoint}${separator}key=${encodeURIComponent(apiKey)}`;
     }
     return endpoint;
   }
@@ -226,16 +379,23 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
   }
 
   private parseOpenAIFormat(data: unknown, provider: string): AIModel[] {
-    const response = data as { data: Array<{ id: string; owned_by?: string }> };
+    const response = data as {
+      data?: Array<{ id?: string; owned_by?: string }>;
+    };
     return (response.data || [])
+      .filter((m): m is { id: string; owned_by?: string } => !!m.id)
       .filter((m) => {
         const id = m.id.toLowerCase();
         return (
           !id.includes("embedding") &&
+          !id.includes("embed") &&
           !id.includes("whisper") &&
+          !id.includes("audio") &&
           !id.includes("tts") &&
+          !id.includes("image") &&
           !id.includes("dall-e") &&
-          !id.includes("moderation")
+          !id.includes("moderation") &&
+          !id.includes("omni-moderation")
         );
       })
       .map((m) => ({
@@ -248,10 +408,13 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
 
   private parseAnthropicFormat(data: unknown, provider: string): AIModel[] {
     const response = data as {
-      data: Array<{ id: string; display_name?: string; type: string }>;
+      data?: Array<{ id?: string; display_name?: string; type?: string }>;
     };
     return (response.data || [])
-      .filter((m) => m.type === "model")
+      .filter(
+        (m): m is { id: string; display_name?: string; type?: string } =>
+          !!m.id && m.type === "model",
+      )
       .map((m) => ({
         id: m.id,
         name: m.display_name || m.id,
@@ -261,12 +424,34 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
 
   private parseGoogleFormat(data: unknown, provider: string): AIModel[] {
     const response = data as {
-      models: Array<{ name: string; displayName: string }>;
+      models?: Array<{
+        name?: string;
+        displayName?: string;
+        supportedGenerationMethods?: string[];
+      }>;
     };
     return (response.models || [])
+      .filter(
+        (
+          m,
+        ): m is {
+          name: string;
+          displayName?: string;
+          supportedGenerationMethods?: string[];
+        } => !!m.name,
+      )
       .filter((m) => {
         const name = m.name.toLowerCase();
-        return name.includes("gemini") && !name.includes("embedding");
+        const supportsGenerateContent = Array.isArray(
+          m.supportedGenerationMethods,
+        )
+          ? m.supportedGenerationMethods.includes("generateContent")
+          : true;
+        return (
+          supportsGenerateContent &&
+          name.includes("gemini") &&
+          !name.includes("embedding")
+        );
       })
       .map((m) => ({
         id: m.name.replace("models/", ""),
@@ -277,9 +462,13 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
 
   private parseOpenRouterFormat(data: unknown, provider: string): AIModel[] {
     const response = data as {
-      data: Array<{ id: string; name?: string; context_length?: number }>;
+      data?: Array<{ id?: string; name?: string; context_length?: number }>;
     };
     return (response.data || [])
+      .filter(
+        (m): m is { id: string; name?: string; context_length?: number } =>
+          !!m.id,
+      )
       .filter((m) => {
         const id = m.id.toLowerCase();
         return (
@@ -300,38 +489,6 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
         }
         return model;
       });
-  }
-
-  /**
-   * Get default models from vendor config
-   */
-  private getDefaultModels(provider: string): ModelDiscoveryResult {
-    const vendor = AI_VENDORS[provider as AIProvider];
-
-    if (!vendor) {
-      return {
-        models: [],
-        error: `Unknown provider: ${provider}`,
-      };
-    }
-
-    const defaultModels = vendor.defaultModels || [];
-    const models: AIModel[] = defaultModels.map((id) => ({
-      id,
-      name: id,
-      provider,
-    }));
-
-    // Cache the result
-    const result: ModelDiscoveryResult = {
-      models,
-      cachedAt: Date.now(),
-    };
-
-    storage.setItem(`model_cache_${provider}`, result);
-    log.debug(`Returning ${models.length} default models for ${provider}`);
-
-    return result;
   }
 }
 

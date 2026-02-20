@@ -75,10 +75,11 @@ describe("API Key Security Contract", () => {
     it("storeAPIKey MUST call Tauri store_api_key command", async () => {
       mockInvoke.mockResolvedValue(undefined);
 
-      await storeAPIKey("openai", "sk-test-key-12345");
+      await storeAPIKey("openai", "conn-openai", "sk-test-key-12345");
 
       expect(mockInvoke).toHaveBeenCalledWith("store_api_key", {
         provider: "openai",
+        connectionId: "conn-openai",
         key: "sk-test-key-12345",
       });
     });
@@ -86,10 +87,11 @@ describe("API Key Security Contract", () => {
     it("getAPIKey MUST call Tauri get_api_key command", async () => {
       mockInvoke.mockResolvedValue("sk-secret-key");
 
-      const key = await getAPIKey("anthropic");
+      const key = await getAPIKey("anthropic", "conn-anthropic");
 
       expect(mockInvoke).toHaveBeenCalledWith("get_api_key", {
         provider: "anthropic",
+        connectionId: "conn-anthropic",
       });
       expect(key).toBe("sk-secret-key");
     });
@@ -97,17 +99,18 @@ describe("API Key Security Contract", () => {
     it("deleteAPIKey MUST call Tauri delete_api_key command", async () => {
       mockInvoke.mockResolvedValue(undefined);
 
-      await deleteAPIKey("google");
+      await deleteAPIKey("google", "conn-google");
 
       expect(mockInvoke).toHaveBeenCalledWith("delete_api_key", {
         provider: "google",
+        connectionId: "conn-google",
       });
     });
 
     it("MUST NOT store API key in localStorage", async () => {
       mockInvoke.mockResolvedValue(undefined);
 
-      await storeAPIKey("openrouter", "sk-or-secret");
+      await storeAPIKey("openrouter", "conn-openrouter", "sk-or-secret");
 
       // storage.setItem should NEVER be called with an API key
       expect(storage.setItem).not.toHaveBeenCalled();
@@ -168,7 +171,11 @@ describe("API Key Security Contract", () => {
 
   describe("SPEC: storeAPIKeyWithValidation - MUST validate then store", () => {
     it("MUST reject invalid key without storing", async () => {
-      const result = await storeAPIKeyWithValidation("openai", "bad-key");
+      const result = await storeAPIKeyWithValidation(
+        "openai",
+        "conn-openai",
+        "bad-key",
+      );
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
@@ -180,7 +187,11 @@ describe("API Key Security Contract", () => {
       mockInvoke.mockResolvedValue(undefined);
 
       const validKey = "sk-" + "a".repeat(45);
-      const result = await storeAPIKeyWithValidation("openai", validKey);
+      const result = await storeAPIKeyWithValidation(
+        "openai",
+        "conn-openai",
+        validKey,
+      );
 
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
@@ -209,7 +220,7 @@ describe("API Key Security Contract", () => {
     it("getAPIKey MUST return null on error (not throw)", async () => {
       mockInvoke.mockRejectedValue(new Error("Keychain access denied"));
 
-      const key = await getAPIKey("openai");
+      const key = await getAPIKey("openai", "conn-openai");
 
       expect(key).toBeNull();
     });
@@ -217,7 +228,7 @@ describe("API Key Security Contract", () => {
     it("storeAPIKey MUST return false on error", async () => {
       mockInvoke.mockRejectedValue(new Error("Storage failed"));
 
-      const result = await storeAPIKey("google", "api-key");
+      const result = await storeAPIKey("google", "conn-google", "api-key");
 
       expect(result).toBe(false);
     });
@@ -225,7 +236,7 @@ describe("API Key Security Contract", () => {
     it("storeAPIKey MUST show toast on failure", async () => {
       mockInvoke.mockRejectedValue(new Error("Keychain locked"));
 
-      await storeAPIKey("openai", "test-key");
+      await storeAPIKey("openai", "conn-openai", "test-key");
 
       expect(toast.error).toHaveBeenCalled();
     });
@@ -239,7 +250,7 @@ describe("API Key Security Contract", () => {
     it("MUST return true if key exists", async () => {
       mockInvoke.mockResolvedValue("sk-secret-key");
 
-      const exists = await hasAPIKey("openai");
+      const exists = await hasAPIKey("openai", "conn-openai");
 
       expect(exists).toBe(true);
     });
@@ -247,7 +258,7 @@ describe("API Key Security Contract", () => {
     it("MUST return false if no key", async () => {
       mockInvoke.mockResolvedValue(null);
 
-      const exists = await hasAPIKey("anthropic");
+      const exists = await hasAPIKey("anthropic", "conn-anthropic");
 
       expect(exists).toBe(false);
     });
@@ -255,7 +266,7 @@ describe("API Key Security Contract", () => {
     it("MUST return false for empty string key", async () => {
       mockInvoke.mockResolvedValue("");
 
-      const exists = await hasAPIKey("google");
+      const exists = await hasAPIKey("google", "conn-google");
 
       expect(exists).toBe(false);
     });

@@ -18,14 +18,18 @@ import { toast } from "@/core/toast";
  */
 export async function storeAPIKey(
   provider: AIProvider,
+  connectionId: string,
   apiKey: string,
 ): Promise<boolean> {
   try {
-    await invoke("store_api_key", { provider, key: apiKey });
-    log.debug(`Stored API key for ${provider} in OS keychain`);
+    await invoke("store_api_key", { provider, connectionId, key: apiKey });
+    log.debug(`Stored API key for ${provider}/${connectionId} in OS keychain`);
     return true;
   } catch (error) {
-    log.error(`Failed to store API key for ${provider}:`, error);
+    log.error(
+      `Failed to store API key for ${provider}/${connectionId}:`,
+      error,
+    );
     const message = error instanceof Error ? error.message : "Unknown error";
     toast.error(`Failed to store ${provider} API key: ${message}`);
     return false;
@@ -36,12 +40,21 @@ export async function storeAPIKey(
  * Retrieve an API key from OS keychain
  * Returns null if no key is stored
  */
-export async function getAPIKey(provider: AIProvider): Promise<string | null> {
+export async function getAPIKey(
+  provider: AIProvider,
+  connectionId: string,
+): Promise<string | null> {
   try {
-    const key = await invoke<string | null>("get_api_key", { provider });
+    const key = await invoke<string | null>("get_api_key", {
+      provider,
+      connectionId,
+    });
     return key;
   } catch (error) {
-    log.error(`Failed to retrieve API key for ${provider}:`, error);
+    log.error(
+      `Failed to retrieve API key for ${provider}/${connectionId}:`,
+      error,
+    );
     return null;
   }
 }
@@ -49,13 +62,19 @@ export async function getAPIKey(provider: AIProvider): Promise<string | null> {
 /**
  * Delete an API key from OS keychain
  */
-export async function deleteAPIKey(provider: AIProvider): Promise<boolean> {
+export async function deleteAPIKey(
+  provider: AIProvider,
+  connectionId: string,
+): Promise<boolean> {
   try {
-    await invoke("delete_api_key", { provider });
-    log.debug(`Deleted API key for ${provider}`);
+    await invoke("delete_api_key", { provider, connectionId });
+    log.debug(`Deleted API key for ${provider}/${connectionId}`);
     return true;
   } catch (error) {
-    log.error(`Failed to delete API key for ${provider}:`, error);
+    log.error(
+      `Failed to delete API key for ${provider}/${connectionId}:`,
+      error,
+    );
     return false;
   }
 }
@@ -76,8 +95,11 @@ export async function listStoredProviders(): Promise<AIProvider[]> {
 /**
  * Check if an API key exists for a provider (without retrieving it)
  */
-export async function hasAPIKey(provider: AIProvider): Promise<boolean> {
-  const key = await getAPIKey(provider);
+export async function hasAPIKey(
+  provider: AIProvider,
+  connectionId: string,
+): Promise<boolean> {
+  const key = await getAPIKey(provider, connectionId);
   return key !== null && key.length > 0;
 }
 
@@ -154,6 +176,7 @@ export function validateAPIKey(
  */
 export async function storeAPIKeyWithValidation(
   provider: AIProvider,
+  connectionId: string,
   apiKey: string,
 ): Promise<{ success: boolean; error?: string }> {
   // Validate format
@@ -163,7 +186,7 @@ export async function storeAPIKeyWithValidation(
   }
 
   // Store in keychain
-  const success = await storeAPIKey(provider, apiKey.trim());
+  const success = await storeAPIKey(provider, connectionId, apiKey.trim());
 
   if (!success) {
     return {

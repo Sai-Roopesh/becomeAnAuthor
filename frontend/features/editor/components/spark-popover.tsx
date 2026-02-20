@@ -37,7 +37,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generate, generateObject, getEnabledConnections } from "@/lib/ai";
+import { generate, object, getEnabledConnections } from "@/lib/ai";
 import { storage } from "@/core/storage/safe-storage";
 import type { AIConnection } from "@/lib/config/ai-vendors";
 
@@ -172,7 +172,7 @@ export const SparkPopover = memo(function SparkPopover({
       : "Generate general creative writing prompts for fiction.";
 
     try {
-      const response = await generateObject({
+      const response = await object({
         model: selectedModel,
         schema: SparkPromptsSchema,
         messages: [

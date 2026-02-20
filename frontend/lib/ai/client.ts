@@ -77,7 +77,9 @@ async function getConnection(modelId: string): Promise<AIConnection> {
   }
 
   const apiKey =
-    connection.apiKey.trim() || (await getAPIKey(connection.provider)) || "";
+    connection.apiKey.trim() ||
+    (await getAPIKey(connection.provider, connection.id)) ||
+    "";
   if (requiresApiKey(connection) && !apiKey) {
     throw new Error(
       `Missing API key for ${AI_VENDORS[connection.provider].name}. Add it in Settings.`,
@@ -167,11 +169,6 @@ export async function object<T>(opts: GenerateObjectOptions<T>) {
   });
 }
 
-// Aliases for backwards compatibility
-export const generateText = generate;
-export const generateTextStream = stream;
-export const generateObject = object;
-
 /**
  * Get all enabled AI connections from storage.
  */
@@ -188,35 +185,4 @@ export function getConnectionForModel(
 ): AIConnection | undefined {
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
   return connections.find((c) => c.enabled && c.models?.includes(modelId));
-}
-
-/**
- * Fetch available models for a connection.
- * For most providers, returns the default models from config.
- * For OpenRouter, fetches from their API.
- */
-export async function fetchModelsForConnection(
-  connection: AIConnection,
-): Promise<string[]> {
-  const { provider, apiKey } = connection;
-
-  // OpenRouter supports dynamic model fetching
-  if (provider === "openrouter" && apiKey) {
-    try {
-      const response = await fetch("https://openrouter.ai/api/v1/models", {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        return data.data?.map((m: { id: string }) => m.id) || [];
-      }
-    } catch {
-      // Fall through to default
-    }
-  }
-
-  // Return default models from vendor config
-  const { AI_VENDORS } = await import("@/lib/config/ai-vendors");
-  const vendor = AI_VENDORS[provider];
-  return vendor?.defaultModels || [];
 }

@@ -1,216 +1,292 @@
-'use client';
+"use client";
 
-import { useLiveQuery, invalidateQueries } from '@/hooks/use-live-query';
-import { useCodexRepository } from '@/hooks/use-codex-repository';
-import { useCodexTemplateRepository } from '@/hooks/use-codex-template-repository';
-import { useMentions } from '@/hooks/use-mentions';
-import { CodexEntry, CodexCategory } from '@/domain/entities/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useEffect, useState } from 'react';
-import { useDebounce } from '@/hooks/use-debounce';
-import { DetailsTab } from './details-tab';
-import { ResearchTab } from './research-tab';
-import { RelationsTab } from './relations-tab';
-import { MentionsTab } from './mentions-tab';
-import { TrackingTab } from './tracking-tab';
-import { TagManager } from './tag-manager';
-import { TemplateFieldRenderer } from './template-field-renderer';
-import { toast } from '@/shared/utils/toast-service';
-import { useConfirmation } from '@/hooks/use-confirmation';
+import { useLiveQuery, invalidateQueries } from "@/hooks/use-live-query";
+import { useCodexRepository } from "@/hooks/use-codex-repository";
+import { useCodexTemplateRepository } from "@/hooks/use-codex-template-repository";
+import { useMentions } from "@/hooks/use-mentions";
+import { CodexEntry, CodexCategory } from "@/domain/entities/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect, useState } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { DetailsTab } from "./details-tab";
+import { ResearchTab } from "./research-tab";
+import { RelationsTab } from "./relations-tab";
+import { MentionsTab } from "./mentions-tab";
+import { TrackingTab } from "./tracking-tab";
+import { TagManager } from "./tag-manager";
+import { TemplateFieldRenderer } from "./template-field-renderer";
+import { toast } from "@/shared/utils/toast-service";
+import { useConfirmation } from "@/hooks/use-confirmation";
 
 // Extracted sub-components
-import { EntityEditorHeader } from './entity-editor/EntityEditorHeader';
-import { EntityEditorInfoCard } from './entity-editor/EntityEditorInfoCard';
+import { EntityEditorHeader } from "./entity-editor/EntityEditorHeader";
+import { EntityEditorInfoCard } from "./entity-editor/EntityEditorInfoCard";
 
 interface EntityEditorProps {
-    entityId: string;
-    seriesId: string;  // Required - series-first architecture
-    onBack: () => void;
+  entityId: string;
+  seriesId: string; // Required - series-first architecture
+  onBack: () => void;
 }
 
 /**
  * EntityEditor - Main Codex Entity Editor
- * 
+ *
  * Orchestrates entity editing using decomposed sub-components:
  * - EntityEditorHeader: Navigation and action buttons
  * - EntityEditorInfoCard: Entity info display
  * - Tab components for different aspects (Details, Research, Relations, etc.)
- * 
+ *
  * Series-first: uses seriesId for all codex operations.
  */
-export function EntityEditor({ entityId, seriesId, onBack }: EntityEditorProps) {
-    const codexRepo = useCodexRepository();
-    const templateRepo = useCodexTemplateRepository();
-    const entity = useLiveQuery(() => codexRepo.get(seriesId, entityId), [seriesId, entityId]);
+export function EntityEditor({
+  entityId,
+  seriesId,
+  onBack,
+}: EntityEditorProps) {
+  const codexRepo = useCodexRepository();
+  const templateRepo = useCodexTemplateRepository();
+  const entity = useLiveQuery(
+    () => codexRepo.get(seriesId, entityId),
+    [seriesId, entityId],
+  );
 
-    // Load template if entity has one
-    const template = useLiveQuery(
-        () => entity?.templateId ? templateRepo.get(entity.templateId) : Promise.resolve(undefined),
-        [entity?.templateId]
-    );
+  // Load template if entity has one
+  const template = useLiveQuery(
+    () =>
+      entity?.templateId
+        ? templateRepo.get(entity.templateId)
+        : Promise.resolve(undefined),
+    [entity?.templateId],
+  );
 
-    const [formData, setFormData] = useState<Partial<CodexEntry>>({});
-    const debouncedData = useDebounce(formData, 1000);
-    const { confirm, ConfirmationDialog } = useConfirmation();
+  const [formData, setFormData] = useState<Partial<CodexEntry>>({});
+  const debouncedData = useDebounce(formData, 1000);
+  const { confirm, ConfirmationDialog } = useConfirmation();
 
-    useEffect(() => {
-        if (entity) {
-            if (!formData.id || formData.id !== entityId) {
-                setFormData(entity);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [entity, entityId]); // formData.id intentionally excluded - only sync on entity load
+  useEffect(() => {
+    if (entity) {
+      if (!formData.id || formData.id !== entityId) {
+        setFormData(entity);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entity, entityId]); // formData.id intentionally excluded - only sync on entity load
 
-    useEffect(() => {
-        if (debouncedData && debouncedData.id === entityId && Object.keys(debouncedData).length > 0) {
-            codexRepo.update(seriesId, entityId, debouncedData).then(() => {
-                invalidateQueries();
-            });
-        }
-    }, [debouncedData, entityId, seriesId, codexRepo]);
+  useEffect(() => {
+    if (
+      debouncedData &&
+      debouncedData.id === entityId &&
+      Object.keys(debouncedData).length > 0
+    ) {
+      codexRepo.update(seriesId, entityId, debouncedData).then(() => {
+        invalidateQueries();
+      });
+    }
+  }, [debouncedData, entityId, seriesId, codexRepo]);
 
-    const handleChange = (field: keyof CodexEntry, value: CodexEntry[keyof CodexEntry]) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-    };
+  const handleChange = (
+    field: keyof CodexEntry,
+    value: CodexEntry[keyof CodexEntry],
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
-    // Template field values can be string, number, boolean, or string[]
-    type TemplateFieldValue = string | number | boolean | string[];
-    const handleTemplateFieldChange = (fieldId: string, value: TemplateFieldValue) => {
-        setFormData(prev => ({
-            ...prev,
-            customFields: { ...prev.customFields, [fieldId]: value }
-        }));
-    };
+  // Template field values can be string, number, boolean, or string[]
+  type TemplateFieldValue = string | number | boolean | string[];
+  const handleTemplateFieldChange = (
+    fieldId: string,
+    value: TemplateFieldValue,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      customFields: { ...prev.customFields, [fieldId]: value },
+    }));
+  };
 
-    const handleSave = async () => {
-        if (formData.id) {
-            await codexRepo.update(seriesId, entityId, formData);
-            toast.success('Entity saved');
-        }
-    };
+  const handleSave = async () => {
+    if (formData.id) {
+      await codexRepo.update(seriesId, entityId, formData);
+      toast.success("Entity saved");
+    }
+  };
 
-    const handleDeleteClick = async () => {
-        const confirmed = await confirm({
-            title: 'Delete Entity',
-            description: 'Are you sure you want to delete this entity? This action cannot be undone.',
-            confirmText: 'Delete',
-            variant: 'destructive'
-        });
+  const handleDeleteClick = async () => {
+    const confirmed = await confirm({
+      title: "Delete Entity",
+      description:
+        "Are you sure you want to delete this entity? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "destructive",
+    });
 
-        if (confirmed && entity) {
-            await codexRepo.delete(seriesId, entityId, entity.category);
-            toast.success('Entity deleted');
-            onBack();
-        }
-    };
+    if (confirmed && entity) {
+      await codexRepo.delete(seriesId, entityId, entity.category);
+      toast.success("Entity deleted");
+      onBack();
+    }
+  };
 
-    const handleClearTemplate = async () => {
-        const confirmed = await confirm({
-            title: 'Clear Template?',
-            description: 'This will remove all template fields and their data. This action cannot be undone.',
-            confirmText: 'Clear Template',
-            variant: 'destructive'
-        });
+  const handleClearTemplate = async () => {
+    const confirmed = await confirm({
+      title: "Clear Template?",
+      description:
+        "This will remove all template fields and their data. This action cannot be undone.",
+      confirmText: "Clear Template",
+      variant: "destructive",
+    });
 
-        if (confirmed) {
-            await codexRepo.update(seriesId, entityId, { customFields: {} });
-            toast.success('Template cleared - you can now change the category');
-        }
-    };
+    if (confirmed) {
+      await codexRepo.update(seriesId, entityId, {
+        customFields: {},
+        templateId: undefined,
+      });
+      setFormData((prev) => ({
+        ...prev,
+        customFields: {},
+        templateId: undefined,
+      }));
+      invalidateQueries();
+      toast.success("Template cleared - you can now change the category");
+    }
+  };
 
-    // Use real mention count from useMentions hook
-    const { count: mentionCount } = useMentions(entityId);
+  const hasTemplate = Object.prototype.hasOwnProperty.call(
+    formData,
+    "templateId",
+  )
+    ? Boolean(formData.templateId)
+    : Boolean(entity?.templateId);
 
-    if (!entity) return <div className="p-4">Loading...</div>;
+  // Use real mention count from useMentions hook
+  const { count: mentionCount } = useMentions(entityId);
 
-    return (
-        <div className="h-full flex flex-col bg-background">
-            {/* Header */}
-            <div className="border-b">
-                <EntityEditorHeader
-                    onBack={onBack}
-                    onSave={handleSave}
-                    onDelete={handleDeleteClick}
-                />
-                <EntityEditorInfoCard
-                    formData={formData}
-                    hasTemplate={!!entity?.templateId}
-                    mentionCount={mentionCount}
-                    onNameChange={(name: string) => handleChange('name', name)}
-                    onCategoryChange={(category: CodexCategory) => handleChange('category', category)}
-                    onClearTemplate={handleClearTemplate}
-                />
-            </div>
+  if (!entity) return <div className="p-4">Loading...</div>;
 
-            {/* Tabs */}
-            <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
-                <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto overflow-x-auto flex-nowrap scrollbar-hide">
-                    <TabsTrigger value="details" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
-                        Details
-                    </TabsTrigger>
-                    {template && (
-                        <TabsTrigger value="template" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
-                            Template Fields
-                        </TabsTrigger>
-                    )}
-                    <TabsTrigger value="tags" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
-                        Tags
-                    </TabsTrigger>
-                    <TabsTrigger value="research" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
-                        Research
-                    </TabsTrigger>
-                    <TabsTrigger value="relations" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
-                        Relations
-                    </TabsTrigger>
-                    <TabsTrigger value="mentions" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
-                        Mentions
-                    </TabsTrigger>
-                    <TabsTrigger value="tracking" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary">
-                        Tracking
-                    </TabsTrigger>
-                </TabsList>
+  return (
+    <div className="h-full flex flex-col bg-background">
+      {/* Header */}
+      <div className="border-b">
+        <EntityEditorHeader
+          onBack={onBack}
+          onSave={handleSave}
+          onDelete={handleDeleteClick}
+        />
+        <EntityEditorInfoCard
+          formData={formData}
+          hasTemplate={hasTemplate}
+          mentionCount={mentionCount}
+          onNameChange={(name: string) => handleChange("name", name)}
+          onCategoryChange={(category: CodexCategory) =>
+            handleChange("category", category)
+          }
+          onClearTemplate={handleClearTemplate}
+        />
+      </div>
 
-                <div className="flex-1 overflow-y-auto">
-                    <TabsContent value="details" className="p-6 m-0">
-                        <DetailsTab entity={formData as CodexEntry} onChange={handleChange} />
-                    </TabsContent>
+      {/* Tabs */}
+      <Tabs
+        defaultValue="details"
+        className="flex-1 flex flex-col overflow-hidden"
+      >
+        <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto overflow-x-auto flex-nowrap scrollbar-hide">
+          <TabsTrigger
+            value="details"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+          >
+            Details
+          </TabsTrigger>
+          {template && (
+            <TabsTrigger
+              value="template"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+            >
+              Template Fields
+            </TabsTrigger>
+          )}
+          <TabsTrigger
+            value="tags"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+          >
+            Tags
+          </TabsTrigger>
+          <TabsTrigger
+            value="research"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+          >
+            Research
+          </TabsTrigger>
+          <TabsTrigger
+            value="relations"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+          >
+            Relations
+          </TabsTrigger>
+          <TabsTrigger
+            value="mentions"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+          >
+            Mentions
+          </TabsTrigger>
+          <TabsTrigger
+            value="tracking"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+          >
+            Tracking
+          </TabsTrigger>
+        </TabsList>
 
-                    {template && (
-                        <TabsContent value="template" className="p-6 m-0">
-                            <TemplateFieldRenderer
-                                template={template}
-                                values={(formData.customFields || {}) as Record<string, TemplateFieldValue>}
-                                onChange={handleTemplateFieldChange}
-                            />
-                        </TabsContent>
-                    )}
+        <div className="flex-1 overflow-y-auto">
+          <TabsContent value="details" className="p-6 m-0">
+            <DetailsTab
+              entity={formData as CodexEntry}
+              onChange={handleChange}
+            />
+          </TabsContent>
 
+          {template && (
+            <TabsContent value="template" className="p-6 m-0">
+              <TemplateFieldRenderer
+                template={template}
+                values={
+                  (formData.customFields || {}) as Record<
+                    string,
+                    TemplateFieldValue
+                  >
+                }
+                onChange={handleTemplateFieldChange}
+              />
+            </TabsContent>
+          )}
 
-                    <TabsContent value="tags" className="p-6 m-0">
-                        {entity && <TagManager seriesId={seriesId} entryId={entityId} />}
-                    </TabsContent>
+          <TabsContent value="tags" className="p-6 m-0">
+            {entity && <TagManager seriesId={seriesId} entryId={entityId} />}
+          </TabsContent>
 
-                    <TabsContent value="research" className="p-6 m-0">
-                        <ResearchTab entity={formData as CodexEntry} onChange={handleChange} />
-                    </TabsContent>
+          <TabsContent value="research" className="p-6 m-0">
+            <ResearchTab
+              entity={formData as CodexEntry}
+              onChange={handleChange}
+            />
+          </TabsContent>
 
-                    <TabsContent value="relations" className="p-6 m-0">
-                        <RelationsTab entityId={entityId} seriesId={seriesId} />
-                    </TabsContent>
+          <TabsContent value="relations" className="p-6 m-0">
+            <RelationsTab entityId={entityId} seriesId={seriesId} />
+          </TabsContent>
 
-                    <TabsContent value="mentions" className="p-6 m-0">
-                        <MentionsTab entityId={entityId} entityName={formData.name || ''} />
-                    </TabsContent>
+          <TabsContent value="mentions" className="p-6 m-0">
+            <MentionsTab entityId={entityId} entityName={formData.name || ""} />
+          </TabsContent>
 
-                    <TabsContent value="tracking" className="p-6 m-0">
-                        <TrackingTab entity={formData as CodexEntry} onChange={handleChange} />
-                    </TabsContent>
-                </div>
-            </Tabs>
-
-            <ConfirmationDialog />
+          <TabsContent value="tracking" className="p-6 m-0">
+            <TrackingTab
+              entity={formData as CodexEntry}
+              onChange={handleChange}
+            />
+          </TabsContent>
         </div>
-    );
-}
+      </Tabs>
 
+      <ConfirmationDialog />
+    </div>
+  );
+}

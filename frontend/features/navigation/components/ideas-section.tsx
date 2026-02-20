@@ -15,10 +15,8 @@
 import { useState } from "react";
 import { useIdeas } from "../hooks/use-ideas";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
-import {
-  QuickCaptureModal,
-  useQuickCapture,
-} from "@/components/ui/quick-capture-modal";
+import { QuickCaptureModal } from "@/components/ui/quick-capture-modal";
+import { useQuickCapture } from "@/hooks/use-quick-capture";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
