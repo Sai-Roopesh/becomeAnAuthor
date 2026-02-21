@@ -500,7 +500,7 @@ The primary writing environment. 15+ components:
 | Component | Lines | Purpose |
 |---|---|---|
 | `ChatInterface` | 395 | Thread sidebar, message list, input, model/prompt selection |
-| `ChatMessage` | ~150 | Markdown rendering, copy, regenerate |
+| `ChatMessage` | ~150 | Markdown rendering, copy, regenerate, mobile-responsive layout |
 | `ContextSelector` | ~200 | Select scenes, codex entries, snippets as context |
 
 ### 10.5 Navigation — `ProjectNavigation` (489 lines)
@@ -512,7 +512,7 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 | Component | Lines | Purpose |
 |---|---|---|
 | `SettingsDialog` | 131 | 4-tab dialog orchestrator with theme toggle |
-| `AIConnectionsTab` | 171 | AI vendor connection CRUD with model refresh |
+| `AIConnectionsTab` | 171 | AI vendor connection CRUD with model refresh, responsive list view |
 | `useAIConnections` | 158 | Hook: CRUD, localStorage persistence, model discovery |
 
 ### 10.7 Dashboard — `features/dashboard/`
@@ -520,7 +520,7 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 | Component | Lines | Purpose |
 |---|---|---|
 | `ProjectGrid` | 38 | Responsive CSS grid for project cards |
-| `ProjectCard` | 127 | Cover image, metadata, dropdown menu |
+| `ProjectCard` | 127 | Cover image, metadata, responsive dropdown menu |
 
 ### 10.8 Other Features
 
