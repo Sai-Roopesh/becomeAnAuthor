@@ -157,7 +157,7 @@ export function ChatMessage({
       <div
         className={cn(
           "p-4 rounded-2xl border shadow-sm bg-background",
-          isUser ? "ml-12" : "mr-12",
+          isUser ? "ml-2 sm:ml-12" : "mr-2 sm:mr-12",
         )}
       >
         <Textarea
@@ -182,7 +182,9 @@ export function ChatMessage({
       <div
         className={cn(
           "group relative flex gap-3",
-          isUser ? "flex-row-reverse pl-12" : "pr-12",
+          isUser
+            ? "flex-row-reverse pl-2 sm:pl-12"
+            : "pr-2 sm:pr-12",
         )}
       >
         {/* Avatar */}
