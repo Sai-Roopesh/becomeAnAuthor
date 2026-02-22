@@ -50,6 +50,10 @@ export default function Dashboard() {
     keys: "series",
   });
 
+  const hasTrashedProjects = (trashedProjects ?? []).length > 0;
+  const hasDeletedSeries = (deletedSeries ?? []).length > 0;
+  const hasAnyTrash = hasTrashedProjects || hasDeletedSeries;
+
   const handleOpenNovel = async () => {
     const project = await openFromPicker();
     if (project) {
@@ -191,8 +195,7 @@ export default function Dashboard() {
 
       <DashboardHeader />
 
-      {((trashedProjects ?? []).length > 0 ||
-        (deletedSeries ?? []).length > 0) && (
+      {hasAnyTrash && (
         <div className="mb-6 rounded-xl border bg-card p-4 space-y-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -212,7 +215,7 @@ export default function Dashboard() {
 
           {showTrash && (
             <div className="space-y-2">
-              {(deletedSeries ?? []).length > 0 && (
+              {hasDeletedSeries && (
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
                     Deleted Series
@@ -276,7 +279,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {(trashedProjects ?? []).length > 0 && (
+              {hasTrashedProjects && (
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
                     Deleted Novels
@@ -340,12 +343,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {(deletedSeries ?? []).length === 0 &&
-                (trashedProjects ?? []).length === 0 && (
-                  <div className="text-sm text-muted-foreground border rounded-lg px-3 py-2">
-                    Trash is empty.
-                  </div>
-                )}
             </div>
           )}
         </div>
