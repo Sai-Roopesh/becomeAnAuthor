@@ -13,6 +13,7 @@
     "dev:web": "bash ./scripts/dev-web-safe.sh",
     "dev:doctor": "bash ./scripts/dev-doctor.sh",
     "dev:reset": "bash ./scripts/dev-reset.sh",
+    "release:gate": "bash ./scripts/release-gate.sh",
     "build": "next build",
     "start": "next start",
     "lint": "eslint frontend app --ext .ts,.tsx",
@@ -132,7 +133,6 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.1.6",
-    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.19",
     "@tauri-apps/cli": "2.9.5",
