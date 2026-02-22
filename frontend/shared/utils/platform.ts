@@ -29,7 +29,31 @@ export function isModKey(event: KeyboardEvent): boolean {
 /**
  * Format a keyboard shortcut for display based on platform.
  */
-export function formatShortcut(key: string, useAlt = false): string {
-  const mod = useAlt ? altKey : modKey;
-  return `${mod}+${key.toUpperCase()}`;
+export function formatShortcut(
+  key: string,
+  options: boolean | { useAlt?: boolean; useShift?: boolean } = false,
+): string {
+  const normalized =
+    typeof options === "boolean"
+      ? { useAlt: options, useShift: false }
+      : options;
+
+  const parts = [modKey];
+
+  if (normalized.useShift) {
+    parts.push(isMac ? "⇧" : "Shift");
+  }
+
+  if (normalized.useAlt) {
+    parts.push(altKey);
+  }
+
+  const keyLabel =
+    key.length <= 1
+      ? key.toUpperCase()
+      : key.charAt(0).toUpperCase() + key.slice(1);
+
+  parts.push(keyLabel);
+
+  return parts.join("+");
 }

@@ -7,6 +7,7 @@ interface ProjectGridProps {
   projects: Project[];
   seriesMap: Map<string, string>;
   onDeleteProject: (e: React.MouseEvent, projectId: string) => void;
+  onExportProject?: (projectId: string) => void;
   renderExportButton?: (projectId: string) => React.ReactNode;
 }
 
@@ -14,6 +15,7 @@ export function ProjectGrid({
   projects,
   seriesMap,
   onDeleteProject,
+  onExportProject,
   renderExportButton,
 }: ProjectGridProps) {
   return (
@@ -28,6 +30,7 @@ export function ProjectGrid({
             project={project}
             seriesName={seriesMap.get(project.seriesId)}
             onDelete={onDeleteProject}
+            onExportProject={onExportProject}
             renderExportButton={renderExportButton}
           />
         </div>

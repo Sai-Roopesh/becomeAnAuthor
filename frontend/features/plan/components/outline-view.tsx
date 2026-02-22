@@ -166,7 +166,7 @@ export function OutlineView({ projectId, nodes }: OutlineViewProps) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 opacity-0 group-hover/chapter:opacity-100 transition-opacity ml-auto"
+                            className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover/chapter:opacity-100 sm:group-focus-within/chapter:opacity-100 transition-opacity ml-auto"
                             onClick={(e) => {
                               e.stopPropagation();
                               openCreateDialog(chapter.id, "scene");

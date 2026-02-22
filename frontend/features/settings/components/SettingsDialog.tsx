@@ -3,9 +3,14 @@
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Moon, Sun, Zap } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AIConnectionsTab } from "./ai-connections-tab";
 import {
@@ -47,17 +52,58 @@ function ThemeControls({
   );
 }
 
-export function SettingsDialog() {
-  const [open, setOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<SettingsTab>("ai-connections");
+interface SettingsDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger?: React.ReactNode;
+  hideTrigger?: boolean;
+  initialTab?: SettingsTab;
+}
+
+export function SettingsDialog({
+  open: controlledOpen,
+  onOpenChange,
+  trigger,
+  hideTrigger = false,
+  initialTab = "ai-connections",
+}: SettingsDialogProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const { theme, setTheme } = useTheme();
+  const open = controlledOpen ?? internalOpen;
   const activeMeta = getSettingsTabMeta(activeTab);
+
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, open]);
+
+  const setOpen = (value: boolean) => {
+    onOpenChange?.(value);
+    if (controlledOpen === undefined) {
+      setInternalOpen(value);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
-        <Zap className="h-5 w-5" />
-      </Button>
+      {!hideTrigger &&
+        (trigger ? (
+          <DialogTrigger asChild>{trigger}</DialogTrigger>
+        ) : (
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              aria-label="Open settings"
+            >
+              <Zap className="h-4 w-4" />
+              <span>Settings</span>
+            </Button>
+          </DialogTrigger>
+        ))}
 
       <DialogContent
         aria-describedby={undefined}

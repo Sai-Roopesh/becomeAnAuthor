@@ -6,7 +6,7 @@ import { useCodexTemplateRepository } from "@/hooks/use-codex-template-repositor
 import { useMentions } from "@/hooks/use-mentions";
 import { CodexEntry, CodexCategory } from "@/domain/entities/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { DetailsTab } from "./details-tab";
 import { ResearchTab } from "./research-tab";
@@ -27,6 +27,8 @@ interface EntityEditorProps {
   seriesId: string; // Required - series-first architecture
   onBack: () => void;
 }
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 /**
  * EntityEditor - Main Codex Entity Editor
@@ -60,8 +62,21 @@ export function EntityEditor({
   );
 
   const [formData, setFormData] = useState<Partial<CodexEntry>>({});
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const debouncedData = useDebounce(formData, 1000);
   const { confirm, ConfirmationDialog } = useConfirmation();
+  const saveStatusResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoSaveErrorRef = useRef<string | null>(null);
+
+  const markSaved = () => {
+    setSaveStatus("saved");
+    if (saveStatusResetRef.current) {
+      clearTimeout(saveStatusResetRef.current);
+    }
+    saveStatusResetRef.current = setTimeout(() => {
+      setSaveStatus("idle");
+    }, 1500);
+  };
 
   useEffect(() => {
     if (entity) {
@@ -73,14 +88,44 @@ export function EntityEditor({
   }, [entity, entityId]); // formData.id intentionally excluded - only sync on entity load
 
   useEffect(() => {
+    return () => {
+      if (saveStatusResetRef.current) {
+        clearTimeout(saveStatusResetRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (
       debouncedData &&
       debouncedData.id === entityId &&
       Object.keys(debouncedData).length > 0
     ) {
-      codexRepo.update(seriesId, entityId, debouncedData).then(() => {
-        invalidateQueries();
-      });
+      let cancelled = false;
+      setSaveStatus("saving");
+
+      codexRepo
+        .update(seriesId, entityId, debouncedData)
+        .then(() => {
+          if (cancelled) return;
+          invalidateQueries();
+          lastAutoSaveErrorRef.current = null;
+          markSaved();
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          setSaveStatus("error");
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          if (lastAutoSaveErrorRef.current !== errorMessage) {
+            toast.error("Auto-save failed. Keep this editor open and retry.");
+            lastAutoSaveErrorRef.current = errorMessage;
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
     }
   }, [debouncedData, entityId, seriesId, codexRepo]);
 
@@ -105,8 +150,19 @@ export function EntityEditor({
 
   const handleSave = async () => {
     if (formData.id) {
-      await codexRepo.update(seriesId, entityId, formData);
-      toast.success("Entity saved");
+      setSaveStatus("saving");
+      try {
+        await codexRepo.update(seriesId, entityId, formData);
+        invalidateQueries();
+        lastAutoSaveErrorRef.current = null;
+        markSaved();
+        toast.success("Entity saved");
+      } catch (error) {
+        setSaveStatus("error");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to save entity",
+        );
+      }
     }
   };
 
@@ -170,6 +226,7 @@ export function EntityEditor({
           onBack={onBack}
           onSave={handleSave}
           onDelete={handleDeleteClick}
+          saveStatus={saveStatus}
         />
         <EntityEditorInfoCard
           formData={formData}

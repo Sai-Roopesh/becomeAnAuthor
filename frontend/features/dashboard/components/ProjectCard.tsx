@@ -8,6 +8,7 @@ import {
   Clock,
   Globe,
   User,
+  FileDown,
 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface ProjectCardProps {
   project: Project;
   seriesName?: string | undefined;
   onDelete: (e: React.MouseEvent, projectId: string) => void;
+  onExportProject?: ((projectId: string) => void) | undefined;
   renderExportButton?: ((projectId: string) => React.ReactNode) | undefined;
 }
 
@@ -31,6 +33,7 @@ export function ProjectCard({
   project,
   seriesName,
   onDelete,
+  onExportProject,
   renderExportButton,
 }: ProjectCardProps) {
   // Format the series label: "{Series Name} Book 1" or just "Book 1" or "Novel"
@@ -92,33 +95,50 @@ export function ProjectCard({
               {new Date(project.updatedAt).toLocaleDateString()}
             </span>
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <div className="flex items-center gap-1">
+            {onExportProject && (
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-7 w-7 -mr-2 text-muted-foreground hover:text-foreground"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  onExportProject(project.id);
                 }}
               >
-                <MoreVertical className="h-4 w-4" />
+                <FileDown className="h-3.5 w-3.5" />
+                Export
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 sm:w-48">
-              {renderExportButton?.(project.id)}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                onClick={(e) => onDelete(e, project.id)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Move to Trash
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 -mr-2 text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40 sm:w-48">
+                {renderExportButton?.(project.id)}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                  onClick={(e) => onDelete(e, project.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Move to Trash
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardFooter>
       </Card>
     </Link>

@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Lightbulb } from "lucide-react";
+import { formatShortcut } from "@/shared/utils/platform";
 
 interface QuickCaptureModalProps {
   /** Whether the modal is open */
@@ -40,14 +41,14 @@ interface QuickCaptureModalProps {
 /**
  * QuickCaptureModal - Quick input modal for capturing ideas, prompts, etc.
  *
- * Similar to Cmd+K command palette but for input rather than search.
+ * Similar to Mod+K command palette but for input rather than search.
  * Designed for:
- * - Idea capture (⌘+I)
+ * - Idea capture (Cmd/Ctrl+Shift+I)
  * - Writing prompts (/spark)
  * - Quick notes
  *
  * Features:
- * - Keyboard accessible (Escape to close, Cmd+Enter to submit)
+ * - Keyboard accessible (Escape to close, Cmd/Ctrl+Enter to submit)
  * - Auto-focus on open
  * - Optional suggestions
  * - Loading state for async submit
@@ -63,6 +64,8 @@ export function QuickCaptureModal({
   suggestions = [],
   isSubmitting = false,
 }: QuickCaptureModalProps) {
+  const saveShortcut = formatShortcut("Enter");
+
   const {
     register,
     handleSubmit,
@@ -166,7 +169,7 @@ export function QuickCaptureModal({
           <div className="px-4 py-3 border-t border-border/50 bg-muted/10 flex items-center justify-between">
             <div className="text-xs text-muted-foreground">
               <kbd className="px-1.5 py-0.5 bg-muted rounded text-2xs font-mono">
-                ⌘+Enter
+                {saveShortcut}
               </kbd>
               <span className="ml-1.5">to save</span>
             </div>

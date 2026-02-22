@@ -299,7 +299,7 @@ function ProjectContent() {
 
   return (
     <div className="h-[100dvh] min-h-[100dvh] overflow-hidden flex flex-col">
-      <TopNavigation />
+      <TopNavigation onOpenSearch={() => setSearchOpen(true)} />
 
       <SearchPalette
         projectId={projectId}
