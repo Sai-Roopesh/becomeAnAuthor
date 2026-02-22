@@ -50,7 +50,7 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 2. Create series + novel, reopen app, confirm persistence.
 3. Editor autosave survives restart.
 4. Trash delete requires confirmation before deletion.
-5. Restore/delete flows for deleted series records.
+5. Restore/delete flows for deleted series records (verify deleted series are recreated when restoring a project).
 6. Backup export/import (`.json`) restores valid data.
 7. Backup restore from `.zip` path works.
 8. Restored project chats still show archive/delete actions.

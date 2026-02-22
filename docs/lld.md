@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Status:** Living Document
 
 ---
@@ -143,7 +143,7 @@ backend/src/
 ├── lib.rs               # Plugin registration + command handler registration (130+ commands)
 ├── commands/            # Tauri command implementations (18 modules)
 │   ├── mod.rs           # Module declarations and re-exports
-│   ├── project.rs       # Project CRUD, structure, node management (32KB)
+│   ├── project.rs       # Project CRUD, structure, restore logic (recreates deleted series) (32KB)
 │   ├── scene.rs         # Scene load/save with YAML frontmatter (9.7KB)
 │   ├── codex.rs         # Codex entries, relations, tags, templates (12KB)
 │   ├── series.rs        # Series management + series codex (16.5KB)
