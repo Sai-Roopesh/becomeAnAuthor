@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 22, 2026
+> **Last Updated:** February 23, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -608,7 +608,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
   - **Web:** Standard PKCE flow. Tokens in localStorage.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
-- **macOS Release Signing**: Ad-hoc signing (`-`) used for v0.0.1 release cycle; proper Developer ID signing required for production distribution.
+- **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.
 - **Input Validation**: `validate_no_null_bytes()`, `validate_json_size()`, `validate_file_size()` (10MB max)
 - **Atomic Writes**: All backend writes use temp-file-then-rename
 

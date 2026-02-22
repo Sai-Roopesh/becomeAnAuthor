@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 22, 2026
+> **Last Updated:** February 23, 2026
 > **Status:** Living Document
 
 ---
@@ -915,6 +915,7 @@ The backend `ImportRollbackContext` ensures data consistency during series impor
 | happy-dom / jsdom | DOM environment |
 | MSW | API mocking |
 | fake-indexeddb | IndexedDB mocking for Yjs tests |
+| release:gate | Release validation script (lint, build, cargo test) |
 
 ### 17.2 Test Organization
 
