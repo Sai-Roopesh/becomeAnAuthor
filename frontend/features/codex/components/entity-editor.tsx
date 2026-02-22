@@ -127,6 +127,8 @@ export function EntityEditor({
         cancelled = true;
       };
     }
+
+    return undefined;
   }, [debouncedData, entityId, seriesId, codexRepo]);
 
   const handleChange = (
