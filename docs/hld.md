@@ -748,6 +748,11 @@ ThemeProvider (dark/light/system)
 | **Mobile** | Screen width < 768px | Sheet overlays for sidebar and timeline |
 | **Focus Mode** | Cmd+Shift+F toggle | Full-screen editor, no chrome |
 
+**Component-Level Responsiveness:**
+- **Chat**: Optimized message bubble padding on mobile devices to maximize content area.
+- **Dashboard**: `ProjectCard` dropdown menus adapt width for small screens.
+- **Settings**: Connection lists use flexible viewport heights to prevent scrolling issues.
+
 ### 15.3 UI Component Library (37+ components)
 
 Built on **Radix UI** primitives with **class-variance-authority** for variant styling:

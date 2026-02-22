@@ -29,7 +29,7 @@ export function ConnectionList({
         </span>
       </div>
 
-      <ScrollArea className="h-[16rem] xl:h-[24rem]">
+      <ScrollArea className="h-[50dvh] max-h-[24rem]">
         <div className="space-y-2 pr-2">
           {connections.length === 0 ? (
             <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">

@@ -107,7 +107,7 @@ export function ProjectCard({
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-40 sm:w-48">
               {renderExportButton?.(project.id)}
               <DropdownMenuSeparator />
               <DropdownMenuItem

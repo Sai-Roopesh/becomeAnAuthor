@@ -528,11 +528,11 @@ features/{feature-name}/
 | Feature | Components | Hooks | Description |
 |---|---|---|---|
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly |
+| **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly, mobile-responsive design |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
-| **settings** | 10 | 2 | AI connections, appearance, editor preferences |
-| **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks |
+| **settings** | 10 | 2 | AI connections, appearance, editor preferences, responsive list views |
+| **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks, responsive actions |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
 | **snippets** | 3 | 0 | Reusable text snippets |
