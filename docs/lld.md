@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 22, 2026
+> **Last Updated:** February 22, 2026 (Commit: 0fe81fc)
 > **Status:** Living Document
 
 ---
@@ -507,6 +507,14 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
 | `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
 
+### 8.3 Key Hooks
+
+| Hook | Purpose |
+|---|---|
+| `useHasAIConnection` | Reactively checks for active AI providers (listens to storage events) |
+| `useQuickCapture` | Global keyboard shortcut handler for idea capture |
+| `useLiveQuery` | Reactive repository data fetching |
+
 ---
 
 ## 9. Feature Module Design
@@ -527,9 +535,9 @@ features/{feature-name}/
 
 | Feature | Components | Hooks | Description |
 |---|---|---|---|
-| **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly, mobile-responsive design |
-| **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
+| **editor** | 22 | 2 | TipTap rich text editor, floating `EditorToolbar`, AI menus, `FocusModeToggle`, formatting |
+| **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, `ChatControls` for context/model, `ChatThread` streaming, mobile-responsive Sheet layout |
+| **codex** | 14 | 0 | World-building encyclopedia with decomposed `EntityEditor` (Header, InfoCard, Tabs) |
 | **plan** | 13 | 2 | Outline view, grid view, timeline, maps, world timeline, scene link panel |
 | **settings** | 10 | 2 | AI connections, appearance, editor preferences, responsive list views |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks, responsive actions |
@@ -555,7 +563,7 @@ features/editor/
 ├── components/
 │   ├── tiptap-editor.tsx          # Main TipTap editor wrapper
 │   ├── EditorContainer.tsx        # Editor layout container
-│   ├── editor-toolbar.tsx         # Formatting toolbar
+│   ├── editor-toolbar.tsx         # Floating formatting toolbar with tooltips
 │   ├── text-selection-menu.tsx    # Floating menu on text select
 │   ├── text-replace-dialog.tsx    # AI rewrite dialog
 │   ├── tweak-generate-dialog.tsx  # AI generation tuning
@@ -667,7 +675,7 @@ Assembles contextual information for AI prompts:
 | Store | File | Persistence | Purpose |
 |---|---|---|---|
 | `useProjectStore` | `use-project-store.ts` | `zustand/persist` (localStorage) | Active scene, view mode (plan/write/chat), panel visibility, active tabs |
-| `useChatStore` | `use-chat-store.ts` | None | Active chat thread state |
+| `useChatStore` | `use-chat-store.ts` | None | Active thread IDs and views (Active/Archived/Deleted) per project |
 | `useFormatStore` | `use-format-store.ts` | `zustand/persist` | Editor formatting preferences |
 
 ### 11.2 ProjectStore State Shape
