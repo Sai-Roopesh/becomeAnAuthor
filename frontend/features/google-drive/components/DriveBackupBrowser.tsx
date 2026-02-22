@@ -6,6 +6,7 @@ import { FileText, Trash2, Clock, HardDrive } from "lucide-react";
 import { useGoogleDrive } from "@/features/google-drive/hooks/use-google-drive";
 import { useGoogleAuth } from "@/features/google-drive/hooks/use-google-auth";
 import { useImportExport } from "@/hooks/use-import-export";
+import { ImportSeriesResult } from "@/core/tauri/commands";
 import { DriveFile } from "@/domain/entities/types";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
@@ -23,7 +24,7 @@ import {
 const log = logger.scope("DriveBackupBrowser");
 
 interface DriveBackupBrowserProps {
-  onRestore: () => void;
+  onRestore: (result: ImportSeriesResult) => void;
 }
 
 export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
@@ -63,8 +64,8 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
   const handleRestore = async (fileId: string) => {
     try {
       setIsRestoring(fileId);
-      await restoreFromGoogleDrive(fileId);
-      onRestore();
+      const result = await restoreFromGoogleDrive(fileId);
+      onRestore(result);
     } catch (error) {
       log.error("Restore failed:", error);
       toast.error(

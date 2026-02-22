@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Cloud, Download, Loader2, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,7 +23,7 @@ import { InlineGoogleAuth } from "@/features/google-drive/components/InlineGoogl
 import { DriveBackupBrowser } from "@/features/google-drive/components/DriveBackupBrowser";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
-import { showSaveDialog } from "@/core/tauri/commands";
+import { showSaveDialog, type ImportSeriesResult } from "@/core/tauri/commands";
 
 const log = logger.scope("BackupCenterPanel");
 const LAST_BACKUP_KEY = "baa.lastBackup";
@@ -47,6 +48,7 @@ export function BackupCenterPanel({
   onCompleted,
   className,
 }: BackupCenterPanelProps) {
+  const router = useRouter();
   const { exportSeries, importSeries, backupToGoogleDrive } = useImportExport();
   const seriesRepo = useSeriesRepository();
   const { isAuthenticated, signOut } = useGoogleAuth();
@@ -67,6 +69,8 @@ export function BackupCenterPanel({
   const [lastBackupSource, setLastBackupSource] = useState<BackupSource | null>(
     null,
   );
+  const [lastRestoreResult, setLastRestoreResult] =
+    useState<ImportSeriesResult | null>(null);
 
   useEffect(() => {
     if (!allSeries || allSeries.length === 0) return;
@@ -195,16 +199,26 @@ export function BackupCenterPanel({
     try {
       const result = await importSeries(file);
       invalidateQueries(["projects", "series", "nodes"]);
-      toast.success(
-        `Restored "${result.seriesTitle}" with ${result.importedProjectCount} novel${result.importedProjectCount === 1 ? "" : "s"}`,
-      );
-      onCompleted?.();
+      setLastRestoreResult(result);
     } catch (error) {
       log.error("Local restore failed", error);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const openRestoredSeries = () => {
+    if (!lastRestoreResult?.seriesId) return;
+    router.push(`/series?id=${lastRestoreResult.seriesId}`);
+    onCompleted?.();
+  };
+
+  const openRestoredProject = () => {
+    const projectId = lastRestoreResult?.projectIds?.[0];
+    if (!projectId) return;
+    router.push(`/project?id=${projectId}`);
+    onCompleted?.();
   };
 
   const busy =
@@ -429,11 +443,36 @@ export function BackupCenterPanel({
           <InlineGoogleAuth onAuthComplete={() => void 0} />
         ) : (
           <DriveBackupBrowser
-            onRestore={() => {
+            onRestore={(result) => {
               invalidateQueries(["projects", "series", "nodes"]);
-              onCompleted?.();
+              setLastRestoreResult(result);
             }}
           />
+        )}
+
+        {lastRestoreResult && (
+          <Card className="p-3 space-y-3 border-primary/40 bg-primary/5">
+            <p className="text-sm font-medium text-foreground">
+              Restore complete: {lastRestoreResult.seriesTitle}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Imported {lastRestoreResult.importedProjectCount} novel
+              {lastRestoreResult.importedProjectCount === 1 ? "" : "s"}.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button onClick={openRestoredSeries} className="sm:flex-1">
+                Open Restored Series
+              </Button>
+              <Button
+                variant="outline"
+                onClick={openRestoredProject}
+                disabled={!lastRestoreResult.projectIds?.[0]}
+                className="sm:flex-1"
+              >
+                Open First Novel
+              </Button>
+            </div>
+          </Card>
         )}
       </Card>
 

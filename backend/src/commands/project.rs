@@ -263,11 +263,20 @@ pub fn open_project(project_path: String) -> Result<ProjectMeta, String> {
     let content = fs::read_to_string(&meta_path)
         .map_err(|e| format!("Failed to read project.json: {}", e))?;
 
-    let project: ProjectMeta = serde_json::from_str(&content)
+    let mut project: ProjectMeta = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse project.json: {}", e))?;
 
+    let canonical_path = fs::canonicalize(&path).unwrap_or(path.clone());
+    let canonical_path_str = canonical_path.to_string_lossy().to_string();
+    if project.path != canonical_path_str {
+        project.path = canonical_path_str.clone();
+        project.updated_at = timestamp::now_millis();
+        let json = serde_json::to_string_pretty(&project).map_err(|e| e.to_string())?;
+        fs::write(&meta_path, json).map_err(|e| e.to_string())?;
+    }
+
     // Add to recent list
-    add_to_recent(project_path, project.title.clone())?;
+    add_to_recent(canonical_path_str, project.title.clone())?;
 
     Ok(project)
 }

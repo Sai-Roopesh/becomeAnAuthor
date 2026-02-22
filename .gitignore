@@ -44,3 +44,8 @@ circular_deps.txt
 cargo_check_results.txt
 dev_web_output.log
 lint_output.txt
+
+# local codex agent artifacts
+/.agents/
+/AGENTS.md
+/scripts/validate_skill_routing.sh

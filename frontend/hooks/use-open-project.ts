@@ -1,40 +1,41 @@
 /**
  * Hook for opening projects from file picker or recent list
- * 
+ *
  * Follows pragmatic architecture - direct invoke from hook (per CODING_GUIDELINES)
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 import {
-    openProject,
-    showOpenProjectDialog,
-    type ProjectMeta
-} from '@/core/tauri';
-import { TauriNodeRepository } from '@/infrastructure/repositories/TauriNodeRepository';
-import { logger } from '@/shared/utils/logger';
+  openProject,
+  showOpenProjectDialog,
+  type ProjectMeta,
+} from "@/core/tauri";
+import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import { logger } from "@/shared/utils/logger";
+import { toast } from "@/shared/utils/toast-service";
 
-const log = logger.scope('useOpenProject');
+const log = logger.scope("useOpenProject");
 
 export interface UseOpenProjectResult {
-    /** Open project via file picker dialog */
-    openFromPicker: () => Promise<ProjectMeta | null>;
-    /** Open project by known path (from recent list) */
-    openByPath: (path: string) => Promise<ProjectMeta | null>;
-    /** Whether a project is currently being opened */
-    isOpening: boolean;
-    /** Error message if opening failed */
-    error: string | null;
-    /** Clear the current error */
-    clearError: () => void;
+  /** Open project via file picker dialog */
+  openFromPicker: () => Promise<ProjectMeta | null>;
+  /** Open project by known path (from recent list) */
+  openByPath: (path: string) => Promise<ProjectMeta | null>;
+  /** Whether a project is currently being opened */
+  isOpening: boolean;
+  /** Error message if opening failed */
+  error: string | null;
+  /** Clear the current error */
+  clearError: () => void;
 }
 
 /**
  * Hook for opening projects
- * 
+ *
  * @example
  * ```tsx
  * const { openFromPicker, openByPath, isOpening, error } = useOpenProject();
- * 
+ *
  * // From "Open Novel..." button
  * const handleOpenClick = async () => {
  *     const project = await openFromPicker();
@@ -42,7 +43,7 @@ export interface UseOpenProjectResult {
  *         router.push(`/editor/${project.id}`);
  *     }
  * };
- * 
+ *
  * // From recent projects list
  * const handleRecentClick = async (path: string) => {
  *     const project = await openByPath(path);
@@ -53,74 +54,82 @@ export interface UseOpenProjectResult {
  * ```
  */
 export function useOpenProject(): UseOpenProjectResult {
-    const [isOpening, setIsOpening] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const openFromPicker = useCallback(async (): Promise<ProjectMeta | null> => {
-        setIsOpening(true);
-        setError(null);
+  const openFromPicker = useCallback(async (): Promise<ProjectMeta | null> => {
+    setIsOpening(true);
+    setError(null);
 
-        try {
-            // Show file picker
-            const selectedPath = await showOpenProjectDialog();
+    try {
+      // Show file picker
+      const selectedPath = await showOpenProjectDialog();
 
-            if (!selectedPath) {
-                // User cancelled
-                return null;
-            }
+      if (!selectedPath) {
+        // User cancelled
+        return null;
+      }
 
-            // Open and validate the project
-            const project = await openProject(selectedPath);
+      // Open and validate the project
+      const project = await openProject(selectedPath);
 
-            // Set project path for other repositories
-            TauriNodeRepository.getInstance().setProjectPath(selectedPath);
+      // Use canonical backend path to keep repositories aligned even after folder moves.
+      TauriNodeRepository.getInstance().setProjectPath(project.path);
 
-            log.info('Opened project from picker', { path: selectedPath, title: project.title });
-            return project;
+      log.info("Opened project from picker", {
+        path: selectedPath,
+        title: project.title,
+      });
+      return project;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to open project";
+      setError(message);
+      toast.error(message);
+      log.error("Failed to open project from picker", err);
+      return null;
+    } finally {
+      setIsOpening(false);
+    }
+  }, []);
 
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to open project';
-            setError(message);
-            log.error('Failed to open project from picker', err);
-            return null;
-        } finally {
-            setIsOpening(false);
-        }
-    }, []);
+  const openByPath = useCallback(
+    async (path: string): Promise<ProjectMeta | null> => {
+      setIsOpening(true);
+      setError(null);
 
-    const openByPath = useCallback(async (path: string): Promise<ProjectMeta | null> => {
-        setIsOpening(true);
-        setError(null);
+      try {
+        // Open and validate the project
+        const project = await openProject(path);
 
-        try {
-            // Open and validate the project
-            const project = await openProject(path);
+        // Use canonical backend path to keep repositories aligned even after folder moves.
+        TauriNodeRepository.getInstance().setProjectPath(project.path);
 
-            // Set project path for other repositories
-            TauriNodeRepository.getInstance().setProjectPath(path);
+        log.info("Opened project by path", { path, title: project.title });
+        return project;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to open project";
+        setError(message);
+        toast.error(message);
+        log.error("Failed to open project by path", { path, error: err });
+        return null;
+      } finally {
+        setIsOpening(false);
+      }
+    },
+    [],
+  );
 
-            log.info('Opened project by path', { path, title: project.title });
-            return project;
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to open project';
-            setError(message);
-            log.error('Failed to open project by path', { path, error: err });
-            return null;
-        } finally {
-            setIsOpening(false);
-        }
-    }, []);
-
-    const clearError = useCallback(() => {
-        setError(null);
-    }, []);
-
-    return {
-        openFromPicker,
-        openByPath,
-        isOpening,
-        error,
-        clearError,
-    };
+  return {
+    openFromPicker,
+    openByPath,
+    isOpening,
+    error,
+    clearError,
+  };
 }

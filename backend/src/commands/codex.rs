@@ -338,7 +338,17 @@ pub fn save_scene_codex_link(project_path: String, link: SceneCodexLink) -> Resu
     } else {
         Vec::new()
     };
-    if let Some(idx) = links.iter().position(|l| l.id == link.id) {
+
+    if let Some(idx) = links
+        .iter()
+        .position(|l| l.scene_id == link.scene_id && l.codex_id == link.codex_id)
+    {
+        let mut merged = link.clone();
+        // Keep stable identity and original creation time for existing scene+codex pair.
+        merged.id = links[idx].id.clone();
+        merged.created_at = links[idx].created_at;
+        links[idx] = merged;
+    } else if let Some(idx) = links.iter().position(|l| l.id == link.id) {
         links[idx] = link;
     } else {
         links.push(link);
