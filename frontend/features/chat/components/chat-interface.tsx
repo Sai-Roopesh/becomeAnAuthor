@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("ChatInterface");
@@ -27,7 +27,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DecorativeGrid } from "@/components/ui/decorative-grid";
-import { getEnabledConnections } from "@/lib/ai";
+import { SettingsDialog } from "@/features/settings/components/SettingsDialog";
+import { useHasAIConnection } from "@/hooks/use-has-ai-connection";
 
 interface ChatInterfaceProps {
   projectId: string;
@@ -36,12 +37,17 @@ interface ChatInterfaceProps {
 export function ChatInterface({ projectId }: ChatInterfaceProps) {
   const chatRepo = useChatRepository();
   const [searchQuery, setSearchQuery] = useState("");
-  const { activeThreadId, setActiveThreadId, threadView, setThreadView } =
-    useChatStore();
+  const activeThreadId = useChatStore((state) =>
+    state.getActiveThreadId(projectId),
+  );
+  const threadView = useChatStore((state) => state.getThreadView(projectId));
+  const setActiveThreadId = useChatStore((state) => state.setActiveThreadId);
+  const setThreadView = useChatStore((state) => state.setThreadView);
   const { confirm, ConfirmationDialog } = useConfirmation();
   const isMobile = useIsMobile();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const hasAIConnection = getEnabledConnections().length > 0;
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const hasAIConnection = useHasAIConnection();
 
   const activeThreads = useLiveQuery(
     () => chatRepo.getActiveThreads(projectId),
@@ -66,14 +72,41 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
   };
   const threads = threadsByView[threadView];
 
+  useEffect(() => {
+    if (!activeThreadId) return;
+    if (!activeThreads || !archivedThreads || !deletedThreads) return;
+
+    const existsInProject =
+      activeThreads.some((thread) => thread.id === activeThreadId) ||
+      archivedThreads.some((thread) => thread.id === activeThreadId) ||
+      deletedThreads.some((thread) => thread.id === activeThreadId);
+
+    if (!existsInProject) {
+      setActiveThreadId(projectId, null);
+    }
+  }, [
+    activeThreadId,
+    activeThreads,
+    archivedThreads,
+    deletedThreads,
+    projectId,
+    setActiveThreadId,
+  ]);
+
   const createNewThread = async () => {
+    if (!hasAIConnection) {
+      toast.info("Set up an AI connection before starting a new chat.");
+      setSettingsOpen(true);
+      return;
+    }
+
     const newThread = await chatRepo.createThread({
       projectId,
       name: "New Chat",
     });
     invalidateQueries("chat");
-    setThreadView("active");
-    setActiveThreadId(newThread.id);
+    setThreadView(projectId, "active");
+    setActiveThreadId(projectId, newThread.id);
     if (isMobile) setSidebarOpen(false);
   };
 
@@ -90,7 +123,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
       if (!purgeConfirmed) return;
       try {
         await chatRepo.purgeThread(threadId);
-        if (activeThreadId === threadId) setActiveThreadId(null);
+        if (activeThreadId === threadId) setActiveThreadId(projectId, null);
         invalidateQueries("chat");
         toast.success("Chat permanently deleted");
       } catch (error) {
@@ -113,7 +146,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
         await chatRepo.deleteThread(threadId);
 
         if (activeThreadId === threadId) {
-          setActiveThreadId(null);
+          setActiveThreadId(projectId, null);
         }
         invalidateQueries("chat");
         toast.success("Chat moved to Deleted");
@@ -130,7 +163,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
     try {
       await chatRepo.updateThread(threadId, { archived: true });
       if (activeThreadId === threadId) {
-        setActiveThreadId(null);
+        setActiveThreadId(projectId, null);
       }
       invalidateQueries("chat");
       toast.success("Chat moved to Archived");
@@ -143,8 +176,8 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
   const handleRestoreThread = async (threadId: string) => {
     try {
       await chatRepo.restoreThread(threadId);
-      setThreadView("active");
-      setActiveThreadId(threadId);
+      setThreadView(projectId, "active");
+      setActiveThreadId(projectId, threadId);
       invalidateQueries("chat");
       toast.success("Chat restored");
     } catch (error) {
@@ -234,10 +267,16 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
           onClick={createNewThread}
           className="w-full shadow-sm bg-primary/90 hover:bg-primary transition-all"
           size="default"
+          disabled={!hasAIConnection}
         >
           <Plus className="h-4 w-4 mr-2" />
           New Chat
         </Button>
+        {!hasAIConnection && (
+          <p className="text-xs text-muted-foreground">
+            Connect an AI provider in Settings to start new conversations.
+          </p>
+        )}
         <div className="relative group">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input
@@ -252,7 +291,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
             variant="ghost"
             size="sm"
             className={tabButtonClass("active")}
-            onClick={() => setThreadView("active")}
+            onClick={() => setThreadView(projectId, "active")}
           >
             Active
           </Button>
@@ -260,7 +299,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
             variant="ghost"
             size="sm"
             className={tabButtonClass("archived")}
-            onClick={() => setThreadView("archived")}
+            onClick={() => setThreadView(projectId, "archived")}
           >
             Archived
           </Button>
@@ -268,7 +307,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
             variant="ghost"
             size="sm"
             className={tabButtonClass("deleted")}
-            onClick={() => setThreadView("deleted")}
+            onClick={() => setThreadView(projectId, "deleted")}
           >
             Deleted
           </Button>
@@ -295,7 +334,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
               )}
               onClick={() => {
                 if (threadView === "deleted") return;
-                setActiveThreadId(thread.id);
+                setActiveThreadId(projectId, thread.id);
                 if (isMobile) setSidebarOpen(false);
               }}
             >
@@ -388,13 +427,22 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
         <DecorativeGrid />
 
         {activeThreadId ? (
-          <ChatThread threadId={activeThreadId} />
+          <ChatThread threadId={activeThreadId} projectId={projectId} />
         ) : (
           <div className="h-full">
             {!hasAIConnection && (
               <div className="mx-6 mt-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-                No AI connection configured. Open Settings and add an AI
-                provider before starting chat.
+                <p>
+                  No AI connection configured. Add a provider before starting
+                  chat.
+                </p>
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  Set Up AI Connection
+                </Button>
               </div>
             )}
             <EmptyState
@@ -403,15 +451,24 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
               title="AI Assistant"
               description="Select a chat from the sidebar or start a new conversation to brainstorm, outline, or write with AI."
               action={{
-                label: "Start New Chat",
-                onClick: createNewThread,
-                variant: "outline",
+                label: hasAIConnection
+                  ? "Start New Chat"
+                  : "Set Up AI Connection",
+                onClick: hasAIConnection
+                  ? createNewThread
+                  : () => setSettingsOpen(true),
+                variant: hasAIConnection ? "outline" : "default",
               }}
             />
           </div>
         )}
       </div>
 
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        hideTrigger
+      />
       <ConfirmationDialog />
     </div>
   );

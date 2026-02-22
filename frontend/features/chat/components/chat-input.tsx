@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatShortcut } from "@/shared/utils/platform";
 
 interface ChatInputProps {
   value: string;
@@ -29,6 +30,8 @@ export function ChatInput({
   isGenerating = false,
   onCancel,
 }: ChatInputProps) {
+  const sendShortcut = formatShortcut("Enter");
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Send on Ctrl/Cmd + Enter
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -58,7 +61,7 @@ export function ChatInput({
 
             <div className="flex items-center gap-2">
               <span className="text-2xs text-muted-foreground hidden sm:inline-block">
-                ⌘ + Enter to send
+                {sendShortcut} to send
               </span>
               {isGenerating ? (
                 <Button

@@ -136,7 +136,7 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

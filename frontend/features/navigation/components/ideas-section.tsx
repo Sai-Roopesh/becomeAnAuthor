@@ -7,7 +7,7 @@
  * Uses CollapsibleSection from Phase 0 and QuickCaptureModal.
  *
  * Features:
- * - Quick capture via ⌘+I
+ * - Quick capture via Cmd/Ctrl+Shift+I
  * - Category badges
  * - Click to expand/edit
  */
@@ -39,6 +39,7 @@ import {
   NAVIGATION_CONSTANTS,
 } from "@/lib/config/constants";
 import type { Idea } from "@/domain/entities/types";
+import { formatShortcut } from "@/shared/utils/platform";
 
 interface IdeasSectionProps {
   projectId: string;
@@ -66,8 +67,11 @@ export function IdeasSection({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Setup keyboard shortcut (⌘+I)
-  const quickCapture = useQuickCapture("i");
+  const quickCaptureShortcut = formatShortcut("i", { useShift: true });
+  const quickCapture = useQuickCapture("i", {
+    enabled: Boolean(sceneId),
+    shiftKey: true,
+  });
 
   // Use either keyboard shortcut or button click
   const handleOpenModal = () => {
@@ -105,7 +109,11 @@ export function IdeasSection({
         count={sceneId ? ideas.length : 0}
         defaultOpen={defaultOpen}
         {...(sceneId ? { onAdd: handleOpenModal } : {})}
-        addTooltip={sceneId ? "Quick capture (⌘I)" : "Select a scene first"}
+        addTooltip={
+          sceneId
+            ? `Quick capture (${quickCaptureShortcut})`
+            : "Select a scene first"
+        }
       >
         {!sceneId ? (
           <div className="p-4 text-center text-sm text-muted-foreground">
@@ -125,7 +133,7 @@ export function IdeasSection({
               className="mt-2 text-xs"
               onClick={handleOpenModal}
             >
-              Capture your first idea (⌘I)
+              Capture your first idea ({quickCaptureShortcut})
             </Button>
           </div>
         ) : (
@@ -237,7 +245,7 @@ function IdeaItem({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
           >
             <MoreHorizontal className="h-4 w-4" />
           </Button>

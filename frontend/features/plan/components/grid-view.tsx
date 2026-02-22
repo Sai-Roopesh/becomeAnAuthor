@@ -146,7 +146,7 @@ export function GridView({ projectId, seriesId, nodes }: GridViewProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 opacity-0 group-hover/chapter:opacity-100 transition-opacity"
+                          className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover/chapter:opacity-100 sm:group-focus-within/chapter:opacity-100 transition-opacity"
                           onClick={() => openCreateDialog(chapter.id, "scene")}
                           title="Add Scene"
                         >

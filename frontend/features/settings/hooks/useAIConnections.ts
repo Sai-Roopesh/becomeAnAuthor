@@ -6,6 +6,7 @@ import { AIConnection, AIProvider, AI_VENDORS } from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
 import { deleteAPIKey, getAPIKey, storeAPIKey } from "@/core/storage/api-keys";
 import { logger } from "@/shared/utils/logger";
+import { AI_CONNECTIONS_UPDATED_EVENT } from "@/hooks/use-has-ai-connection";
 
 const log = logger.scope("useAIConnections");
 const STORAGE_KEY = "ai_connections";
@@ -19,6 +20,10 @@ function persistConnections(connections: AIConnection[]) {
     STORAGE_KEY,
     connections.map((connection) => toStoredConnection(connection)),
   );
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AI_CONNECTIONS_UPDATED_EVENT));
+  }
 }
 
 function requiresApiKey(connection: AIConnection): boolean {

@@ -39,7 +39,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import type { ContextItem } from "@/features/shared/components/ContextSelector";
 import { getStructure, loadScene } from "@/core/tauri/commands";
 import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
-import { isModKey } from "@/shared/utils/platform";
+import { formatShortcut, isModKey } from "@/shared/utils/platform";
 
 // Structure node from Tauri backend
 interface StructureNode {
@@ -87,6 +87,7 @@ export function TiptapEditor({
   } | null>(null);
   const previousSceneIdRef = useRef<string | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const continueShortcut = formatShortcut("j");
   const { codexRepository: codexRepo } = useAppServices();
   const { assembleContextPack } = useContextAssembly(projectId, seriesId);
 
@@ -196,8 +197,7 @@ export function TiptapEditor({
       Section,
       SlashCommands,
       Placeholder.configure({
-        placeholder:
-          "Start writing your masterpiece... Type / for commands or press Cmd+J to continue",
+        placeholder: `Start writing your masterpiece... Type / for commands or press ${continueShortcut} to continue`,
       }),
       Mention.configure({
         HTMLAttributes: {
@@ -224,7 +224,7 @@ export function TiptapEditor({
     }
 
     return base;
-  }, [suggestion, ydoc]);
+  }, [continueShortcut, suggestion, ydoc]);
 
   const editor = useEditor({
     immediatelyRender: false,

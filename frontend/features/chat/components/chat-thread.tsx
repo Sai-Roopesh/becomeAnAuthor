@@ -19,6 +19,9 @@ import { useAppServices } from "@/infrastructure/di/AppContext";
 import { getPromptTemplate } from "@/shared/prompts/templates";
 import { buildRollingMemory } from "@/features/chat/utils/chat-memory";
 import type { AIModelMessage } from "@/lib/ai/client";
+import { SettingsDialog } from "@/features/settings/components/SettingsDialog";
+import { Button } from "@/components/ui/button";
+import { useHasAIConnection } from "@/hooks/use-has-ai-connection";
 
 // Import child components
 import { ChatHeader } from "./chat-header";
@@ -28,6 +31,7 @@ import { ChatInput } from "./chat-input";
 
 interface ChatThreadProps {
   threadId: string;
+  projectId: string;
 }
 
 /**
@@ -36,7 +40,7 @@ interface ChatThreadProps {
  * Series-first: fetches project to get seriesId for context selection
  * Uses streaming AI responses via useAI hook
  */
-export function ChatThread({ threadId }: ChatThreadProps) {
+export function ChatThread({ threadId, projectId }: ChatThreadProps) {
   const chatRepo = useChatRepository();
   const { setActiveThreadId } = useChatStore();
   const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
@@ -63,6 +67,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
     null,
   );
+  const hasAIConnection = useHasAIConnection();
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -117,6 +122,13 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     }
   }, [thread, setModel]);
 
+  useEffect(() => {
+    const hasModel = Boolean((selectedModel || settings.model).trim());
+    if (!hasModel) {
+      setShowControls(true);
+    }
+  }, [selectedModel, settings.model, threadId]);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -128,8 +140,14 @@ export function ChatThread({ threadId }: ChatThreadProps) {
     const messageToSend = directMessage || message;
     if (!messageToSend.trim() || isGenerating) return;
 
+    if (!hasAIConnection) {
+      toast.error("Connect an AI provider in Settings before chatting.");
+      return;
+    }
+
     const effectiveModel = selectedModel || settings.model;
     if (!effectiveModel) {
+      setShowControls(true);
       toast.error("Please select a model to start chatting.");
       return;
     }
@@ -354,7 +372,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
   const handleArchive = async () => {
     if (!thread) return;
     await chatRepo.updateThread(threadId, { archived: !thread.archived });
-    setActiveThreadId(null);
+    setActiveThreadId(projectId, null);
   };
 
   const handleDelete = async () => {
@@ -368,7 +386,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
 
     if (confirmed) {
       await chatRepo.deleteThread(threadId);
-      setActiveThreadId(null);
+      setActiveThreadId(projectId, null);
     }
   };
 
@@ -427,6 +445,22 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         onOpenSettings={() => setShowSettings(true)}
       />
 
+      {!hasAIConnection && (
+        <div className="border-b px-4 py-3 text-sm bg-destructive/5 border-destructive/20">
+          <p className="text-destructive">
+            AI provider is not configured for this device.
+          </p>
+          <SettingsDialog
+            initialTab="ai-connections"
+            trigger={
+              <Button size="sm" className="mt-2">
+                Open AI Settings
+              </Button>
+            }
+          />
+        </div>
+      )}
+
       {/* Controls Component */}
       {project && (
         <ChatControls
@@ -464,7 +498,7 @@ export function ChatThread({ threadId }: ChatThreadProps) {
         value={message}
         onChange={setMessage}
         onSend={() => handleSend()}
-        disabled={isGenerating || isDeleted}
+        disabled={isGenerating || isDeleted || !hasAIConnection}
         isGenerating={isGenerating}
         onCancel={cancel}
       />

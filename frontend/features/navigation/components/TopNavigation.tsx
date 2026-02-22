@@ -2,7 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { useProjectStore, ViewMode } from "@/store/use-project-store";
-import { LayoutTemplate, PenTool, MessageSquare, Home } from "lucide-react";
+import {
+  LayoutTemplate,
+  PenTool,
+  MessageSquare,
+  Home,
+  Search,
+} from "lucide-react";
 import { SettingsDialog } from "../../settings/components/SettingsDialog";
 import Link from "next/link";
 import {
@@ -11,10 +17,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getEnabledConnections } from "@/lib/ai";
-import { toast } from "@/shared/utils/toast-service";
+import { shortcuts } from "@/shared/utils/platform";
 
-export function TopNavigation() {
+interface TopNavigationProps {
+  onOpenSearch?: () => void;
+}
+
+export function TopNavigation({ onOpenSearch }: TopNavigationProps) {
   const { viewMode, setViewMode } = useProjectStore();
 
   const modes: { id: ViewMode; label: string; icon: React.ElementType }[] = [
@@ -23,16 +32,7 @@ export function TopNavigation() {
     { id: "chat", label: "Chat", icon: MessageSquare },
   ];
 
-  const handleModeChange = (mode: ViewMode) => {
-    const hasAIConnection = getEnabledConnections().length > 0;
-    if (mode === "chat" && !hasAIConnection) {
-      toast.info(
-        "AI is not configured. Click the settings button to add a connection.",
-      );
-      return;
-    }
-    setViewMode(mode);
-  };
+  const handleModeChange = (mode: ViewMode) => setViewMode(mode);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -68,6 +68,25 @@ export function TopNavigation() {
             ))}
           </div>
           <div className="flex items-center gap-2">
+            {onOpenSearch && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={onOpenSearch}
+                  >
+                    <Search className="h-4 w-4" />
+                    <span className="hidden md:inline">Search</span>
+                    <kbd className="hidden xl:inline-flex rounded bg-muted px-1.5 py-0.5 text-2xs font-mono text-muted-foreground">
+                      {shortcuts.search.display}
+                    </kbd>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Search manuscript and codex</TooltipContent>
+              </Tooltip>
+            )}
             <SettingsDialog />
           </div>
         </div>

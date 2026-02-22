@@ -241,7 +241,7 @@ export function DesktopLayout({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
                             onClick={async () => {
                               await snippetRepo.togglePin(snippet.id);
                             }}

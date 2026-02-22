@@ -321,6 +321,7 @@ function SeriesContent() {
           projects={activeProjects}
           seriesMap={seriesMap}
           onDeleteProject={handleDeleteProject}
+          onExportProject={handleOpenExport}
           renderExportButton={(projectId) => (
             <DropdownMenuItem
               onClick={(e) => {

@@ -307,7 +307,7 @@ export function ChatMessage({
         {/* Actions Dropdown */}
         <div
           className={cn(
-            "opacity-0 group-hover:opacity-100 transition-opacity self-start mt-2",
+            "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity self-start mt-2",
             isUser ? "mr-2" : "ml-2",
           )}
         >

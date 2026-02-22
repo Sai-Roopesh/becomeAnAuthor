@@ -27,7 +27,6 @@ import {
   Copy,
   FileDown,
   Archive,
-  History,
   Trash2,
   Pencil,
 } from "lucide-react";
@@ -353,18 +352,6 @@ SUMMARY (2-3 sentences, present tense):`,
               <DropdownMenuItem onClick={handleDuplicate}>
                 <Copy className="h-4 w-4 mr-2" />
                 Duplicate Scene
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>History</DropdownMenuLabel>
-
-              <DropdownMenuItem>
-                <History className="h-4 w-4 mr-2" />
-                Scene Summary
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <History className="h-4 w-4 mr-2" />
-                Scene Contents
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
