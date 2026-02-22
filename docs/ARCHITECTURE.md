@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -709,7 +709,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 1. Scene save failure → `EmergencyBackupService.saveBackup()`
 2. Corruption → `parse_scene_document()` falls back to `default_scene_meta()`
-3. Project deletion → soft delete to `.trash/` with restore
+3. Project deletion → soft delete to `.trash/` with restore (automatically restores/recreates original series if deleted)
 4. Import failures → **Import Rollback** automatically reverts partial series imports
 5. Expired cleanup → `cleanup_emergency_backups` on startup
 6. Atomic writes → temp-file-then-rename pattern

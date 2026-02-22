@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Status:** Living Document
 
 ---
@@ -828,7 +828,7 @@ Save failure → Emergency Backup Service
 Accidental delete → Trash System
                     ├── Move to .trash/ with metadata
                     ├── 30-day retention
-                    ├── Restore to original series
+                    ├── Restore to original series (recreates series if missing to prevent "Recovery Series" fallback)
                     └── Permanent delete requires confirmation
 ```
 
