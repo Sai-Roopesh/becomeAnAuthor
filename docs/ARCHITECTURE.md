@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 22, 2026
-> **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
+> **Last Updated:** February 22, 2026 (Commit: 0fe81fc)
+> **Codebase Stats:** 335 frontend source files (43,500+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -382,7 +382,7 @@ OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, Cohere, xAI (Grok), A
 | Store | File | Lines | Persisted | State |
 |---|---|---|---|---|
 | `useProjectStore` | `store/use-project-store.ts` | 99 | ✅ (partial) | `viewMode` (plan/write/chat), `activeSceneId`, `activeProjectId`, `showSidebar`, `showTimeline`, `rightPanelTab`, `leftSidebarTab` |
-| `useChatStore` | `store/use-chat-store.ts` | 23 | ❌ | `activeThreadId`, `threadView` (active/archived/deleted) |
+| `useChatStore` | `store/use-chat-store.ts` | 43 | ❌ | `activeThreadIds` (Record<projectId, id>), `threadViews` (Record<projectId, view>) |
 | `useFormatStore` | `store/use-format-store.ts` | 73 | ✅ (full) | Typography settings (fontFamily, fontSize, lineHeight, alignment, pageWidth), typewriterMode, focusMode, showWordCount |
 
 ### 8.2 Server State — `useLiveQuery`
@@ -479,7 +479,9 @@ The primary writing environment. 15+ components:
 | Component | Lines | Purpose |
 |---|---|---|
 | `CodexList` | 311 | Virtualized scrolling list with category filtering, template selection, search |
-| `EntityEditor` | ~400 | Tabbed entity management (Details, Research, Relations, Mentions) with cascading delete support |
+| `EntityEditor` | ~400 | Orchestrator for tabbed entity management (Details, Research, Relations, Mentions) |
+| `EntityEditorHeader` | ~80 | Navigation and actions (Save, Delete) with status indication |
+| `EntityEditorInfoCard` | ~100 | Entity metadata (Name, Category, Template) |
 | `CodexRelationGraph` | ~400 | Force-directed relationship visualization |
 | `MentionTracker` | ~150 | Tracks @mentions of codex entries across manuscript |
 
@@ -510,9 +512,11 @@ Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 
 | Component | Lines | Purpose |
 |---|---|---|
-| `ChatInterface` | 395 | Thread sidebar, message list, input, model/prompt selection |
+| `ChatInterface` | ~400 | Responsive layout with sidebar (Sheet on mobile), thread list (Active/Archived/Deleted), empty states |
+| `ChatThread` | ~350 | Main conversation coordinator: streaming, context assembly, auto-scroll |
+| `ChatControls` | ~100 | Configuration panel for Model, Context, and Prompt selection |
+| `ChatInput` | ~100 | Glassmorphism input area with cancel generation support |
 | `ChatMessage` | ~150 | Markdown rendering, copy, regenerate, mobile-responsive layout |
-| `ContextSelector` | ~200 | Select scenes, codex entries, snippets as context |
 
 ### 10.5 Navigation — `ProjectNavigation` (489 lines)
 
@@ -738,7 +742,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `lib/config/` | `constants.ts`, `ai-vendors.ts`, `model-specs.ts`, `timing.ts` |
 | `lib/core/` | `save-coordinator.ts`, `editor-state-manager.ts` |
 | `store/` | `use-project-store.ts`, `use-chat-store.ts`, `use-format-store.ts` |
-| `hooks/` | 31 shared hooks |
+| `hooks/` | 33 shared hooks (added `useHasAIConnection`, `useQuickCapture`) |
 | `shared/utils/` | `context-engine.ts`, `context-packer.ts`, `toast-service.ts`, `logger.ts` |
 | `shared/prompts/` | `templates.ts` |
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |

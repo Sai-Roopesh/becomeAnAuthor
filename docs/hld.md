@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 22, 2026
+> **Last Updated:** February 22, 2026 (Commit: 0fe81fc)
 > **Status:** Living Document
 
 ---
@@ -233,7 +233,7 @@ graph TB
 | Domain | Components | Hooks | Description |
 |---|---|---|---|
 | **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, @mentions, sections, focus mode, typewriter scroll |
-| **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
+| **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support, active/archived/deleted views |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
 | **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline, intelligent linking panel |
 | **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
@@ -746,11 +746,11 @@ ThemeProvider (dark/light/system)
 | Mode | Trigger | Layout |
 |---|---|---|
 | **Desktop** | Screen width ≥ 768px | ResizablePanels (sidebar + editor + timeline) |
-| **Mobile** | Screen width < 768px | Sheet overlays for sidebar and timeline |
+| **Mobile** | Screen width < 768px | Sheet overlays for sidebar and timeline; Chat sidebar uses Sheet overlay |
 | **Focus Mode** | Cmd+Shift+F toggle | Full-screen editor, no chrome |
 
 **Component-Level Responsiveness:**
-- **Chat**: Optimized message bubble padding on mobile devices to maximize content area.
+- **Chat**: Optimized message bubble padding on mobile devices; sidebar becomes a Sheet overlay.
 - **Dashboard**: `ProjectCard` dropdown menus adapt width for small screens.
 - **Settings**: Connection lists use flexible viewport heights to prevent scrolling issues.
 
