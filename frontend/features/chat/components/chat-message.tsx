@@ -182,9 +182,7 @@ export function ChatMessage({
       <div
         className={cn(
           "group relative flex gap-3",
-          isUser
-            ? "flex-row-reverse pl-2 sm:pl-12"
-            : "pr-2 sm:pr-12",
+          isUser ? "flex-row-reverse pl-2 sm:pl-12" : "pr-2 sm:pr-12",
         )}
       >
         {/* Avatar */}

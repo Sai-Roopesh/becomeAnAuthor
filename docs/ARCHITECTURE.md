@@ -495,6 +495,14 @@ The primary writing environment. 15+ components:
 | `WorldTimelineView` | `world-timeline-view.tsx` | 503 | Era-grouped world events with temporal precision fields |
 | `MapView` | `map-view.tsx` | 579 | Image upload, pan/zoom, marker placement with codex linking |
 
+Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
+- Card-level quick action button (not menu-only) for discoverability on touch and desktop.
+- Guided panel onboarding with shortcut hints (`Cmd/Ctrl+F` search focus, `Cmd/Ctrl+Shift+L` link detected mentions).
+- Context-aware linking paths:
+  - Detected `@mention` entries from scene content can be linked in one batch.
+  - Recommended entries are suggested from scene title/summary/POV/labels.
+- Mutations use live-query invalidation plus duplicate guards to keep badges/filters/timeline state in sync.
+
 ### 10.4 Chat Feature — `features/chat/`
 
 | Component | Lines | Purpose |

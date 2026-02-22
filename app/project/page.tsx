@@ -24,6 +24,7 @@ function ProjectRecovery({
   projects,
   recents,
   isOpening,
+  error,
   onOpenRecent,
   onOpenPicker,
 }: {
@@ -32,6 +33,7 @@ function ProjectRecovery({
   projects: Array<{ id: string; title: string; path?: string }>;
   recents: RecentProject[];
   isOpening: boolean;
+  error?: string | null;
   onOpenRecent: (path: string, projectId?: string) => Promise<void>;
   onOpenPicker: () => Promise<void>;
 }) {
@@ -41,6 +43,7 @@ function ProjectRecovery({
         <div className="space-y-1">
           <h2 className="text-xl font-semibold text-foreground">{title}</h2>
           <p>{description}</p>
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         {recents.length > 0 && (
@@ -96,7 +99,12 @@ function ProjectContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("id") || "";
   const { projectRepository: projectRepo } = useAppServices();
-  const { openFromPicker, openByPath, isOpening } = useOpenProject();
+  const {
+    openFromPicker,
+    openByPath,
+    isOpening,
+    error: openError,
+  } = useOpenProject();
 
   const { viewMode, setActiveProjectId } = useProjectStore();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -241,6 +249,7 @@ function ProjectContent() {
         projects={projectsWithPath}
         recents={recentProjects ?? []}
         isOpening={isOpening || Boolean(openingRecentPath)}
+        error={openError}
         onOpenRecent={handleOpenRecent}
         onOpenPicker={handleOpenFromPicker}
       />
@@ -266,6 +275,7 @@ function ProjectContent() {
         projects={projectsWithPath}
         recents={recentProjects ?? []}
         isOpening={isOpening || Boolean(openingRecentPath)}
+        error={openError}
         onOpenRecent={handleOpenRecent}
         onOpenPicker={handleOpenFromPicker}
       />
@@ -280,6 +290,7 @@ function ProjectContent() {
         projects={projectsWithPath}
         recents={recentProjects ?? []}
         isOpening={isOpening || Boolean(openingRecentPath)}
+        error={openError}
         onOpenRecent={handleOpenRecent}
         onOpenPicker={handleOpenFromPicker}
       />

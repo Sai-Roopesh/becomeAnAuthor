@@ -21,7 +21,11 @@ import { useConfirmation } from "@/hooks/use-confirmation";
 
 export default function Dashboard() {
   const router = useRouter();
-  const { openFromPicker, isOpening } = useOpenProject();
+  const {
+    openFromPicker,
+    isOpening,
+    error: openProjectError,
+  } = useOpenProject();
   const projectRepo = useProjectRepository();
   const [createSeriesDialogOpen, setCreateSeriesDialogOpen] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
@@ -180,6 +184,9 @@ export default function Dashboard() {
             }
           />
         </div>
+        {openProjectError && (
+          <p className="w-full text-sm text-destructive">{openProjectError}</p>
+        )}
       </div>
 
       <DashboardHeader />
