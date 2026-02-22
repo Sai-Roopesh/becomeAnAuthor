@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 21, 2026
+> **Last Updated:** February 22, 2026
 > **Status:** Living Document
 
 ---
@@ -149,7 +149,7 @@ backend/src/
 │   ├── series.rs        # Series management + series codex (16.5KB)
 │   ├── chat.rs          # Chat threads and messages CRUD (6.8KB)
 │   ├── search.rs        # Full-text search across project (7.3KB)
-│   ├── backup.rs        # Emergency backup + export/import (40KB)
+│   ├── backup.rs        # Emergency backup + export/import + rollback (40KB)
 │   ├── trash.rs         # Soft delete with restore (5.4KB)
 │   ├── security.rs      # OS keychain API key management (5.9KB)
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
@@ -530,7 +530,7 @@ features/{feature-name}/
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
 | **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly, mobile-responsive design |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
-| **plan** | 12 | 2 | Outline view, grid view, timeline, maps, world timeline |
+| **plan** | 13 | 2 | Outline view, grid view, timeline, maps, world timeline, scene link panel |
 | **settings** | 10 | 2 | AI connections, appearance, editor preferences, responsive list views |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks, responsive actions |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
@@ -538,7 +538,7 @@ features/{feature-name}/
 | **snippets** | 3 | 0 | Reusable text snippets |
 | **export** | 1 | 2 | Export dialog with customization support (DOCX/PDF) |
 | **navigation** | 3 | 1 | Sidebar, breadcrumbs, navigation state |
-| **data-management** | 2 | 0 | Import/export of project data |
+| **data-management** | 3 | 0 | Import/export, BackupCenterPanel, DriveBackupBrowser |
 | **google-drive** | 2 | 2 | Google Drive backup integration |
 | **collaboration** | 1 | 0 | Real-time collaboration via Yjs |
 | **ai** | 1 | 0 | AI-specific UI components |
@@ -722,7 +722,7 @@ export async function loadScene(
 | **Export** | 9 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_project_backup` |
 | **Import** | 2 | `import_series_backup`, `import_project_backup` |
 | **Security** | 4 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` |
-| **Backup** | 4 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups` |
+| **Backup** | 6 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `export_series_as_json` |
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
 | **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
 | **Google OAuth** | 4 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` |
@@ -894,6 +894,13 @@ All Rust commands return `Result<T, String>`:
 - Stored in `.backups/` with timestamps
 - Cleanup of old backups on successful save
 - Retrieval on app restart
+
+### 16.4 Import Rollback
+
+The backend `ImportRollbackContext` ensures data consistency during series import:
+- Tracks all created directories, files, and registry entries during the import process.
+- If any step fails (e.g., JSON parsing, file write, validation), `rollback()` is triggered.
+- **Action**: Deletes all created project folders, removes series registry entry, and cleans up partial data to prevent "zombie" projects.
 
 ---
 

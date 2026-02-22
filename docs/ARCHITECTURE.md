@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 21, 2026
+> **Last Updated:** February 22, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -199,7 +199,7 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
 | `chat` | `chat.rs` | 180 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message` | Thread & message persistence |
 | `snippet` | `snippet.rs` | ~80 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
-| `backup` | `backup.rs` | ~400 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup`, `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Multi-format export & import |
+| `backup` | `backup.rs` | ~400 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup`, `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Multi-format export & import, hardening & rollback |
 | `search` | `search.rs` | ~100 | `search_project` | Full-text search using walkdir + regex |
 | `trash` | `trash.rs` | ~120 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
 | `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
@@ -494,13 +494,16 @@ The primary writing environment. 15+ components:
 | `TimelineView` | `timeline-view.tsx` | 162 | Codex-scene matrix showing character/location appearances |
 | `WorldTimelineView` | `world-timeline-view.tsx` | 503 | Era-grouped world events with temporal precision fields |
 | `MapView` | `map-view.tsx` | 579 | Image upload, pan/zoom, marker placement with codex linking |
+| `SceneLinkPanel` | `scene-link-panel.tsx` | ~520 | Sheet-based scene-codex linking interface |
 
 Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 - Card-level quick action button (not menu-only) for discoverability on touch and desktop.
 - Guided panel onboarding with shortcut hints (`Cmd/Ctrl+F` search focus, `Cmd/Ctrl+Shift+L` link detected mentions).
 - Context-aware linking paths:
-  - Detected `@mention` entries from scene content can be linked in one batch.
-  - Recommended entries are suggested from scene title/summary/POV/labels.
+  - **Mentions Detection**: Detects `@mentions` in scene content and offers one-click linking.
+  - **Recommendations**: Suggests links based on scene context (title, summary, POV, labels) vs codex entry names/aliases using a scoring system.
+  - **Grouping**: Entries grouped by category (Character, Location, etc.) with color-coded icons.
+  - **Roles**: Assign roles to links (Appears, Mentioned, POV Character, Location, Plot Thread).
 - Mutations use live-query invalidation plus duplicate guards to keep badges/filters/timeline state in sync.
 
 ### 10.4 Chat Feature — `features/chat/`
@@ -628,8 +631,13 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 1. **Auto-save** — debounced, per-scene mutex
 2. **Emergency backup** — on save failure, 24-hour expiry
-3. **Project backup** — full JSON export
+3. **Backup Center** — Unified UI for local and cloud backups (JSON/ZIP)
 4. **Google Drive** — OAuth cloud backup (15min/1hour/daily)
+
+The `BackupCenterPanel` unifies backup management:
+- **Local/Cloud Tabs**: Switch between local file export/import and Google Drive operations.
+- **Status Tracking**: Persists last backup timestamp and source in `localStorage`.
+- **Import Rollback**: Atomic series import with rollback strategy. If any project or file fails to import, the entire operation is reverted (directories cleaned up, registry entries removed) to prevent data corruption.
 
 ---
 
@@ -702,8 +710,9 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 1. Scene save failure → `EmergencyBackupService.saveBackup()`
 2. Corruption → `parse_scene_document()` falls back to `default_scene_meta()`
 3. Project deletion → soft delete to `.trash/` with restore
-4. Expired cleanup → `cleanup_emergency_backups` on startup
-5. Atomic writes → temp-file-then-rename pattern
+4. Import failures → **Import Rollback** automatically reverts partial series imports
+5. Expired cleanup → `cleanup_emergency_backups` on startup
+6. Atomic writes → temp-file-then-rename pattern
 
 ### 18.3 Logging
 

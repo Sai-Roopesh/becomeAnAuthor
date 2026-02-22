@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 21, 2026
+> **Last Updated:** February 22, 2026
 > **Status:** Living Document
 
 ---
@@ -187,7 +187,7 @@ The application is organized into **18 feature domains**, each encapsulated as a
 graph TB
     subgraph "Core Writing"
         EDITOR["📝 Editor<br/>TipTap rich text<br/>AI generation<br/>Slash commands"]
-        PLAN["📋 Plan<br/>Outline / Grid<br/>Timeline view<br/>Drag & drop"]
+        PLAN["📋 Plan<br/>Outline / Grid<br/>Timeline view<br/>Intelligent linking"]
     end
 
     subgraph "AI & Intelligence"
@@ -212,7 +212,7 @@ graph TB
     subgraph "Authoring Tools"
         SNIPPETS["✂️ Snippets<br/>Reusable text<br/>Pinned items"]
         EXPORT["📤 Export<br/>DOCX / EPUB<br/>PDF / MD"]
-        DATAMGMT["💾 Data Mgmt<br/>Import / Export<br/>Backup"]
+        DATAMGMT["💾 Data Mgmt<br/>Backup Center<br/>Import / Export"]
     end
 
     subgraph "Infrastructure"
@@ -235,7 +235,7 @@ graph TB
 | **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, @mentions, sections, focus mode, typewriter scroll |
 | **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
-| **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline |
+| **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline, intelligent linking panel |
 | **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
 | **Series** | 5 | 0 | Multi-book series management, shared codex, book ordering |
 | **Settings** | 13 | 2 | AI connection management, editor preferences, appearance settings |
@@ -243,7 +243,7 @@ graph TB
 | **Navigation** | 3 | 1 | Sidebar manuscript tree, codex browser, snippet list, breadcrumbs |
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
 | **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with customizable settings |
-| **Data Management** | 2 | 0 | Series backup import/export, novel archive conversion |
+| **Data Management** | 3 | 0 | Backup Center UI, series backup import/export, novel archive conversion |
 | **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
 | **AI** | 1 | 0 | AI-specific UI components |
@@ -421,7 +421,7 @@ The Rust backend is organized into three top-level module groups:
 | **Codex** | `codex.rs` | 18 | Entries, relations, tags, templates, relation types, scene links (all series-scoped) |
 | **Series** | `series.rs` | 15 | Series lifecycle, series codex, codex migration between projects/series |
 | **Chat** | `chat.rs` | 8 | Thread CRUD, message persistence, thread listing |
-| **Backup** | `backup.rs` (1083 lines) | 15 | Emergency backup, manuscript export (text/DOCX/EPUB), series/project backup & restore |
+| **Backup** | `backup.rs` (1083 lines) | 15 | Emergency backup, manuscript export (text/DOCX/EPUB), series/project backup & restore, import hardening & rollback |
 | **Search** | `search.rs` | 1 | Full-text search across scenes + codex with relevance scoring |
 | **Security** | `security.rs` | 4 | OS keychain CRUD for API keys |
 | **Trash** | `trash.rs` | 5 | Soft delete, restore, permanent delete, list, empty |
@@ -699,7 +699,8 @@ AI Request  → get_api_key(provider)         → OS Keychain
 | Level | Scope | Mechanism |
 |---|---|---|
 | **Emergency Backup** | Per-scene | Auto-save on write failure; `.backups/` directory |
-| **Series Backup** | Full series + all projects | JSON export/import via Tauri command |
+| **Backup Center** | Unified UI | Manage local and cloud backups with one-click restore |
+| **Series Backup** | Full series + all projects | JSON export/import via Tauri command with rollback protection |
 | **Google Drive** | Full series | OAuth 2.0 upload/download |
 | **Trash** | Project-level | Soft delete with 30-day retention |
 
