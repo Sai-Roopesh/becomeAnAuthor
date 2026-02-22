@@ -117,10 +117,12 @@ fn ensure_project_has_valid_series(project: &mut ProjectMeta) -> Result<(), Stri
     }
 
     let missing_series_id = project.series_id.clone();
-    project.series_id = crate::commands::series::restore_or_recreate_deleted_series(
+    project.series_id = match crate::commands::series::restore_or_recreate_deleted_series(
         &missing_series_id,
-    )?
-    .unwrap_or(get_or_create_recovery_series_id()?);
+    )? {
+        Some(restored_series_id) => restored_series_id,
+        None => get_or_create_recovery_series_id()?,
+    };
 
     let preferred_index = project.series_index.trim().to_string();
     if preferred_index.is_empty()
