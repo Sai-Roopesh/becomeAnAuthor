@@ -20,13 +20,24 @@ import {
   type ExportConfigV2,
   type ExportFontFamily,
   type ExportSceneBreakStyle,
+  type ExportSectionType,
   EXPORT_PAGE_SIZES_MM,
   withExportDefaults,
 } from "@/domain/types/export-types";
 import { extractTextFromTiptapJSON } from "@/shared/utils/editor";
+import { extractSceneSectionSegments } from "@/shared/utils/scene-sections";
+import type { SceneSectionType } from "@/shared/types/sections";
 
 interface SceneRecord {
   nextSceneExists: boolean;
+}
+
+interface SceneContentBlock {
+  key: string;
+  heading: string | null;
+  sectionType: SceneSectionType;
+  isSection: boolean;
+  paragraphs: string[];
 }
 
 interface CodexAppendixEntry {
@@ -113,6 +124,12 @@ export class DocumentExportService implements IExportService {
         marginTop: 8,
         marginBottom: 4,
       },
+      h4: {
+        fontFamily: boldFont,
+        fontSize: resolved.fontSizePt,
+        marginTop: 6,
+        marginBottom: 3,
+      },
       paragraph: {
         textAlign: resolved.alignment,
         marginBottom: resolved.paragraphSpacingPt,
@@ -138,6 +155,10 @@ export class DocumentExportService implements IExportService {
       },
       tocItem2: {
         marginLeft: 12,
+        marginBottom: 2,
+      },
+      tocItem3: {
+        marginLeft: 24,
         marginBottom: 2,
       },
       appendixHeading: {
@@ -208,7 +229,12 @@ export class DocumentExportService implements IExportService {
             Text,
             {
               key: `toc-${entry.level}-${index}`,
-              style: entry.level === 1 ? styles.tocItem1 : styles.tocItem2,
+              style:
+                entry.level === 1
+                  ? styles.tocItem1
+                  : entry.level === 2
+                    ? styles.tocItem2
+                    : styles.tocItem3,
             },
             sanitizePdfText(entry.text),
           ),
@@ -278,23 +304,53 @@ export class DocumentExportService implements IExportService {
         );
       }
 
-      const paragraphs = this.getSceneParagraphs(node);
-      paragraphs.forEach((paragraph, paraIndex) => {
-        const segments = splitParagraphForPdf(sanitizePdfText(paragraph));
-        segments.forEach((segment, segmentIndex) => {
+      const sceneBlocks = this.getSceneContentBlocks(node, resolved);
+      sceneBlocks.forEach((block, blockIndex) => {
+        const shouldPageBreak = this.shouldPageBreakBeforeSection(
+          block,
+          resolved,
+          blockIndex,
+          pageChildren.length,
+        );
+
+        if (block.heading) {
           pageChildren.push(
             createElement(
               Text,
               {
-                key: `scene-${node.id}-para-${paraIndex}-seg-${segmentIndex}`,
-                style:
-                  segmentIndex === segments.length - 1
-                    ? styles.paragraph
-                    : styles.paragraphContinuation,
+                key: `scene-${node.id}-section-heading-${block.key}`,
+                style: styles.h4,
+                break: shouldPageBreak,
               },
-              segment,
+              sanitizePdfText(block.heading),
             ),
           );
+        } else if (shouldPageBreak) {
+          pageChildren.push(
+            createElement(View, {
+              key: `scene-${node.id}-section-break-${block.key}`,
+              break: true,
+            }),
+          );
+        }
+
+        block.paragraphs.forEach((paragraph, paraIndex) => {
+          const segments = splitParagraphForPdf(sanitizePdfText(paragraph));
+          segments.forEach((segment, segmentIndex) => {
+            pageChildren.push(
+              createElement(
+                Text,
+                {
+                  key: `scene-${node.id}-para-${block.key}-${paraIndex}-seg-${segmentIndex}`,
+                  style:
+                    segmentIndex === segments.length - 1
+                      ? styles.paragraph
+                      : styles.paragraphContinuation,
+                },
+                segment,
+              ),
+            );
+          });
         });
       });
 
@@ -446,9 +502,10 @@ export class DocumentExportService implements IExportService {
       );
 
       this.getTocEntries(orderedNodes, resolved).forEach((entry) => {
+        const indent = "  ".repeat(entry.level - 1);
         children.push(
           new Paragraph({
-            text: `${entry.level === 1 ? "" : "  "}${sanitizePdfText(entry.text)}`,
+            text: `${indent}${sanitizePdfText(entry.text)}`,
             spacing: { after: 80 },
           }),
         );
@@ -531,14 +588,36 @@ export class DocumentExportService implements IExportService {
         );
       }
 
-      const paragraphs = this.getSceneParagraphs(node);
-      paragraphs.forEach((paragraph) => {
-        children.push(
-          new Paragraph({
-            children: [new TextRun(paragraph)],
-            ...paragraphStyle,
-          }),
+      const sceneBlocks = this.getSceneContentBlocks(node, resolved);
+      sceneBlocks.forEach((block, blockIndex) => {
+        const shouldPageBreak = this.shouldPageBreakBeforeSection(
+          block,
+          resolved,
+          blockIndex,
+          children.length,
         );
+        if (shouldPageBreak) {
+          children.push(new Paragraph({ children: [new PageBreak()] }));
+        }
+
+        if (block.heading) {
+          children.push(
+            new Paragraph({
+              text: sanitizePdfText(block.heading),
+              heading: HeadingLevel.HEADING_4,
+              spacing: { before: 120, after: 80 },
+            }),
+          );
+        }
+
+        block.paragraphs.forEach((paragraph) => {
+          children.push(
+            new Paragraph({
+              children: [new TextRun(paragraph)],
+              ...paragraphStyle,
+            }),
+          );
+        });
       });
 
       if (record.nextSceneExists) {
@@ -658,7 +737,8 @@ export class DocumentExportService implements IExportService {
     if (resolved.includeTOC) {
       parts.push("## Table of Contents");
       this.getTocEntries(orderedNodes, resolved).forEach((entry) => {
-        parts.push(`${entry.level === 1 ? "-" : "  -"} ${entry.text}`);
+        const indent = "  ".repeat(entry.level - 1);
+        parts.push(`${indent}- ${entry.text}`);
       });
       parts.push("", "---", "");
     }
@@ -696,10 +776,27 @@ export class DocumentExportService implements IExportService {
         parts.push(`> ${node.summary.trim()}`);
       }
 
-      const paragraphs = this.getSceneParagraphs(node);
-      if (paragraphs.length > 0) {
-        parts.push(paragraphs.join("\n\n"));
-      }
+      const sceneBlocks = this.getSceneContentBlocks(node, resolved);
+      sceneBlocks.forEach((block, blockIndex) => {
+        if (
+          this.shouldPageBreakBeforeSection(
+            block,
+            resolved,
+            blockIndex,
+            parts.length,
+          )
+        ) {
+          parts.push("---", "");
+        }
+
+        if (block.heading) {
+          parts.push(`#### ${block.heading}`);
+        }
+
+        if (block.paragraphs.length > 0) {
+          parts.push(block.paragraphs.join("\n\n"));
+        }
+      });
 
       if (record.nextSceneExists) {
         if (resolved.sceneBreakStyle === "asterisks") {
@@ -763,16 +860,45 @@ export class DocumentExportService implements IExportService {
     return text.trim().length > 0;
   }
 
-  private getSceneParagraphs(scene: Scene): string[] {
-    const text = extractTextFromTiptapJSON(scene.content).trim();
-    if (!text) return [];
+  private getSceneContentBlocks(
+    scene: Scene,
+    config: ExportConfigV2,
+  ): SceneContentBlock[] {
+    const segments = extractSceneSectionSegments(scene.content, {
+      includeExcludedSections: config.includeExcludedSections,
+    });
 
-    return text
-      .split(/\n\s*\n+/)
-      .map((paragraph) =>
-        sanitizePdfText(paragraph).replace(/\s+/g, " ").trim(),
-      )
-      .filter((paragraph) => paragraph.length > 0);
+    return segments
+      .map((segment) => ({
+        key: segment.key,
+        heading:
+          config.includeSectionTitles && segment.isSection
+            ? sanitizePdfText(segment.title)
+            : null,
+        sectionType: segment.sectionType,
+        isSection: segment.isSection,
+        paragraphs: segment.paragraphs
+          .map((paragraph) =>
+            sanitizePdfText(paragraph).replace(/\s+/g, " ").trim(),
+          )
+          .filter((paragraph) => paragraph.length > 0),
+      }))
+      .filter((block) => block.heading !== null || block.paragraphs.length > 0);
+  }
+
+  private shouldPageBreakBeforeSection(
+    block: SceneContentBlock,
+    config: ExportConfigV2,
+    blockIndex: number,
+    existingOutputCount: number,
+  ): boolean {
+    if (!block.isSection) return false;
+    if (
+      !config.sectionPageBreaks[this.toExportSectionType(block.sectionType)]
+    ) {
+      return false;
+    }
+    return blockIndex > 0 || existingOutputCount > 0;
   }
 
   private getCodexAppendixEntries(
@@ -932,8 +1058,8 @@ export class DocumentExportService implements IExportService {
   private getTocEntries(
     orderedNodes: DocumentNode[],
     config: ExportConfigV2,
-  ): Array<{ level: 1 | 2; text: string }> {
-    const entries: Array<{ level: 1 | 2; text: string }> = [];
+  ): Array<{ level: 1 | 2 | 3; text: string }> {
+    const entries: Array<{ level: 1 | 2 | 3; text: string }> = [];
 
     orderedNodes.forEach((node) => {
       if (node.type === "act" && config.includeActHeadings) {
@@ -943,6 +1069,22 @@ export class DocumentExportService implements IExportService {
       if (node.type === "chapter" && config.includeChapterHeadings) {
         entries.push({ level: 2, text: node.title });
       }
+
+      if (
+        node.type === "scene" &&
+        config.includeSectionsInTOC &&
+        config.includeSectionTitles
+      ) {
+        const blocks = this.getSceneContentBlocks(node, config).filter(
+          (block) => block.isSection && block.heading,
+        );
+        blocks.forEach((block) => {
+          entries.push({
+            level: 3,
+            text: `${node.title}: ${block.heading}`,
+          });
+        });
+      }
     });
 
     if (entries.length === 0) {
@@ -950,6 +1092,18 @@ export class DocumentExportService implements IExportService {
     }
 
     return entries;
+  }
+
+  private toExportSectionType(value: SceneSectionType): ExportSectionType {
+    switch (value) {
+      case "chapter":
+      case "part":
+      case "appendix":
+        return value;
+      case "standard":
+      default:
+        return "standard";
+    }
   }
 
   private pushDocxSceneBreak(

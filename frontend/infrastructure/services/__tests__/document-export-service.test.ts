@@ -323,6 +323,191 @@ describe("DocumentExportService Contract", () => {
       expect(markdown).toContain("## Codex Link Appendix");
       expect(markdown).toContain("Kola (1 link) - scenes: Linked Scene");
     });
+
+    it("MUST map section titles to heading styles in markdown export", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockScene({
+          id: "scene-sections",
+          title: "Scene With Sections",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "section",
+                attrs: { title: "Storm Setup", sectionType: "standard" },
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "Rain hit the glass." }],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1");
+
+      expect(markdown).toContain("#### Storm Setup");
+      expect(markdown).toContain("Rain hit the glass.");
+    });
+
+    it("MUST allow hiding section headings when includeSectionTitles is false", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockScene({
+          id: "scene-sections-hidden",
+          title: "Scene With Sections",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "section",
+                attrs: { title: "Secret Heading", sectionType: "standard" },
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "Visible prose only." }],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1", {
+        includeSectionTitles: false,
+      });
+
+      expect(markdown).not.toContain("#### Secret Heading");
+      expect(markdown).toContain("Visible prose only.");
+    });
+
+    it("MUST exclude AI-flagged sections when includeExcludedSections is false", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockScene({
+          id: "scene-filtered-sections",
+          title: "Filtered Scene",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "section",
+                attrs: {
+                  title: "Visible Section",
+                  sectionType: "standard",
+                  excludeFromAI: false,
+                },
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "Keep this section." }],
+                  },
+                ],
+              },
+              {
+                type: "section",
+                attrs: {
+                  title: "Hidden Section",
+                  sectionType: "standard",
+                  excludeFromAI: true,
+                },
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "Skip this section." }],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1", {
+        includeExcludedSections: false,
+      });
+
+      expect(markdown).toContain("Keep this section.");
+      expect(markdown).not.toContain("Skip this section.");
+    });
+
+    it("MUST include section entries in TOC when enabled", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockScene({
+          id: "scene-toc-sections",
+          title: "Scene Alpha",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "section",
+                attrs: { title: "Section One", sectionType: "standard" },
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "Section body." }],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1", {
+        includeTOC: true,
+      });
+
+      expect(markdown).toContain("## Table of Contents");
+      expect(markdown).toContain("- Scene Alpha: Section One");
+    });
+
+    it("MUST add page breaks for configured section types", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockScene({
+          id: "scene-breaks",
+          title: "Break Scene",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "section",
+                attrs: { title: "Part 1", sectionType: "part" },
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "Part prose." }],
+                  },
+                ],
+              },
+              {
+                type: "section",
+                attrs: { title: "Continuation", sectionType: "standard" },
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "More prose." }],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1", {
+        sectionPageBreaks: {
+          standard: false,
+          chapter: false,
+          part: true,
+          appendix: false,
+        },
+      });
+
+      expect(markdown).toContain("---\n\n#### Part 1");
+    });
   });
 
   // ========================================

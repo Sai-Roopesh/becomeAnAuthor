@@ -84,6 +84,19 @@ export function ExportDialog({
     }));
   };
 
+  const updateSectionBreak = (
+    key: keyof ExportConfigV2["sectionPageBreaks"],
+    value: boolean,
+  ) => {
+    setConfig((previous) => ({
+      ...previous,
+      sectionPageBreaks: {
+        ...previous.sectionPageBreaks,
+        [key]: value,
+      },
+    }));
+  };
+
   const handleExport = async () => {
     try {
       await exportDocument(projectId, config);
@@ -359,6 +372,33 @@ export function ExportDialog({
                 }
               />
               <ToggleRow
+                id="include-section-titles"
+                label="Show section headings"
+                checked={config.includeSectionTitles}
+                disabled={isExporting}
+                onChange={(checked) =>
+                  updateConfig("includeSectionTitles", checked)
+                }
+              />
+              <ToggleRow
+                id="include-sections-in-toc"
+                label="Include sections in table of contents"
+                checked={config.includeSectionsInTOC}
+                disabled={isExporting}
+                onChange={(checked) =>
+                  updateConfig("includeSectionsInTOC", checked)
+                }
+              />
+              <ToggleRow
+                id="include-excluded-sections"
+                label="Include AI-excluded sections"
+                checked={config.includeExcludedSections}
+                disabled={isExporting}
+                onChange={(checked) =>
+                  updateConfig("includeExcludedSections", checked)
+                }
+              />
+              <ToggleRow
                 id="include-summaries"
                 label="Include scene summaries"
                 checked={config.includeSummaries}
@@ -385,6 +425,44 @@ export function ExportDialog({
                   updateConfig("chapterStartsOnNewPage", checked)
                 }
               />
+
+              <div className="space-y-2 rounded-md border border-dashed p-3">
+                <Label className="text-sm">
+                  Page break before section types
+                </Label>
+                <ToggleRow
+                  id="section-break-standard"
+                  label="Standard"
+                  checked={config.sectionPageBreaks.standard}
+                  disabled={isExporting}
+                  onChange={(checked) =>
+                    updateSectionBreak("standard", checked)
+                  }
+                />
+                <ToggleRow
+                  id="section-break-chapter"
+                  label="Chapter-like"
+                  checked={config.sectionPageBreaks.chapter}
+                  disabled={isExporting}
+                  onChange={(checked) => updateSectionBreak("chapter", checked)}
+                />
+                <ToggleRow
+                  id="section-break-part"
+                  label="Part-like"
+                  checked={config.sectionPageBreaks.part}
+                  disabled={isExporting}
+                  onChange={(checked) => updateSectionBreak("part", checked)}
+                />
+                <ToggleRow
+                  id="section-break-appendix"
+                  label="Appendix-like"
+                  checked={config.sectionPageBreaks.appendix}
+                  disabled={isExporting}
+                  onChange={(checked) =>
+                    updateSectionBreak("appendix", checked)
+                  }
+                />
+              </div>
 
               <div className="space-y-2">
                 <Label>Scene Break Style</Label>

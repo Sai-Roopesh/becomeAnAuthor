@@ -501,7 +501,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Includes robust text sanitization for PDF stability, accurate mention text extraction via `extractTextFromContent`, and optional Codex Appendix generation. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Includes robust PDF text sanitization, clean mention extraction, optional Codex Appendix generation, and section-aware structure controls (section headings, TOC inclusion, per-type page breaks, excluded-section filtering). |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
