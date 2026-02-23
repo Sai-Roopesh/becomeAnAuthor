@@ -15,6 +15,7 @@ import type { SaveStatus } from "@/lib/core/editor-state-manager";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { EditorToolbar } from "./editor-toolbar";
 import { TextSelectionMenu } from "./text-selection-menu";
+import { CodexLinkDialog, type CodexLinkSelection } from "./codex-link-dialog";
 import {
   ContinueWritingMenu,
   type GenerationMode,
@@ -34,12 +35,14 @@ import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useContextAssembly } from "@/hooks/use-context-assembly";
 import { assembleContext as assembleCodexContext } from "@/shared/utils/context-engine";
 import type { AIModelMessage } from "@/lib/ai/client";
+import type { CodexCategory } from "@/domain/entities/types";
 import type { TiptapContent } from "@/shared/types/tiptap";
 import type { EditorView } from "@tiptap/pm/view";
 import type { ContextItem } from "@/features/shared/components/ContextSelector";
 import { getStructure, loadScene } from "@/core/tauri/commands";
 import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
 import { formatShortcut, isModKey } from "@/shared/utils/platform";
+import { toast } from "@/shared/utils/toast-service";
 
 // Structure node from Tauri backend
 interface StructureNode {
@@ -57,6 +60,19 @@ interface GenerateOptions {
   instructions?: string;
   selectedContexts?: ContextItem[];
   reasoning?: "enabled" | "disabled";
+}
+
+function getDefaultRoleForCategory(category: CodexCategory) {
+  switch (category) {
+    case "character":
+      return "appears" as const;
+    case "location":
+      return "location" as const;
+    case "subplot":
+      return "plot" as const;
+    default:
+      return "mentioned" as const;
+  }
 }
 
 export function TiptapEditor({
@@ -81,6 +97,12 @@ export function TiptapEditor({
     y: number;
   } | null>(null);
   const [showSparkPopover, setShowSparkPopover] = useState(false);
+  const [showCodexLinkDialog, setShowCodexLinkDialog] = useState(false);
+  const [codexLinkDraft, setCodexLinkDraft] = useState<{
+    selectedText: string;
+    range: { from: number; to: number } | null;
+    source: "selection-bubble" | "context-menu" | "slash-command";
+  } | null>(null);
   const [sparkPosition, setSparkPosition] = useState<{
     x: number;
     y: number;
@@ -88,7 +110,10 @@ export function TiptapEditor({
   const previousSceneIdRef = useRef<string | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const continueShortcut = formatShortcut("j");
-  const { codexRepository: codexRepo } = useAppServices();
+  const {
+    codexRepository: codexRepo,
+    sceneCodexLinkRepository: sceneCodexLinkRepo,
+  } = useAppServices();
   const { assembleContextPack } = useContextAssembly(projectId, seriesId);
 
   // Save state management with EditorStateManager
@@ -176,6 +201,18 @@ export function TiptapEditor({
     [],
   );
 
+  const openCodexLinkPicker = useCallback(
+    (payload: {
+      selectedText: string;
+      range: { from: number; to: number } | null;
+      source: "selection-bubble" | "context-menu" | "slash-command";
+    }) => {
+      setCodexLinkDraft(payload);
+      setShowCodexLinkDialog(true);
+    },
+    [],
+  );
+
   // Validate content is proper Tiptap structure before passing to editor
   // Empty objects {} cause "Unknown node type: undefined" errors
   const validatedContent =
@@ -197,13 +234,33 @@ export function TiptapEditor({
       Section,
       SlashCommands,
       Placeholder.configure({
-        placeholder: `Start writing your masterpiece... Type @ to tag codex entries, / for commands, or press ${continueShortcut} to continue`,
+        placeholder: `Start writing your masterpiece... Select text to link Codex, / for commands, or press ${continueShortcut} to continue`,
       }),
       Mention.configure({
         HTMLAttributes: {
           class: "mention",
         },
         suggestion,
+        renderText: ({ node }) => {
+          const attrs = node.attrs as Record<string, unknown>;
+          const label =
+            (typeof attrs["label"] === "string" && attrs["label"]) ||
+            (typeof attrs["name"] === "string" && attrs["name"]) ||
+            (typeof attrs["title"] === "string" && attrs["title"]) ||
+            (typeof attrs["id"] === "string" && attrs["id"]) ||
+            "";
+          return label;
+        },
+        renderHTML: ({ options, node }) => {
+          const attrs = node.attrs as Record<string, unknown>;
+          const label =
+            (typeof attrs["label"] === "string" && attrs["label"]) ||
+            (typeof attrs["name"] === "string" && attrs["name"]) ||
+            (typeof attrs["title"] === "string" && attrs["title"]) ||
+            (typeof attrs["id"] === "string" && attrs["id"]) ||
+            "";
+          return ["span", options.HTMLAttributes, label];
+        },
       }),
       // Typewriter mode - keeps cursor vertically centered while typing
       TypewriterExtension.configure({
@@ -532,6 +589,83 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
     );
   };
 
+  const handleConfirmCodexLink = useCallback(
+    async ({ entry, role, displayText }: CodexLinkSelection) => {
+      if (!editor) return;
+
+      const text = displayText.trim() || entry.name;
+      const draft = codexLinkDraft;
+
+      try {
+        if (draft?.range) {
+          editor
+            .chain()
+            .focus()
+            .insertContentAt(draft.range, {
+              type: "mention",
+              attrs: {
+                id: entry.id,
+                label: text,
+              },
+            })
+            .run();
+        } else {
+          editor
+            .chain()
+            .focus()
+            .insertContent([
+              {
+                type: "mention",
+                attrs: {
+                  id: entry.id,
+                  label: text,
+                },
+              },
+              { type: "text", text: " " },
+            ])
+            .run();
+        }
+
+        await sceneCodexLinkRepo.create({
+          sceneId,
+          codexId: entry.id,
+          projectId,
+          role: role || getDefaultRoleForCategory(entry.category),
+          autoDetected: false,
+        });
+
+        await editorStateManagerRef.current?.saveImmediate();
+        toast.success(`Linked "${text}" to codex: ${entry.name}`);
+      } catch (error) {
+        toast.error("Failed to link codex entry", {
+          description:
+            error instanceof Error ? error.message : "Please try again.",
+        });
+      } finally {
+        setShowCodexLinkDialog(false);
+        setCodexLinkDraft(null);
+      }
+    },
+    [codexLinkDraft, editor, projectId, sceneCodexLinkRepo, sceneId],
+  );
+
+  const ensureCodexLink = useCallback(
+    async (codexId: string) => {
+      try {
+        await sceneCodexLinkRepo.create({
+          sceneId,
+          codexId,
+          projectId,
+          role: "mentioned",
+          autoDetected: false,
+        });
+      } catch {
+        // Ignore duplicate or transient link failures for shortcut insertion.
+      }
+    },
+    [projectId, sceneCodexLinkRepo, sceneId],
+  );
+
   useEffect(() => {
     if (editor && onWordCountChange) {
       onWordCountChange(editor.storage.characterCount.words());
@@ -579,12 +713,38 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
       setShowContinueMenu(true);
     };
 
+    const handleCodexLinkPicker = () => {
+      const { from, to } = editor.state.selection;
+      const selectedText =
+        from !== to ? editor.state.doc.textBetween(from, to) : "";
+      openCodexLinkPicker({
+        selectedText,
+        range: from !== to ? { from, to } : null,
+        source: "slash-command",
+      });
+    };
+
+    const handleCodexMentionInserted = (rawEvent: Event) => {
+      const event = rawEvent as CustomEvent<{ codexId?: string }>;
+      const codexId = event.detail?.codexId;
+      if (!codexId) return;
+      void ensureCodexLink(codexId);
+    };
+
     window.addEventListener("openSparkPopover", handleSpark as EventListener);
     window.addEventListener(
       "continueWriting",
       handleContinueWriting as EventListener,
     );
     window.addEventListener("openSceneBeat", handleSceneBeat as EventListener);
+    window.addEventListener(
+      "openCodexLinkPicker",
+      handleCodexLinkPicker as EventListener,
+    );
+    window.addEventListener(
+      "codexMentionInserted",
+      handleCodexMentionInserted as EventListener,
+    );
 
     return () => {
       window.removeEventListener(
@@ -599,8 +759,22 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
         "openSceneBeat",
         handleSceneBeat as EventListener,
       );
+      window.removeEventListener(
+        "openCodexLinkPicker",
+        handleCodexLinkPicker as EventListener,
+      );
+      window.removeEventListener(
+        "codexMentionInserted",
+        handleCodexMentionInserted as EventListener,
+      );
     };
-  }, [editor, getCursorPosition, normalizeSlashMenuPosition]);
+  }, [
+    editor,
+    ensureCodexLink,
+    getCursorPosition,
+    normalizeSlashMenuPosition,
+    openCodexLinkPicker,
+  ]);
 
   useEffect(() => {
     if (editor) {
@@ -669,6 +843,25 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
         seriesId={seriesId}
         sceneId={sceneId}
         editorStateManager={editorStateManagerRef.current}
+        onRequestCodexLink={({ selectedText, range, source }) =>
+          openCodexLinkPicker({
+            selectedText,
+            range,
+            source,
+          })
+        }
+      />
+      <CodexLinkDialog
+        open={showCodexLinkDialog}
+        onOpenChange={(open) => {
+          setShowCodexLinkDialog(open);
+          if (!open) {
+            setCodexLinkDraft(null);
+          }
+        }}
+        seriesId={seriesId}
+        selectedText={codexLinkDraft?.selectedText ?? ""}
+        onConfirm={handleConfirmCodexLink}
       />
       <ContinueWritingMenu
         open={showContinueMenu}

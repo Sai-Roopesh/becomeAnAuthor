@@ -2,11 +2,12 @@ import { ReactRenderer } from "@tiptap/react";
 import tippy, { Instance as TippyInstance } from "tippy.js";
 import { MentionList, MentionListRef } from "./mention-list";
 import type { ICodexRepository } from "@/domain/repositories/ICodexRepository";
-import type { Editor } from "@tiptap/core";
+import type { Editor, Range } from "@tiptap/core";
 
 // Type for Tiptap suggestion callback props
 interface SuggestionProps {
   editor: Editor;
+  range: { from: number; to: number };
   clientRect?: (() => DOMRect | null) | null;
   items: Array<{
     id: string;
@@ -79,6 +80,40 @@ export const createCodexSuggestion = (
         category: item.category || "uncategorized",
         matchedAlias: aliasMatch,
       }));
+  },
+  command: ({
+    editor,
+    range,
+    props,
+  }: {
+    editor: Editor;
+    range: Range;
+    props: { id?: string | null; label?: string | null };
+  }) => {
+    if (!props.id) return;
+    const label = props.label ?? props.id;
+
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(range, [
+        {
+          type: "mention",
+          attrs: {
+            id: props.id,
+            label,
+          },
+        },
+        { type: "text", text: " " },
+      ])
+      .run();
+
+    const event = new CustomEvent("codexMentionInserted", {
+      detail: {
+        codexId: props.id,
+      },
+    });
+    window.dispatchEvent(event);
   },
 
   render: () => {

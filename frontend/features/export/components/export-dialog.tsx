@@ -368,6 +368,15 @@ export function ExportDialog({
                 }
               />
               <ToggleRow
+                id="include-codex-appendix"
+                label="Include codex link appendix"
+                checked={config.includeCodexAppendix}
+                disabled={isExporting}
+                onChange={(checked) =>
+                  updateConfig("includeCodexAppendix", checked)
+                }
+              />
+              <ToggleRow
                 id="chapter-new-page"
                 label="Start each chapter on a new page"
                 checked={config.chapterStartsOnNewPage}

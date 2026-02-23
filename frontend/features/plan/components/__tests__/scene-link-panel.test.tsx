@@ -117,6 +117,7 @@ vi.mock("lucide-react", () => ({
   Link2: () => <span>Link2</span>,
   Check: () => <span>Check</span>,
   Lightbulb: () => <span>Lightbulb</span>,
+  AlertTriangle: () => <span>AlertTriangle</span>,
   Info: () => <span>Info</span>,
   Loader2: () => <span>Loader</span>,
   ArrowRight: () => <span>ArrowRight</span>,
@@ -155,7 +156,7 @@ function renderPanel(overrideEntries: unknown[] = []) {
       content: [
         {
           type: "paragraph",
-          content: [{ type: "mention", attrs: { id: "codex-1" } }],
+          content: [{ type: "text", text: "Alice arrives at Harbor." }],
         },
       ],
     },
@@ -188,36 +189,39 @@ describe("SceneLinkPanel", () => {
     expect(screen.getByText(/Cmd\/Ctrl \+ Shift \+ L/)).toBeInTheDocument();
   });
 
-  it("links detected mentions via CTA", async () => {
+  it("links unlinked scene mentions via manual CTA", async () => {
     renderPanel();
 
-    expect(screen.getByText("Detected @mentions (1)")).toBeInTheDocument();
+    expect(
+      screen.getByText("Unlinked mentions in scene text (2)"),
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Link @mentions" }));
+    const linkButtons = screen.getAllByRole("button", { name: /Link/ });
+    expect(linkButtons.length).toBeGreaterThan(0);
+    const firstLinkButton = linkButtons[0];
+    if (!firstLinkButton) {
+      throw new Error("Expected at least one link button");
+    }
+    fireEvent.click(firstLinkButton);
 
     await waitFor(() => {
       expect(mockLinkRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           codexId: "codex-1",
-          autoDetected: true,
+          role: "appears",
         }),
       );
     });
   });
 
-  it("links detected mentions via keyboard shortcut", async () => {
+  it("focuses search with Cmd/Ctrl+Shift+L shortcut", () => {
     renderPanel();
+    const searchInput = screen.getByPlaceholderText("Search codex entries...");
+    searchInput.blur();
 
     fireEvent.keyDown(window, { key: "L", ctrlKey: true, shiftKey: true });
 
-    await waitFor(() => {
-      expect(mockLinkRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          codexId: "codex-1",
-          autoDetected: true,
-        }),
-      );
-    });
+    expect(searchInput).toHaveFocus();
   });
 
   it("focuses search via shortcut", () => {

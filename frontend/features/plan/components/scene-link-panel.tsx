@@ -33,8 +33,11 @@ import {
   Info,
   Loader2,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "@/shared/utils/toast-service";
+import { extractTextFromTiptapJSON } from "@/shared/utils/editor";
+import type { TiptapContent } from "@/shared/types/tiptap";
 
 interface SceneLinkPanelProps {
   sceneId: string;
@@ -128,35 +131,24 @@ function parseSceneContent(content: unknown): unknown {
   return null;
 }
 
-function extractMentionIdsFromContent(content: unknown): string[] {
+function extractSceneText(content: unknown): string {
   const parsedContent = parseSceneContent(content);
-  if (!parsedContent) return [];
+  if (!parsedContent || typeof parsedContent !== "object") return "";
+  if (!("type" in parsedContent) || parsedContent.type !== "doc") return "";
+  return extractTextFromTiptapJSON(
+    parsedContent as TiptapContent,
+  ).toLowerCase();
+}
 
-  const ids = new Set<string>();
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-  function walk(node: unknown): void {
-    if (!node || typeof node !== "object") return;
-
-    if (Array.isArray(node)) {
-      node.forEach((item) => walk(item));
-      return;
-    }
-
-    const record = node as Record<string, unknown>;
-    if (record["type"] === "mention" && record["attrs"]) {
-      const attrs = record["attrs"] as Record<string, unknown>;
-      if (typeof attrs["id"] === "string" && attrs["id"].length > 0) {
-        ids.add(attrs["id"]);
-      }
-    }
-
-    if (record["content"]) {
-      walk(record["content"]);
-    }
-  }
-
-  walk(parsedContent);
-  return Array.from(ids);
+function hasWholeWordMatch(text: string, term: string): boolean {
+  const normalized = term.trim().toLowerCase();
+  if (!normalized) return false;
+  const pattern = new RegExp(`\\b${escapeRegExp(normalized)}\\b`, "i");
+  return pattern.test(text);
 }
 
 /**
@@ -175,7 +167,6 @@ export function SceneLinkPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [internalOpen, setInternalOpen] = useState(false);
   const [pendingCodexIds, setPendingCodexIds] = useState<string[]>([]);
-  const [isLinkingMentions, setIsLinkingMentions] = useState(false);
 
   // Support both controlled and uncontrolled modes
   const isControlled = controlledOpen !== undefined;
@@ -233,32 +224,33 @@ export function SceneLinkPanel({
       .toLowerCase();
   }, [sceneNode]);
 
-  const mentionedCodexIds = useMemo(() => {
+  const sceneBodyText = useMemo(() => {
     if (!sceneNode || sceneNode.type !== "scene") {
-      return [];
+      return "";
     }
-    return extractMentionIdsFromContent(sceneNode.content);
+    return extractSceneText(sceneNode.content);
   }, [sceneNode]);
 
-  const mentionedCodexIdSet = useMemo(
-    () => new Set(mentionedCodexIds),
-    [mentionedCodexIds],
-  );
-
-  const mentionEntries = useMemo(() => {
-    if (!entries || mentionedCodexIds.length === 0) {
-      return [];
+  const unlinkedMentionCandidates = useMemo(() => {
+    if (!entries || !sceneBodyText) {
+      return [] as Array<{ entry: CodexEntry; matchedTerms: string[] }>;
     }
 
-    const entryById = new Map(entries.map((entry) => [entry.id, entry]));
-    return mentionedCodexIds.flatMap((id) => {
-      const entry = entryById.get(id);
-      if (!entry || linkedCodexIds.has(id)) {
-        return [];
-      }
-      return [entry];
-    });
-  }, [entries, mentionedCodexIds, linkedCodexIds]);
+    return entries
+      .filter((entry) => !linkedCodexIds.has(entry.id))
+      .map((entry) => {
+        const matchedTerms = [entry.name, ...entry.aliases].filter((term) =>
+          hasWholeWordMatch(sceneBodyText, term),
+        );
+        return { entry, matchedTerms };
+      })
+      .filter((candidate) => candidate.matchedTerms.length > 0)
+      .sort(
+        (a, b) =>
+          b.matchedTerms.length - a.matchedTerms.length ||
+          a.entry.name.localeCompare(b.entry.name),
+      );
+  }, [entries, linkedCodexIds, sceneBodyText]);
 
   const recommendedEntries = useMemo(() => {
     if (!entries || entries.length === 0 || !sceneContext) {
@@ -272,10 +264,7 @@ export function SceneLinkPanel({
         : null;
 
     return entries
-      .filter(
-        (entry) =>
-          !linkedCodexIds.has(entry.id) && !mentionedCodexIdSet.has(entry.id),
-      )
+      .filter((entry) => !linkedCodexIds.has(entry.id))
       .map((entry) => {
         const terms = [entry.name, ...entry.aliases]
           .map((term) => term.trim().toLowerCase())
@@ -304,7 +293,7 @@ export function SceneLinkPanel({
       )
       .slice(0, 6)
       .map((item) => item.entry);
-  }, [entries, linkedCodexIds, mentionedCodexIdSet, sceneContext, sceneNode]);
+  }, [entries, linkedCodexIds, sceneContext, sceneNode]);
 
   // Filter entries by search
   const filteredEntries = useMemo(() => {
@@ -355,52 +344,6 @@ export function SceneLinkPanel({
     setOpen(false);
   };
 
-  const linkMentionEntries = useCallback(async () => {
-    if (mentionEntries.length === 0 || isLinkingMentions) {
-      return;
-    }
-
-    const mentionIds = mentionEntries.map((entry) => entry.id);
-    setIsLinkingMentions(true);
-    setPendingCodexIds((current) =>
-      Array.from(new Set([...current, ...mentionIds])),
-    );
-
-    let linkedCount = 0;
-    let failedCount = 0;
-
-    for (const entry of mentionEntries) {
-      try {
-        await linkRepo.create({
-          sceneId,
-          codexId: entry.id,
-          projectId,
-          role: getDefaultRoleForCategory(entry.category),
-          autoDetected: true,
-        });
-        linkedCount += 1;
-      } catch {
-        failedCount += 1;
-      }
-    }
-
-    if (linkedCount > 0) {
-      toast.success(
-        `Linked ${linkedCount} @mention${linkedCount === 1 ? "" : "s"}`,
-      );
-    }
-    if (failedCount > 0) {
-      toast.error(
-        `Failed to link ${failedCount} @mention${failedCount === 1 ? "" : "s"}`,
-      );
-    }
-
-    setPendingCodexIds((current) =>
-      current.filter((id) => !mentionIds.includes(id)),
-    );
-    setIsLinkingMentions(false);
-  }, [isLinkingMentions, linkRepo, mentionEntries, projectId, sceneId]);
-
   const searchInputId = `scene-link-search-${sceneId}`;
 
   const focusSearchInput = useCallback(() => {
@@ -427,13 +370,13 @@ export function SceneLinkPanel({
 
       if (event.shiftKey && key === "l") {
         event.preventDefault();
-        void linkMentionEntries();
+        focusSearchInput();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [focusSearchInput, linkMentionEntries, open]);
+  }, [focusSearchInput, open]);
 
   // Toggle link
   const toggleLink = async (entry: CodexEntry) => {
@@ -500,6 +443,62 @@ export function SceneLinkPanel({
     });
   }, [entries, links]);
 
+  const consistencyWarnings = useMemo(() => {
+    if (
+      !sceneNode ||
+      sceneNode.type !== "scene" ||
+      linkedEntries.length === 0
+    ) {
+      return [] as string[];
+    }
+
+    const warnings: string[] = [];
+    const summary = (sceneNode.summary ?? "").trim().toLowerCase();
+    const pov = (sceneNode.pov ?? "").trim().toLowerCase();
+
+    const characterEntries = linkedEntries.filter(
+      ({ entry }) => entry.category === "character",
+    );
+    const povEntries = linkedEntries.filter(
+      ({ entry, link }) =>
+        entry.category === "character" && link.role === "pov",
+    );
+
+    if (povEntries.length > 0) {
+      const matchesPov = povEntries.some(({ entry }) =>
+        [entry.name, ...entry.aliases]
+          .map((name) => name.toLowerCase())
+          .some((name) => pov === name || pov.includes(name)),
+      );
+
+      if (!matchesPov) {
+        warnings.push(
+          "POV link exists but scene POV field does not match the linked character.",
+        );
+      }
+    }
+
+    if (characterEntries.length > 0 && !summary) {
+      warnings.push(
+        "Linked characters exist, but scene summary is empty. Add a summary to improve continuity checks.",
+      );
+    } else if (characterEntries.length > 0 && summary) {
+      const summaryMentionsCharacter = characterEntries.some(({ entry }) =>
+        [entry.name, ...entry.aliases]
+          .map((name) => name.toLowerCase())
+          .some((name) => summary.includes(name)),
+      );
+
+      if (!summaryMentionsCharacter) {
+        warnings.push(
+          "Linked characters are not referenced in the scene summary.",
+        );
+      }
+    }
+
+    return warnings;
+  }, [linkedEntries, sceneNode]);
+
   const hasEntries = (entries?.length ?? 0) > 0;
 
   return (
@@ -530,7 +529,7 @@ export function SceneLinkPanel({
             </p>
             <p className="text-[11px] text-muted-foreground">
               Shortcuts: <kbd>Cmd/Ctrl + F</kbd> to focus search,{" "}
-              <kbd>Cmd/Ctrl + Shift + L</kbd> to link detected @mentions.
+              <kbd>Cmd/Ctrl + Shift + L</kbd> to jump to manual mention linking.
             </p>
           </div>
 
@@ -548,45 +547,62 @@ export function SceneLinkPanel({
             </div>
           )}
 
-          {mentionEntries.length > 0 && (
+          {unlinkedMentionCandidates.length > 0 && (
             <div className="space-y-2 rounded-lg border border-amber-200/70 bg-amber-50/50 dark:bg-amber-500/5 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium flex items-center gap-2">
                   <Lightbulb className="h-4 w-4 text-amber-500" />
-                  Detected @mentions ({mentionEntries.length})
+                  Unlinked mentions in scene text (
+                  {unlinkedMentionCandidates.length})
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-7"
-                  disabled={isLinkingMentions}
-                  onClick={() => void linkMentionEntries()}
-                >
-                  {isLinkingMentions ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Linking...
-                    </>
-                  ) : (
-                    "Link @mentions"
-                  )}
-                </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                These entries were already referenced in scene text as
-                @mentions. Linking them adds planning intelligence without
-                manual search.
+                These names are already present in prose but not linked to Codex
+                metadata yet. Link each one manually to strengthen planning
+                intelligence.
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {mentionEntries.map((entry) => (
-                  <span
+              <div className="space-y-2">
+                {unlinkedMentionCandidates.map(({ entry, matchedTerms }) => (
+                  <div
                     key={entry.id}
-                    className="rounded-full border bg-background px-2 py-0.5 text-xs"
+                    className="flex items-center justify-between gap-2 rounded-md border bg-background px-2 py-1.5"
                   >
-                    {entry.name}
-                  </span>
+                    <div>
+                      <p className="text-sm font-medium">{entry.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Matched: {matchedTerms.slice(0, 3).join(", ")}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={isPending(entry.id)}
+                      onClick={() => toggleLink(entry)}
+                    >
+                      {isPending(entry.id) ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                      Link
+                    </Button>
+                  </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {consistencyWarnings.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-rose-200/70 bg-rose-50/60 dark:bg-rose-500/5 p-3">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-rose-500" />
+                Consistency warnings
+              </div>
+              <ul className="space-y-1 text-xs text-muted-foreground list-disc pl-4">
+                {consistencyWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
             </div>
           )}
 

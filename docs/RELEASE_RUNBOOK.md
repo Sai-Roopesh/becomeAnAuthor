@@ -57,11 +57,14 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 9. Chat lifecycle: archive -> restore -> move to deleted -> permanent delete.
 10. DOCX export (basic + advanced options) produces valid file.
 11. PDF export (advanced options) completes without hang/toast lock.
-12. `@mention` flow: type `@`, select codex suggestion, verify mention renders inline and survives save/reload.
-13. Export mention integrity: DOCX/PDF/Markdown include `@Name` text for mentioned entries.
-14. Responsive checks across dashboard/project/chat/settings at narrow widths.
-15. Google Drive connect, backup, restore, sign out.
-16. In-app updater prompt/install/restart path from an older build.
+12. Primary codex link flow: select text in editor -> `Link to Codex` from selection bubble -> choose entry/role -> save/reload and verify link persists.
+13. Context menu link flow: right-click selected text -> `Link to Codex` -> choose entry.
+14. Slash flow: run `/link codex`, choose entry, and verify link + inline label insertion.
+15. Export default prose integrity: DOCX/PDF/Markdown show clean linked text (for example `Kola`, not forced `@Kola`).
+16. Export optional codex appendix: when enabled, output includes "Codex Link Appendix" section.
+17. Responsive checks across dashboard/project/chat/settings at narrow widths.
+18. Google Drive connect, backup, restore, sign out.
+19. In-app updater prompt/install/restart path from an older build.
 
 ## 4. Prepare a Release
 

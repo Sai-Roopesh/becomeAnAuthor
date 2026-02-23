@@ -91,9 +91,7 @@ function getMentionText(node: TiptapNode): string {
     pickMentionAttr(attrs["name"]) ??
     pickMentionAttr(attrs["title"]) ??
     pickMentionAttr(attrs["id"]);
-  if (!rawValue) return "";
-
-  return rawValue.startsWith("@") ? rawValue : `@${rawValue}`;
+  return rawValue ?? "";
 }
 
 function pickMentionAttr(value: unknown): string | null {

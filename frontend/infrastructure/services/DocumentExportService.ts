@@ -29,6 +29,13 @@ interface SceneRecord {
   nextSceneExists: boolean;
 }
 
+interface CodexAppendixEntry {
+  id: string | null;
+  label: string;
+  mentionCount: number;
+  sceneTitles: string[];
+}
+
 /**
  * Document Export Service
  *
@@ -53,6 +60,9 @@ export class DocumentExportService implements IExportService {
 
     const orderedNodes = this.getOrderedNodes(nodes);
     const sceneRecords = this.getSceneRecords(orderedNodes);
+    const codexAppendixEntries = resolved.includeCodexAppendix
+      ? this.getCodexAppendixEntries(orderedNodes)
+      : [];
 
     const pageSize = mapPdfPageSize(resolved.pageSize);
     const marginTop = mmToPt(resolved.marginsMm.top);
@@ -129,6 +139,15 @@ export class DocumentExportService implements IExportService {
       tocItem2: {
         marginLeft: 12,
         marginBottom: 2,
+      },
+      appendixHeading: {
+        fontFamily: boldFont,
+        fontSize: resolved.fontSizePt + 2,
+        marginTop: 16,
+        marginBottom: 8,
+      },
+      appendixItem: {
+        marginBottom: 3,
       },
       divider: {
         borderBottomColor: "#c7c7c7",
@@ -306,6 +325,31 @@ export class DocumentExportService implements IExportService {
       }
     });
 
+    if (codexAppendixEntries.length > 0) {
+      pageChildren.push(
+        createElement(View, { key: "codex-appendix-break", break: true }),
+      );
+      pageChildren.push(
+        createElement(
+          Text,
+          { key: "codex-appendix-heading", style: styles.appendixHeading },
+          "Codex Link Appendix",
+        ),
+      );
+      codexAppendixEntries.forEach((entry, index) => {
+        pageChildren.push(
+          createElement(
+            Text,
+            {
+              key: `codex-appendix-item-${entry.id ?? entry.label}-${index}`,
+              style: styles.appendixItem,
+            },
+            sanitizePdfText(this.formatCodexAppendixLine(entry)),
+          ),
+        );
+      });
+    }
+
     if (pageChildren.length === 0) {
       pageChildren.push(
         createElement(
@@ -361,6 +405,9 @@ export class DocumentExportService implements IExportService {
     const nodes = await this.getHydratedNodes(projectId);
     const orderedNodes = this.getOrderedNodes(nodes);
     const sceneRecords = this.getSceneRecords(orderedNodes);
+    const codexAppendixEntries = resolved.includeCodexAppendix
+      ? this.getCodexAppendixEntries(orderedNodes)
+      : [];
 
     const { width, height } = EXPORT_PAGE_SIZES_MM[resolved.pageSize];
 
@@ -499,6 +546,25 @@ export class DocumentExportService implements IExportService {
       }
     });
 
+    if (codexAppendixEntries.length > 0) {
+      children.push(new Paragraph({ children: [new PageBreak()] }));
+      children.push(
+        new Paragraph({
+          text: "Codex Link Appendix",
+          heading: HeadingLevel.HEADING_2,
+          spacing: { after: 140 },
+        }),
+      );
+      codexAppendixEntries.forEach((entry) => {
+        children.push(
+          new Paragraph({
+            text: this.formatCodexAppendixLine(entry),
+            spacing: { after: 80 },
+          }),
+        );
+      });
+    }
+
     if (children.length === 0) {
       children.push(new Paragraph("No manuscript content found."));
     }
@@ -573,6 +639,9 @@ export class DocumentExportService implements IExportService {
     const nodes = await this.getHydratedNodes(projectId);
     const orderedNodes = this.getOrderedNodes(nodes);
     const sceneRecords = this.getSceneRecords(orderedNodes);
+    const codexAppendixEntries = resolved.includeCodexAppendix
+      ? this.getCodexAppendixEntries(orderedNodes)
+      : [];
 
     const parts: string[] = [];
 
@@ -643,6 +712,14 @@ export class DocumentExportService implements IExportService {
       parts.push("");
     });
 
+    if (codexAppendixEntries.length > 0) {
+      parts.push("## Codex Link Appendix", "");
+      codexAppendixEntries.forEach((entry) => {
+        parts.push(`- ${this.formatCodexAppendixLine(entry)}`);
+      });
+      parts.push("");
+    }
+
     return parts.join("\n").trim();
   }
 
@@ -696,6 +773,105 @@ export class DocumentExportService implements IExportService {
         sanitizePdfText(paragraph).replace(/\s+/g, " ").trim(),
       )
       .filter((paragraph) => paragraph.length > 0);
+  }
+
+  private getCodexAppendixEntries(
+    orderedNodes: DocumentNode[],
+  ): CodexAppendixEntry[] {
+    const scenes = orderedNodes.filter(
+      (node): node is Scene => node.type === "scene",
+    );
+    const index = new Map<
+      string,
+      {
+        id: string | null;
+        label: string;
+        mentionCount: number;
+        sceneTitles: Set<string>;
+      }
+    >();
+
+    scenes.forEach((scene) => {
+      const mentions = this.extractSceneMentions(scene.content);
+      mentions.forEach((mention) => {
+        const key = mention.id
+          ? `id:${mention.id}`
+          : `label:${mention.label.toLowerCase()}`;
+        const existing = index.get(key);
+        if (existing) {
+          existing.mentionCount += 1;
+          existing.sceneTitles.add(scene.title.trim() || "Untitled scene");
+          return;
+        }
+
+        index.set(key, {
+          id: mention.id,
+          label: mention.label,
+          mentionCount: 1,
+          sceneTitles: new Set([scene.title.trim() || "Untitled scene"]),
+        });
+      });
+    });
+
+    return Array.from(index.values())
+      .map((entry) => ({
+        id: entry.id,
+        label: entry.label,
+        mentionCount: entry.mentionCount,
+        sceneTitles: Array.from(entry.sceneTitles).sort((a, b) =>
+          a.localeCompare(b),
+        ),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  private extractSceneMentions(
+    content: Scene["content"],
+  ): Array<{ id: string | null; label: string }> {
+    const mentions: Array<{ id: string | null; label: string }> = [];
+
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+
+      const record = node as Record<string, unknown>;
+      if (record["type"] === "mention" && record["attrs"]) {
+        const attrs = record["attrs"] as Record<string, unknown>;
+        const label =
+          this.pickString(attrs["label"]) ??
+          this.pickString(attrs["name"]) ??
+          this.pickString(attrs["title"]) ??
+          this.pickString(attrs["id"]);
+        if (label) {
+          mentions.push({
+            id: this.pickString(attrs["id"]),
+            label,
+          });
+        }
+      }
+
+      if (record["content"]) {
+        walk(record["content"]);
+      }
+    };
+
+    walk(content);
+    return mentions;
+  }
+
+  private formatCodexAppendixLine(entry: CodexAppendixEntry): string {
+    const sceneLabel = entry.sceneTitles.join(", ");
+    const mentionLabel = entry.mentionCount === 1 ? "link" : "links";
+    return `${entry.label} (${entry.mentionCount} ${mentionLabel}) - scenes: ${sceneLabel}`;
+  }
+
+  private pickString(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 
   private getOrderedNodes(nodes: DocumentNode[]): DocumentNode[] {
