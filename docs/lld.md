@@ -501,7 +501,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Service | File | Size | Description |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Includes robust text sanitization for PDF stability and accurate mention text extraction via `extractTextFromContent`. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Includes robust text sanitization for PDF stability, accurate mention text extraction via `extractTextFromContent`, and optional Codex Appendix generation. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
@@ -548,7 +548,7 @@ features/{feature-name}/
 
 ### 9.2 Editor Feature (Deep Dive)
 
-The editor is the largest feature module (27 items):
+The editor is the largest feature module (28 items):
 
 ```
 features/editor/
@@ -557,6 +557,7 @@ features/editor/
 │   ├── EditorContainer.tsx        # Editor layout container
 │   ├── editor-toolbar.tsx         # Formatting toolbar
 │   ├── text-selection-menu.tsx    # Floating menu on text select
+│   ├── codex-link-dialog.tsx      # Manual codex linking dialog
 │   ├── text-replace-dialog.tsx    # AI rewrite dialog
 │   ├── tweak-generate-dialog.tsx  # AI generation tuning
 │   ├── continue-writing-menu.tsx  # AI continuation
@@ -582,7 +583,7 @@ features/editor/
 - CharacterCount
 - Placeholder
 - Typography
-- Mention (with custom @-mention suggestions and alias matching)
+- Mention (with custom @-mention suggestions, alias matching, and slash command /link)
 - Collaboration (Yjs integration)
 - BubbleMenu
 - Custom: SlashCommands, SectionNode, TypewriterExtension

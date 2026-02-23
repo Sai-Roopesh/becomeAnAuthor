@@ -464,13 +464,14 @@ The primary writing environment. 15+ components:
 |---|---|---|---|
 | `SceneEditor` | `scene-editor.tsx` | ~500 | Main editor orchestrator — TipTap initialization, extension loading, toolbar, save coordination |
 | `EditorToolbar` | `editor-toolbar.tsx` | ~250 | Formatting toolbar with text style, alignment, lists, undo/redo |
-| `TextSelectionMenu` | `text-selection-menu.tsx` | 208 | Floating tippy.js menu on text selection with 4 AI actions: Tweak, Expand, Rephrase, Shorten |
+| `TextSelectionMenu` | `text-selection-menu.tsx` | 208 | Floating tippy.js menu on text selection with 4 AI actions (Tweak, Expand, Rephrase, Shorten) and Link to Codex |
+| `CodexLinkDialog` | `codex-link-dialog.tsx` | ~300 | Dialog for linking selected text to codex entries with filtering and role selection |
 | `TextReplaceDialog` | `text-replace-dialog.tsx` | ~300 | AI-powered text replacement dialog with streaming preview, accept/reject |
 | `ContinueWritingMenu` | `continue-writing-menu.tsx` | 332 | Dialog for AI text continuation with mode selection (continue/rewrite/summarize), model picker |
 | `SparkPopover` | `spark-popover.tsx` | 446 | AI prompt generator — generates context-aware writing prompts via `generateObject()` with Zod schema + JSON fallback |
 | `FormatBar` | `format-bar.tsx` | ~200 | Typography settings panel (font, size, line height, alignment, page width) |
 | `SceneBeats` | `scene-beats.tsx` | ~150 | Beat tracking checklist for scene planning |
-| `MentionSuggestion` | `mention-suggestion.tsx` | ~200 | @mention autocomplete for codex entries with alias matching and keyboard navigation |
+| `MentionSuggestion` | `mention-suggestion.tsx` | ~200 | @mention autocomplete for codex entries with alias matching and slash command /link |
 
 **Editor Extensions** (`features/editor/extensions/`): `MentionExtension` (codex linking), `TypewriterExtension` (cursor centering at configurable offset), `FocusModeExtension` (dims non-focused paragraphs).
 
@@ -494,16 +495,17 @@ The primary writing environment. 15+ components:
 | `TimelineView` | `timeline-view.tsx` | 162 | Codex-scene matrix showing character/location appearances |
 | `WorldTimelineView` | `world-timeline-view.tsx` | 503 | Era-grouped world events with temporal precision fields |
 | `MapView` | `map-view.tsx` | 579 | Image upload, pan/zoom, marker placement with codex linking |
-| `SceneLinkPanel` | `scene-link-panel.tsx` | ~520 | Sheet-based scene-codex linking interface |
+| `SceneLinkPanel` | `scene-link-panel.tsx` | ~520 | Sheet-based scene-codex linking interface with unlinked mention detection and consistency warnings |
 
 Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 - Card-level quick action button (not menu-only) for discoverability on touch and desktop.
-- Guided panel onboarding with shortcut hints (`Cmd/Ctrl+F` search focus, `Cmd/Ctrl+Shift+L` link detected mentions).
+- Guided panel onboarding with shortcut hints (`Cmd/Ctrl+F` search focus, `Cmd/Ctrl+Shift+L` manual link focus).
 - Context-aware linking paths:
-  - **Mentions Detection**: Detects `@mentions` in scene content and offers one-click linking.
+  - **Unlinked Mentions**: Detects mentions in scene content (e.g., "Alice") not yet linked to metadata and offers manual linking.
   - **Recommendations**: Suggests links based on scene context (title, summary, POV, labels) vs codex entry names/aliases using a scoring system.
   - **Grouping**: Entries grouped by category (Character, Location, etc.) with color-coded icons.
   - **Roles**: Assign roles to links (Appears, Mentioned, POV Character, Location, Plot Thread).
+- **Consistency Checks**: Warns if POV character is linked but not matching scene metadata, or if linked characters are missing from the summary.
 - Mutations use live-query invalidation plus duplicate guards to keep badges/filters/timeline state in sync.
 
 ### 10.4 Chat Feature — `features/chat/`
@@ -620,9 +622,9 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location | Notes |
 |---|---|---|---|
-| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) | Preserves @mentions as "@Name" text |
-| DOCX | docx (npm) | Frontend | Preserves @mentions as "@Name" text |
-| Markdown | String assembly | Frontend | Preserves @mentions as "@Name" text |
+| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) | Preserves @mentions as clean text (no "@"); supports optional Codex Appendix |
+| DOCX | docx (npm) | Frontend | Preserves @mentions as clean text; supports optional Codex Appendix |
+| Markdown | String assembly | Frontend | Preserves @mentions as clean text; supports optional Codex Appendix |
 | ePub | Rust command | Backend | |
 | Plain Text | Rust command | Backend | |
 | JSON | Rust commands | Backend | |

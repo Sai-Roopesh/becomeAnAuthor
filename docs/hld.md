@@ -235,14 +235,14 @@ graph TB
 | **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, alias-aware @mentions, sections, focus mode, typewriter scroll |
 | **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
-| **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline, intelligent linking panel |
+| **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline, intelligent linking panel with unlinked mention detection |
 | **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
 | **Series** | 5 | 0 | Multi-book series management, shared codex, book ordering |
 | **Settings** | 13 | 2 | AI connection management, editor preferences, appearance settings |
 | **Search** | 6 | 1 | Full-text search across scenes and codex entries with relevance scoring |
 | **Navigation** | 3 | 1 | Sidebar manuscript tree, codex browser, snippet list, breadcrumbs |
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
-| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with customizable settings |
+| **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with customizable settings and Codex Appendix support |
 | **Data Management** | 3 | 0 | Backup Center UI, series backup import/export, novel archive conversion |
 | **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
