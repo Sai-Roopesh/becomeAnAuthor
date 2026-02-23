@@ -36,7 +36,7 @@
 **Become An Author** is a **local-first, AI-assisted desktop novel-writing application** built with Tauri v2. It provides professional authors with a complete writing environment that includes:
 
 - Rich text editing with AI-powered content generation and rewriting
-- World-building tools (codex, maps, timelines)
+- World-building tools (codex)
 - Project and series organization with manuscript structure management
 - Multi-format export (DOCX, EPUB, PDF, Markdown)
 - Real-time collaboration via Yjs + WebRTC
@@ -103,7 +103,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 │  │                      │                                    │  │
 │  │  ┌───────────────────▼────────────────────────────────┐  │  │
 │  │  │          Infrastructure Layer (DI + Repos)          │  │  │
-│  │  │   17 Repository Interfaces + 17 Implementations     │  │  │
+│  │  │   15 Repository Interfaces + 15 Implementations     │  │  │
 │  │  │   6 Infrastructure Services                         │  │  │
 │  │  └───────────────────┬────────────────────────────────┘  │  │
 │  │                      │                                    │  │
@@ -119,7 +119,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 │  │                                                            │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐                │  │
 │  │  │ Commands │  │  Models  │  │  Utils   │                │  │
-│  │  │ (18 mod) │  │ (11 mod) │  │ (7 mod)  │                │  │
+│  │  │ (14 mod) │  │ (9 mod)  │  │ (7 mod)  │                │  │
 │  │  └────┬─────┘  └──────────┘  └──────────┘                │  │
 │  │       │                                                    │  │
 │  │  ┌────▼─────────────────────────────────────────────────┐ │  │
@@ -197,8 +197,6 @@ graph TB
 
     subgraph "World Building"
         CODEX["📚 Codex<br/>Characters<br/>Locations<br/>Items / Lore"]
-        WMAP["🗺️ World Maps<br/>Image pins<br/>Location links"]
-        WTIMELINE["📅 Timelines<br/>World events<br/>Scene linking"]
     end
 
     subgraph "Organization"
@@ -234,7 +232,7 @@ graph TB
 | **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, alias-aware @mentions, sections, focus mode, typewriter scroll |
 | **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
-| **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline, intelligent linking panel with unlinked mention detection, section warnings, structure-preserving grid filtering |
+| **Plan** | 13 | 2 | Manuscript structure views: outline tree, card grid, timeline, intelligent linking panel with unlinked mention detection, section warnings, structure-preserving grid filtering |
 | **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
 | **Series** | 5 | 0 | Multi-book series management, shared codex, book ordering |
 | **Settings** | 13 | 2 | AI connection management, editor preferences, appearance settings |
@@ -268,14 +266,14 @@ flowchart LR
         Hooks["Custom Hooks<br/>(31 hooks)"]
         Stores["Zustand Stores<br/>(3 stores)"]
         DI["DI Container<br/>(AppContext)"]
-        Repos["Repositories<br/>(17 interfaces)"]
+    Repos["Repositories<br/>(15 interfaces)"]
         Services["Services<br/>(6 services)"]
         IPC["IPC Bridge<br/>(commands.ts)"]
     end
 
     subgraph Backend["Backend (Rust)"]
-        Commands["Tauri Commands<br/>(18 modules, 130+ cmds)"]
-        Models["Data Models<br/>(11 modules)"]
+        Commands["Tauri Commands<br/>(14 modules, 130+ cmds)"]
+        Models["Data Models<br/>(9 modules)"]
         Utils["Utilities<br/>(7 modules)"]
     end
 
@@ -343,10 +341,10 @@ graph TB
     L1["Layer 1: UI Components<br/>components/ui/ (37+ primitives)"]
     L2["Layer 2: Feature Components<br/>features/*/components/"]
     L3["Layer 3: Custom Hooks<br/>hooks/ (31) + features/*/hooks/"]
-    L4["Layer 4: Repository Interfaces<br/>domain/repositories/ (17)"]
+    L4["Layer 4: Repository Interfaces<br/>domain/repositories/ (15)"]
     L5["Layer 5: Entity Types<br/>domain/entities/types.ts (30+ types)"]
     L6["Layer 6: Service Interfaces<br/>domain/services/ (3)"]
-    L7["Layer 7: Infrastructure<br/>infrastructure/repositories/ (17)<br/>infrastructure/services/ (6)"]
+    L7["Layer 7: Infrastructure<br/>infrastructure/repositories/ (15)<br/>infrastructure/services/ (6)"]
     L8["Layer 8: Core / IPC Bridge<br/>core/tauri/commands.ts (130+ wrappers)"]
 
     L1 --> L2 --> L3 --> L4 --> L5
@@ -405,8 +403,8 @@ The Rust backend is organized into three top-level module groups:
 
 | Module Group | Modules | Purpose |
 |---|---|---|
-| **commands/** | 18 modules | Tauri command handlers — the API surface exposed to frontend |
-| **models/** | 11 modules | Data structure definitions (serde-serializable types) |
+| **commands/** | 14 modules | Tauri command handlers — the API surface exposed to frontend |
+| **models/** | 9 modules | Data structure definitions (serde-serializable types) |
 | **utils/** | 7 modules | Shared utility functions (paths, I/O, validation, text, timestamps, security) |
 
 ### 8.2 Command Categories
@@ -424,7 +422,7 @@ The Rust backend is organized into three top-level module groups:
 | **Trash** | `trash.rs` | 5 | Soft delete, restore, permanent delete, list, empty |
 | **Mention** | `mention.rs` | 2 | Cross-content @mention tracking |
 | **Collaboration** | `collaboration.rs` | 4 | Yjs binary state persistence |
-| **Other** | 5 modules | ~10 | Snippets, scene notes, world maps, world events |
+| **Other** | 3 modules | ~5 | Snippets, scene notes |
 
 ### 8.3 Backend Design Patterns
 
@@ -526,7 +524,7 @@ graph TD
     P1Scenes["manuscript/<br/>scenes/*.md"]
     P1Chat["chat/<br/>threads/*.json"]
     P1Snippets["snippets/*.json"]
-    P1Other["scene-notes/, maps/,<br/>world-events.json"]
+    P1Other["scene-notes/"]
     Trash[".trash/<br/>soft-deleted projects"]
 
     App --> Meta
@@ -547,7 +545,6 @@ graph TD
 | Scene content | YAML frontmatter + Markdown | Human-readable; Git-friendly; metadata in frontmatter |
 | Structural data | JSON | Fast parsing; type-safe serialization; programmatic access |
 | Entity data | JSON (individual files) | One file per entity; atomic writes; easy backup |
-| Collection data | JSON (arrays in single file) | Simple for small datasets (world events) |
 | Collaboration state | Binary (Yjs) | CRDT encoding requires binary format |
 
 ### 10.3 Entity Relationships
@@ -564,9 +561,6 @@ erDiagram
     PROJECT ||--o{ CHAT_THREAD : has
     CHAT_THREAD ||--o{ CHAT_MESSAGE : contains
     PROJECT ||--o{ SNIPPET : has
-    PROJECT ||--o{ IDEA : has
-    PROJECT ||--o{ PROJECT_MAP : has
-    PROJECT ||--o{ WORLD_EVENT : has
     CODEX_ENTRY }o--o{ CODEX_ENTRY : "related via CODEX_RELATION"
     CODEX_ENTRY }o--o{ CODEX_TAG : "tagged with"
     CODEX_ENTRY }o--o| CODEX_TEMPLATE : "uses template"
@@ -729,8 +723,6 @@ ThemeProvider (dark/light/system)
                 │       │   └── SceneNotesPanel
                 │       ├── PlanView
                 │       │   ├── OutlineView / GridView / TimelineView
-                │       │   ├── WorldMapView
-                │       │   └── WorldTimelineView
                 │       └── ChatInterface
                 │           ├── ChatThread
                 │           └── ChatMessage

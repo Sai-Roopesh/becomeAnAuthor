@@ -119,12 +119,12 @@ The frontend follows an 8-layer Clean Architecture:
 Layer 1: UI Components       → frontend/components/ui/
 Layer 2: Feature Components   → frontend/features/*/components/
 Layer 3: Custom Hooks         → frontend/hooks/ + frontend/features/*/hooks/
-Layer 4: Domain Repository    → frontend/domain/repositories/ (interfaces)
+Layer 4: Domain Repository    → frontend/domain/repositories/ (15 interfaces)
          Interfaces
 Layer 5: Domain Entities      → frontend/domain/entities/types.ts
          & Types
 Layer 6: Domain Services      → frontend/domain/services/ (interfaces)
-Layer 7: Infrastructure       → frontend/infrastructure/repositories/ (Tauri impls)
+Layer 7: Infrastructure       → frontend/infrastructure/repositories/ (15 Tauri impls)
          Implementations       frontend/infrastructure/services/
 Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts
 ```
@@ -141,7 +141,7 @@ Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts
 backend/src/
 ├── main.rs              # Tauri entry point (calls lib::run())
 ├── lib.rs               # Plugin registration + command handler registration (130+ commands)
-├── commands/            # Tauri command implementations (18 modules)
+├── commands/            # Tauri command implementations (14 modules)
 │   ├── mod.rs           # Module declarations and re-exports
 │   ├── project.rs       # Project CRUD, structure, restore logic (recreates deleted series) (32KB)
 │   ├── scene.rs         # Scene load/save with YAML frontmatter (9.7KB)
@@ -156,10 +156,8 @@ backend/src/
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
 │   ├── snippet.rs       # Reusable text snippets (1.6KB)
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
-│   ├── world_map.rs     # Map management with image upload (2.7KB)
-│   ├── world_timeline.rs# World-level timeline events (1.8KB)
 │   └── google_oauth.rs  # Desktop OAuth via loopback + local JSON storage (15KB)
-├── models/              # Data structures (11 modules)
+├── models/              # Data structures (9 modules)
 │   ├── mod.rs
 │   ├── project.rs       # ProjectMeta, StructureNode, Series
 │   ├── scene.rs         # SceneMeta, Scene, YamlSceneMeta
@@ -168,8 +166,6 @@ backend/src/
 │   ├── snippet.rs       # Snippet
 │   ├── backup.rs        # EmergencyBackup
 │   ├── scene_note.rs    # SceneNote
-│   ├── world_map.rs     # ProjectMap
-│   └── world_timeline.rs# WorldEvent
 └── utils/               # Shared utilities (7 modules)
     ├── mod.rs
     ├── paths.rs         # App dir, project dir, series dir resolution
@@ -223,9 +219,6 @@ pub fn command_name(param1: Type1, param2: Type2) -> Result<ReturnType, String> 
 │       │   └── {snippet-id}.json
 │       ├── scene-notes/
 │       │   └── {scene-id}.json
-│       ├── maps/
-│       │   └── {map-id}.json
-│       ├── world-events.json     # WorldEvent[]
 │       ├── yjs/                  # Collaboration state
 │       ├── trash/                # Soft-deleted items
 │       └── .backups/             # Emergency backups
@@ -311,7 +304,7 @@ The `AppProvider` creates singleton instances of all repositories and services v
 
 ```typescript
 interface AppServices {
-  // Repositories (17 total)
+  // Repositories (15 total)
   nodeRepository: INodeRepository;
   projectRepository: IProjectRepository;
   codexRepository: ICodexRepository;
@@ -326,8 +319,6 @@ interface AppServices {
   collaborationRepository: ICollaborationRepository;
   mentionRepository: IMentionRepository;
   sceneNoteRepository: ISceneNoteRepository;
-  mapRepository: IMapRepository;
-  worldTimelineRepository: IWorldTimelineRepository;
 
   // Services (2 in DI)
   chatService: IChatService;
@@ -384,8 +375,6 @@ DocumentNode = Act | Chapter | Scene
 | `ChatMessage` | id, threadId, role (user/assistant), content, model, context | Embedded in thread |
 | `Snippet` | id, projectId, title, content (TipTap), pinned | `{id}.json` |
 | `SceneNote` | id, sceneId, content (TipTap) | `{id}.json` |
-| `ProjectMap` | id, projectId, name, imageUrl, pins | `{id}.json` |
-| `WorldEvent` | id, projectId, title, date, description, linkedScenes | `world-events.json` |
 | `Mention` | id, codexEntryId, sourceType, sourceId, position, context | Runtime |
 
 ### 6.3 Supporting Types
@@ -406,7 +395,7 @@ DocumentNode = Act | Chapter | Scene
 
 ### 7.1 Repository Interfaces (Domain Layer)
 
-**Directory:** `frontend/domain/repositories/` (17 interfaces)
+**Directory:** `frontend/domain/repositories/` (15 interfaces)
 
 Each interface defines a contract for data access:
 
@@ -439,14 +428,12 @@ interface INodeRepository {
 | `IChatRepository` | Chat threads + messages |
 | `ISnippetRepository` | Text snippets |
 | `ISceneNoteRepository` | Per-scene notes |
-| `IMapRepository` | World maps with pins |
-| `IWorldTimelineRepository` | World-level timeline events |
 | `ICollaborationRepository` | Yjs CRDT state persistence |
 | `IMentionRepository` | Cross-content mention tracking |
 
 ### 7.2 Tauri Repository Implementations (Infrastructure)
 
-**Directory:** `frontend/infrastructure/repositories/` (17 implementations)
+**Directory:** `frontend/infrastructure/repositories/` (15 implementations)
 
 Each implementation wraps Tauri IPC `invoke()` calls:
 
@@ -526,7 +513,7 @@ features/{feature-name}/
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
 | **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly, mobile-responsive design |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
-| **plan** | 13 | 2 | Outline view, grid view, timeline, maps, world timeline, scene link panel, structure-preserving filtering |
+| **plan** | 11 | 2 | Outline view, grid view, timeline, scene link panel, structure-preserving filtering |
 | **settings** | 10 | 2 | AI connection management with status reporting (Active/Missing Key/Disabled), editor preferences, appearance settings |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks, responsive actions |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
@@ -728,7 +715,7 @@ export async function loadScene(
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
 | **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
 | **Google OAuth** | 4 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` |
-| **Other** | ~10 | Scene notes, maps, world events, app info |
+| **Other** | ~10 | Scene notes, app info |
 
 ### 12.3 Environment Detection
 
@@ -815,8 +802,6 @@ Rust: commands::chat::create_chat_message()
 | Chat threads | JSON (thread + messages) | `chat/{id}.json` |
 | Snippets | JSON | `snippets/{id}.json` |
 | Scene notes | JSON | `scene-notes/{id}.json` |
-| Maps | JSON | `maps/{id}.json` |
-| World events | JSON (single array file) | `world-events.json` |
 | Series metadata | JSON (global) | `.meta/series.json` |
 | Recent projects | JSON (global) | `.meta/recent.json` |
 | API Keys | JSON (global) | `.meta/api_keys.json` |
