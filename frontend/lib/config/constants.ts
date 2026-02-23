@@ -254,35 +254,3 @@ export const SECTION_TYPES = [
   { value: "part", label: "Part-like" },
   { value: "appendix", label: "Appendix-like" },
 ] as const;
-
-/**
- * Idea Category Colors
- * Tailwind class strings for idea category badges
- */
-export const IDEA_CATEGORY_COLORS = {
-  plot: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  character: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  worldbuilding: "bg-green-500/20 text-green-400 border-green-500/30",
-  dialogue: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  other: "bg-muted text-muted-foreground border-border",
-} as const;
-
-/**
- * Idea Category Labels
- * Human-readable labels for idea categories
- */
-export const IDEA_CATEGORY_LABELS = {
-  plot: "Plot",
-  character: "Character",
-  worldbuilding: "World",
-  dialogue: "Dialogue",
-  other: "Other",
-} as const;
-
-/**
- * Navigation Constants
- * UI limits and display settings for navigation components
- */
-export const NAVIGATION_CONSTANTS = {
-  IDEAS_DISPLAY_LIMIT: 10,
-} as const;

@@ -24,7 +24,6 @@ const log = logger.scope("ProjectNavigation");
 import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { CreateNodeDialog } from "@/features/shared/components";
-import { IdeasSection } from "../components/ideas-section";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/shared/utils/toast-service";
 import {
@@ -410,15 +409,6 @@ export function ProjectNavigation({
                 </div>
               </div>
             )}
-
-            {/* Ideas Section - Collapsible below manuscript tree */}
-            <div className="border-t mt-2">
-              <IdeasSection
-                projectId={projectId}
-                sceneId={activeSceneId}
-                defaultOpen={false}
-              />
-            </div>
           </ScrollArea>
         </TabsContent>
 

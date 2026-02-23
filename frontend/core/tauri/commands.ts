@@ -20,7 +20,6 @@ import type {
   CodexTemplate,
   CodexRelationType,
   SceneCodexLink,
-  Idea,
   SceneNote,
 } from "@/domain/entities/types";
 
@@ -440,33 +439,6 @@ export async function deleteCodexEntryTag(
   entryTagId: string,
 ): Promise<void> {
   return invoke("delete_codex_entry_tag", { projectPath, entryTagId });
-}
-
-// ============ Idea Commands ============
-
-export async function listIdeas(projectPath: string): Promise<Idea[]> {
-  return invoke<Idea[]>("list_ideas", { projectPath });
-}
-
-export async function createIdea(
-  projectPath: string,
-  idea: Idea,
-): Promise<Idea> {
-  return invoke<Idea>("create_idea", { projectPath, idea });
-}
-
-export async function updateIdea(
-  projectPath: string,
-  idea: Idea,
-): Promise<Idea> {
-  return invoke<Idea>("update_idea", { projectPath, idea });
-}
-
-export async function deleteIdea(
-  projectPath: string,
-  ideaId: string,
-): Promise<void> {
-  return invoke("delete_idea", { projectPath, ideaId });
 }
 
 // ============ Codex Templates ============

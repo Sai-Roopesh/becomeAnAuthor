@@ -68,25 +68,6 @@ export type CodexCategory =
  */
 export type AIContext = "always" | "detected" | "exclude" | "never";
 
-export type IdeaCategory =
-  | "plot"
-  | "character"
-  | "worldbuilding"
-  | "dialogue"
-  | "other";
-
-export interface Idea {
-  id: string;
-  projectId: string;
-  sceneId?: string;
-  content: string;
-  category: IdeaCategory;
-  tags: string[];
-  archived: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
 export interface SceneNote {
   id: string;
   sceneId: string;
