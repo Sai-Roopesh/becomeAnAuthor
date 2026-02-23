@@ -3,7 +3,14 @@ import Suggestion, { type SuggestionOptions } from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 import { SlashCommandsList } from "./slash-commands-list";
-import { Sparkles, BookMarked, Minus, FileText, PenTool } from "lucide-react";
+import {
+  Sparkles,
+  BookMarked,
+  Minus,
+  FileText,
+  PenTool,
+  Link2,
+} from "lucide-react";
 import type { SlashCommandItem } from "./slash-command-types";
 
 function getSelectionMenuPosition(editor: Editor): { x: number; y: number } {
@@ -18,6 +25,7 @@ function getSelectionMenuPosition(editor: Editor): { x: number; y: number } {
  * - /spark - AI-powered writing prompts
  * - /beat - Scene beat marker
  * - /continue - Continue writing with AI
+ * - /link codex - Open codex linking picker
  * - /section - Colored section block
  * - /divider - Horizontal rule
  */
@@ -64,6 +72,21 @@ export function getSuggestionItems(query: string): SlashCommandItem[] {
         editor.chain().focus().deleteRange(range).run();
         // Trigger AI generation menu (Cmd+J equivalent)
         const event = new CustomEvent("continueWriting", {
+          detail: {
+            position: getSelectionMenuPosition(editor),
+          },
+        });
+        window.dispatchEvent(event);
+      },
+    },
+    {
+      title: "Link to Codex",
+      description: "Link selected text or cursor position to a codex entry",
+      icon: <Link2 className="h-4 w-4 text-emerald-500" />,
+      keywords: ["link", "codex", "character", "location", "entity"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        const event = new CustomEvent("openCodexLinkPicker", {
           detail: {
             position: getSelectionMenuPosition(editor),
           },

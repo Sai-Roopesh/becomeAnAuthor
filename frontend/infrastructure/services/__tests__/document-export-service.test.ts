@@ -291,6 +291,38 @@ describe("DocumentExportService Contract", () => {
       expect(markdown).toContain("Root Scene");
       expect(markdown).toContain("Standalone scene content");
     });
+
+    it("MUST include codex appendix when option is enabled", async () => {
+      vi.mocked(mockRepo.getByProject).mockResolvedValue([
+        createMockScene({
+          id: "scene-appendix",
+          parentId: null,
+          title: "Linked Scene",
+          content: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  { type: "text", text: "Kola entered." },
+                  {
+                    type: "mention",
+                    attrs: { id: "codex-1", label: "Kola" },
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      ]);
+
+      const markdown = await service.exportToMarkdown("proj-1", {
+        includeCodexAppendix: true,
+      });
+
+      expect(markdown).toContain("## Codex Link Appendix");
+      expect(markdown).toContain("Kola (1 link) - scenes: Linked Scene");
+    });
   });
 
   // ========================================

@@ -21,7 +21,7 @@ describe("editor mention serialization", () => {
       ],
     };
 
-    expect(extractTextFromTiptapJSON(content)).toBe("Met @Kola at dawn.");
+    expect(extractTextFromTiptapJSON(content)).toBe("Met Kola at dawn.");
   });
 
   it("falls back to mention id when label is unavailable", () => {
@@ -35,10 +35,10 @@ describe("editor mention serialization", () => {
       ],
     };
 
-    expect(extractTextFromTiptapJSON(content)).toBe("@codex-legacy");
+    expect(extractTextFromTiptapJSON(content)).toBe("codex-legacy");
   });
 
-  it("does not duplicate @ when mention already includes it", () => {
+  it("preserves explicit @ when user includes it in label", () => {
     const content = {
       type: "doc" as const,
       content: [
@@ -76,6 +76,6 @@ describe("editor mention serialization", () => {
         type: "mention",
         attrs: { id: "codex-1", label: "Kola" },
       }),
-    ).toBe("@Kola");
+    ).toBe("Kola");
   });
 });

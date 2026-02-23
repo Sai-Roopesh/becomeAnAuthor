@@ -35,6 +35,7 @@ export interface ExportConfigV2 {
   includeSceneTitles: boolean;
   includeSummaries: boolean;
   includePageNumbers: boolean;
+  includeCodexAppendix: boolean;
   chapterStartsOnNewPage: boolean;
 
   sceneBreakStyle: ExportSceneBreakStyle;
@@ -67,6 +68,7 @@ export const DEFAULT_EXPORT_CONFIG: ExportConfigV2 = {
   includeSceneTitles: true,
   includeSummaries: false,
   includePageNumbers: true,
+  includeCodexAppendix: false,
   chapterStartsOnNewPage: true,
   sceneBreakStyle: "asterisks",
   pageSize: "Letter",
