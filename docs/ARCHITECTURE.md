@@ -499,6 +499,8 @@ The primary writing environment. 15+ components:
 | `MapView` | `map-view.tsx` | 579 | Image upload, pan/zoom, marker placement with codex linking |
 | `SceneLinkPanel` | `scene-link-panel.tsx` | ~520 | Sheet-based scene-codex linking interface with unlinked mention detection and consistency warnings |
 
+**Grid Filtering**: The Plan View (Grid) implements structure-preserving filtering via `filterSceneBasedNodes`. It ensures Acts and Chapters remain visible if they match the search query or if no filters are active, providing context even for empty structural nodes.
+
 Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 - Card-level quick action button (not menu-only) for discoverability on touch and desktop.
 - Guided panel onboarding with shortcut hints (`Cmd/Ctrl+F` search focus, `Cmd/Ctrl+Shift+L` manual link focus).
@@ -747,7 +749,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `shared/prompts/` | `templates.ts` |
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |
 | `features/codex/` | ~8 components, 2 hooks |
-| `features/plan/` | 5 views + orchestrator |
+| `features/plan/` | 5 views + orchestrator + filtering utility |
 | `features/chat/` | ~5 components, 1 hook |
 | `features/navigation/` | 2 components |
 | `features/settings/` | ~10 components, 2 hooks |
