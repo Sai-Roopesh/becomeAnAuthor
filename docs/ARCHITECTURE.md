@@ -179,6 +179,8 @@ isScene(node)  → node is Scene    // node.type === "scene"
 | `YjsStateSnapshot` | stateVector, update (Uint8Array) | CRDT persistence |
 | `CollaborationPeer` | id, name, color, cursor | Connected peer state |
 | `WorldEventTemporal` | precision, year, month, day, hour, minute | Temporal data with precision |
+| `SceneSectionSegment` | key, title, sectionType, paragraphs | Section data for export |
+| `SceneSectionType` | standard, chapter, part, appendix | Export section classification |
 
 ---
 
@@ -741,7 +743,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `lib/core/` | `save-coordinator.ts`, `editor-state-manager.ts` |
 | `store/` | `use-project-store.ts`, `use-chat-store.ts`, `use-format-store.ts` |
 | `hooks/` | 31 shared hooks |
-| `shared/utils/` | `context-engine.ts`, `context-packer.ts`, `toast-service.ts`, `logger.ts` |
+| `shared/utils/` | `context-engine.ts`, `context-packer.ts`, `toast-service.ts`, `logger.ts`, `scene-sections.ts` |
 | `shared/prompts/` | `templates.ts` |
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |
 | `features/codex/` | ~8 components, 2 hooks |
