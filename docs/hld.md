@@ -58,7 +58,7 @@ Authors need a dedicated writing environment that combines the organizational po
 | Goal | Description |
 |---|---|
 | **Local-First** | All data persisted on the user's filesystem; zero cloud dependency for core features |
-| **Privacy-First** | API keys stored in OS keychain; no telemetry; AI calls made directly from client |
+| **Privacy-First** | API keys stored in local secure storage; no telemetry; AI calls made directly from client |
 | **Offline-Capable** | Full editing, organizing, and exporting without internet; AI features degrade gracefully |
 | **AI-Integrated** | Deep integration with 14 AI providers for writing, rewriting, summarizing, and brainstorming |
 | **Professional Authoring** | Support full novel lifecycle: ideation → drafting → revision → export/publish |
@@ -243,7 +243,7 @@ graph TB
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
 | **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with section-aware structure controls, customizable settings, and Codex Appendix support |
 | **Data Management** | 3 | 0 | Backup Center UI, series backup import/export, novel archive conversion |
-| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
+| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
 | **AI** | 1 | 0 | AI-specific UI components |
 | **Project** | 2 | 0 | Project-level settings and metadata editing |
@@ -616,13 +616,13 @@ onChunk callbacks → UI updates
 ### 11.3 Frontend ↔ Google Drive
 
 ```
-OAuth 2.0 PKCE flow:
+Desktop Loopback Flow:
 1. User clicks "Sign In" → GoogleAuthService.signIn()
-2. Opens browser → Google consent screen
-3. Redirect to /auth/callback with authorization code
-4. Exchange code for access token (client-side)
-5. Store tokens in localStorage
-6. Use tokens for Drive API calls
+2. Backend starts loopback listener → Opens system browser
+3. User authorizes → Redirects to localhost listener
+4. Backend exchanges code for tokens (supports client_secret)
+5. Tokens stored in local app data (.meta/google_oauth_store.json)
+6. Frontend invokes backend commands for Drive operations
 ```
 
 ---
@@ -633,7 +633,7 @@ OAuth 2.0 PKCE flow:
 
 | Threat | Mitigation |
 |---|---|
-| API key exposure | Stored in OS keychain (encrypted at rest); never in filesystem or localStorage |
+| API key exposure | Stored in local secure storage (obfuscated); never in plaintext localStorage |
 | Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |
@@ -643,9 +643,9 @@ OAuth 2.0 PKCE flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, key) → OS Keychain (key) + localStorage (hasApiKey=true)
-                                              ↓ (encrypted)
-AI Request  → isConnectionUsable()          → get_api_key(provider) → OS Keychain
+Settings UI → store_api_key(provider, key) → Local Secure Storage (key) + localStorage (hasApiKey=true)
+                                              ↓ (encrypted/obfuscated)
+AI Request  → isConnectionUsable()          → get_api_key(provider) → Local Secure Storage
                                               ↓ (decrypted)
               → AI Provider API (HTTPS)
 ```

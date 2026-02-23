@@ -48,7 +48,7 @@
 │  External APIs: OpenAI, Anthropic, Google, Mistral,  │
 │  DeepSeek, Groq, Cohere, xAI, Azure, TogetherAI,    │
 │  Fireworks, Perplexity, OpenRouter, Kimi,            │
-│  Google Drive (OAuth 2.0)                            │
+│  Google Drive (Desktop OAuth 2.0)                    │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -210,7 +210,7 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
 | `world_map` | `world_map.rs` | ~120 | `list_maps`, `save_map`, `delete_map`, `upload_map_image` | Map image + marker storage |
 | `world_timeline` | `world_timeline.rs` | ~80 | `list_world_events`, `save_world_event`, `delete_world_event` | World event timeline |
-| `google_oauth` | `google_oauth.rs` | 428 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
+| `google_oauth` | `google_oauth.rs` | ~460 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + local store |
 
 ### 5.3 Models — `models/mod.rs`
 
@@ -446,7 +446,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | `DocumentExportService` | `DocumentExportService.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, and inclusion options. |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with fallback to manual entry. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry |
-| `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). **Web:** Standard PKCE flow. |
+| `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). Web flow removed. |
 | `GoogleDriveService` | `google-drive-service.ts` | 286 | Drive API: app folder management, backup upload/download/delete, storage quota |
 
 ---
@@ -594,19 +594,19 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Key | Data |
 |---|---|
-| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) — keys in OS keychain |
+| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) — keys in local secure storage |
 | `project-store` | Zustand: sidebar/timeline visibility, tab selections |
 | `format-settings` | Zustand: typography and editor mode preferences |
-| `google_tokens` | OAuth tokens with expiry |
+| `google_tokens` | OAuth tokens with expiry (Desktop-only) |
 
 ---
 
 ## 13. Security Architecture
 
-- **API Keys**: Tauri keychain (`keyring`) via `security.rs`; Google tokens also stored in keychain on desktop. `localStorage` only persists `hasApiKey` boolean metadata to avoid plaintext exposure.
+- **API Keys**: Local secure storage (`.meta/api_keys.json`) via `security.rs`; `localStorage` only persists `hasApiKey` boolean metadata to avoid plaintext exposure.
 - **OAuth 2.0**:
-  - **Desktop:** System browser + localhost loopback + PKCE. Tokens in OS keychain.
-  - **Web:** Standard PKCE flow. Tokens in localStorage.
+  - **Desktop:** System browser + localhost loopback. Tokens in local app data (`.meta/google_oauth_store.json`).
+  - **Web flow:** Disabled.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.
@@ -687,7 +687,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 | File | Lines | Purpose |
 |---|---|---|
-| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG` (Client ID), `STORAGE_KEYS`, `INFRASTRUCTURE`, `APP_NAME`, limits |
+| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG` (Client ID, optional Client Secret), `STORAGE_KEYS`, `INFRASTRUCTURE`, `APP_NAME`, limits |
 | `lib/config/ai-vendors.ts` | ~300 | 14 provider registry with name, icon, color, default models, endpoints |
 | `lib/config/model-specs.ts` | ~150 | Token limits and capabilities per model (context windows) |
 | `lib/config/timing.ts` | ~40 | `SAVE_DEBOUNCE`, `SEARCH_DEBOUNCE`, `AUTOSAVE_INTERVAL` |

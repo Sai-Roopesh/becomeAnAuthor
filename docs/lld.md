@@ -158,7 +158,7 @@ backend/src/
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
 │   ├── world_map.rs     # Map management with image upload (2.7KB)
 │   ├── world_timeline.rs# World-level timeline events (1.8KB)
-│   └── google_oauth.rs  # Desktop OAuth via loopback + keyring (15KB)
+| `google_oauth` | `google_oauth.rs`  # Desktop OAuth via loopback + local storage (15KB)
 ├── models/              # Data structures (11 modules)
 │   ├── mod.rs
 │   ├── project.rs       # ProjectMeta, StructureNode, Series
@@ -500,7 +500,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Uses `extractSceneSectionSegments` to parse section blocks from TipTap JSON. Includes robust PDF text sanitization, clean mention extraction, optional Codex Appendix generation, and section-aware structure controls (section headings, TOC inclusion, per-type page breaks, excluded-section filtering). |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
-| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
+| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop-only). Web flow disabled. |
 | `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
 
 ---
@@ -826,7 +826,7 @@ Rust: commands::chat::create_chat_message()
 
 | Store | Technology | Purpose |
 |---|---|---|
-| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with encrypted keys metadata (`hasApiKey`); actual keys in OS Keychain |
+| `ai_connections` | `localStorage` (safe-storage wrapper) | Provider configs with encrypted keys metadata (`hasApiKey`); actual keys in local secure storage |
 | UI preferences | `localStorage` via Zustand persist | Panel states, view modes |
 | Editor format | `localStorage` via Zustand persist | Font, spacing, width preferences |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
@@ -845,16 +845,15 @@ Frontend: invoke("store_api_key", { provider, key })
         │
         ▼
 Rust: security::store_api_key()
-  → keyring::Entry::new("become-an-author", provider)
-  → entry.set_password(key)
+  → writes to local secure storage (.meta/api_keys.json)
         │
         ▼
-OS Keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)
+Local File System (Obfuscated/Encrypted)
 ```
 
-- Keys are **never** stored in the filesystem or localStorage.
-- Retrieval via `get_api_key(provider)` → OS keychain lookup.
-- **Google OAuth Tokens**: Also stored in `keyring` (Service: `com.becomeauthor.app`, Account: `google-oauth-tokens`).
+- Keys are **never** stored in plaintext localStorage.
+- Retrieval via `get_api_key(provider)` → local file lookup.
+- **Google OAuth Tokens**: Also stored in local secure storage (`.meta/google_oauth_store.json`).
 
 ### 15.2 Content Security
 
