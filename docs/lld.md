@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 24, 2026
+> **Last Updated:** February 23, 2026
 > **Status:** Living Document
 
 ---
@@ -155,7 +155,6 @@ backend/src/
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
 │   ├── snippet.rs       # Reusable text snippets (1.6KB)
-│   ├── idea.rs          # Quick idea capture (1.8KB)
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
 │   ├── world_map.rs     # Map management with image upload (2.7KB)
 │   ├── world_timeline.rs# World-level timeline events (1.8KB)
@@ -168,7 +167,6 @@ backend/src/
 │   ├── chat.rs          # ChatThread, ChatMessage, ChatThreadWithMessages
 │   ├── snippet.rs       # Snippet
 │   ├── backup.rs        # EmergencyBackup
-│   ├── idea.rs          # Idea
 │   ├── scene_note.rs    # SceneNote
 │   ├── world_map.rs     # ProjectMap
 │   └── world_timeline.rs# WorldEvent
@@ -223,7 +221,6 @@ pub fn command_name(param1: Type1, param2: Type2) -> Result<ReturnType, String> 
 │       │   └── {thread-id}.json  # ChatThread + ChatMessage[]
 │       ├── snippets/
 │       │   └── {snippet-id}.json
-│       ├── ideas.json            # Idea[]
 │       ├── scene-notes/
 │       │   └── {scene-id}.json
 │       ├── maps/
@@ -328,7 +325,6 @@ interface AppServices {
   sceneCodexLinkRepository: ISceneCodexLinkRepository;
   collaborationRepository: ICollaborationRepository;
   mentionRepository: IMentionRepository;
-  ideaRepository: IIdeaRepository;
   sceneNoteRepository: ISceneNoteRepository;
   mapRepository: IMapRepository;
   worldTimelineRepository: IWorldTimelineRepository;
@@ -387,7 +383,6 @@ DocumentNode = Act | Chapter | Scene
 | `ChatThread` | id, projectId, name, pinned, archived, defaultModel | `{id}.json` |
 | `ChatMessage` | id, threadId, role (user/assistant), content, model, context | Embedded in thread |
 | `Snippet` | id, projectId, title, content (TipTap), pinned | `{id}.json` |
-| `Idea` | id, projectId, content, category, tags, archived | `ideas.json` |
 | `SceneNote` | id, sceneId, content (TipTap) | `{id}.json` |
 | `ProjectMap` | id, projectId, name, imageUrl, pins | `{id}.json` |
 | `WorldEvent` | id, projectId, title, date, description, linkedScenes | `world-events.json` |
@@ -443,7 +438,6 @@ interface INodeRepository {
 | `ISceneCodexLinkRepository` | Scene ↔ codex entry links |
 | `IChatRepository` | Chat threads + messages |
 | `ISnippetRepository` | Text snippets |
-| `IIdeaRepository` | Quick idea capture |
 | `ISceneNoteRepository` | Per-scene notes |
 | `IMapRepository` | World maps with pins |
 | `IWorldTimelineRepository` | World-level timeline events |
@@ -734,7 +728,7 @@ export async function loadScene(
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
 | **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
 | **Google OAuth** | 4 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` |
-| **Other** | ~10 | Ideas, scene notes, maps, world events, app info |
+| **Other** | ~10 | Scene notes, maps, world events, app info |
 
 ### 12.3 Environment Detection
 
@@ -820,7 +814,6 @@ Rust: commands::chat::create_chat_message()
 | Codex entries | JSON (individual files) | `codex/{id}.json` |
 | Chat threads | JSON (thread + messages) | `chat/{id}.json` |
 | Snippets | JSON | `snippets/{id}.json` |
-| Ideas | JSON (single array file) | `ideas.json` |
 | Scene notes | JSON | `scene-notes/{id}.json` |
 | Maps | JSON | `maps/{id}.json` |
 | World events | JSON (single array file) | `world-events.json` |
@@ -973,7 +966,7 @@ render(
 | `scroll-area`, `progress`, `resizable` | Utility components |
 | `tag-input`, `time-wheel-picker` | Specialized inputs |
 | `save-status-indicator` | Save state display |
-| `quick-capture-modal` | Quick idea entry |
+| `quick-capture-modal` | Quick capture modal |
 | `empty-state`, `decorative-grid`, `async-content` | Container patterns |
 | `tippy-popover` | Tippy.js wrapper |
 | `sidebar/` | 5-part sidebar component system |

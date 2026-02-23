@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 24, 2026
+> **Last Updated:** February 23, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -139,7 +139,6 @@ Series (1)
       │         └── summary: string
       ├── ChatThread ──► ChatMessage[] (role, model, prompt, context)
       ├── Snippet (title, content: TiptapContent, pinned)
-      ├── Idea (content, category, tags, archived)
       ├── SceneNote (sceneId, content: TiptapContent)
       ├── ProjectMap (imagePath, markers: MapMarker[], zoom/pan)
       └── WorldEvent (temporal, era, category, importance, linkedCodexIds)
@@ -208,7 +207,6 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `security` | `security.rs` | ~60 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
 | `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
 | `collaboration` | `collaboration.rs` | ~60 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
-| `idea` | `idea.rs` | ~100 | `list_ideas`, `create_idea`, `update_idea`, `delete_idea` | Quick-capture idea CRUD |
 | `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
 | `world_map` | `world_map.rs` | ~120 | `list_maps`, `save_map`, `delete_map`, `upload_map_image` | Map image + marker storage |
 | `world_timeline` | `world_timeline.rs` | ~80 | `list_world_events`, `save_world_event`, `delete_world_event` | World event timeline |
@@ -228,7 +226,6 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `backup.rs` | `EmergencyBackup`, `ExportManifest`, `SeriesBackup`, `ImportResult` |
 | `trash.rs` | `TrashedItem`, `TrashedProject` |
 | `series.rs` | `SeriesMeta` |
-| `idea.rs` | `Idea` |
 | `scene_note.rs` | `SceneNote` |
 | `world.rs` | `ProjectMap`, `MapMarker`, `WorldEvent`, `WorldEventTemporal` |
 
@@ -302,7 +299,7 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
 | Directory | Files | Purpose |
 |---|---|---|
 | `entities/types.ts` | 1 (529 lines) | All entity interfaces (30+) |
-| `repositories/` | 12 interfaces | `INodeRepository`, `IProjectRepository`, `ICodexRepository`, `IChatRepository`, `ISnippetRepository`, `ICodexRelationRepository`, `ISceneCodexLinkRepository`, `ISeriesRepository`, `IIdeaRepository`, `ISceneNoteRepository`, `IMapRepository`, `IWorldTimelineRepository` |
+| `repositories/` | 11 interfaces | `INodeRepository`, `IProjectRepository`, `ICodexRepository`, `IChatRepository`, `ISnippetRepository`, `ICodexRelationRepository`, `ISceneCodexLinkRepository`, `ISeriesRepository`, `ISceneNoteRepository`, `IMapRepository`, `IWorldTimelineRepository` |
 | `services/` | 2 interfaces | `IChatService`, `IExportService` |
 | `types/` | 1 file | `export-types.ts` — export configuration types |
 
@@ -413,7 +410,6 @@ interface AppServices {
   codexRelationRepository: ICodexRelationRepository;
   sceneCodexLinkRepository: ISceneCodexLinkRepository;
   seriesRepository: ISeriesRepository;
-  ideaRepository: IIdeaRepository;
   sceneNoteRepository: ISceneNoteRepository;
   mapRepository: IMapRepository;
   worldTimelineRepository: IWorldTimelineRepository;
@@ -438,7 +434,6 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | `TauriCodexRelationRepository` | ~80 | Relation CRUD |
 | `TauriSceneCodexLinkRepository` | ~80 | Scene↔Codex link CRUD |
 | `TauriSeriesRepository` | ~120 | Series lifecycle + series-scoped codex |
-| `TauriIdeaRepository` | ~80 | Idea CRUD |
 | `TauriSceneNoteRepository` | ~60 | Per-scene note storage |
 | `TauriMapRepository` | ~80 | Map CRUD + image upload |
 | `TauriWorldTimelineRepository` | ~60 | World event CRUD |
@@ -588,7 +583,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 ├── Projects/{series}/{project}/
 │   ├── project.json, structure.json
 │   ├── scenes/{file}.md (YAML frontmatter + TipTap JSON)
-│   └── .meta/ (chat/, snippets.json, ideas.json, scene-notes/, maps/,
+│   └── .meta/ (chat/, snippets.json, scene-notes/, maps/,
 │         world-timeline.json, codex/{category}/, codex-relations.json,
 │         codex-tags.json, emergency_backups/, yjs-states/)
 ├── Series/ (series-list.json, {id}/codex/)
@@ -765,8 +760,8 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | Directory | Files |
 |---|---|
 | Root | `lib.rs` (188 lines), `main.rs` |
-| `commands/` | `mod.rs` + 17 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `idea`, `scene_note`, `world_map`, `world_timeline` |
-| `models/` | `mod.rs` + 11 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `trash`, `series`, `idea`, `scene_note`, `world` |
+| `commands/` | `mod.rs` + 16 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `scene_note`, `world_map`, `world_timeline` |
+| `models/` | `mod.rs` + 10 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `trash`, `series`, `scene_note`, `world` |
 | `utils/` | `mod.rs` + 7 utils: `atomic_write`, `timestamp`, `count_words`, `project_dir`, `validate_file_size`, `validate_json_size`, `validate_no_null_bytes` |
 
 ### 19.3 App Routes — `app/` (8 files)
