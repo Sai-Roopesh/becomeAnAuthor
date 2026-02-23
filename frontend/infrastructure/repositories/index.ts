@@ -14,7 +14,6 @@ export { TauriCodexRelationRepository } from "./TauriCodexRelationRepository";
 export { TauriCodexRelationTypeRepository } from "./TauriCodexRelationTypeRepository";
 export { TauriCodexTemplateRepository } from "./TauriCodexTemplateRepository";
 export { TauriSceneCodexLinkRepository } from "./TauriSceneCodexLinkRepository";
-export { TauriIdeaRepository } from "./TauriIdeaRepository";
 export { TauriCollaborationRepository } from "./TauriCollaborationRepository";
 export { TauriMentionRepository } from "./TauriMentionRepository";
 export { TauriSceneNoteRepository } from "./TauriSceneNoteRepository";

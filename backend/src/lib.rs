@@ -170,11 +170,6 @@ pub fn run() {
             load_yjs_state,
             has_yjs_state,
             delete_yjs_state,
-            // Idea commands
-            list_ideas,
-            create_idea,
-            update_idea,
-            delete_idea,
             // Scene note commands
             get_scene_note,
             save_scene_note,
