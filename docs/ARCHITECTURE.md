@@ -499,7 +499,8 @@ Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 
 | Component | Lines | Purpose |
 |---|---|---|
-| `ChatInterface` | 395 | Thread sidebar, message list, input, model/prompt selection |
+| `ChatInterface` | 395 | Main orchestrator, message list, input, model/prompt selection |
+| `ChatSidebar` | ~250 | Thread list, search, view filtering, thread actions (archive/delete) |
 | `ChatMessage` | ~150 | Markdown rendering, copy, regenerate, mobile-responsive layout |
 | `ContextSelector` | ~200 | Select scenes, codex entries, snippets as context |
 
@@ -732,7 +733,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |
 | `features/codex/` | ~8 components, 2 hooks |
 | `features/plan/` | 3 views + orchestrator + filtering utility |
-| `features/chat/` | ~5 components, 1 hook |
+| `features/chat/` | ~10 components, 1 hook |
 | `features/navigation/` | 2 components |
 | `features/settings/` | ~10 components, 2 hooks |
 | `features/dashboard/` | 2 components |

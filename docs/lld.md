@@ -511,7 +511,7 @@ features/{feature-name}/
 | Feature | Components | Hooks | Description |
 |---|---|---|---|
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly, mobile-responsive design |
+| **chat** | 10 | 1 | AI chat interface with extracted sidebar component, active/archived/deleted views, thread management, context assembly, mobile-responsive design |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 11 | 2 | Outline view, grid view, timeline, scene link panel, structure-preserving filtering |
 | **settings** | 10 | 2 | AI connection management with status reporting (Active/Missing Key/Disabled), editor preferences, appearance settings |

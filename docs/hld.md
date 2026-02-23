@@ -230,7 +230,7 @@ graph TB
 | Domain | Components | Hooks | Description |
 |---|---|---|---|
 | **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, alias-aware @mentions, sections, focus mode, typewriter scroll |
-| **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
+| **Chat** | 10 | 1 | AI chat threads with dedicated sidebar, context-aware manuscript knowledge, multi-model support |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
 | **Plan** | 13 | 2 | Manuscript structure views: outline tree, card grid, timeline, intelligent linking panel with unlinked mention detection, section warnings, structure-preserving grid filtering |
 | **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
@@ -724,6 +724,7 @@ ThemeProvider (dark/light/system)
                 │       ├── PlanView
                 │       │   ├── OutlineView / GridView / TimelineView
                 │       └── ChatInterface
+                │           ├── ChatSidebar
                 │           ├── ChatThread
                 │           └── ChatMessage
                 └── SeriesDetail (/series)
@@ -735,7 +736,7 @@ ThemeProvider (dark/light/system)
 | Mode | Trigger | Layout |
 |---|---|---|
 | **Desktop** | Screen width ≥ 768px | ResizablePanels (sidebar + editor + timeline) |
-| **Mobile** | Screen width < 768px | Sheet overlays for sidebar and timeline |
+| **Mobile** | Screen width < 768px | Sheet overlays for Chat Sidebar and Plan Timeline |
 | **Focus Mode** | Cmd+Shift+F toggle | Full-screen editor, no chrome |
 
 **Component-Level Responsiveness:**
