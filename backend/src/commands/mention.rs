@@ -7,21 +7,6 @@ use crate::models::ProjectMeta;
 use crate::utils::get_series_codex_path;
 use serde::{Deserialize, Serialize};
 
-fn has_codex_entries(codex_dir: &std::path::Path) -> bool {
-    if !codex_dir.exists() {
-        return false;
-    }
-
-    walkdir::WalkDir::new(codex_dir)
-        .min_depth(2)
-        .max_depth(2)
-        .into_iter()
-        .flatten()
-        .any(|entry| {
-            entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json")
-        })
-}
-
 /// A single mention of a codex entry in the manuscript
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,13 +32,6 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
     let project_meta: ProjectMeta = serde_json::from_str(&meta_content)
         .map_err(|e| format!("Failed to parse project metadata: {}", e))?;
     let meta_codex_dir = get_series_codex_path(&project_meta.series_id)?;
-    let legacy_codex_dir = project_path_buf.join(".meta/codex");
-    if has_codex_entries(&legacy_codex_dir) && !has_codex_entries(&meta_codex_dir) {
-        return Err(
-            "Legacy project-level codex data detected. Migrate codex entries to series storage before tracking mentions."
-                .to_string(),
-        );
-    }
 
     // Find the codex entry file
     let mut entry_name = String::new();

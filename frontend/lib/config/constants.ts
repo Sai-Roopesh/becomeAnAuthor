@@ -42,7 +42,6 @@ export const FEATURE_FLAGS = {
   CHAT_WITH_SCENE: false,
   SAVE_AS_SNIPPET: false,
   RETRY_MESSAGE: false,
-  DISSOLVE_SECTION: false,
 } as const;
 
 /**

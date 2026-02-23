@@ -837,16 +837,6 @@ export async function exportManuscriptText(
 }
 
 /**
- * Export a full project backup as JSON
- */
-export async function exportProjectBackup(
-  projectPath: string,
-  outputPath: string,
-): Promise<void> {
-  return invoke("export_project_backup", { projectPath, outputPath });
-}
-
-/**
  * Export a full series backup as JSON file
  */
 export async function exportSeriesBackup(
@@ -861,15 +851,6 @@ export async function exportSeriesBackup(
  */
 export async function exportSeriesAsJson(seriesId: string): Promise<string> {
   return invoke<string>("export_series_as_json", { seriesId });
-}
-
-/**
- * Export project as JSON string (for cloud backup services like Google Drive)
- */
-export async function exportProjectAsJson(
-  projectPath: string,
-): Promise<string> {
-  return invoke<string>("export_project_as_json", { projectPath });
 }
 
 export interface ImportSeriesResult {

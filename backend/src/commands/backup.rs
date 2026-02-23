@@ -3,7 +3,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
 
 use crate::models::{CodexRelation, EmergencyBackup, ProjectMeta, Series, StructureNode};
 use crate::utils::{
@@ -474,33 +473,11 @@ fn load_project_meta(project_path: &str) -> Result<ProjectMeta, String> {
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
-fn has_codex_entries(codex_dir: &Path) -> bool {
-    if !codex_dir.exists() {
-        return false;
-    }
-
-    WalkDir::new(codex_dir)
-        .min_depth(2)
-        .max_depth(2)
-        .into_iter()
-        .flatten()
-        .any(|entry| {
-            entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json")
-        })
-}
-
 fn build_project_export_payload(project: &ProjectMeta) -> Result<serde_json::Value, String> {
     let structure = crate::commands::project::get_structure(project.path.clone())?;
     let scene_files = collect_scene_files(&project.path, &structure);
     let codex =
         crate::commands::series::list_series_codex_entries(project.series_id.clone(), None)?;
-    let legacy_codex_dir = PathBuf::from(&project.path).join(".meta/codex");
-    if codex.is_empty() && has_codex_entries(&legacy_codex_dir) {
-        return Err(
-            "Legacy project-level codex data detected. Migrate codex entries to series storage before exporting this project."
-                .to_string(),
-        );
-    }
     let snippets = crate::commands::snippet::list_snippets(project.path.clone())?;
 
     Ok(serde_json::json!({

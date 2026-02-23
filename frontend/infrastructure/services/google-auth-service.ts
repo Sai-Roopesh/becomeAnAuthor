@@ -68,13 +68,6 @@ class GoogleAuthService {
     }
   }
 
-  async handleCallback(code: string): Promise<void> {
-    void code;
-    throw new Error(
-      "Web OAuth callback is disabled. Use Backup Center in the desktop app.",
-    );
-  }
-
   async signOut(): Promise<void> {
     try {
       if (isTauri()) {

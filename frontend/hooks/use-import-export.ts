@@ -20,14 +20,6 @@ import { logger } from "@/shared/utils/logger";
 const log = logger.scope("ImportExport");
 
 export function useImportExport() {
-  const exportFullBackup = async (seriesId: string) => {
-    return exportSeries(seriesId);
-  };
-
-  const importFullBackup = async (file: File) => {
-    return importSeries(file);
-  };
-
   const exportSeries = async (
     seriesId: string,
     outputPath?: string | null,
@@ -104,17 +96,6 @@ export function useImportExport() {
       );
       throw error;
     }
-  };
-
-  /**
-   * @deprecated Novel JSON backup export is intentionally disabled.
-   * Use document export (PDF/DOCX/ePub) for an individual novel.
-   */
-  const exportProject = async (projectId: string) => {
-    void projectId;
-    throw new Error(
-      "Novel JSON backup export is disabled. Use manuscript export (PDF/DOCX/ePub) instead.",
-    );
   };
 
   /**
@@ -215,11 +196,8 @@ export function useImportExport() {
   };
 
   return {
-    exportFullBackup,
-    importFullBackup,
     exportSeries,
     importSeries,
-    exportProject,
     backupToGoogleDrive,
     restoreFromGoogleDrive,
     listDriveBackups,

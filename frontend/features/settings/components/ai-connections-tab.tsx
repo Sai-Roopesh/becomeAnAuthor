@@ -6,7 +6,6 @@ import { AI_VENDORS } from "@/lib/config/ai-vendors";
 import { logger } from "@/shared/utils/logger";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAIConnections } from "../hooks/useAIConnections";
-import { useConnectionValidation } from "../hooks/useConnectionValidation";
 import { ConnectionForm } from "./ai-connections/ConnectionForm";
 import { ConnectionList } from "./ai-connections/ConnectionList";
 import { NewConnectionDialog } from "./new-connection-dialog";
@@ -27,27 +26,16 @@ export function AIConnectionsTab() {
     deleteConnection,
     toggleEnabled,
     connectionStatusById,
+    loading,
+    error,
+    refreshModels,
   } = useAIConnections();
 
-  const { loading, error, refreshModels } = useConnectionValidation();
-
   const handleRefreshModels = async () => {
-    if (!selectedConnection) return;
+    if (!selectedId) return;
 
     try {
-      const fetchedModels = await refreshModels(
-        selectedConnection,
-        selectedConnection.apiKey,
-        selectedConnection.customEndpoint,
-      );
-
-      await saveConnection(selectedId, {
-        models: fetchedModels,
-        apiKey: selectedConnection.apiKey,
-        ...(selectedConnection.customEndpoint && {
-          customEndpoint: selectedConnection.customEndpoint,
-        }),
-      });
+      await refreshModels(selectedId);
     } catch (err) {
       log.error("Failed to refresh models:", err);
     }

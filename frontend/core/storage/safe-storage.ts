@@ -15,7 +15,6 @@ const isBrowser =
 class SafeStorage {
   /**
    * Safely get an item from localStorage with fallback
-   * Handles both JSON-encoded values (new) and plain strings (legacy)
    */
   getItem<T>(key: string, fallback: T): T {
     // Return fallback during SSR
@@ -24,20 +23,13 @@ class SafeStorage {
     try {
       const item = localStorage.getItem(key);
       if (item === null) return fallback;
-
-      // Try to parse as JSON first (new format)
-      try {
-        return JSON.parse(item) as T;
-      } catch {
-        // Only return raw string if fallback is string type
-        if (typeof fallback === "string") {
-          return item as T;
-        }
-        log.warn(`Malformed storage value for ${key}, using fallback`);
-        return fallback;
-      }
+      return JSON.parse(item) as T;
     } catch (error) {
-      log.error(`Failed to read from localStorage (${key}):`, error);
+      if (error instanceof SyntaxError) {
+        log.warn(`Malformed storage value for ${key}, using fallback`);
+      } else {
+        log.error(`Failed to read from localStorage (${key}):`, error);
+      }
       return fallback;
     }
   }

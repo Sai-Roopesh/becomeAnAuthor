@@ -8,21 +8,6 @@ use walkdir::WalkDir;
 use crate::models::{ProjectMeta, StructureNode};
 use crate::utils::get_series_codex_path;
 
-fn has_codex_entries(codex_dir: &std::path::Path) -> bool {
-    if !codex_dir.exists() {
-        return false;
-    }
-
-    WalkDir::new(codex_dir)
-        .min_depth(2)
-        .max_depth(2)
-        .into_iter()
-        .flatten()
-        .any(|entry| {
-            entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json")
-        })
-}
-
 fn strip_frontmatter(content: &str) -> String {
     let parts: Vec<&str> = content.splitn(3, "---").collect();
     if parts.len() >= 3 {
@@ -137,13 +122,6 @@ pub fn search_project(
         let project_meta: ProjectMeta = serde_json::from_str(&meta_content)
             .map_err(|e| format!("Failed to parse project metadata: {}", e))?;
         let codex_dir = get_series_codex_path(&project_meta.series_id)?;
-        let legacy_codex_dir = PathBuf::from(&project_path).join(".meta/codex");
-        if has_codex_entries(&legacy_codex_dir) && !has_codex_entries(&codex_dir) {
-            return Err(
-                "Legacy project-level codex data detected. Migrate codex entries to series storage before searching codex."
-                    .to_string(),
-            );
-        }
 
         if codex_dir.exists() {
             for entry in WalkDir::new(&codex_dir)

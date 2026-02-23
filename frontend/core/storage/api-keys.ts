@@ -4,7 +4,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { AIProvider } from "@/lib/config/ai-vendors";
+import { AIProvider, validateApiKey } from "@/lib/config/ai-vendors";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("APIKeys");
@@ -107,65 +107,33 @@ export function validateAPIKey(
   provider: AIProvider,
   key: string,
 ): string | null {
-  if (!key || key.trim().length === 0) {
+  const normalizedKey = key.trim();
+  if (!normalizedKey) {
     return "API key cannot be empty";
   }
 
-  // Provider-specific validation
   switch (provider) {
     case "openai":
-      if (!key.startsWith("sk-")) {
+      if (!normalizedKey.startsWith("sk-")) {
         return 'OpenAI API keys should start with "sk-"';
       }
-      if (key.length < 40) {
+      if (normalizedKey.length < 40) {
         return "OpenAI API key seems too short";
       }
-      break;
-
+      return null;
     case "anthropic":
-      if (!key.startsWith("sk-ant-")) {
-        return 'Anthropic API keys should start with "sk-ant-"';
-      }
-      break;
-
-    case "google":
-      if (key.length < 30) {
-        return "Google API key seems too short";
-      }
-      break;
-
+      return validateApiKey(provider, normalizedKey)
+        ? null
+        : 'Anthropic API keys should start with "sk-ant-"';
     case "openrouter":
-      if (!key.startsWith("sk-or-")) {
-        return 'OpenRouter API keys should start with "sk-or-"';
-      }
-      break;
-
-    case "groq":
-      if (!key.startsWith("gsk_")) {
-        return 'Groq API keys should start with "gsk_"';
-      }
-      break;
-
-    case "mistral":
-      if (key.length < 30) {
-        return "Mistral API key seems too short";
-      }
-      break;
-
-    case "deepseek":
-      if (!key.startsWith("sk-")) {
-        return 'DeepSeek API keys should start with "sk-"';
-      }
-      break;
-
+      return validateApiKey(provider, normalizedKey)
+        ? null
+        : 'OpenRouter API keys should start with "sk-or-"';
     default:
-      // Fallback validation for unlisted providers
-      if (key.length < 20) {
-        return "API key seems too short";
-      }
+      return validateApiKey(provider, normalizedKey)
+        ? null
+        : `Invalid ${provider} API key format`;
   }
-
-  return null; // Valid
 }
 
 /**
