@@ -1,0 +1,3 @@
+interface:
+  display_name: "UI Responsiveness Validation"
+  short_description: "Validate and fix responsive regressions"
