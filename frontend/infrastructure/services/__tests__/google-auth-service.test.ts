@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { googleAuthService } from "../google-auth-service";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -20,7 +20,7 @@ vi.mock("@/core/storage/safe-storage", () => ({
 vi.mock("@/lib/config/constants", () => ({
   GOOGLE_CONFIG: {
     CLIENT_ID: "test-client-id",
-    CLIENT_SECRET: "",
+    CLIENT_SECRET: "test-client-secret",
     REDIRECT_URI: "http://localhost:3000/auth/callback",
     SCOPES: ["https://www.googleapis.com/auth/drive.file"],
     AUTH_ENDPOINT: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -32,18 +32,16 @@ vi.mock("@/lib/config/constants", () => ({
     GOOGLE_USER: "google_user_info",
     GOOGLE_PKCE_VERIFIER: "google_pkce_verifier",
   },
-  INFRASTRUCTURE: {
-    TOKEN_REFRESH_BUFFER_MS: 5 * 60 * 1000,
-  },
 }));
 
+import { invoke } from "@tauri-apps/api/core";
+import { isTauri } from "@/core/tauri/commands";
 import { storage } from "@/core/storage/safe-storage";
 import { STORAGE_KEYS } from "@/lib/config/constants";
 
 describe("GoogleAuthService Contract", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
   });
 
   it("exports required methods", () => {
@@ -56,51 +54,56 @@ describe("GoogleAuthService Contract", () => {
     expect(typeof googleAuthService.getUserInfo).toBe("function");
   });
 
-  it("isAuthenticated returns true when a valid token exists", async () => {
-    vi.mocked(storage.getItem).mockReturnValue({
-      accessToken: "valid-token",
-      expiresAt: Date.now() + 10 * 60 * 1000,
-      scope: "drive.file",
+  it("rejects sign-in outside desktop runtime", async () => {
+    vi.mocked(isTauri).mockReturnValue(false);
+
+    await expect(googleAuthService.signIn()).rejects.toThrow(/desktop app/i);
+  });
+
+  it("signs in on desktop and stores user", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(invoke).mockResolvedValue({
+      id: "u1",
+      email: "user@example.com",
+      name: "User Name",
+      picture: "https://example.com/p.png",
     });
+
+    await googleAuthService.signIn();
+
+    expect(invoke).toHaveBeenCalledWith("google_oauth_connect", {
+      clientId: "test-client-id",
+      clientSecret: "test-client-secret",
+      scopes: ["https://www.googleapis.com/auth/drive.file"],
+    });
+    expect(storage.setItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_USER, {
+      id: "u1",
+      email: "user@example.com",
+      name: "User Name",
+      picture: "https://example.com/p.png",
+    });
+  });
+
+  it("isAuthenticated returns true when desktop token exists", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(invoke).mockResolvedValue("access-token");
 
     await expect(googleAuthService.isAuthenticated()).resolves.toBe(true);
   });
 
-  it("isAuthenticated returns false when no token exists", async () => {
-    vi.mocked(storage.getItem).mockReturnValue(null);
+  it("getUserInfo returns null outside desktop runtime", async () => {
+    vi.mocked(isTauri).mockReturnValue(false);
 
-    await expect(googleAuthService.isAuthenticated()).resolves.toBe(false);
-  });
-
-  it("getUserInfo returns stored user", async () => {
-    const mockUser = {
-      id: "user-1",
-      email: "test@example.com",
-      name: "Test",
-      picture: "https://example.com/p.png",
-    };
-
-    vi.mocked(storage.getItem).mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GOOGLE_USER) return mockUser;
-      return null;
-    });
-
-    await expect(googleAuthService.getUserInfo()).resolves.toEqual(mockUser);
-  });
-
-  it("getAccessToken returns null when no token exists", async () => {
-    vi.mocked(storage.getItem).mockReturnValue(null);
-    await expect(googleAuthService.getAccessToken()).resolves.toBeNull();
+    await expect(googleAuthService.getUserInfo()).resolves.toBeNull();
   });
 
   it("signOut clears stored auth data", async () => {
-    vi.mocked(storage.getItem).mockReturnValue({ accessToken: "token" });
-    vi.mocked(global.fetch as unknown as typeof fetch).mockResolvedValue({
-      ok: true,
-    } as Response);
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(invoke).mockResolvedValue(undefined);
 
     await googleAuthService.signOut();
 
+    expect(invoke).toHaveBeenCalledWith("google_oauth_sign_out");
     expect(storage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_TOKENS);
     expect(storage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_USER);
     expect(storage.removeItem).toHaveBeenCalledWith(
@@ -108,19 +111,9 @@ describe("GoogleAuthService Contract", () => {
     );
   });
 
-  it("handleCallback surfaces clear error when client_secret is required", async () => {
-    vi.mocked(storage.getItem).mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GOOGLE_PKCE_VERIFIER) return "pkce-verifier";
-      return null;
-    });
-
-    vi.mocked(global.fetch as unknown as typeof fetch).mockResolvedValue({
-      ok: false,
-      json: async () => ({ error_description: "client_secret is missing." }),
-    } as Response);
-
+  it("handleCallback always rejects because web flow is disabled", async () => {
     await expect(googleAuthService.handleCallback("auth-code")).rejects.toThrow(
-      /client_secret/i,
+      /disabled/i,
     );
   });
 });

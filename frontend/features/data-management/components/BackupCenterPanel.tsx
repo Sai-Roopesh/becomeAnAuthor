@@ -51,7 +51,7 @@ export function BackupCenterPanel({
   const router = useRouter();
   const { exportSeries, importSeries, backupToGoogleDrive } = useImportExport();
   const seriesRepo = useSeriesRepository();
-  const { isAuthenticated, signOut } = useGoogleAuth();
+  const { isAuthenticated, user, signOut, refreshAuth } = useGoogleAuth();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo], {
@@ -265,6 +265,11 @@ export function BackupCenterPanel({
               : "Google Drive not connected"}
           </p>
           {isAuthenticated && (
+            <p className="text-xs text-muted-foreground mt-1 truncate">
+              Connected as {user?.name || user?.email || "Google account"}
+            </p>
+          )}
+          {isAuthenticated && (
             <Button
               variant="outline"
               size="sm"
@@ -345,9 +350,15 @@ export function BackupCenterPanel({
 
         <TabsContent value="cloud" className="space-y-4">
           {!isAuthenticated ? (
-            <InlineGoogleAuth onAuthComplete={() => void 0} />
+            <InlineGoogleAuth onAuthComplete={() => void refreshAuth()} />
           ) : (
             <Card className="p-4 space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Connected account</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.name || user?.email || "Google account"}
+                </p>
+              </div>
               <Label>Series to back up</Label>
               <Select
                 value={selectedSeriesId}
@@ -379,21 +390,6 @@ export function BackupCenterPanel({
                 {isCloudBackupRunning
                   ? "Uploading to Google Drive..."
                   : "Backup to Google Drive"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleCloudSignOut}
-                disabled={isSigningOut}
-                className="w-full"
-              >
-                {isSigningOut ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Disconnecting...
-                  </>
-                ) : (
-                  "Disconnect Google Drive"
-                )}
               </Button>
             </Card>
           )}
@@ -440,7 +436,19 @@ export function BackupCenterPanel({
               : "Choose Backup File (.json or .zip)"}
           </Button>
         ) : !isAuthenticated ? (
-          <InlineGoogleAuth onAuthComplete={() => void 0} />
+          <Card className="p-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Connect Google Drive in the Cloud Backup tab before restoring from
+              cloud.
+            </p>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setActiveTab("cloud")}
+            >
+              Go to Cloud Backup
+            </Button>
+          </Card>
         ) : (
           <DriveBackupBrowser
             onRestore={(result) => {
