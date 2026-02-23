@@ -1,22 +1,48 @@
 // Secure Storage Commands
-// Provides OS-level encrypted storage for sensitive data like API keys
-// Uses platform keychains: macOS Keychain, Windows Credential Manager, Linux Secret Service
+// Stores sensitive data in local app-scoped files.
 
-use keyring::Entry;
+use crate::utils::get_app_dir;
+use std::collections::{BTreeSet, HashMap};
+use std::fs;
+use std::path::PathBuf;
 use tauri::command;
 
-const SERVICE_NAME: &str = "com.becomeauthor.app";
-
-fn keychain_account(provider: &str, connection_id: &str) -> String {
-    format!("api-key-{}-{}", provider, connection_id)
+fn storage_path() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let meta_dir = app_dir.join(".meta");
+    fs::create_dir_all(&meta_dir).map_err(|e| format!("Failed to create .meta directory: {e}"))?;
+    Ok(meta_dir.join("api_keys.json"))
 }
 
-/// Store an API key in the OS keychain
+fn account_key(provider: &str, connection_id: &str) -> String {
+    format!("{provider}::{connection_id}")
+}
+
+fn read_api_key_store() -> Result<HashMap<String, String>, String> {
+    let path = storage_path()?;
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read API key storage file: {e}"))?;
+    serde_json::from_str::<HashMap<String, String>>(&content)
+        .map_err(|e| format!("Failed to parse API key storage file: {e}"))
+}
+
+fn write_api_key_store(store: &HashMap<String, String>) -> Result<(), String> {
+    let path = storage_path()?;
+    let json = serde_json::to_string_pretty(store)
+        .map_err(|e| format!("Failed to serialize API key store: {e}"))?;
+    fs::write(&path, json).map_err(|e| format!("Failed to write API key store: {e}"))
+}
+
+/// Store an API key in local app storage
 ///
 /// # Arguments
 /// * `provider` - The AI provider name (e.g., "openai", "anthropic", "google")
 /// * `connection_id` - The unique AI connection ID
-/// * `key` - The API key to store (will be encrypted by OS)
+/// * `key` - The API key to store
 ///
 /// # Returns
 /// * `Ok(())` on success
@@ -26,6 +52,8 @@ pub fn store_api_key(provider: String, connection_id: String, key: String) -> Re
     log::info!("Storing API key for provider: {}", provider);
 
     // Validate inputs
+    let provider = provider.trim().to_string();
+    let connection_id = connection_id.trim().to_string();
     if provider.is_empty() {
         return Err("Provider name cannot be empty".to_string());
     }
@@ -37,24 +65,15 @@ pub fn store_api_key(provider: String, connection_id: String, key: String) -> Re
         return Err("API key cannot be empty".to_string());
     }
 
-    // Create keyring entry
-    // This creates an account in OS keychain:
-    // - Service: "com.becomeauthor.app"
-    // - Account: "api-key-<provider>-<connection_id>"
-    let account = keychain_account(&provider, &connection_id);
-    let entry = Entry::new(SERVICE_NAME, &account)
-        .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
-
-    // Store password (API key)
-    entry
-        .set_password(&key)
-        .map_err(|e| format!("Failed to store API key: {}", e))?;
+    let mut store = read_api_key_store()?;
+    store.insert(account_key(&provider, &connection_id), key);
+    write_api_key_store(&store)?;
 
     log::info!("Successfully stored API key for provider: {}", provider);
     Ok(())
 }
 
-/// Retrieve an API key from the OS keychain
+/// Retrieve an API key from local app storage
 ///
 /// # Arguments
 /// * `provider` - The AI provider name
@@ -68,6 +87,8 @@ pub fn store_api_key(provider: String, connection_id: String, key: String) -> Re
 pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<String>, String> {
     log::info!("Retrieving API key for provider: {}", provider);
 
+    let provider = provider.trim().to_string();
+    let connection_id = connection_id.trim().to_string();
     if provider.is_empty() {
         return Err("Provider name cannot be empty".to_string());
     }
@@ -75,28 +96,17 @@ pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<Str
         return Err("Connection ID cannot be empty".to_string());
     }
 
-    let account = keychain_account(&provider, &connection_id);
-    let entry = Entry::new(SERVICE_NAME, &account)
-        .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
-
-    // Get password (API key)
-    match entry.get_password() {
-        Ok(key) => {
-            log::info!("Successfully retrieved API key for provider: {}", provider);
-            Ok(Some(key))
-        }
-        Err(keyring::Error::NoEntry) => {
-            log::info!("No API key found for provider: {}", provider);
-            Ok(None)
-        }
-        Err(e) => {
-            log::error!("Error retrieving API key: {}", e);
-            Err(format!("Failed to retrieve API key: {}", e))
-        }
+    let store = read_api_key_store()?;
+    let key = store.get(&account_key(&provider, &connection_id)).cloned();
+    if key.is_some() {
+        log::info!("Successfully retrieved API key for provider: {}", provider);
+    } else {
+        log::info!("No API key found for provider: {}", provider);
     }
+    Ok(key)
 }
 
-/// Delete an API key from the OS keychain
+/// Delete an API key from local app storage
 ///
 /// # Arguments
 /// * `provider` - The AI provider name
@@ -109,6 +119,8 @@ pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<Str
 pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), String> {
     log::info!("Deleting API key for provider: {}", provider);
 
+    let provider = provider.trim().to_string();
+    let connection_id = connection_id.trim().to_string();
     if provider.is_empty() {
         return Err("Provider name cannot be empty".to_string());
     }
@@ -116,25 +128,17 @@ pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), Str
         return Err("Connection ID cannot be empty".to_string());
     }
 
-    let account = keychain_account(&provider, &connection_id);
-    let entry = Entry::new(SERVICE_NAME, &account)
-        .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
-
-    // Delete password
-    match entry.delete_password() {
-        Ok(_) => {
-            log::info!("Successfully deleted API key for provider: {}", provider);
-            Ok(())
-        }
-        Err(keyring::Error::NoEntry) => {
-            log::info!("No API key to delete for provider: {}", provider);
-            Ok(()) // Not an error if it doesn't exist
-        }
-        Err(e) => {
-            log::error!("Error deleting API key: {}", e);
-            Err(format!("Failed to delete API key: {}", e))
-        }
+    let mut store = read_api_key_store()?;
+    if store
+        .remove(&account_key(&provider, &connection_id))
+        .is_some()
+    {
+        write_api_key_store(&store)?;
+        log::info!("Successfully deleted API key for provider: {}", provider);
+    } else {
+        log::info!("No API key to delete for provider: {}", provider);
     }
+    Ok(())
 }
 
 /// List all stored API key providers (without revealing the actual keys)
@@ -146,20 +150,16 @@ pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), Str
 pub fn list_api_key_providers() -> Result<Vec<String>, String> {
     log::info!("Listing API key providers");
 
-    // Known provider names to check
-    let known_providers = vec!["openai", "anthropic", "google", "openrouter"];
-
-    let mut stored_providers = Vec::new();
-
-    for provider in known_providers {
-        let account = format!("api-key-{}", provider);
-        if let Ok(entry) = Entry::new(SERVICE_NAME, &account) {
-            if entry.get_password().is_ok() {
-                stored_providers.push(provider.to_string());
+    let store = read_api_key_store()?;
+    let mut providers = BTreeSet::new();
+    for account in store.keys() {
+        if let Some((provider, _)) = account.split_once("::") {
+            if !provider.trim().is_empty() {
+                providers.insert(provider.to_string());
             }
         }
     }
-
+    let stored_providers = providers.into_iter().collect::<Vec<_>>();
     log::info!(
         "Found {} providers with stored keys",
         stored_providers.len()
@@ -192,7 +192,7 @@ mod tests {
         assert!(store_api_key("test".to_string(), "conn-1".to_string(), "".to_string()).is_err());
     }
 
-    // Integration tests for actual keychain operations
+    // Integration tests for actual storage operations
     #[test]
     #[ignore] // Run with: cargo test -- --ignored
     fn test_store_and_retrieve() {

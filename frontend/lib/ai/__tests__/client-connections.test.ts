@@ -60,7 +60,7 @@ describe("ai/client connection usability", () => {
     expect(getEnabledConnections()).toHaveLength(1);
   });
 
-  it("detects usable key-required connection from keychain", async () => {
+  it("detects usable key-required connection from secure storage", async () => {
     mockGetItem.mockReturnValue([
       {
         id: "google-2",

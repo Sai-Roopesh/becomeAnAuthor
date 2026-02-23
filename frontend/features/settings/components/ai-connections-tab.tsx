@@ -135,9 +135,8 @@ export function AIConnectionsTab() {
               Credentials Storage
             </h4>
             <p className="mt-2 text-sm text-muted-foreground">
-              API keys are saved in your operating system keychain. Connection
-              metadata stays local to this machine and is not uploaded to
-              servers.
+              API keys and connection metadata are saved locally on this device
+              and are not uploaded to external servers.
             </p>
           </section>
         </div>

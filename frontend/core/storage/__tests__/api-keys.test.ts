@@ -2,9 +2,9 @@
  * API Key Security Specification Tests
  *
  * SPECIFICATIONS (from implementation plan):
- * 1. API keys MUST be stored in OS keychain, NEVER in localStorage
+ * 1. API keys MUST be stored via backend secure storage commands, NEVER in localStorage
  * 2. API keys MUST be validated before storing
- * 3. Migration MUST move legacy localStorage keys to keychain
+ * 3. Migration MUST move legacy localStorage keys to secure command-based storage
  * 4. Failed operations MUST NOT expose key in error messages
  */
 
@@ -68,10 +68,10 @@ describe("API Key Security Contract", () => {
   });
 
   // ========================================
-  // SPECIFICATION 1: OS Keychain Storage
+  // SPECIFICATION 1: Secure Backend Storage
   // ========================================
 
-  describe("SPEC: Keychain Storage - API keys MUST use OS keychain", () => {
+  describe("SPEC: Secure Storage - API keys MUST use backend storage commands", () => {
     it("storeAPIKey MUST call Tauri store_api_key command", async () => {
       mockInvoke.mockResolvedValue(undefined);
 
@@ -218,7 +218,7 @@ describe("API Key Security Contract", () => {
 
   describe("SPEC: Error Handling - MUST NOT expose keys in errors", () => {
     it("getAPIKey MUST return null on error (not throw)", async () => {
-      mockInvoke.mockRejectedValue(new Error("Keychain access denied"));
+      mockInvoke.mockRejectedValue(new Error("Secure storage access denied"));
 
       const key = await getAPIKey("openai", "conn-openai");
 
@@ -234,7 +234,7 @@ describe("API Key Security Contract", () => {
     });
 
     it("storeAPIKey MUST show toast on failure", async () => {
-      mockInvoke.mockRejectedValue(new Error("Keychain locked"));
+      mockInvoke.mockRejectedValue(new Error("Secure storage locked"));
 
       await storeAPIKey("openai", "conn-openai", "test-key");
 
