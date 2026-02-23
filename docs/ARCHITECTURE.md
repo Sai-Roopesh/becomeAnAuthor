@@ -620,9 +620,9 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location | Notes |
 |---|---|---|---|
-| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) | Preserves @mentions as "@Name" text |
-| DOCX | docx (npm) | Frontend | Preserves @mentions as "@Name" text |
-| Markdown | String assembly | Frontend | Preserves @mentions as "@Name" text |
+| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) | Clean prose mention text + section-aware heading/TOC/page-break controls |
+| DOCX | docx (npm) | Frontend | Clean prose mention text + section-aware heading/TOC/page-break controls |
+| Markdown | String assembly | Frontend | Clean prose mention text + section-aware heading/TOC/page-break controls |
 | ePub | Rust command | Backend | |
 | Plain Text | Rust command | Backend | |
 | JSON | Rust commands | Backend | |

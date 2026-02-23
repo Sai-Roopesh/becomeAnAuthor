@@ -36,8 +36,11 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "@/shared/utils/toast-service";
-import { extractTextFromTiptapJSON } from "@/shared/utils/editor";
 import type { TiptapContent } from "@/shared/types/tiptap";
+import {
+  extractSceneTextForIntelligence,
+  getSceneSectionWarnings,
+} from "@/shared/utils/scene-sections";
 
 interface SceneLinkPanelProps {
   sceneId: string;
@@ -135,7 +138,7 @@ function extractSceneText(content: unknown): string {
   const parsedContent = parseSceneContent(content);
   if (!parsedContent || typeof parsedContent !== "object") return "";
   if (!("type" in parsedContent) || parsedContent.type !== "doc") return "";
-  return extractTextFromTiptapJSON(
+  return extractSceneTextForIntelligence(
     parsedContent as TiptapContent,
   ).toLowerCase();
 }
@@ -444,15 +447,17 @@ export function SceneLinkPanel({
   }, [entries, links]);
 
   const consistencyWarnings = useMemo(() => {
-    if (
-      !sceneNode ||
-      sceneNode.type !== "scene" ||
-      linkedEntries.length === 0
-    ) {
+    if (!sceneNode || sceneNode.type !== "scene") {
       return [] as string[];
     }
 
     const warnings: string[] = [];
+    warnings.push(...getSceneSectionWarnings(sceneNode.content));
+
+    if (linkedEntries.length === 0) {
+      return warnings;
+    }
+
     const summary = (sceneNode.summary ?? "").trim().toLowerCase();
     const pov = (sceneNode.pov ?? "").trim().toLowerCase();
 

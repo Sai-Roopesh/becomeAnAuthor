@@ -245,6 +245,17 @@ export const SECTION_COLORS = [
 ] as const;
 
 /**
+ * Section Types
+ * Structural intent for section-aware export behavior.
+ */
+export const SECTION_TYPES = [
+  { value: "standard", label: "Standard" },
+  { value: "chapter", label: "Chapter-like" },
+  { value: "part", label: "Part-like" },
+  { value: "appendix", label: "Appendix-like" },
+] as const;
+
+/**
  * Idea Category Colors
  * Tailwind class strings for idea category badges
  */

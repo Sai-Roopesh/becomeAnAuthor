@@ -19,9 +19,8 @@ import type {
   BaseNode,
   CodexEntry,
 } from "@/domain/entities/types";
-import type { TiptapContent, TiptapNode } from "@/shared/types/tiptap";
-import { isElementNode } from "@/shared/types/tiptap";
 import type { ContextItem } from "@/features/shared/components";
+import { extractSceneTextForIntelligence } from "@/shared/utils/scene-sections";
 
 const log = logger.scope("ContextAssembly");
 
@@ -53,7 +52,7 @@ function formatSceneContent(scene: Scene): string {
     lines.push(`Summary: ${scene.summary}`);
   }
 
-  const text = extractTextFromTiptap(scene.content);
+  const text = extractSceneTextForIntelligence(scene.content);
   if (text) {
     lines.push("Content:");
     lines.push(text);
@@ -99,41 +98,6 @@ function addOrReplaceSource(
   if (!existing || existing.content.length < source.content.length) {
     sourceMap.set(key, source);
   }
-}
-
-function extractTextFromTiptap(
-  content: TiptapContent | null | undefined,
-): string {
-  if (!content || !content.content) {
-    return "";
-  }
-
-  let text = "";
-
-  const processNode = (node: TiptapNode): void => {
-    if (node.type === "text") {
-      text += node.text || "";
-    } else if (
-      isElementNode(node) &&
-      node.content &&
-      Array.isArray(node.content)
-    ) {
-      for (const child of node.content) {
-        processNode(child);
-      }
-      if (node.type === "paragraph" || node.type === "heading") {
-        text += "\n";
-      }
-    }
-  };
-
-  if (Array.isArray(content.content)) {
-    for (const node of content.content) {
-      processNode(node);
-    }
-  }
-
-  return text.trim();
 }
 
 export function useContextAssembly(projectId: string, seriesId?: string) {

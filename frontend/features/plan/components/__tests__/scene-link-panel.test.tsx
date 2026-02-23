@@ -265,4 +265,71 @@ describe("SceneLinkPanel", () => {
     expect(mockSetShowSidebar).toHaveBeenCalledWith(true);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("shows section intelligence warnings for untitled, empty, and misordered sections", () => {
+    mockLinkRepo.getByScene.mockReturnValue([]);
+    mockCodexRepo.getBySeries.mockReturnValue([
+      {
+        id: "codex-1",
+        name: "Alice",
+        aliases: [],
+        category: "character",
+      },
+    ]);
+    mockNodeRepo.get.mockReturnValue({
+      id: "scene-1",
+      type: "scene",
+      title: "Sectioned Scene",
+      summary: "",
+      pov: "",
+      labels: [],
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "section",
+            attrs: { title: "Section 2", sectionType: "standard" },
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Filled section." }],
+              },
+            ],
+          },
+          {
+            type: "section",
+            attrs: { title: "Section 1", sectionType: "standard" },
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Backtracked section." }],
+              },
+            ],
+          },
+          {
+            type: "section",
+            attrs: { title: "", sectionType: "standard" },
+            content: [],
+          },
+        ],
+      },
+    });
+
+    render(
+      <SceneLinkPanel
+        sceneId="scene-1"
+        projectId="project-1"
+        seriesId="series-1"
+        open
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Consistency warnings")).toBeInTheDocument();
+    expect(screen.getByText(/Some sections are untitled/i)).toBeInTheDocument();
+    expect(screen.getByText(/Some sections are empty/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Section numbering looks misordered/i),
+    ).toBeInTheDocument();
+  });
 });
