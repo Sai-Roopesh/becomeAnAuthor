@@ -114,7 +114,15 @@ export interface SearchResult {
  * Check if running in Tauri (desktop app) or browser
  */
 export function isTauri(): boolean {
-  return typeof window !== "undefined" && "__TAURI__" in window;
+  if (typeof window === "undefined") return false;
+
+  const tauriWindow = window as Window & {
+    __TAURI__?: unknown;
+    __TAURI_INTERNALS__?: unknown;
+  };
+
+  // v1 exposes __TAURI__, v2 exposes __TAURI_INTERNALS__.
+  return "__TAURI__" in tauriWindow || "__TAURI_INTERNALS__" in tauriWindow;
 }
 
 // ============ Project Commands ============
