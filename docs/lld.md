@@ -500,7 +500,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Uses `extractSceneSectionSegments` to parse section blocks from TipTap JSON. Includes robust PDF text sanitization, clean mention extraction, optional Codex Appendix generation, and section-aware structure controls (section headings, TOC inclusion, per-type page breaks, excluded-section filtering). |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
-| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
+| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE with optional client_secret) |
 | `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
 
 ---
@@ -734,7 +734,15 @@ export async function loadScene(
 
 ```typescript
 export function isTauri(): boolean {
-  return typeof window !== "undefined" && "__TAURI__" in window;
+  if (typeof window === "undefined") return false;
+
+  const tauriWindow = window as Window & {
+    __TAURI__?: unknown;
+    __TAURI_INTERNALS__?: unknown;
+  };
+
+  // v1 exposes __TAURI__, v2 exposes __TAURI_INTERNALS__.
+  return "__TAURI__" in tauriWindow || "__TAURI_INTERNALS__" in tauriWindow;
 }
 ```
 
