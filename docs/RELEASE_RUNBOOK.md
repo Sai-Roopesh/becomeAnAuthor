@@ -13,6 +13,7 @@ Set these repository secrets/variables:
 - `APPLE_SIGNING_IDENTITY` (required for signed macOS release builds)
 - `JULES_API_KEY` (docs workflow only)
 - Repository variable: `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- Repository variable: `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET` (Optional: required only for web callback flow)
 
 Generate updater signing keys locally:
 

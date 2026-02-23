@@ -620,7 +620,7 @@ OAuth 2.0 PKCE flow:
 1. User clicks "Sign In" → GoogleAuthService.signIn()
 2. Opens browser → Google consent screen
 3. Redirect to /auth/callback with authorization code
-4. Exchange code for access token (client-side)
+4. Exchange code for access token (client-side) — includes `client_secret` if configured
 5. Store tokens in localStorage
 6. Use tokens for Drive API calls
 ```
@@ -634,6 +634,7 @@ OAuth 2.0 PKCE flow:
 | Threat | Mitigation |
 |---|---|
 | API key exposure | Stored in OS keychain (encrypted at rest); never in filesystem or localStorage |
+| OAuth Client Secret | For Web flow, secret is build-time env var (`NEXT_PUBLIC_GOOGLE_CLIENT_SECRET`); handled in frontend service |
 | Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |

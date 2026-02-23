@@ -606,7 +606,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 - **API Keys**: Tauri keychain (`keyring`) via `security.rs`; Google tokens also stored in keychain on desktop. `localStorage` only persists `hasApiKey` boolean metadata to avoid plaintext exposure.
 - **OAuth 2.0**:
   - **Desktop:** System browser + localhost loopback + PKCE. Tokens in OS keychain.
-  - **Web:** Standard PKCE flow. Tokens in localStorage.
+  - **Web:** Standard PKCE flow with optional `client_secret` (via `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET`) if configured. Tokens in localStorage.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.
@@ -687,7 +687,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 | File | Lines | Purpose |
 |---|---|---|
-| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG` (Client ID), `STORAGE_KEYS`, `INFRASTRUCTURE`, `APP_NAME`, limits |
+| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG` (Client ID/Secret), `STORAGE_KEYS`, `INFRASTRUCTURE`, `APP_NAME`, limits |
 | `lib/config/ai-vendors.ts` | ~300 | 14 provider registry with name, icon, color, default models, endpoints |
 | `lib/config/model-specs.ts` | ~150 | Token limits and capabilities per model (context windows) |
 | `lib/config/timing.ts` | ~40 | `SAVE_DEBOUNCE`, `SEARCH_DEBOUNCE`, `AUTOSAVE_INTERVAL` |
