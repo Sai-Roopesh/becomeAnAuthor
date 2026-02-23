@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 24, 2026
+> **Last Updated:** February 23, 2026
 > **Status:** Living Document
 
 ---
@@ -36,7 +36,7 @@
 **Become An Author** is a **local-first, AI-assisted desktop novel-writing application** built with Tauri v2. It provides professional authors with a complete writing environment that includes:
 
 - Rich text editing with AI-powered content generation and rewriting
-- World-building tools (codex, maps, timelines, ideas)
+- World-building tools (codex, maps, timelines)
 - Project and series organization with manuscript structure management
 - Multi-format export (DOCX, EPUB, PDF, Markdown)
 - Real-time collaboration via Yjs + WebRTC
@@ -199,7 +199,6 @@ graph TB
         CODEX["📚 Codex<br/>Characters<br/>Locations<br/>Items / Lore"]
         WMAP["🗺️ World Maps<br/>Image pins<br/>Location links"]
         WTIMELINE["📅 Timelines<br/>World events<br/>Scene linking"]
-        IDEAS["💡 Ideas<br/>Quick capture<br/>Categories"]
     end
 
     subgraph "Organization"
@@ -427,7 +426,7 @@ The Rust backend is organized into three top-level module groups:
 | **Trash** | `trash.rs` | 5 | Soft delete, restore, permanent delete, list, empty |
 | **Mention** | `mention.rs` | 2 | Cross-content @mention tracking |
 | **Collaboration** | `collaboration.rs` | 4 | Yjs binary state persistence |
-| **Other** | 5 modules | ~10 | Snippets, ideas, scene notes, world maps, world events |
+| **Other** | 5 modules | ~10 | Snippets, scene notes, world maps, world events |
 
 ### 8.3 Backend Design Patterns
 
@@ -529,7 +528,7 @@ graph TD
     P1Scenes["manuscript/<br/>scenes/*.md"]
     P1Chat["chat/<br/>threads/*.json"]
     P1Snippets["snippets/*.json"]
-    P1Other["ideas.json, scene-notes/,<br/>maps/, world-events.json"]
+    P1Other["scene-notes/, maps/,<br/>world-events.json"]
     Trash[".trash/<br/>soft-deleted projects"]
 
     App --> Meta
@@ -550,7 +549,7 @@ graph TD
 | Scene content | YAML frontmatter + Markdown | Human-readable; Git-friendly; metadata in frontmatter |
 | Structural data | JSON | Fast parsing; type-safe serialization; programmatic access |
 | Entity data | JSON (individual files) | One file per entity; atomic writes; easy backup |
-| Collection data | JSON (arrays in single file) | Simple for small datasets (ideas, world events) |
+| Collection data | JSON (arrays in single file) | Simple for small datasets (world events) |
 | Collaboration state | Binary (Yjs) | CRDT encoding requires binary format |
 
 ### 10.3 Entity Relationships
