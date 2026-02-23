@@ -644,9 +644,9 @@ OAuth 2.0 PKCE flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, key) → OS Keychain
+Settings UI → store_api_key(provider, key) → OS Keychain (key) + localStorage (hasApiKey=true)
                                               ↓ (encrypted)
-AI Request  → get_api_key(provider)         → OS Keychain
+AI Request  → isConnectionUsable()          → get_api_key(provider) → OS Keychain
                                               ↓ (decrypted)
               → AI Provider API (HTTPS)
 ```

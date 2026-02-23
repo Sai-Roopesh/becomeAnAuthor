@@ -401,7 +401,8 @@ DocumentNode = Act | Chapter | Scene
 - `CodexAddition` — Scene-codex link
 - `CodexTag`, `CodexEntryTag`, `CodexTemplate`, `CodexRelationType`, `SceneCodexLink`, `ExportConfigV2`
 - `ChatContext` — Contextual data for AI (novelText, acts, chapters, scenes, snippets, codexEntries)
-- `AIConnection` — Provider config (provider, apiKey, models, customEndpoint, enabled)
+- `AIConnection` — Provider config (provider, apiKey, hasApiKey, models, customEndpoint, enabled)
+- `AIConnectionStatus` — Connection state (active, disabled, missing-api-key)
 - `TrashedProject` — Soft-deleted project metadata
 
 ---
@@ -532,7 +533,7 @@ features/{feature-name}/
 | **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly, mobile-responsive design |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 13 | 2 | Outline view, grid view, timeline, maps, world timeline, scene link panel |
-| **settings** | 10 | 2 | AI connections, appearance, editor preferences, responsive list views |
+| **settings** | 10 | 2 | AI connection management with status reporting (Active/Missing Key/Disabled), editor preferences, appearance settings |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks, responsive actions |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
 | **series** | 5 | 0 | Series management, project ordering |
@@ -611,7 +612,8 @@ features/editor/
 │  ┌───────────────▼────────────────┐  │
 │  │  Connection Storage             │  │
 │  │  (core/storage/safe-storage)    │  │
-│  │  + OS Keychain for API keys     │  │
+│  │  + OS Keychain for keys (meta-  │  │
+│  │    data only in storage)        │  │
 │  └────────────────────────────────┘  │
 └──────────────────────────────────────┘
 ```
@@ -646,6 +648,9 @@ stream(opts: GenerateOptions): Promise<StreamResult>
 
 // Structured output with Zod schema validation
 object<T>(opts: GenerateObjectOptions<T>): Promise<ObjectResult<T>>
+
+// Check if any enabled connection has a valid key
+hasUsableAIConnection(): Promise<boolean>
 ```
 
 ### 10.4 Context Assembly
@@ -828,7 +833,7 @@ Rust: commands::chat::create_chat_message()
 
 | Store | Technology | Purpose |
 |---|---|---|
-| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with encrypted keys |
+| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with encrypted keys metadata (`hasApiKey`); actual keys in OS Keychain |
 | UI preferences | `localStorage` via Zustand persist | Panel states, view modes |
 | Editor format | `localStorage` via Zustand persist | Font, spacing, width preferences |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
