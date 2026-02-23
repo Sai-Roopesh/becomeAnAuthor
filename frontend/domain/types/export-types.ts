@@ -15,12 +15,20 @@ export type ExportFontFamily = "times" | "georgia" | "arial" | "courier";
 export type ExportAlignment = "left" | "justify";
 
 export type ExportSceneBreakStyle = "blank-line" | "asterisks" | "divider";
+export type ExportSectionType = "standard" | "chapter" | "part" | "appendix";
 
 export interface ExportMarginsMm {
   top: number;
   right: number;
   bottom: number;
   left: number;
+}
+
+export interface ExportSectionPageBreaks {
+  standard: boolean;
+  chapter: boolean;
+  part: boolean;
+  appendix: boolean;
 }
 
 export interface ExportConfigV2 {
@@ -33,10 +41,14 @@ export interface ExportConfigV2 {
   includeActHeadings: boolean;
   includeChapterHeadings: boolean;
   includeSceneTitles: boolean;
+  includeSectionTitles: boolean;
+  includeSectionsInTOC: boolean;
+  includeExcludedSections: boolean;
   includeSummaries: boolean;
   includePageNumbers: boolean;
   includeCodexAppendix: boolean;
   chapterStartsOnNewPage: boolean;
+  sectionPageBreaks: ExportSectionPageBreaks;
 
   sceneBreakStyle: ExportSceneBreakStyle;
   pageSize: ExportPageSize;
@@ -66,10 +78,19 @@ export const DEFAULT_EXPORT_CONFIG: ExportConfigV2 = {
   includeActHeadings: true,
   includeChapterHeadings: true,
   includeSceneTitles: true,
+  includeSectionTitles: true,
+  includeSectionsInTOC: true,
+  includeExcludedSections: true,
   includeSummaries: false,
   includePageNumbers: true,
   includeCodexAppendix: false,
   chapterStartsOnNewPage: true,
+  sectionPageBreaks: {
+    standard: false,
+    chapter: true,
+    part: true,
+    appendix: false,
+  },
   sceneBreakStyle: "asterisks",
   pageSize: "Letter",
   marginsMm: {
@@ -94,6 +115,10 @@ export function withExportDefaults(
     marginsMm: {
       ...DEFAULT_EXPORT_CONFIG.marginsMm,
       ...(value?.marginsMm ?? {}),
+    },
+    sectionPageBreaks: {
+      ...DEFAULT_EXPORT_CONFIG.sectionPageBreaks,
+      ...(value?.sectionPageBreaks ?? {}),
     },
   };
 

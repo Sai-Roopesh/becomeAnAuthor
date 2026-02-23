@@ -622,9 +622,9 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Format | Engine | Location | Notes |
 |---|---|---|---|
-| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) | Preserves @mentions as clean text (no "@"); supports optional Codex Appendix |
-| DOCX | docx (npm) | Frontend | Preserves @mentions as clean text; supports optional Codex Appendix |
-| Markdown | String assembly | Frontend | Preserves @mentions as clean text; supports optional Codex Appendix |
+| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) | Clean prose mention text (no "@"), optional Codex Appendix, and section-aware heading/TOC/page-break controls |
+| DOCX | docx (npm) | Frontend | Clean prose mention text, optional Codex Appendix, and section-aware heading/TOC/page-break controls |
+| Markdown | String assembly | Frontend | Clean prose mention text, optional Codex Appendix, and section-aware heading/TOC/page-break controls |
 | ePub | Rust command | Backend | |
 | Plain Text | Rust command | Backend | |
 | JSON | Rust commands | Backend | |

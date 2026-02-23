@@ -62,9 +62,14 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 14. Slash flow: run `/link codex`, choose entry, and verify link + inline label insertion.
 15. Export default prose integrity: DOCX/PDF/Markdown show clean linked text (for example `Kola`, not forced `@Kola`).
 16. Export optional codex appendix: when enabled, output includes "Codex Link Appendix" section.
-17. Responsive checks across dashboard/project/chat/settings at narrow widths.
-18. Google Drive connect, backup, restore, sign out.
-19. In-app updater prompt/install/restart path from an older build.
+17. Section-aware export defaults: section headings appear as export headings (not raw editor markup).
+18. Section TOC option: when enabled, TOC includes scene-section entries.
+19. Section page-break option: page break rules apply per section type (`standard`, `chapter`, `part`, `appendix`).
+20. Section filtering option: disabling "Include AI-excluded sections" removes `excludeFromAI` sections from export output.
+21. Scene intelligence panel shows section warnings for untitled/empty/misordered sections.
+22. Responsive checks across dashboard/project/chat/settings at narrow widths.
+23. Google Drive connect, backup, restore, sign out.
+24. In-app updater prompt/install/restart path from an older build.
 
 ## 4. Prepare a Release
 
