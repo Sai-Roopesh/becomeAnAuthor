@@ -6,9 +6,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AIConnection, AI_VENDORS } from "@/lib/config/ai-vendors";
 import { cn } from "@/lib/utils";
 import { VendorLogo } from "@/features/shared/components/VendorLogo";
+import type { AIConnectionStatus } from "@/features/settings/hooks/useAIConnections";
 
 interface ConnectionListProps {
   connections: AIConnection[];
+  connectionStatusById: Record<string, AIConnectionStatus>;
   selectedId: string;
   onSelect: (id: string) => void;
   onAddNew: () => void;
@@ -16,6 +18,7 @@ interface ConnectionListProps {
 
 export function ConnectionList({
   connections,
+  connectionStatusById,
   selectedId,
   onSelect,
   onAddNew,
@@ -38,6 +41,13 @@ export function ConnectionList({
           ) : (
             connections.map((connection) => {
               const vendor = AI_VENDORS[connection.provider];
+              const status = connectionStatusById[connection.id] ?? "disabled";
+              const statusLabel =
+                status === "active"
+                  ? "Active"
+                  : status === "missing-api-key"
+                    ? "Missing API key"
+                    : "Disabled";
 
               return (
                 <button
@@ -63,12 +73,14 @@ export function ConnectionList({
                     <span
                       className={cn(
                         "rounded px-1.5 py-0.5",
-                        connection.enabled
+                        status === "active"
                           ? "bg-green-500/20 text-green-700 dark:text-green-400"
-                          : "bg-zinc-500/20 text-zinc-700 dark:text-zinc-400",
+                          : status === "missing-api-key"
+                            ? "bg-amber-500/20 text-amber-700 dark:text-amber-400"
+                            : "bg-zinc-500/20 text-zinc-700 dark:text-zinc-400",
                       )}
                     >
-                      {connection.enabled ? "Active" : "Disabled"}
+                      {statusLabel}
                     </span>
                   </div>
                 </button>

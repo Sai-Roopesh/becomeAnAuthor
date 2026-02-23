@@ -13,6 +13,7 @@ export {
   stream,
   object,
   getEnabledConnections,
+  hasUsableAIConnection,
   getConnectionForModel,
   type GenerateOptions,
   type GenerateObjectOptions,
