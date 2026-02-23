@@ -228,7 +228,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
       {/* Hidden menu template for tippy */}
       <div
         ref={menuRef}
-        className="max-w-[calc(100vw-1rem)] overflow-x-auto rounded-lg border bg-background p-1 shadow-lg"
+        className="max-w-[calc(100vw-1rem)] overflow-x-auto rounded-lg border bg-background p-1 text-foreground shadow-lg"
       >
         <div className="flex items-center gap-1">
           <Button
@@ -238,7 +238,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
               e.preventDefault();
               handleAction("tweak");
             }}
-            className="h-8 shrink-0 px-3"
+            className="h-8 shrink-0 px-3 text-foreground"
           >
             <Wand2 className="h-4 w-4 mr-1.5" />
             Tweak & Generate
@@ -250,7 +250,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
               e.preventDefault();
               handleAction("expand");
             }}
-            className="h-8 shrink-0 px-3"
+            className="h-8 shrink-0 px-3 text-foreground"
           >
             <Expand className="h-4 w-4 mr-1.5" />
             Expand
@@ -262,7 +262,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
               e.preventDefault();
               handleAction("rephrase");
             }}
-            className="h-8 shrink-0 px-3"
+            className="h-8 shrink-0 px-3 text-foreground"
           >
             <RefreshCw className="h-4 w-4 mr-1.5" />
             Rephrase
@@ -274,7 +274,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
               e.preventDefault();
               handleAction("shorten");
             }}
-            className="h-8 shrink-0 px-3"
+            className="h-8 shrink-0 px-3 text-foreground"
           >
             <Minimize2 className="h-4 w-4 mr-1.5" />
             Shorten
@@ -286,7 +286,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
               event.preventDefault();
               requestCodexLink("selection-bubble");
             }}
-            className="h-8 shrink-0 px-3"
+            className="h-8 shrink-0 px-3 text-foreground"
           >
             <Link2 className="h-4 w-4 mr-1.5" />
             Link to Codex
@@ -297,7 +297,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
       {/* Hidden context menu template for right-click selection link */}
       <div
         ref={contextMenuRef}
-        className="rounded-md border bg-background p-1 shadow-md"
+        className="rounded-md border bg-background p-1 text-foreground shadow-md"
       >
         <Button
           variant="ghost"
@@ -306,7 +306,7 @@ export const TextSelectionMenu = memo(function TextSelectionMenu({
             event.preventDefault();
             requestCodexLink("context-menu");
           }}
-          className="h-8 px-3"
+          className="h-8 px-3 text-foreground"
         >
           <Link2 className="h-4 w-4 mr-1.5" />
           Link to Codex
