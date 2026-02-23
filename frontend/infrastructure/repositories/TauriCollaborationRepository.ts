@@ -35,11 +35,10 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
 
   async saveYjsState(
     sceneId: string,
-    projectId: string,
+    _projectId: string,
     update: Uint8Array,
   ): Promise<void> {
     // Project identity is part of domain contract; storage uses active project path.
-    void projectId;
     const projectPath = this.getProjectPath();
     if (!projectPath) {
       log.debug("Cannot save Yjs state: No project path set");
@@ -64,9 +63,8 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
 
   async loadYjsState(
     sceneId: string,
-    projectId: string,
+    _projectId: string,
   ): Promise<YjsStateSnapshot | null> {
-    void projectId;
     const projectPath = this.getProjectPath();
     if (!projectPath) {
       log.debug("Cannot load Yjs state: No project path set");
@@ -99,8 +97,7 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     }
   }
 
-  async hasYjsState(sceneId: string, projectId: string): Promise<boolean> {
-    void projectId;
+  async hasYjsState(sceneId: string, _projectId: string): Promise<boolean> {
     const projectPath = this.getProjectPath();
     if (!projectPath) return false;
 
@@ -114,8 +111,7 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     }
   }
 
-  async deleteYjsState(sceneId: string, projectId: string): Promise<void> {
-    void projectId;
+  async deleteYjsState(sceneId: string, _projectId: string): Promise<void> {
     const projectPath = this.getProjectPath();
     if (!projectPath) {
       log.debug("Cannot delete Yjs state: No project path set");
