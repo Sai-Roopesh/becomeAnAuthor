@@ -527,8 +527,8 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 | Component | Lines | Purpose |
 |---|---|---|
 | `SettingsDialog` | 131 | 4-tab dialog orchestrator with theme toggle |
-| `AIConnectionsTab` | 171 | AI vendor connection CRUD with model refresh, responsive list view |
-| `useAIConnections` | 158 | Hook: CRUD, localStorage persistence, model discovery |
+| `AIConnectionsTab` | 171 | AI vendor connection CRUD with model refresh, API key status checks, responsive list view |
+| `useAIConnections` | 158 | Hook: CRUD, localStorage persistence (metadata only), keychain integration, model discovery |
 
 ### 10.7 Dashboard — `features/dashboard/`
 
@@ -597,7 +597,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Key | Data |
 |---|---|
-| `ai_connections` | AIConnection[] (vendor, API key, models, enabled) |
+| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) — keys in OS keychain |
 | `project-store` | Zustand: sidebar/timeline visibility, tab selections |
 | `format-settings` | Zustand: typography and editor mode preferences |
 | `google_tokens` | OAuth tokens with expiry |
@@ -606,7 +606,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ## 13. Security Architecture
 
-- **API Keys**: Tauri keychain (`keyring`) via `security.rs`; Google tokens also stored in keychain on desktop.
+- **API Keys**: Tauri keychain (`keyring`) via `security.rs`; Google tokens also stored in keychain on desktop. `localStorage` only persists `hasApiKey` boolean metadata to avoid plaintext exposure.
 - **OAuth 2.0**:
   - **Desktop:** System browser + localhost loopback + PKCE. Tokens in OS keychain.
   - **Web:** Standard PKCE flow. Tokens in localStorage.
