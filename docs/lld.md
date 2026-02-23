@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Status:** Living Document
 
 ---
@@ -37,7 +37,7 @@
 | Principle | Implementation |
 |---|---|
 | **Local-first** | All data stored on local filesystem; no cloud dependency |
-| **Privacy-focused** | API keys stored in OS keychain; AI calls made directly from client |
+| **Privacy-focused** | API keys stored in local secure storage; AI calls made directly from client |
 | **Clean Architecture** | Domain-driven design with repository pattern and dependency injection |
 | **Feature-modular** | Each feature encapsulated with its own components, hooks, and exports |
 
@@ -64,7 +64,7 @@
 │  └─────┬────┘  └────────┘  └───────┘                    │
 │        │                                                 │
 │  ┌─────▼─────────────────────────────────────┐          │
-│  │   File System / OS Keychain / OS APIs      │          │
+│  │   File System / Local File Storage         │          │
 │  └────────────────────────────────────────────┘          │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -106,7 +106,7 @@
 | File Ops | walkdir | 2.x |
 | Markdown | gray_matter | 0.2 |
 | Doc Gen | docx-rs (legacy), epub-builder | 0.4 / 0.7 |
-| Secret Store | keyring (OS keychain) | 2.3 |
+| Secret Store | Local JSON storage (backend-managed) | - |
 | Logging | tauri-plugin-log | 2.1 |
 
 ---
@@ -151,14 +151,14 @@ backend/src/
 │   ├── search.rs        # Full-text search across project (7.3KB)
 │   ├── backup.rs        # Emergency backup + export/import + rollback (40KB)
 │   ├── trash.rs         # Soft delete with restore (5.4KB)
-│   ├── security.rs      # OS keychain API key management (5.9KB)
+│   ├── security.rs      # Local file-based API key management (5.9KB)
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
 │   ├── snippet.rs       # Reusable text snippets (1.6KB)
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
 │   ├── world_map.rs     # Map management with image upload (2.7KB)
 │   ├── world_timeline.rs# World-level timeline events (1.8KB)
-│   └── google_oauth.rs  # Desktop OAuth via loopback + keyring (15KB)
+│   └── google_oauth.rs  # Desktop OAuth via loopback + local storage (15KB)
 ├── models/              # Data structures (11 modules)
 │   ├── mod.rs
 │   ├── project.rs       # ProjectMeta, StructureNode, Series
@@ -177,7 +177,7 @@ backend/src/
     ├── text.rs          # Text processing (word count, slugify)
     ├── validation.rs    # Input validation rules (10.7KB)
     ├── timestamp.rs     # RFC 3339 ↔ Unix timestamp conversion
-    └── security.rs      # Keyring operations wrapper
+    └── security.rs      # Security utilities
 ```
 
 ### 4.2 Command Pattern
@@ -234,7 +234,9 @@ pub fn command_name(param1: Type1, param2: Type2) -> Result<ReturnType, String> 
 │       └── codex/                # Series-level codex entries
 ├── .meta/
 │   ├── series.json               # All series metadata
-│   └── recent.json               # Recently opened projects
+│   ├── recent.json               # Recently opened projects
+│   ├── api_keys.json             # Encrypted API keys
+│   └── google_oauth_store.json   # Google OAuth tokens
 └── .trash/                       # Trashed projects
 ```
 
@@ -606,8 +608,8 @@ features/editor/
 │  ┌───────────────▼────────────────┐  │
 │  │  Connection Storage             │  │
 │  │  (core/storage/safe-storage)    │  │
-│  │  + OS Keychain for keys (meta-  │  │
-│  │    data only in storage)        │  │
+│  │  + Local Secure Storage for     │  │
+│  │    keys (meta-data in storage)  │  │
 │  └────────────────────────────────┘  │
 └──────────────────────────────────────┘
 ```
@@ -826,7 +828,7 @@ Rust: commands::chat::create_chat_message()
 
 | Store | Technology | Purpose |
 |---|---|---|
-| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with encrypted keys metadata (`hasApiKey`); actual keys in OS Keychain |
+| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with encrypted keys metadata (`hasApiKey`); actual keys in Local Secure Storage |
 | UI preferences | `localStorage` via Zustand persist | Panel states, view modes |
 | Editor format | `localStorage` via Zustand persist | Font, spacing, width preferences |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
@@ -845,16 +847,15 @@ Frontend: invoke("store_api_key", { provider, key })
         │
         ▼
 Rust: security::store_api_key()
-  → keyring::Entry::new("become-an-author", provider)
-  → entry.set_password(key)
+  → Write to .meta/api_keys.json (app-managed secure storage)
         │
         ▼
-OS Keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)
+Local File Storage
 ```
 
-- Keys are **never** stored in the filesystem or localStorage.
-- Retrieval via `get_api_key(provider)` → OS keychain lookup.
-- **Google OAuth Tokens**: Also stored in `keyring` (Service: `com.becomeauthor.app`, Account: `google-oauth-tokens`).
+- Keys are stored in app-local files (`.meta/api_keys.json`), never in browser localStorage.
+- Retrieval via `get_api_key(provider)` → Local File Storage lookup.
+- **Google OAuth Tokens**: Also stored in local storage (File: `.meta/google_oauth_store.json`).
 
 ### 15.2 Content Security
 

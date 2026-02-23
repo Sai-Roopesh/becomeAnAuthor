@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Status:** Living Document
 
 ---
@@ -43,7 +43,7 @@
 - Integration with 14 AI providers for intelligent writing assistance
 - Google Drive cloud backup
 
-The application prioritizes **data privacy** (all data stays local, API keys in OS keychain), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
+The application prioritizes **data privacy** (all data stays local, API keys stored locally on device), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
 
 ---
 
@@ -58,7 +58,7 @@ Authors need a dedicated writing environment that combines the organizational po
 | Goal | Description |
 |---|---|
 | **Local-First** | All data persisted on the user's filesystem; zero cloud dependency for core features |
-| **Privacy-First** | API keys stored in OS keychain; no telemetry; AI calls made directly from client |
+| **Privacy-First** | API keys stored in local secure storage; no telemetry; AI calls made directly from client |
 | **Offline-Capable** | Full editing, organizing, and exporting without internet; AI features degrade gracefully |
 | **AI-Integrated** | Deep integration with 14 AI providers for writing, rewriting, summarizing, and brainstorming |
 | **Professional Authoring** | Support full novel lifecycle: ideation → drafting → revision → export/publish |
@@ -173,7 +173,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 |---|---|---|
 | **Storage** | File-based (JSON + YAML/Markdown) | No database installation; human-readable; easy backup/migration; Git-friendly |
 | **Serialization** | serde (JSON/YAML) | Rust ecosystem standard; zero-cost abstractions; type-safe |
-| **Secret Storage** | OS Keychain (keyring crate) | macOS Keychain, Windows Credential Manager, Linux Secret Service; encrypted at rest |
+| **Secret Storage** | Local JSON storage (backend-managed) | App-scoped secure storage; encrypted at rest |
 | **Document Export** | epub-builder | ePub generation (Rust); DOCX/PDF via Frontend |
 | **Search** | Full-text scan (Rust command) | Simple file-based search with deterministic backend ranking for scenes and codex |
 
@@ -633,7 +633,7 @@ OAuth 2.0 PKCE flow:
 
 | Threat | Mitigation |
 |---|---|
-| API key exposure | Stored in OS keychain (encrypted at rest); never in filesystem or localStorage |
+| API key exposure | Stored in local secure storage; never in browser localStorage |
 | Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |
@@ -643,9 +643,9 @@ OAuth 2.0 PKCE flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, key) → OS Keychain (key) + localStorage (hasApiKey=true)
+Settings UI → store_api_key(provider, key) → Local Storage (key) + localStorage (hasApiKey=true)
                                               ↓ (encrypted)
-AI Request  → isConnectionUsable()          → get_api_key(provider) → OS Keychain
+AI Request  → isConnectionUsable()          → get_api_key(provider) → Local Storage
                                               ↓ (decrypted)
               → AI Provider API (HTTPS)
 ```
