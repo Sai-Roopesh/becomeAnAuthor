@@ -1,10 +1,9 @@
-
 /**
  * EditorStateManager Specification Tests
- * 
+ *
  * Following Test-Driven Development (TDD):
  * Tests written BEFORE implementation to define expected behavior.
- * 
+ *
  * SPECIFICATIONS:
  * 1. MUST mark dirty on editor update events
  * 2. MUST debounce saves to 500ms (configurable)
@@ -18,7 +17,15 @@
  * 10. MUST expose current status via getStatus()
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from "vitest";
 // Editor removed
 
 // ============================================
@@ -27,622 +34,725 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vite
 
 // Local mock interface to avoid any (eslint-disable required for mock flexibility)
 /* eslint-disable @typescript-eslint/no-explicit-any */
-interface MockEditor extends Partial<import('@tiptap/core').Editor> {
-    _emit(event: string): void;
-    on: Mock;
-    off: Mock;
-    getJSON: Mock;
-    isDestroyed: boolean;
-    commands: any;
-    storage: any;
-    _handlers: Map<string, Array<() => void>>;
+interface MockEditor extends Partial<import("@tiptap/core").Editor> {
+  _emit(event: string): void;
+  on: Mock;
+  off: Mock;
+  getJSON: Mock;
+  isDestroyed: boolean;
+  commands: any;
+  storage: any;
+  _handlers: Map<string, Array<() => void>>;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 const mockScheduleSave = vi.fn();
-vi.mock('@/lib/core/save-coordinator', () => ({
-    saveCoordinator: {
-        scheduleSave: (...args: unknown[]) => mockScheduleSave(...args),
-    },
+vi.mock("@/lib/core/save-coordinator", () => ({
+  saveCoordinator: {
+    scheduleSave: (...args: unknown[]) => mockScheduleSave(...args),
+  },
 }));
 
 const mockSaveBackup = vi.fn();
-vi.mock('@/infrastructure/services/emergency-backup-service', () => ({
-    emergencyBackupService: {
-        saveBackup: (...args: unknown[]) => mockSaveBackup(...args),
-    },
+vi.mock("@/infrastructure/services/emergency-backup-service", () => ({
+  emergencyBackupService: {
+    saveBackup: (...args: unknown[]) => mockSaveBackup(...args),
+  },
 }));
 
-vi.mock('@/shared/utils/logger', () => ({
-    logger: {
-        scope: () => ({
-            debug: vi.fn(),
-            error: vi.fn(),
-            warn: vi.fn(),
-        }),
-    },
+vi.mock("@/shared/utils/logger", () => ({
+  logger: {
+    scope: () => ({
+      debug: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+    }),
+  },
 }));
 
 // Import after mocks
-import { EditorStateManager } from '../editor-state-manager';
+import { EditorStateManager } from "../editor-state-manager";
 // SaveStatus removed
 
 // ============================================
 // Mock Editor Factory
 // ============================================
 
-function createMockEditor(options: {
+function createMockEditor(
+  options: {
     content?: object;
     isDestroyed?: boolean;
     wordCount?: number;
-} = {}) {
-    const handlers: Map<string, Array<() => void>> = new Map();
+  } = {},
+) {
+  const handlers: Map<string, Array<() => void>> = new Map();
 
-    return {
-        getJSON: vi.fn().mockReturnValue(options.content ?? { type: 'doc', content: [] }),
-        isDestroyed: options.isDestroyed ?? false,
-        // Mock storage for CharacterCount extension (word count feature)
-        storage: {
-            characterCount: {
-                words: vi.fn().mockReturnValue(options.wordCount ?? 0),
-                characters: vi.fn().mockReturnValue(0),
-            },
-        },
-        on: vi.fn((event: string, handler: () => void) => {
-            const existing = handlers.get(event) || [];
-            handlers.set(event, [...existing, handler]);
-        }),
-        off: vi.fn((event: string, handler: () => void) => {
-            const existing = handlers.get(event) || [];
-            handlers.set(event, existing.filter(h => h !== handler));
-        }),
-        // Helper to trigger events in tests
-        _emit: (event: string) => {
-            handlers.get(event)?.forEach(h => h());
-        },
-        _handlers: handlers,
-        commands: {},
-    } as unknown as MockEditor;
+  return {
+    getJSON: vi
+      .fn()
+      .mockReturnValue(options.content ?? { type: "doc", content: [] }),
+    isDestroyed: options.isDestroyed ?? false,
+    // Mock storage for CharacterCount extension (word count feature)
+    storage: {
+      characterCount: {
+        words: vi.fn().mockReturnValue(options.wordCount ?? 0),
+        characters: vi.fn().mockReturnValue(0),
+      },
+    },
+    on: vi.fn((event: string, handler: () => void) => {
+      const existing = handlers.get(event) || [];
+      handlers.set(event, [...existing, handler]);
+    }),
+    off: vi.fn((event: string, handler: () => void) => {
+      const existing = handlers.get(event) || [];
+      handlers.set(
+        event,
+        existing.filter((h) => h !== handler),
+      );
+    }),
+    // Helper to trigger events in tests
+    _emit: (event: string) => {
+      handlers.get(event)?.forEach((h) => h());
+    },
+    _handlers: handlers,
+    commands: {},
+  } as unknown as MockEditor;
 }
 
 // ============================================
 // Specification Tests
 // ============================================
 
-describe('EditorStateManager Specifications', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        vi.useFakeTimers();
+describe("EditorStateManager Specifications", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
 
-        mockScheduleSave.mockResolvedValue(undefined);
-        mockSaveBackup.mockResolvedValue(undefined);
+    mockScheduleSave.mockResolvedValue(undefined);
+    mockSaveBackup.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // ========================================
+  // SPEC 1: Dirty Flag Tracking
+  // ========================================
+
+  describe("SPEC: Dirty Flag - MUST mark dirty on editor update", () => {
+    it("MUST mark dirty when editor emits update event", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      // Initially clean
+      expect(manager.getStatus().isDirty).toBe(false);
+      expect(manager.getStatus().status).toBe("saved");
+
+      // Trigger update
+      editor._emit("update");
+
+      // Now dirty
+      expect(manager.getStatus().isDirty).toBe(true);
+      expect(manager.getStatus().status).toBe("unsaved");
+
+      manager.destroy();
     });
 
-    afterEach(() => {
-        vi.useRealTimers();
+    it("MUST attach update listener on construction", () => {
+      const editor = createMockEditor();
+
+      new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      expect(editor.on).toHaveBeenCalledWith("update", expect.any(Function));
     });
 
-    // ========================================
-    // SPEC 1: Dirty Flag Tracking
-    // ========================================
+    it("MUST NOT mark dirty multiple times for rapid updates", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
 
-    describe('SPEC: Dirty Flag - MUST mark dirty on editor update', () => {
-        it('MUST mark dirty when editor emits update event', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      editor._emit("update");
+      editor._emit("update");
+      editor._emit("update");
 
-            // Initially clean
-            expect(manager.getStatus().isDirty).toBe(false);
-            expect(manager.getStatus().status).toBe('saved');
+      // Should still be dirty (not multiple times)
+      expect(manager.getStatus().isDirty).toBe(true);
 
-            // Trigger update
-            editor._emit('update');
+      manager.destroy();
+    });
+  });
 
-            // Now dirty
-            expect(manager.getStatus().isDirty).toBe(true);
-            expect(manager.getStatus().status).toBe('unsaved');
+  // ========================================
+  // SPEC 2: Debounced Saves
+  // ========================================
 
-            manager.destroy();
-        });
+  describe("SPEC: Debounced Saves - MUST wait 500ms before saving", () => {
+    it("MUST debounce save after update event", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+        { debounceMs: 500 },
+      );
 
-        it('MUST attach update listener on construction', () => {
-            const editor = createMockEditor();
+      editor._emit("update");
 
-            new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      // Should NOT save immediately
+      expect(mockScheduleSave).not.toHaveBeenCalled();
 
-            expect(editor.on).toHaveBeenCalledWith('update', expect.any(Function));
-        });
+      // Advance 250ms - still should not save
+      await vi.advanceTimersByTimeAsync(250);
+      expect(mockScheduleSave).not.toHaveBeenCalled();
 
-        it('MUST NOT mark dirty multiple times for rapid updates', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      // Advance to 500ms - NOW should save
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.runAllTimersAsync();
 
-            editor._emit('update');
-            editor._emit('update');
-            editor._emit('update');
+      expect(mockScheduleSave).toHaveBeenCalledTimes(1);
+      expect(mockScheduleSave).toHaveBeenCalledWith(
+        "scene-123",
+        expect.any(Function),
+        0,
+      );
 
-            // Should still be dirty (not multiple times)
-            expect(manager.getStatus().isDirty).toBe(true);
-
-            manager.destroy();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 2: Debounced Saves
-    // ========================================
+    it("MUST coalesce multiple rapid updates into single save", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+        { debounceMs: 500 },
+      );
 
-    describe('SPEC: Debounced Saves - MUST wait 500ms before saving', () => {
-        it('MUST debounce save after update event', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
+      // Rapid updates
+      editor._emit("update");
+      await vi.advanceTimersByTimeAsync(100);
+      editor._emit("update");
+      await vi.advanceTimersByTimeAsync(100);
+      editor._emit("update");
 
-            editor._emit('update');
+      // Wait for debounce
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.runAllTimersAsync();
 
-            // Should NOT save immediately
-            expect(mockScheduleSave).not.toHaveBeenCalled();
+      // Should only save once
+      expect(mockScheduleSave).toHaveBeenCalledTimes(1);
 
-            // Advance 250ms - still should not save
-            await vi.advanceTimersByTimeAsync(250);
-            expect(mockScheduleSave).not.toHaveBeenCalled();
-
-            // Advance to 500ms - NOW should save
-            await vi.advanceTimersByTimeAsync(250);
-            await vi.runAllTimersAsync();
-
-            expect(mockScheduleSave).toHaveBeenCalledTimes(1);
-            expect(mockScheduleSave).toHaveBeenCalledWith('scene-123', expect.any(Function), 0);
-
-            manager.destroy();
-        });
-
-        it('MUST coalesce multiple rapid updates into single save', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
-
-            // Rapid updates
-            editor._emit('update');
-            await vi.advanceTimersByTimeAsync(100);
-            editor._emit('update');
-            await vi.advanceTimersByTimeAsync(100);
-            editor._emit('update');
-
-            // Wait for debounce
-            await vi.advanceTimersByTimeAsync(500);
-            await vi.runAllTimersAsync();
-
-            // Should only save once
-            expect(mockScheduleSave).toHaveBeenCalledTimes(1);
-
-            manager.destroy();
-        });
-
-        it('MUST allow custom debounce time', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 1000 });
-
-            editor._emit('update');
-
-            await vi.advanceTimersByTimeAsync(500);
-            expect(mockScheduleSave).not.toHaveBeenCalled();
-
-            await vi.advanceTimersByTimeAsync(500);
-            await vi.runAllTimersAsync();
-
-            expect(mockScheduleSave).toHaveBeenCalledTimes(1);
-
-            manager.destroy();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 3: Immediate Save
-    // ========================================
+    it("MUST allow custom debounce time", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+        { debounceMs: 1000 },
+      );
 
-    describe('SPEC: Immediate Save - MUST bypass debounce', () => {
-        it('MUST save immediately without waiting for debounce', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
+      editor._emit("update");
 
-            editor._emit('update');
+      await vi.advanceTimersByTimeAsync(500);
+      expect(mockScheduleSave).not.toHaveBeenCalled();
 
-            // Call immediate save
-            await manager.saveImmediate();
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.runAllTimersAsync();
 
-            // Should save immediately (no debounce wait)
-            expect(mockScheduleSave).toHaveBeenCalledTimes(1);
+      expect(mockScheduleSave).toHaveBeenCalledTimes(1);
 
-            manager.destroy();
-        });
+      manager.destroy();
+    });
+  });
 
-        it('MUST cancel pending debounced save when immediate save called', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
+  // ========================================
+  // SPEC 3: Immediate Save
+  // ========================================
 
-            editor._emit('update');
+  describe("SPEC: Immediate Save - MUST bypass debounce", () => {
+    it("MUST save immediately without waiting for debounce", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+        { debounceMs: 500 },
+      );
 
-            // Call immediate save before debounce completes
-            await manager.saveImmediate();
+      editor._emit("update");
 
-            // Advance past debounce time
-            await vi.advanceTimersByTimeAsync(500);
-            await vi.runAllTimersAsync();
+      // Call immediate save
+      await manager.saveImmediate();
 
-            // Should only have saved once (immediate), not twice
-            expect(mockScheduleSave).toHaveBeenCalledTimes(1);
+      // Should save immediately (no debounce wait)
+      expect(mockScheduleSave).toHaveBeenCalledTimes(1);
 
-            manager.destroy();
-        });
-
-        it('MUST NOT save if already clean', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            // Don't trigger update (stay clean)
-            await manager.saveImmediate();
-
-            // Should not save (nothing to save)
-            expect(mockScheduleSave).not.toHaveBeenCalled();
-
-            manager.destroy();
-        });
-
-        it('MUST NOT save if already saving', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            // Make it block on first save
-            let resolveFirstSave: () => void;
-            const firstSavePromise = new Promise<void>(resolve => {
-                resolveFirstSave = resolve;
-            });
-            mockScheduleSave.mockReturnValueOnce(firstSavePromise);
-
-            editor._emit('update');
-
-            // Start first save (will block)
-            const firstSave = manager.saveImmediate();
-
-            // Try to save again while first is in progress
-            await manager.saveImmediate();
-
-            // Should only call once
-            expect(mockScheduleSave).toHaveBeenCalledTimes(1);
-
-            // Resolve first save
-            resolveFirstSave!();
-            await firstSave;
-
-            manager.destroy();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 4: Save Status Tracking
-    // ========================================
+    it("MUST cancel pending debounced save when immediate save called", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+        { debounceMs: 500 },
+      );
 
-    describe('SPEC: Status Tracking - MUST track save status', () => {
-        it('MUST start with "saved" status', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      editor._emit("update");
 
-            const status = manager.getStatus();
-            expect(status.status).toBe('saved');
-            expect(status.isDirty).toBe(false);
-            expect(status.isSaving).toBe(false);
-            expect(status.lastSavedAt).toBe(null);
+      // Call immediate save before debounce completes
+      await manager.saveImmediate();
 
-            manager.destroy();
-        });
+      // Advance past debounce time
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.runAllTimersAsync();
 
-        it('MUST change to "unsaved" when dirty', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      // Should only have saved once (immediate), not twice
+      expect(mockScheduleSave).toHaveBeenCalledTimes(1);
 
-            editor._emit('update');
-
-            expect(manager.getStatus().status).toBe('unsaved');
-
-            manager.destroy();
-        });
-
-        it('MUST change to "saving" during save', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            // Block save
-            let resolveSave: () => void;
-            const savePromise = new Promise<void>(resolve => {
-                resolveSave = resolve;
-            });
-            mockScheduleSave.mockReturnValueOnce(savePromise);
-
-            editor._emit('update');
-            const save = manager.saveImmediate();
-
-            // Check status during save
-            expect(manager.getStatus().status).toBe('saving');
-            expect(manager.getStatus().isSaving).toBe(true);
-
-            resolveSave!();
-            await save;
-
-            manager.destroy();
-        });
-
-        it('MUST change to "saved" after successful save', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            editor._emit('update');
-            await manager.saveImmediate();
-
-            const status = manager.getStatus();
-            expect(status.status).toBe('saved');
-            expect(status.isDirty).toBe(false);
-            expect(status.isSaving).toBe(false);
-            expect(status.lastSavedAt).toBeGreaterThan(0);
-
-            manager.destroy();
-        });
-
-        it('MUST change to "error" on save failure', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            mockScheduleSave.mockRejectedValueOnce(new Error('Save failed'));
-
-            editor._emit('update');
-
-            try {
-                await manager.saveImmediate();
-            } catch {
-                // Expected to throw
-            }
-
-            expect(manager.getStatus().status).toBe('error');
-
-            manager.destroy();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 5: Status Listeners
-    // ========================================
+    it("MUST NOT save if already clean", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
 
-    describe('SPEC: Status Listeners - MUST notify on status change', () => {
-        it('MUST call listener immediately with current status on subscribe', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      // Don't trigger update (stay clean)
+      await manager.saveImmediate();
 
-            const listener = vi.fn();
-            manager.onStatusChange(listener);
+      // Should not save (nothing to save)
+      expect(mockScheduleSave).not.toHaveBeenCalled();
 
-            // Should be called immediately
-            expect(listener).toHaveBeenCalledWith('saved', undefined);
-
-            manager.destroy();
-        });
-
-        it('MUST notify listener when status changes to unsaved', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            const listener = vi.fn();
-            manager.onStatusChange(listener);
-
-            vi.clearAllMocks();
-
-            editor._emit('update');
-
-            expect(listener).toHaveBeenCalledWith('unsaved', undefined);
-
-            manager.destroy();
-        });
-
-        it('MUST notify listener when status changes to saved', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            const listener = vi.fn();
-            manager.onStatusChange(listener);
-
-            editor._emit('update');
-            vi.clearAllMocks();
-
-            await manager.saveImmediate();
-
-            // Should notify with 'saved' and timestamp
-            expect(listener).toHaveBeenCalledWith('saved', expect.any(Number));
-
-            manager.destroy();
-        });
-
-        it('MUST support multiple listeners', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            const listener1 = vi.fn();
-            const listener2 = vi.fn();
-
-            manager.onStatusChange(listener1);
-            manager.onStatusChange(listener2);
-
-            vi.clearAllMocks();
-
-            editor._emit('update');
-
-            expect(listener1).toHaveBeenCalledWith('unsaved', undefined);
-            expect(listener2).toHaveBeenCalledWith('unsaved', undefined);
-
-            manager.destroy();
-        });
-
-        it('MUST return unsubscribe function', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            const listener = vi.fn();
-            const unsubscribe = manager.onStatusChange(listener);
-
-            expect(typeof unsubscribe).toBe('function');
-
-            vi.clearAllMocks();
-            unsubscribe();
-
-            editor._emit('update');
-
-            // Should not be called after unsubscribe
-            expect(listener).not.toHaveBeenCalled();
-
-            manager.destroy();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 6: Emergency Backup
-    // ========================================
+    it("MUST NOT save if already saving", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
 
-    describe('SPEC: Emergency Backup - MUST create backup on save failure', () => {
-        it('MUST create emergency backup when save fails', async () => {
-            const editor = createMockEditor({ content: { type: 'doc', content: [{ type: 'paragraph' }] } });
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      // Make it block on first save
+      let resolveFirstSave: () => void;
+      const firstSavePromise = new Promise<void>((resolve) => {
+        resolveFirstSave = resolve;
+      });
+      mockScheduleSave.mockReturnValueOnce(firstSavePromise);
 
-            mockScheduleSave.mockRejectedValueOnce(new Error('Network error'));
+      editor._emit("update");
 
-            editor._emit('update');
+      // Start first save (will block)
+      const firstSave = manager.saveImmediate();
 
-            try {
-                await manager.saveImmediate();
-            } catch {
-                // Expected
-            }
+      // Try to save again while first is in progress
+      await manager.saveImmediate();
 
-            expect(mockSaveBackup).toHaveBeenCalledWith(
-                'scene-123',
-                { type: 'doc', content: [{ type: 'paragraph' }] }
-            );
+      // Should only call once
+      expect(mockScheduleSave).toHaveBeenCalledTimes(1);
 
-            manager.destroy();
-        });
+      // Resolve first save
+      resolveFirstSave!();
+      await firstSave;
 
-        it('MUST still throw error after creating backup', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      manager.destroy();
+    });
+  });
 
-            const error = new Error('Save failed');
-            mockScheduleSave.mockRejectedValueOnce(error);
+  // ========================================
+  // SPEC 4: Save Status Tracking
+  // ========================================
 
-            editor._emit('update');
+  describe("SPEC: Status Tracking - MUST track save status", () => {
+    it('MUST start with "saved" status', () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
 
-            await expect(manager.saveImmediate()).rejects.toThrow('Save failed');
+      const status = manager.getStatus();
+      expect(status.status).toBe("saved");
+      expect(status.isDirty).toBe(false);
+      expect(status.isSaving).toBe(false);
+      expect(status.lastSavedAt).toBe(null);
 
-            manager.destroy();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 7: SaveCoordinator Integration
-    // ========================================
+    it('MUST change to "unsaved" when dirty', () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
 
-    describe('SPEC: SaveCoordinator - MUST use coordinator for saves', () => {
-        it('MUST call saveCoordinator.scheduleSave with scene ID', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'my-scene-456');
+      editor._emit("update");
 
-            editor._emit('update');
-            await manager.saveImmediate();
+      expect(manager.getStatus().status).toBe("unsaved");
 
-            expect(mockScheduleSave).toHaveBeenCalledWith(
-                'my-scene-456',
-                expect.any(Function),
-                0
-            );
-
-            manager.destroy();
-        });
-
-        it('Content getter MUST return current editor JSON', async () => {
-            const expectedContent = { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 } }] };
-            const editor = createMockEditor({ content: expectedContent });
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            editor._emit('update');
-            await manager.saveImmediate();
-
-            const calls = mockScheduleSave.mock.calls[0] as [string, () => unknown];
-            const contentGetter = calls[1];
-            expect(contentGetter()).toEqual(expectedContent);
-
-            manager.destroy();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 8: Cleanup
-    // ========================================
+    it('MUST change to "saving" during save', async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
 
-    describe('SPEC: Cleanup - MUST cleanup on destroy', () => {
-        it('MUST detach editor listeners on destroy', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      // Block save
+      let resolveSave: () => void;
+      const savePromise = new Promise<void>((resolve) => {
+        resolveSave = resolve;
+      });
+      mockScheduleSave.mockReturnValueOnce(savePromise);
 
-            expect(editor.on).toHaveBeenCalled();
+      editor._emit("update");
+      const save = manager.saveImmediate();
 
-            manager.destroy();
+      // Check status during save
+      expect(manager.getStatus().status).toBe("saving");
+      expect(manager.getStatus().isSaving).toBe(true);
 
-            expect(editor.off).toHaveBeenCalledWith('update', expect.any(Function));
-        });
+      resolveSave!();
+      await save;
 
-        it('MUST clear debounce timer on destroy', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123', { debounceMs: 500 });
-
-            editor._emit('update');
-
-            manager.destroy();
-
-            // Advance past debounce time
-            await vi.advanceTimersByTimeAsync(500);
-            await vi.runAllTimersAsync();
-
-            // Should not save (timer was cleared)
-            expect(mockScheduleSave).not.toHaveBeenCalled();
-        });
-
-        it('MUST clear status listeners on destroy', () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
-
-            const listener = vi.fn();
-            manager.onStatusChange(listener);
-
-            manager.destroy();
-
-            vi.clearAllMocks();
-
-            // Try to trigger update (should not notify)
-            editor._emit('update');
-
-            expect(listener).not.toHaveBeenCalled();
-        });
+      manager.destroy();
     });
 
-    // ========================================
-    // SPEC 9: Flush Method
-    // ========================================
+    it('MUST change to "saved" after successful save', async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
 
-    describe('SPEC: Flush - MUST provide flush method', () => {
-        it('flush() MUST be an alias for saveImmediate()', async () => {
-            const editor = createMockEditor();
-            const manager = new EditorStateManager(editor as unknown as import('@tiptap/core').Editor, 'scene-123');
+      editor._emit("update");
+      await manager.saveImmediate();
 
-            editor._emit('update');
-            await manager.flush();
+      const status = manager.getStatus();
+      expect(status.status).toBe("saved");
+      expect(status.isDirty).toBe(false);
+      expect(status.isSaving).toBe(false);
+      expect(status.lastSavedAt).toBeGreaterThan(0);
 
-            expect(mockScheduleSave).toHaveBeenCalledTimes(1);
-
-            manager.destroy();
-        });
+      manager.destroy();
     });
+
+    it('MUST change to "error" on save failure', async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      mockScheduleSave.mockRejectedValueOnce(new Error("Save failed"));
+
+      editor._emit("update");
+
+      try {
+        await manager.saveImmediate();
+      } catch {
+        // Expected to throw
+      }
+
+      expect(manager.getStatus().status).toBe("error");
+
+      manager.destroy();
+    });
+  });
+
+  // ========================================
+  // SPEC 5: Status Listeners
+  // ========================================
+
+  describe("SPEC: Status Listeners - MUST notify on status change", () => {
+    it("MUST call listener immediately with current status on subscribe", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      const listener = vi.fn();
+      manager.onStatusChange(listener);
+
+      // Should be called immediately
+      expect(listener).toHaveBeenCalledWith("saved", undefined);
+
+      manager.destroy();
+    });
+
+    it("MUST notify listener when status changes to unsaved", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      const listener = vi.fn();
+      manager.onStatusChange(listener);
+
+      vi.clearAllMocks();
+
+      editor._emit("update");
+
+      expect(listener).toHaveBeenCalledWith("unsaved", undefined);
+
+      manager.destroy();
+    });
+
+    it("MUST notify listener when status changes to saved", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      const listener = vi.fn();
+      manager.onStatusChange(listener);
+
+      editor._emit("update");
+      vi.clearAllMocks();
+
+      await manager.saveImmediate();
+
+      // Should notify with 'saved' and timestamp
+      expect(listener).toHaveBeenCalledWith("saved", expect.any(Number));
+
+      manager.destroy();
+    });
+
+    it("MUST support multiple listeners", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      const listener1 = vi.fn();
+      const listener2 = vi.fn();
+
+      manager.onStatusChange(listener1);
+      manager.onStatusChange(listener2);
+
+      vi.clearAllMocks();
+
+      editor._emit("update");
+
+      expect(listener1).toHaveBeenCalledWith("unsaved", undefined);
+      expect(listener2).toHaveBeenCalledWith("unsaved", undefined);
+
+      manager.destroy();
+    });
+
+    it("MUST return unsubscribe function", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      const listener = vi.fn();
+      const unsubscribe = manager.onStatusChange(listener);
+
+      expect(typeof unsubscribe).toBe("function");
+
+      vi.clearAllMocks();
+      unsubscribe();
+
+      editor._emit("update");
+
+      // Should not be called after unsubscribe
+      expect(listener).not.toHaveBeenCalled();
+
+      manager.destroy();
+    });
+  });
+
+  // ========================================
+  // SPEC 6: Error propagation
+  // ========================================
+
+  describe("SPEC: Error Handling - MUST not duplicate backup creation", () => {
+    it("MUST delegate backup handling to SaveCoordinator only", async () => {
+      const editor = createMockEditor({
+        content: { type: "doc", content: [{ type: "paragraph" }] },
+      });
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      mockScheduleSave.mockRejectedValueOnce(new Error("Network error"));
+
+      editor._emit("update");
+
+      try {
+        await manager.saveImmediate();
+      } catch {
+        // Expected
+      }
+
+      expect(mockSaveBackup).not.toHaveBeenCalled();
+
+      manager.destroy();
+    });
+
+    it("MUST still throw error after creating backup", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      const error = new Error("Save failed");
+      mockScheduleSave.mockRejectedValueOnce(error);
+
+      editor._emit("update");
+
+      await expect(manager.saveImmediate()).rejects.toThrow("Save failed");
+
+      manager.destroy();
+    });
+  });
+
+  // ========================================
+  // SPEC 7: SaveCoordinator Integration
+  // ========================================
+
+  describe("SPEC: SaveCoordinator - MUST use coordinator for saves", () => {
+    it("MUST call saveCoordinator.scheduleSave with scene ID", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "my-scene-456",
+      );
+
+      editor._emit("update");
+      await manager.saveImmediate();
+
+      expect(mockScheduleSave).toHaveBeenCalledWith(
+        "my-scene-456",
+        expect.any(Function),
+        0,
+      );
+
+      manager.destroy();
+    });
+
+    it("Content getter MUST return current editor JSON", async () => {
+      const expectedContent = {
+        type: "doc",
+        content: [{ type: "heading", attrs: { level: 1 } }],
+      };
+      const editor = createMockEditor({ content: expectedContent });
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      editor._emit("update");
+      await manager.saveImmediate();
+
+      const calls = mockScheduleSave.mock.calls[0] as [string, () => unknown];
+      const contentGetter = calls[1];
+      expect(contentGetter()).toEqual(expectedContent);
+
+      manager.destroy();
+    });
+  });
+
+  // ========================================
+  // SPEC 8: Cleanup
+  // ========================================
+
+  describe("SPEC: Cleanup - MUST cleanup on destroy", () => {
+    it("MUST detach editor listeners on destroy", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      expect(editor.on).toHaveBeenCalled();
+
+      manager.destroy();
+
+      expect(editor.off).toHaveBeenCalledWith("update", expect.any(Function));
+    });
+
+    it("MUST clear debounce timer on destroy", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+        { debounceMs: 500 },
+      );
+
+      editor._emit("update");
+
+      manager.destroy();
+
+      // Advance past debounce time
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.runAllTimersAsync();
+
+      // Should not save (timer was cleared)
+      expect(mockScheduleSave).not.toHaveBeenCalled();
+    });
+
+    it("MUST clear status listeners on destroy", () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      const listener = vi.fn();
+      manager.onStatusChange(listener);
+
+      manager.destroy();
+
+      vi.clearAllMocks();
+
+      // Try to trigger update (should not notify)
+      editor._emit("update");
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
+  // ========================================
+  // SPEC 9: Flush Method
+  // ========================================
+
+  describe("SPEC: Flush - MUST provide flush method", () => {
+    it("flush() MUST be an alias for saveImmediate()", async () => {
+      const editor = createMockEditor();
+      const manager = new EditorStateManager(
+        editor as unknown as import("@tiptap/core").Editor,
+        "scene-123",
+      );
+
+      editor._emit("update");
+      await manager.flush();
+
+      expect(mockScheduleSave).toHaveBeenCalledTimes(1);
+
+      manager.destroy();
+    });
+  });
 });
