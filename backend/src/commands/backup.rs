@@ -1,21 +1,14 @@
 // Backup and export commands
 
-use std::fs;
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
-use crate::models::{ProjectMeta, EmergencyBackup, StructureNode, Series, CodexRelation};
+use crate::models::{CodexRelation, EmergencyBackup, ProjectMeta, Series, StructureNode};
 use crate::utils::{
-    get_app_dir,
-    get_projects_dir,
-    get_series_codex_path,
-    get_series_dir,
-    get_series_path,
-    sanitize_path_component,
-    slugify,
-    timestamp,
-    validate_no_null_bytes,
-    validate_uuid_format,
+    get_app_dir, get_projects_dir, get_series_codex_path, get_series_dir, get_series_path,
+    sanitize_path_component, slugify, timestamp, validate_no_null_bytes, validate_uuid_format,
 };
 
 // Emergency Backup Commands
@@ -24,11 +17,11 @@ pub fn save_emergency_backup(backup: EmergencyBackup) -> Result<(), String> {
     let app_dir = get_app_dir()?;
     let backups_dir = app_dir.join(".emergency_backups");
     fs::create_dir_all(&backups_dir).map_err(|e| e.to_string())?;
-    
+
     let backup_path = backups_dir.join(format!("{}.json", backup.id));
     let json = serde_json::to_string_pretty(&backup).map_err(|e| e.to_string())?;
     fs::write(&backup_path, json).map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
@@ -36,33 +29,37 @@ pub fn save_emergency_backup(backup: EmergencyBackup) -> Result<(), String> {
 pub fn get_emergency_backup(scene_id: String) -> Result<Option<EmergencyBackup>, String> {
     let app_dir = get_app_dir()?;
     let backups_dir = app_dir.join(".emergency_backups");
-    
+
     if !backups_dir.exists() {
         return Ok(None);
     }
-    
+
     for entry in (fs::read_dir(&backups_dir).map_err(|e| e.to_string())?).flatten() {
         if let Ok(content) = fs::read_to_string(entry.path()) {
             if let Ok(backup) = serde_json::from_str::<EmergencyBackup>(&content) {
-                if backup.scene_id == scene_id && backup.expires_at > chrono::Utc::now().timestamp_millis() {
+                if backup.scene_id == scene_id
+                    && backup.expires_at > chrono::Utc::now().timestamp_millis()
+                {
                     return Ok(Some(backup));
                 }
             }
         }
     }
-    
+
     Ok(None)
 }
 
 #[tauri::command]
 pub fn delete_emergency_backup(backup_id: String) -> Result<(), String> {
     let app_dir = get_app_dir()?;
-    let backup_path = app_dir.join(".emergency_backups").join(format!("{}.json", backup_id));
-    
+    let backup_path = app_dir
+        .join(".emergency_backups")
+        .join(format!("{}.json", backup_id));
+
     if backup_path.exists() {
         fs::remove_file(&backup_path).map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
@@ -70,25 +67,24 @@ pub fn delete_emergency_backup(backup_id: String) -> Result<(), String> {
 pub fn cleanup_emergency_backups() -> Result<i32, String> {
     let app_dir = get_app_dir()?;
     let backups_dir = app_dir.join(".emergency_backups");
-    
+
     if !backups_dir.exists() {
         return Ok(0);
     }
-    
+
     let now = chrono::Utc::now().timestamp_millis();
     let mut cleaned = 0;
-    
+
     for entry in (fs::read_dir(&backups_dir).map_err(|e| e.to_string())?).flatten() {
         if let Ok(content) = fs::read_to_string(entry.path()) {
             if let Ok(backup) = serde_json::from_str::<EmergencyBackup>(&content) {
-                if backup.expires_at < now
-                    && fs::remove_file(entry.path()).is_ok() {
-                        cleaned += 1;
-                    }
+                if backup.expires_at < now && fs::remove_file(entry.path()).is_ok() {
+                    cleaned += 1;
+                }
             }
         }
     }
-    
+
     Ok(cleaned)
 }
 
@@ -97,10 +93,10 @@ pub fn cleanup_emergency_backups() -> Result<i32, String> {
 pub fn export_manuscript_text(project_path: String) -> Result<String, String> {
     let structure = crate::commands::project::get_structure(project_path.clone())?;
     let mut output = String::new();
-    
+
     fn process_node(node: &StructureNode, project_path: &str, output: &mut String, depth: usize) {
         let indent = "  ".repeat(depth);
-        
+
         match node.node_type.as_str() {
             "act" => {
                 output.push_str(&format!("\n{}# {}\n\n", indent, node.title));
@@ -123,29 +119,29 @@ pub fn export_manuscript_text(project_path: String) -> Result<String, String> {
             }
             _ => {}
         }
-        
+
         for child in &node.children {
             process_node(child, project_path, output, depth + 1);
         }
     }
-    
+
     for node in &structure {
         process_node(node, &project_path, &mut output, 0);
     }
-    
+
     Ok(output)
 }
 
 /// Extract plain text from Tiptap JSON content
 fn extract_text_from_tiptap(content: &serde_json::Value) -> String {
     let mut result = String::new();
-    
+
     if let Some(content_array) = content.get("content").and_then(|c| c.as_array()) {
         for node in content_array {
             extract_text_recursive(node, &mut result);
         }
     }
-    
+
     result
 }
 
@@ -154,7 +150,7 @@ fn extract_text_recursive(node: &serde_json::Value, result: &mut String) {
     if let Some(text) = node.get("text").and_then(|t| t.as_str()) {
         result.push_str(text);
     }
-    
+
     // Handle paragraph nodes - add newline after
     if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
         if node_type == "paragraph" {
@@ -168,7 +164,7 @@ fn extract_text_recursive(node: &serde_json::Value, result: &mut String) {
             return;
         }
     }
-    
+
     // Recurse into children
     if let Some(content) = node.get("content").and_then(|c| c.as_array()) {
         for child in content {
@@ -181,10 +177,10 @@ fn extract_text_recursive(node: &serde_json::Value, result: &mut String) {
 #[tauri::command]
 pub fn export_manuscript_docx(project_path: String, output_path: String) -> Result<String, String> {
     use docx_rs::*;
-    
+
     let structure = crate::commands::project::get_structure(project_path.clone())?;
     let mut docx = Docx::new();
-    
+
     fn add_node_to_docx(node: &StructureNode, docx: &mut Docx, project_path: &str) {
         match node.node_type.as_str() {
             "act" => {
@@ -192,7 +188,7 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
                 *docx = std::mem::take(docx).add_paragraph(
                     Paragraph::new()
                         .add_run(Run::new().add_text(&node.title).bold())
-                        .style("Heading1")
+                        .style("Heading1"),
                 );
             }
             "chapter" => {
@@ -200,7 +196,7 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
                 *docx = std::mem::take(docx).add_paragraph(
                     Paragraph::new()
                         .add_run(Run::new().add_text(&node.title).bold())
-                        .style("Heading2")
+                        .style("Heading2"),
                 );
             }
             "scene" => {
@@ -208,9 +204,9 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
                 *docx = std::mem::take(docx).add_paragraph(
                     Paragraph::new()
                         .add_run(Run::new().add_text(&node.title).bold())
-                        .style("Heading3")
+                        .style("Heading3"),
                 );
-                
+
                 // Read scene content
                 if let Some(file) = &node.file {
                     let file_path = PathBuf::from(project_path).join("manuscript").join(file);
@@ -219,20 +215,20 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
                         let parts: Vec<&str> = content.splitn(3, "---").collect();
                         if parts.len() >= 3 {
                             let body = parts[2].trim();
-                            
+
                             // Try to parse as Tiptap JSON
                             if let Ok(tiptap) = serde_json::from_str::<serde_json::Value>(body) {
                                 let text = extract_text_from_tiptap(&tiptap);
                                 for para in text.split("\n\n").filter(|s| !s.trim().is_empty()) {
                                     *docx = std::mem::take(docx).add_paragraph(
-                                        Paragraph::new().add_run(Run::new().add_text(para.trim()))
+                                        Paragraph::new().add_run(Run::new().add_text(para.trim())),
                                     );
                                 }
                             } else {
                                 // Plain text fallback
                                 for para in body.split("\n\n").filter(|s| !s.trim().is_empty()) {
                                     *docx = std::mem::take(docx).add_paragraph(
-                                        Paragraph::new().add_run(Run::new().add_text(para.trim()))
+                                        Paragraph::new().add_run(Run::new().add_text(para.trim())),
                                     );
                                 }
                             }
@@ -242,24 +238,25 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
             }
             _ => {}
         }
-        
+
         // Process children
         for child in &node.children {
             add_node_to_docx(child, docx, project_path);
         }
     }
-    
+
     for node in &structure {
         add_node_to_docx(node, &mut docx, &project_path);
     }
-    
+
     // Build and pack the DOCX to a file
-    let file = fs::File::create(&output_path)
-        .map_err(|e| format!("Failed to create file: {}", e))?;
-    
-    docx.build().pack(file)
+    let file =
+        fs::File::create(&output_path).map_err(|e| format!("Failed to create file: {}", e))?;
+
+    docx.build()
+        .pack(file)
         .map_err(|e| format!("Failed to build DOCX: {}", e))?;
-    
+
     Ok(output_path)
 }
 
@@ -273,14 +270,14 @@ pub fn export_manuscript_epub(
     language: Option<String>,
 ) -> Result<String, String> {
     use epub_builder::{EpubBuilder, EpubContent, ZipLibrary};
-    
+
     let structure = crate::commands::project::get_structure(project_path.clone())?;
     let _project_dir = PathBuf::from(&project_path);
-    
+
     // Create ePub builder
     let mut epub = EpubBuilder::new(ZipLibrary::new().map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
-    
+
     // Set metadata
     epub.metadata("title", title.as_deref().unwrap_or("Untitled"))
         .map_err(|e| e.to_string())?;
@@ -290,7 +287,7 @@ pub fn export_manuscript_epub(
         .map_err(|e| e.to_string())?;
     epub.metadata("generator", "Become An Author")
         .map_err(|e| e.to_string())?;
-    
+
     // Add stylesheet
     let css = r#"
         body {
@@ -327,7 +324,7 @@ pub fn export_manuscript_epub(
         }
     "#;
     epub.stylesheet(css.as_bytes()).map_err(|e| e.to_string())?;
-    
+
     // Process structure and add chapters
     fn add_chapters_to_epub(
         epub: &mut EpubBuilder<ZipLibrary>,
@@ -344,67 +341,83 @@ pub fn export_manuscript_epub(
                 "chapter" => {
                     // Each chapter becomes an ePub chapter
                     let mut content = format!("<h2>{}</h2>\n", node.title);
-                    
+
                     // Collect all scene content in this chapter
                     for scene in &node.children {
                         if scene.node_type == "scene" {
                             content.push_str(&format!("<h3>{}</h3>\n", scene.title));
-                            
+
                             if let Some(file) = &scene.file {
-                                let file_path = PathBuf::from(project_path).join("manuscript").join(file);
+                                let file_path =
+                                    PathBuf::from(project_path).join("manuscript").join(file);
                                 if let Ok(file_content) = fs::read_to_string(&file_path) {
                                     let parts: Vec<&str> = file_content.splitn(3, "---").collect();
                                     if parts.len() >= 3 {
                                         let body = parts[2].trim();
-                                        
+
                                         // Try to parse as Tiptap JSON
-                                        if let Ok(tiptap) = serde_json::from_str::<serde_json::Value>(body) {
+                                        if let Ok(tiptap) =
+                                            serde_json::from_str::<serde_json::Value>(body)
+                                        {
                                             let text = extract_text_from_tiptap(&tiptap);
-                                            for para in text.split("\n\n").filter(|s| !s.trim().is_empty()) {
-                                                content.push_str(&format!("<p>{}</p>\n", para.trim()));
+                                            for para in
+                                                text.split("\n\n").filter(|s| !s.trim().is_empty())
+                                            {
+                                                content
+                                                    .push_str(&format!("<p>{}</p>\n", para.trim()));
                                             }
                                         } else {
                                             // Plain text fallback
-                                            for para in body.split("\n\n").filter(|s| !s.trim().is_empty()) {
-                                                content.push_str(&format!("<p>{}</p>\n", para.trim()));
+                                            for para in
+                                                body.split("\n\n").filter(|s| !s.trim().is_empty())
+                                            {
+                                                content
+                                                    .push_str(&format!("<p>{}</p>\n", para.trim()));
                                             }
                                         }
                                     }
                                 }
                             }
-                            
+
                             // Add scene break
                             content.push_str("<p class=\"scene-break\">* * *</p>\n");
                         }
                     }
-                    
+
                     // Add chapter to ePub
                     *chapter_num += 1;
                     epub.add_content(
-                        EpubContent::new(format!("chapter{}.xhtml", chapter_num), content.as_bytes())
-                            .title(&node.title)
-                    ).map_err(|e| e.to_string())?;
+                        EpubContent::new(
+                            format!("chapter{}.xhtml", chapter_num),
+                            content.as_bytes(),
+                        )
+                        .title(&node.title),
+                    )
+                    .map_err(|e| e.to_string())?;
                 }
                 _ => {}
             }
         }
         Ok(())
     }
-    
+
     let mut chapter_num = 0;
     add_chapters_to_epub(&mut epub, &structure, &project_path, &mut chapter_num)?;
-    
+
     // Generate ePub file
     let mut output_file = fs::File::create(&output_path)
         .map_err(|e| format!("Failed to create output file: {}", e))?;
-    
+
     epub.generate(&mut output_file)
         .map_err(|e| format!("Failed to generate ePub: {}", e))?;
-    
+
     Ok(output_path)
 }
 
-fn collect_scene_files(project_path: &str, nodes: &[StructureNode]) -> serde_json::Map<String, serde_json::Value> {
+fn collect_scene_files(
+    project_path: &str,
+    nodes: &[StructureNode],
+) -> serde_json::Map<String, serde_json::Value> {
     fn walk(
         project_path: &str,
         nodes: &[StructureNode],
@@ -435,10 +448,9 @@ fn build_project_backup_payload(project: &ProjectMeta) -> Result<serde_json::Val
     let chats = crate::commands::chat::list_chat_threads(project.path.clone()).unwrap_or_default();
     let mut messages = Vec::new();
     for thread in &chats {
-        let mut thread_messages = crate::commands::chat::get_chat_messages(
-            project.path.clone(),
-            thread.id.clone(),
-        ).unwrap_or_default();
+        let mut thread_messages =
+            crate::commands::chat::get_chat_messages(project.path.clone(), thread.id.clone())
+                .unwrap_or_default();
         messages.append(&mut thread_messages);
     }
 
@@ -452,6 +464,106 @@ fn build_project_backup_payload(project: &ProjectMeta) -> Result<serde_json::Val
     }))
 }
 
+fn load_project_meta(project_path: &str) -> Result<ProjectMeta, String> {
+    let meta_path = PathBuf::from(project_path).join(".meta/project.json");
+    if !meta_path.exists() {
+        return Err("Project not found".to_string());
+    }
+
+    let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&content).map_err(|e| e.to_string())
+}
+
+fn has_codex_entries(codex_dir: &Path) -> bool {
+    if !codex_dir.exists() {
+        return false;
+    }
+
+    WalkDir::new(codex_dir)
+        .min_depth(2)
+        .max_depth(2)
+        .into_iter()
+        .flatten()
+        .any(|entry| {
+            entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json")
+        })
+}
+
+fn build_project_export_payload(project: &ProjectMeta) -> Result<serde_json::Value, String> {
+    let structure = crate::commands::project::get_structure(project.path.clone())?;
+    let scene_files = collect_scene_files(&project.path, &structure);
+    let codex =
+        crate::commands::series::list_series_codex_entries(project.series_id.clone(), None)?;
+    let legacy_codex_dir = PathBuf::from(&project.path).join(".meta/codex");
+    if codex.is_empty() && has_codex_entries(&legacy_codex_dir) {
+        return Err(
+            "Legacy project-level codex data detected. Migrate codex entries to series storage before exporting this project."
+                .to_string(),
+        );
+    }
+    let snippets = crate::commands::snippet::list_snippets(project.path.clone())?;
+
+    Ok(serde_json::json!({
+        "version": 2,
+        "backupType": "project",
+        "exportedAt": chrono::Utc::now().to_rfc3339(),
+        "project": project,
+        "nodes": structure,
+        "sceneFiles": scene_files,
+        "codex": codex,
+        "snippets": snippets
+    }))
+}
+
+fn build_series_export_payload(series_id: &str) -> Result<(Series, serde_json::Value), String> {
+    let all_series = crate::commands::series::list_series()?;
+    let series = all_series
+        .into_iter()
+        .find(|s| s.id == series_id)
+        .ok_or_else(|| "Series not found".to_string())?;
+
+    let projects = crate::commands::project::list_projects()?
+        .into_iter()
+        .filter(|p| p.series_id == series.id)
+        .collect::<Vec<_>>();
+
+    let mut project_payloads = Vec::with_capacity(projects.len());
+    for project in &projects {
+        project_payloads.push(build_project_backup_payload(project)?);
+    }
+
+    let codex = crate::commands::series::list_series_codex_entries(series.id.clone(), None)?;
+    let codex_relations = crate::commands::series::list_series_codex_relations(series.id.clone())?;
+
+    let payload = serde_json::json!({
+        "version": 2,
+        "backupType": "series",
+        "exportedAt": chrono::Utc::now().to_rfc3339(),
+        "series": series,
+        "projects": project_payloads,
+        "codex": codex,
+        "codexRelations": codex_relations
+    });
+
+    Ok((series, payload))
+}
+
+fn write_backup_payload(
+    payload: &serde_json::Value,
+    output_path: Option<String>,
+    default_dir: PathBuf,
+    default_filename: String,
+) -> Result<String, String> {
+    fs::create_dir_all(&default_dir).map_err(|e| e.to_string())?;
+    let final_path = output_path
+        .map(PathBuf::from)
+        .unwrap_or_else(|| default_dir.join(default_filename));
+
+    let json = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
+    fs::write(&final_path, json).map_err(|e| e.to_string())?;
+    Ok(final_path.to_string_lossy().to_string())
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportSeriesResult {
@@ -462,176 +574,46 @@ pub struct ImportSeriesResult {
 }
 
 #[tauri::command]
-pub fn export_series_backup(series_id: String, output_path: Option<String>) -> Result<String, String> {
-    let all_series = crate::commands::series::list_series()?;
-    let series = all_series
-        .into_iter()
-        .find(|s| s.id == series_id)
-        .ok_or_else(|| "Series not found".to_string())?;
-
-    let projects = crate::commands::project::list_projects()?
-        .into_iter()
-        .filter(|p| p.series_id == series.id)
-        .collect::<Vec<_>>();
-
-    let mut project_payloads = Vec::with_capacity(projects.len());
-    for project in &projects {
-        project_payloads.push(build_project_backup_payload(project)?);
-    }
-
-    let codex = crate::commands::series::list_series_codex_entries(series.id.clone(), None)?;
-    let codex_relations = crate::commands::series::list_series_codex_relations(series.id.clone())?;
-
-    let backup = serde_json::json!({
-        "version": 2,
-        "backupType": "series",
-        "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "series": series,
-        "projects": project_payloads,
-        "codex": codex,
-        "codexRelations": codex_relations
-    });
-
+pub fn export_series_backup(
+    series_id: String,
+    output_path: Option<String>,
+) -> Result<String, String> {
+    let (series, backup) = build_series_export_payload(&series_id)?;
     let exports_dir = get_series_dir(&series_id)?.join("exports");
-    fs::create_dir_all(&exports_dir).map_err(|e| e.to_string())?;
-
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("{}_series_backup_{}.json", slugify(&series.title), timestamp);
-
-    let final_path = output_path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| exports_dir.join(&filename));
-
-    let json = serde_json::to_string_pretty(&backup).map_err(|e| e.to_string())?;
-    fs::write(&final_path, json).map_err(|e| e.to_string())?;
-
-    Ok(final_path.to_string_lossy().to_string())
+    let filename = format!(
+        "{}_series_backup_{}.json",
+        slugify(&series.title),
+        timestamp
+    );
+    write_backup_payload(&backup, output_path, exports_dir, filename)
 }
 
 #[tauri::command]
 pub fn export_series_as_json(series_id: String) -> Result<String, String> {
-    let all_series = crate::commands::series::list_series()?;
-    let series = all_series
-        .into_iter()
-        .find(|s| s.id == series_id)
-        .ok_or_else(|| "Series not found".to_string())?;
-
-    let projects = crate::commands::project::list_projects()?
-        .into_iter()
-        .filter(|p| p.series_id == series.id)
-        .collect::<Vec<_>>();
-
-    let mut project_payloads = Vec::with_capacity(projects.len());
-    for project in &projects {
-        project_payloads.push(build_project_backup_payload(project)?);
-    }
-
-    let codex = crate::commands::series::list_series_codex_entries(series.id.clone(), None)?;
-    let codex_relations = crate::commands::series::list_series_codex_relations(series.id.clone())?;
-
-    let backup = serde_json::json!({
-        "version": 2,
-        "backupType": "series",
-        "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "series": series,
-        "projects": project_payloads,
-        "codex": codex,
-        "codexRelations": codex_relations
-    });
-
+    let (_, backup) = build_series_export_payload(&series_id)?;
     serde_json::to_string(&backup).map_err(|e| e.to_string())
 }
 
-
 #[tauri::command]
-pub fn export_project_backup(project_path: String, output_path: Option<String>) -> Result<String, String> {
-    let project_dir = PathBuf::from(&project_path);
-    let meta_path = project_dir.join(".meta/project.json");
-    
-    if !meta_path.exists() {
-        return Err("Project not found".to_string());
-    }
-    
-    let project: ProjectMeta = {
-        let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).map_err(|e| e.to_string())?
-    };
-    
-    let structure = crate::commands::project::get_structure(project_path.clone())?;
-    let scene_files = collect_scene_files(&project_path, &structure);
-    let codex = crate::commands::series::list_series_codex_entries(project.series_id.clone(), None)
-        .unwrap_or_else(|_| crate::commands::codex::list_codex_entries(project_path.clone()).unwrap_or_default());
-    let snippets = crate::commands::snippet::list_snippets(project_path.clone())?;
-    
-    let backup = serde_json::json!({
-        "version": 2,
-        "backupType": "project",
-        "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "project": project,
-        "nodes": structure,
-        "sceneFiles": scene_files,
-        "codex": codex,
-        "snippets": snippets
-    });
-    
-    let exports_dir = project_dir.join("exports");
-    fs::create_dir_all(&exports_dir).map_err(|e| e.to_string())?;
-    
+pub fn export_project_backup(
+    project_path: String,
+    output_path: Option<String>,
+) -> Result<String, String> {
+    let project = load_project_meta(&project_path)?;
+    let backup = build_project_export_payload(&project)?;
+    let exports_dir = PathBuf::from(&project.path).join("exports");
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let filename = format!("{}_backup_{}.json", slugify(&project.title), timestamp);
-    
-    let final_path = output_path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| exports_dir.join(&filename));
-    
-    let json = serde_json::to_string_pretty(&backup).map_err(|e| e.to_string())?;
-    fs::write(&final_path, json).map_err(|e| e.to_string())?;
-    
-    Ok(final_path.to_string_lossy().to_string())
+    write_backup_payload(&backup, output_path, exports_dir, filename)
 }
 
 /// Export project as JSON string (for cloud backup services like Google Drive)
 #[tauri::command]
 pub fn export_project_as_json(project_path: String) -> Result<String, String> {
-    let project_dir = PathBuf::from(&project_path);
-    let meta_path = project_dir.join(".meta/project.json");
-    
-    if !meta_path.exists() {
-        return Err("Project not found".to_string());
-    }
-    
-    let project: ProjectMeta = {
-        let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).map_err(|e| e.to_string())?
-    };
-    
-    let structure = crate::commands::project::get_structure(project_path.clone())?;
-    let scene_files = collect_scene_files(&project_path, &structure);
-    let codex = crate::commands::series::list_series_codex_entries(project.series_id.clone(), None)
-        .unwrap_or_else(|_| crate::commands::codex::list_codex_entries(project_path.clone()).unwrap_or_default());
-    let snippets = crate::commands::snippet::list_snippets(project_path.clone())?;
-    
-    let backup = serde_json::json!({
-        "version": 2,
-        "backupType": "project",
-        "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "project": project,
-        "nodes": structure,
-        "sceneFiles": scene_files,
-        "codex": codex,
-        "snippets": snippets
-    });
-    
+    let project = load_project_meta(&project_path)?;
+    let backup = build_project_export_payload(&project)?;
     serde_json::to_string(&backup).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn import_project_backup(
-    _backup_json: String,
-    _series_id: String,
-    _series_index: String,
-) -> Result<ProjectMeta, String> {
-    Err("Project-level import is disabled. Use series backup import instead.".to_string())
 }
 
 fn create_project_directory_structure(project_dir: &Path) -> Result<(), String> {
@@ -702,7 +684,9 @@ fn validate_safe_file_name(value: &str, field_name: &str) -> Result<String, Stri
     validate_no_null_bytes(trimmed, field_name)?;
 
     let path = Path::new(trimmed);
-    if path.components().count() != 1 || path.file_name().and_then(|name| name.to_str()) != Some(trimmed) {
+    if path.components().count() != 1
+        || path.file_name().and_then(|name| name.to_str()) != Some(trimmed)
+    {
         return Err(format!("{} contains an invalid path", field_name));
     }
 
@@ -819,10 +803,16 @@ fn restore_snippets(
                 let safe_id = validate_uuid_identifier(id, "Snippet id")?;
                 let mut snippet_clone = snippet.clone();
                 if let Some(obj) = snippet_clone.as_object_mut() {
-                    obj.insert("projectId".to_string(), serde_json::Value::String(project_id.to_string()));
+                    obj.insert(
+                        "projectId".to_string(),
+                        serde_json::Value::String(project_id.to_string()),
+                    );
                 }
-                let snippet_path = project_dir.join("snippets").join(format!("{}.json", safe_id));
-                let json = serde_json::to_string_pretty(&snippet_clone).map_err(|e| e.to_string())?;
+                let snippet_path = project_dir
+                    .join("snippets")
+                    .join(format!("{}.json", safe_id));
+                let json =
+                    serde_json::to_string_pretty(&snippet_clone).map_err(|e| e.to_string())?;
                 fs::write(snippet_path, json).map_err(|e| e.to_string())?;
             }
         }
@@ -862,7 +852,9 @@ fn restore_chats(
     if let Some(message_values) = messages {
         for message in message_values {
             let mut normalized = message.clone();
-            let Some(obj) = normalized.as_object_mut() else { continue };
+            let Some(obj) = normalized.as_object_mut() else {
+                continue;
+            };
 
             let thread_id = obj
                 .get("threadId")
@@ -875,11 +867,7 @@ fn restore_chats(
             }
             let thread_id = validate_uuid_identifier(&thread_id, "Chat thread id")?;
 
-            let message_id = obj
-                .get("id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .trim();
+            let message_id = obj.get("id").and_then(|v| v.as_str()).unwrap_or("").trim();
             if message_id.is_empty() {
                 obj.insert(
                     "id".to_string(),
@@ -887,10 +875,7 @@ fn restore_chats(
                 );
             }
 
-            let role = obj
-                .get("role")
-                .and_then(|v| v.as_str())
-                .unwrap_or("user");
+            let role = obj.get("role").and_then(|v| v.as_str()).unwrap_or("user");
             let normalized_role = if role.eq_ignore_ascii_case("assistant") {
                 "assistant"
             } else {
@@ -932,7 +917,9 @@ fn restore_chats(
     if let Some(chat_values) = chats {
         for chat in chat_values {
             let mut normalized = chat.clone();
-            let Some(obj) = normalized.as_object_mut() else { continue };
+            let Some(obj) = normalized.as_object_mut() else {
+                continue;
+            };
 
             let thread_id = obj
                 .get("id")
@@ -1018,13 +1005,11 @@ fn restore_chats(
 
     for thread_id in thread_ids {
         let mut thread_messages = grouped_messages.remove(&thread_id).unwrap_or_default();
-        thread_messages.sort_by_key(|msg| {
-            msg.get("timestamp")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(now)
-        });
+        thread_messages
+            .sort_by_key(|msg| msg.get("timestamp").and_then(|v| v.as_i64()).unwrap_or(now));
         let json = serde_json::to_string_pretty(&thread_messages).map_err(|e| e.to_string())?;
-        fs::write(messages_dir.join(format!("{}.json", thread_id)), json).map_err(|e| e.to_string())?;
+        fs::write(messages_dir.join(format!("{}.json", thread_id)), json)
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(())
@@ -1032,8 +1017,8 @@ fn restore_chats(
 
 #[tauri::command]
 pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, String> {
-    let backup: serde_json::Value = serde_json::from_str(&backup_json)
-        .map_err(|e| format!("Invalid backup JSON: {}", e))?;
+    let backup: serde_json::Value =
+        serde_json::from_str(&backup_json).map_err(|e| format!("Invalid backup JSON: {}", e))?;
 
     let backup_type = backup
         .get("backupType")
@@ -1062,10 +1047,22 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
     let result = (|| -> Result<ImportSeriesResult, String> {
         let imported_series: Series = crate::commands::series::create_series(
             title.to_string(),
-            series_data.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            series_data.get("author").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            series_data.get("genre").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            series_data.get("status").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            series_data
+                .get("description")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            series_data
+                .get("author")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            series_data
+                .get("genre")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            series_data
+                .get("status")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
         )?;
         rollback.track_series(imported_series.id.clone());
 
@@ -1108,14 +1105,20 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
                 updated_at: now,
             };
 
-            let project_json = serde_json::to_string_pretty(&imported_project).map_err(|e| e.to_string())?;
-            fs::write(project_dir.join(".meta/project.json"), project_json).map_err(|e| e.to_string())?;
+            let project_json =
+                serde_json::to_string_pretty(&imported_project).map_err(|e| e.to_string())?;
+            fs::write(project_dir.join(".meta/project.json"), project_json)
+                .map_err(|e| e.to_string())?;
 
-            let nodes_value = payload.get("nodes").cloned().unwrap_or_else(|| serde_json::json!([]));
+            let nodes_value = payload
+                .get("nodes")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!([]));
             let nodes: Vec<StructureNode> = serde_json::from_value(nodes_value).unwrap_or_default();
             validate_scene_files_in_nodes(&nodes)?;
             let structure_json = serde_json::to_string_pretty(&nodes).map_err(|e| e.to_string())?;
-            fs::write(project_dir.join(".meta/structure.json"), structure_json).map_err(|e| e.to_string())?;
+            fs::write(project_dir.join(".meta/structure.json"), structure_json)
+                .map_err(|e| e.to_string())?;
 
             let scene_files = payload.get("sceneFiles").and_then(|v| v.as_object());
             restore_scene_files(&project_dir, scene_files)?;
@@ -1139,7 +1142,8 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
         if let Some(codex_entries) = backup.get("codex").and_then(|v| v.as_array()) {
             let series_codex_dir = get_series_codex_path(&imported_series.id)?;
             for entry in codex_entries {
-                let category = normalize_codex_category(entry.get("category").and_then(|v| v.as_str()));
+                let category =
+                    normalize_codex_category(entry.get("category").and_then(|v| v.as_str()));
                 let entry_id = entry
                     .get("id")
                     .and_then(|v| v.as_str())
@@ -1217,13 +1221,13 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
 #[tauri::command]
 pub fn write_export_file(file_path: String, data: Vec<u8>) -> Result<(), String> {
     let path = PathBuf::from(&file_path);
-    
+
     // Ensure parent directory exists
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    
+
     fs::write(&path, data).map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }

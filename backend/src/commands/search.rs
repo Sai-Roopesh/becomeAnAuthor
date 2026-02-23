@@ -8,6 +8,21 @@ use walkdir::WalkDir;
 use crate::models::{ProjectMeta, StructureNode};
 use crate::utils::get_series_codex_path;
 
+fn has_codex_entries(codex_dir: &std::path::Path) -> bool {
+    if !codex_dir.exists() {
+        return false;
+    }
+
+    WalkDir::new(codex_dir)
+        .min_depth(2)
+        .max_depth(2)
+        .into_iter()
+        .flatten()
+        .any(|entry| {
+            entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json")
+        })
+}
+
 fn strip_frontmatter(content: &str) -> String {
     let parts: Vec<&str> = content.splitn(3, "---").collect();
     if parts.len() >= 3 {
@@ -64,14 +79,18 @@ pub fn search_project(
 
     if search_scenes {
         let structure_path = PathBuf::from(&project_path).join(".meta/structure.json");
-        let structure_content = fs::read_to_string(&structure_path).unwrap_or_else(|_| "[]".to_string());
-        let structure: Vec<StructureNode> = serde_json::from_str(&structure_content).unwrap_or_default();
+        let structure_content =
+            fs::read_to_string(&structure_path).unwrap_or_else(|_| "[]".to_string());
+        let structure: Vec<StructureNode> =
+            serde_json::from_str(&structure_content).unwrap_or_default();
 
         let mut scene_nodes = Vec::new();
         collect_scene_nodes(&structure, &mut scene_nodes);
 
         for (scene_id, scene_title, scene_file) in scene_nodes {
-            let path = PathBuf::from(&project_path).join("manuscript").join(&scene_file);
+            let path = PathBuf::from(&project_path)
+                .join("manuscript")
+                .join(&scene_file);
             let Ok(raw) = fs::read_to_string(&path) else {
                 continue;
             };
@@ -89,9 +108,15 @@ pub fn search_project(
                 extract_snippet(&scene_title, &query_lower)
             };
 
-            let score =
-                if scene_title.to_lowercase().contains(&query_lower) { 2.0 } else { 0.0 } +
-                if body.to_lowercase().contains(&query_lower) { 1.0 } else { 0.0 };
+            let score = if scene_title.to_lowercase().contains(&query_lower) {
+                2.0
+            } else {
+                0.0
+            } + if body.to_lowercase().contains(&query_lower) {
+                1.0
+            } else {
+                0.0
+            };
 
             results.push(serde_json::json!({
                 "id": scene_id,
@@ -106,22 +131,27 @@ pub fn search_project(
     }
 
     if search_codex {
-        let codex_dir = {
-            let meta_path = PathBuf::from(&project_path).join(".meta/project.json");
-            if let Ok(content) = fs::read_to_string(meta_path) {
-                if let Ok(project_meta) = serde_json::from_str::<ProjectMeta>(&content) {
-                    get_series_codex_path(&project_meta.series_id)
-                        .unwrap_or_else(|_| PathBuf::from(&project_path).join(".meta/codex"))
-                } else {
-                    PathBuf::from(&project_path).join(".meta/codex")
-                }
-            } else {
-                PathBuf::from(&project_path).join(".meta/codex")
-            }
-        };
+        let meta_path = PathBuf::from(&project_path).join(".meta/project.json");
+        let meta_content = fs::read_to_string(&meta_path)
+            .map_err(|e| format!("Failed to read project metadata: {}", e))?;
+        let project_meta: ProjectMeta = serde_json::from_str(&meta_content)
+            .map_err(|e| format!("Failed to parse project metadata: {}", e))?;
+        let codex_dir = get_series_codex_path(&project_meta.series_id)?;
+        let legacy_codex_dir = PathBuf::from(&project_path).join(".meta/codex");
+        if has_codex_entries(&legacy_codex_dir) && !has_codex_entries(&codex_dir) {
+            return Err(
+                "Legacy project-level codex data detected. Migrate codex entries to series storage before searching codex."
+                    .to_string(),
+            );
+        }
 
         if codex_dir.exists() {
-            for entry in WalkDir::new(&codex_dir).min_depth(2).max_depth(2).into_iter().flatten() {
+            for entry in WalkDir::new(&codex_dir)
+                .min_depth(2)
+                .max_depth(2)
+                .into_iter()
+                .flatten()
+            {
                 let path = entry.path();
                 if !path.extension().is_some_and(|e| e == "json") {
                     continue;
@@ -136,7 +166,8 @@ pub fn search_project(
                     continue;
                 }
 
-                let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or(serde_json::Value::Null);
+                let parsed: serde_json::Value =
+                    serde_json::from_str(&raw).unwrap_or(serde_json::Value::Null);
                 let entry_id = parsed
                     .get("id")
                     .and_then(|v| v.as_str())
@@ -162,12 +193,22 @@ pub fn search_project(
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
 
-                let snippet_source = if description.is_empty() { &raw } else { description };
+                let snippet_source = if description.is_empty() {
+                    &raw
+                } else {
+                    description
+                };
                 let snippet = extract_snippet(snippet_source, &query_lower);
 
-                let score =
-                    if entry_title.to_lowercase().contains(&query_lower) { 2.0 } else { 0.0 } +
-                    if description.to_lowercase().contains(&query_lower) { 1.0 } else { 0.5 };
+                let score = if entry_title.to_lowercase().contains(&query_lower) {
+                    2.0
+                } else {
+                    0.0
+                } + if description.to_lowercase().contains(&query_lower) {
+                    1.0
+                } else {
+                    0.5
+                };
 
                 results.push(serde_json::json!({
                     "id": entry_id,

@@ -134,7 +134,6 @@ pub fn run() {
             write_export_file,
             // Import command
             import_series_backup,
-            import_project_backup,
             // Series commands
             list_series,
             list_deleted_series,
@@ -152,7 +151,6 @@ pub fn run() {
             list_series_codex_relations,
             save_series_codex_relation,
             delete_series_codex_relation,
-            migrate_codex_to_series,
             // Security commands
             security::store_api_key,
             security::get_api_key,

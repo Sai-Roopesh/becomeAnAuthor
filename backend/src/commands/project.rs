@@ -117,12 +117,11 @@ fn ensure_project_has_valid_series(project: &mut ProjectMeta) -> Result<(), Stri
     }
 
     let missing_series_id = project.series_id.clone();
-    project.series_id = match crate::commands::series::restore_or_recreate_deleted_series(
-        &missing_series_id,
-    )? {
-        Some(restored_series_id) => restored_series_id,
-        None => get_or_create_recovery_series_id()?,
-    };
+    project.series_id =
+        match crate::commands::series::restore_or_recreate_deleted_series(&missing_series_id)? {
+            Some(restored_series_id) => restored_series_id,
+            None => get_or_create_recovery_series_id()?,
+        };
 
     let preferred_index = project.series_index.trim().to_string();
     if preferred_index.is_empty()
@@ -268,10 +267,20 @@ pub fn open_project(project_path: String) -> Result<ProjectMeta, String> {
     let mut project: ProjectMeta = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse project.json: {}", e))?;
 
+    let original_series_id = project.series_id.clone();
+    let original_series_index = project.series_index.clone();
+    ensure_project_has_valid_series(&mut project)?;
+
+    let mut should_persist =
+        project.series_id != original_series_id || project.series_index != original_series_index;
     let canonical_path = fs::canonicalize(&path).unwrap_or(path.clone());
     let canonical_path_str = canonical_path.to_string_lossy().to_string();
     if project.path != canonical_path_str {
         project.path = canonical_path_str.clone();
+        should_persist = true;
+    }
+
+    if should_persist {
         project.updated_at = timestamp::now_millis();
         let json = serde_json::to_string_pretty(&project).map_err(|e| e.to_string())?;
         fs::write(&meta_path, json).map_err(|e| e.to_string())?;
@@ -283,91 +292,35 @@ pub fn open_project(project_path: String) -> Result<ProjectMeta, String> {
     Ok(project)
 }
 
-// ============== Legacy Commands (kept for compatibility) ==============
-
 #[tauri::command]
 pub fn get_projects_path() -> Result<String, String> {
     let dir = get_projects_dir()?;
     Ok(dir.to_string_lossy().to_string())
 }
 
-/// List projects from recent list (simplified from registry-based approach)
+/// List projects from the registry source of truth.
 #[tauri::command]
 pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
-    let mut candidate_paths: HashSet<String> = HashSet::new();
-
-    // 1) Registry-backed paths (persistent across "recent" pruning)
-    for entry in read_project_registry()? {
-        candidate_paths.insert(entry.path);
-    }
-
-    // 2) Recent paths (still useful for externally-opened projects)
-    for recent in list_recent_projects()? {
-        candidate_paths.insert(recent.path);
-    }
-
-    // 3) Default app projects directory scan
-    let projects_dir = get_projects_dir()?;
-    if projects_dir.exists() {
-        for entry in fs::read_dir(&projects_dir).map_err(|e| e.to_string())? {
-            let Ok(entry) = entry else { continue };
-            let path = entry.path();
-            if path.is_dir() && path.join(".meta/project.json").exists() {
-                candidate_paths.insert(path.to_string_lossy().to_string());
-            }
-        }
-    }
-
+    let mut seen_paths: HashSet<String> = HashSet::new();
+    let mut registry_entries = read_project_registry()?;
     let mut projects = Vec::new();
-    let mut still_valid_registry_entries: Vec<RegistryEntry> = Vec::new();
-    let mut known_series_ids: HashSet<String> = crate::commands::series::list_series()?
-        .into_iter()
-        .map(|series| series.id)
-        .collect();
-    let mut recovery_series_id: Option<String> = None;
+    let mut valid_registry_entries: Vec<RegistryEntry> = Vec::new();
+    let now = timestamp::now_millis();
 
-    for project_path in candidate_paths {
+    registry_entries.sort_by(|a, b| b.last_seen.cmp(&a.last_seen));
+    for entry in registry_entries {
+        let project_path = entry.path;
+        if !seen_paths.insert(project_path.clone()) {
+            continue;
+        }
+
         let meta_path = PathBuf::from(&project_path).join(".meta/project.json");
         if let Ok(content) = fs::read_to_string(&meta_path) {
-            if let Ok(mut project) = serde_json::from_str::<ProjectMeta>(&content) {
-                let mut repaired = false;
-                if !known_series_ids.contains(&project.series_id) {
-                    let missing_series_id = project.series_id.clone();
-                    let reassigned_series_id = if let Some(restored_series_id) =
-                        crate::commands::series::restore_or_recreate_deleted_series(
-                            &missing_series_id,
-                        )?
-                    {
-                        restored_series_id
-                    } else if let Some(existing_recovery_series_id) = recovery_series_id.clone() {
-                        existing_recovery_series_id
-                    } else {
-                        let created_recovery_series_id = get_or_create_recovery_series_id()?;
-                        recovery_series_id = Some(created_recovery_series_id.clone());
-                        created_recovery_series_id
-                    };
-
-                    project.series_id = reassigned_series_id.clone();
-                    known_series_ids.insert(reassigned_series_id);
-                    repaired = true;
-                }
-
-                if project.series_index.trim().is_empty() {
-                    project.series_index = "Book 1".to_string();
-                    repaired = true;
-                }
-
-                if repaired {
-                    project.updated_at = timestamp::now_millis();
-                    let json = serde_json::to_string_pretty(&project)
-                        .map_err(|e| e.to_string())?;
-                    fs::write(&meta_path, json).map_err(|e| e.to_string())?;
-                }
-
-                still_valid_registry_entries.push(RegistryEntry {
+            if let Ok(project) = serde_json::from_str::<ProjectMeta>(&content) {
+                valid_registry_entries.push(RegistryEntry {
                     path: project.path.clone(),
                     title: Some(project.title.clone()),
-                    last_seen: timestamp::now_millis(),
+                    last_seen: now,
                 });
                 projects.push(project);
             }
@@ -376,8 +329,8 @@ pub fn list_projects() -> Result<Vec<ProjectMeta>, String> {
 
     // Save a pruned/merged registry so stale entries do not accumulate.
     // Sort by most recently seen descending.
-    still_valid_registry_entries.sort_by(|a, b| b.last_seen.cmp(&a.last_seen));
-    write_project_registry(&still_valid_registry_entries)?;
+    valid_registry_entries.sort_by(|a, b| b.last_seen.cmp(&a.last_seen));
+    write_project_registry(&valid_registry_entries)?;
 
     // Sort by updated_at desc for deterministic dashboard ordering.
     projects.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
@@ -475,9 +428,7 @@ fn resolve_series_index_for_create(
 ) -> Result<String, String> {
     let trimmed = requested_series_index.trim();
 
-    // Defensive fallback for stale callers that still send "Book 1" as a hardcoded default.
-    // For new creations this should always resolve to the next available book number.
-    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("Book 1") {
+    if trimmed.is_empty() {
         return next_available_series_index(series_id, None);
     }
 
