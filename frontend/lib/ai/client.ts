@@ -6,7 +6,12 @@ import {
 import type { ZodType } from "zod";
 import { getModel } from "./providers";
 import { storage } from "@/core/storage/safe-storage";
-import { AI_VENDORS, type AIConnection } from "@/lib/config/ai-vendors";
+import {
+  AI_VENDORS,
+  connectionRequiresApiKey,
+  isConnectionUsable,
+  type AIConnection,
+} from "@/lib/config/ai-vendors";
 import { getAPIKey } from "@/core/storage/api-keys";
 
 export type AIMessageRole = "system" | "user" | "assistant";
@@ -45,20 +50,6 @@ function assertMessages(messages: AIModelMessage[]): void {
   }
 }
 
-/**
- * Finds the connection configuration for a given model.
- * Searches enabled connections that include the model in their models list.
- */
-function requiresApiKey(connection: AIConnection): boolean {
-  if (connection.provider !== "openai") {
-    return AI_VENDORS[connection.provider].requiresAuth;
-  }
-
-  const endpoint =
-    connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
-  return endpoint === AI_VENDORS.openai.defaultEndpoint;
-}
-
 async function getConnection(modelId: string): Promise<AIConnection> {
   const normalizedModel = modelId.trim();
   if (!normalizedModel) {
@@ -67,12 +58,12 @@ async function getConnection(modelId: string): Promise<AIConnection> {
 
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
   const connection = connections.find(
-    (c) => c.enabled && c.models?.includes(normalizedModel),
+    (c) => isConnectionUsable(c) && c.models?.includes(normalizedModel),
   );
 
   if (!connection) {
     throw new Error(
-      `No enabled AI connection supports model "${normalizedModel}". Refresh models in Settings or pick another model.`,
+      `No usable AI connection supports model "${normalizedModel}". Add an API key in Settings or pick another model.`,
     );
   }
 
@@ -80,7 +71,7 @@ async function getConnection(modelId: string): Promise<AIConnection> {
     connection.apiKey.trim() ||
     (await getAPIKey(connection.provider, connection.id)) ||
     "";
-  if (requiresApiKey(connection) && !apiKey) {
+  if (connectionRequiresApiKey(connection) && !apiKey) {
     throw new Error(
       `Missing API key for ${AI_VENDORS[connection.provider].name}. Add it in Settings.`,
     );
@@ -174,7 +165,33 @@ export async function object<T>(opts: GenerateObjectOptions<T>) {
  */
 export function getEnabledConnections(): AIConnection[] {
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  return connections.filter((c) => c.enabled);
+  return connections.filter((c) => isConnectionUsable(c));
+}
+
+/**
+ * Check whether at least one enabled connection is currently usable.
+ * Resolves keychain-backed credentials for providers that require API keys.
+ */
+export async function hasUsableAIConnection(): Promise<boolean> {
+  const connections = storage.getItem<AIConnection[]>("ai_connections", []);
+  const enabled = connections.filter((connection) => connection.enabled);
+  if (enabled.length === 0) return false;
+
+  for (const connection of enabled) {
+    if (!connectionRequiresApiKey(connection)) {
+      return true;
+    }
+
+    const key =
+      connection.apiKey.trim() ||
+      (await getAPIKey(connection.provider, connection.id)) ||
+      "";
+    if (key.trim().length > 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -184,5 +201,7 @@ export function getConnectionForModel(
   modelId: string,
 ): AIConnection | undefined {
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  return connections.find((c) => c.enabled && c.models?.includes(modelId));
+  return connections.find(
+    (c) => isConnectionUsable(c) && c.models?.includes(modelId),
+  );
 }

@@ -26,6 +26,7 @@ export function AIConnectionsTab() {
     addConnection,
     deleteConnection,
     toggleEnabled,
+    connectionStatusById,
   } = useAIConnections();
 
   const { loading, error, refreshModels } = useConnectionValidation();
@@ -101,6 +102,7 @@ export function AIConnectionsTab() {
           <section className="grid min-w-0 items-start gap-4 2xl:grid-cols-[18rem_minmax(0,1fr)]">
             <ConnectionList
               connections={connections}
+              connectionStatusById={connectionStatusById}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onAddNew={() => setShowNewDialog(true)}

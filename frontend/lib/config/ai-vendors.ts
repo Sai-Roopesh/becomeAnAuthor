@@ -154,11 +154,44 @@ export interface AIConnection {
   name: string;
   provider: AIProvider;
   apiKey: string;
+  /**
+   * Persisted metadata indicating whether a key exists in secure storage.
+   * Avoids storing plaintext API keys in local storage.
+   */
+  hasApiKey?: boolean;
   customEndpoint?: string;
   enabled: boolean;
   models?: string[];
   createdAt: number;
   updatedAt: number;
+}
+
+export function connectionRequiresApiKey(
+  connection: Pick<AIConnection, "provider" | "customEndpoint">,
+): boolean {
+  if (connection.provider !== "openai") {
+    return AI_VENDORS[connection.provider].requiresAuth;
+  }
+
+  const endpoint =
+    connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
+  return endpoint === AI_VENDORS.openai.defaultEndpoint;
+}
+
+export function connectionHasApiKey(
+  connection: Pick<AIConnection, "apiKey" | "hasApiKey">,
+): boolean {
+  if (connection.hasApiKey === undefined) {
+    return true;
+  }
+
+  return Boolean(connection.apiKey?.trim()) || connection.hasApiKey === true;
+}
+
+export function isConnectionUsable(connection: AIConnection): boolean {
+  if (!connection.enabled) return false;
+  if (!connectionRequiresApiKey(connection)) return true;
+  return connectionHasApiKey(connection);
 }
 
 export function getAllVendors(): AIVendor[] {

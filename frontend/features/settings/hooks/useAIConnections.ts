@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { storage } from "@/core/storage/safe-storage";
-import { AIConnection, AIProvider, AI_VENDORS } from "@/lib/config/ai-vendors";
+import {
+  AIConnection,
+  AIProvider,
+  connectionRequiresApiKey,
+  connectionHasApiKey,
+  isConnectionUsable,
+} from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
 import { deleteAPIKey, getAPIKey, storeAPIKey } from "@/core/storage/api-keys";
 import { logger } from "@/shared/utils/logger";
@@ -11,8 +17,15 @@ import { AI_CONNECTIONS_UPDATED_EVENT } from "@/hooks/use-has-ai-connection";
 const log = logger.scope("useAIConnections");
 const STORAGE_KEY = "ai_connections";
 
+export type AIConnectionStatus = "active" | "disabled" | "missing-api-key";
+
 function toStoredConnection(connection: AIConnection): AIConnection {
-  return { ...connection, apiKey: "" };
+  return {
+    ...connection,
+    apiKey: "",
+    hasApiKey:
+      connection.hasApiKey ?? Boolean(connection.apiKey?.trim().length),
+  };
 }
 
 function persistConnections(connections: AIConnection[]) {
@@ -24,16 +37,6 @@ function persistConnections(connections: AIConnection[]) {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(AI_CONNECTIONS_UPDATED_EVENT));
   }
-}
-
-function requiresApiKey(connection: AIConnection): boolean {
-  if (connection.provider !== "openai") {
-    return AI_VENDORS[connection.provider].requiresAuth;
-  }
-
-  const normalizedEndpoint =
-    connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
-  return normalizedEndpoint === AI_VENDORS.openai.defaultEndpoint;
 }
 
 /**
@@ -58,21 +61,40 @@ export function useAIConnections() {
         }
         return;
       }
-      // Ensure local storage never keeps plaintext API keys.
-      persistConnections(parsed);
 
-      const hydrated = await Promise.all(
+      const hydratedWithState = await Promise.all(
         parsed.map(async (connection) => {
-          if (connection.apiKey?.trim()) return connection;
+          if (connection.apiKey?.trim()) {
+            return {
+              ...connection,
+              hasApiKey: true,
+            };
+          }
+
           const storedKey = await getAPIKey(connection.provider, connection.id);
-          if (!storedKey) return connection;
-          return { ...connection, apiKey: storedKey };
+          if (!storedKey) {
+            return {
+              ...connection,
+              hasApiKey: false,
+              apiKey: "",
+            };
+          }
+
+          return {
+            ...connection,
+            apiKey: storedKey,
+            hasApiKey: true,
+          };
         }),
       );
 
+      // Ensure local storage never keeps plaintext API keys and key-presence
+      // metadata stays aligned with keychain state.
+      persistConnections(hydratedWithState);
+
       if (!cancelled) {
-        setConnections(hydrated);
-        setSelectedId(hydrated[0]?.id || "");
+        setConnections(hydratedWithState);
+        setSelectedId(hydratedWithState[0]?.id || "");
       }
     };
 
@@ -116,6 +138,9 @@ export function useAIConnections() {
             ? {
                 ...c,
                 ...updates,
+                ...(nextApiKey !== undefined
+                  ? { hasApiKey: Boolean(nextApiKey.trim()) }
+                  : {}),
                 updatedAt: Date.now(),
               }
             : c,
@@ -139,6 +164,7 @@ export function useAIConnections() {
   ) => {
     const newConnection: AIConnection = {
       ...connection,
+      hasApiKey: Boolean(connection.apiKey?.trim()),
       id: `${connection.provider}-${Date.now()}`,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -201,7 +227,7 @@ export function useAIConnections() {
           keyFromStorage.trim() ||
           (await getAPIKey(connection.provider, connection.id)) ||
           "";
-        const canFetchWithoutKey = !requiresApiKey(connection);
+        const canFetchWithoutKey = !connectionRequiresApiKey(connection);
         if (!keyFromKeychain && !canFetchWithoutKey) {
           setError("API key is required to fetch models");
           return;
@@ -243,6 +269,28 @@ export function useAIConnections() {
   );
 
   const selectedConnection = connections.find((c) => c.id === selectedId);
+  const connectionStatusById = useMemo(() => {
+    const next: Record<string, AIConnectionStatus> = {};
+    connections.forEach((connection) => {
+      if (!connection.enabled) {
+        next[connection.id] = "disabled";
+        return;
+      }
+
+      if (
+        connectionRequiresApiKey(connection) &&
+        !connectionHasApiKey(connection)
+      ) {
+        next[connection.id] = "missing-api-key";
+        return;
+      }
+
+      next[connection.id] = isConnectionUsable(connection)
+        ? "active"
+        : "missing-api-key";
+    });
+    return next;
+  }, [connections]);
 
   return {
     connections,
@@ -254,6 +302,7 @@ export function useAIConnections() {
     deleteConnection,
     toggleEnabled,
     refreshModels,
+    connectionStatusById,
     loading,
     error,
   };
