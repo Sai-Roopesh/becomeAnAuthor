@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -56,7 +56,7 @@
 
 | Principle | Implementation |
 |---|---|
-| **Offline-first** | All data on local filesystem; AI keys stored per-machine |
+| **Offline-first** | All data on local filesystem; AI keys stored locally |
 | **Clean Architecture** | Domain → Application → Infrastructure → Presentation layers |
 | **Dependency Injection** | React Context-based DI via `AppContext.tsx` with lazy singletons |
 | **Series-first** | Every project belongs to a series; codex entries are series-scoped |
@@ -204,13 +204,13 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `search` | `search.rs` | ~100 | `search_project` | Full-text search using walkdir + regex |
 | `trash` | `trash.rs` | ~120 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
 | `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
-| `security` | `security.rs` | ~60 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
+| `security` | `security.rs` | ~60 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Local secure credential storage |
 | `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
 | `collaboration` | `collaboration.rs` | ~60 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
 | `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
 | `world_map` | `world_map.rs` | ~120 | `list_maps`, `save_map`, `delete_map`, `upload_map_image` | Map image + marker storage |
 | `world_timeline` | `world_timeline.rs` | ~80 | `list_world_events`, `save_world_event`, `delete_world_event` | World event timeline |
-| `google_oauth` | `google_oauth.rs` | 428 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
+| `google_oauth` | `google_oauth.rs` | 428 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + local storage |
 
 ### 5.3 Models — `models/mod.rs`
 
@@ -594,7 +594,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Key | Data |
 |---|---|
-| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) — keys in OS keychain |
+| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) — keys in local secure storage |
 | `project-store` | Zustand: sidebar/timeline visibility, tab selections |
 | `format-settings` | Zustand: typography and editor mode preferences |
 | `google_tokens` | OAuth tokens with expiry |
@@ -603,9 +603,9 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ## 13. Security Architecture
 
-- **API Keys**: Tauri keychain (`keyring`) via `security.rs`; Google tokens also stored in keychain on desktop. `localStorage` only persists `hasApiKey` boolean metadata to avoid plaintext exposure.
+- **API Keys**: Local secure storage via `security.rs`; stored in `.meta/api_keys.json`. `localStorage` only persists `hasApiKey` boolean metadata to avoid plaintext exposure.
 - **OAuth 2.0**:
-  - **Desktop:** System browser + localhost loopback + PKCE. Tokens in OS keychain.
+  - **Desktop:** System browser + localhost loopback + PKCE. Tokens in local secure storage (`.meta/google_oauth_store.json`).
   - **Web:** Standard PKCE flow. Tokens in localStorage.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.

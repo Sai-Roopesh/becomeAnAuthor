@@ -121,7 +121,7 @@ Implementation entry point:
 
 ## 8. Google Drive in Production
 
-Desktop Google OAuth uses system browser + localhost callback and stores tokens in OS keychain.
+Desktop Google OAuth uses system browser + localhost callback and stores tokens in local secure storage.
 
 Backend commands:
 
