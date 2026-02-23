@@ -6,8 +6,6 @@
 // Barrel export for domain repositories
 export type { INodeRepository } from "./INodeRepository";
 export type { ISceneNoteRepository } from "./ISceneNoteRepository";
-export type { IMapRepository } from "./IMapRepository";
-export type { IWorldTimelineRepository } from "./IWorldTimelineRepository";
 export type { ICodexRepository } from "./ICodexRepository";
 export type { IChatRepository } from "./IChatRepository";
 export type { IProjectRepository } from "./IProjectRepository";

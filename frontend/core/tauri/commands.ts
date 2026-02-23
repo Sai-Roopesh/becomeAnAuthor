@@ -11,8 +11,6 @@ import type {
   CodexRelation,
   CodexTag,
   CodexEntryTag,
-  ProjectMap,
-  WorldEvent,
   ChatThread,
   ChatMessage,
   Series,
@@ -760,62 +758,6 @@ export async function searchProject(
     query,
     ...(scope ? { scope } : {}),
   });
-}
-
-// ============ Map Commands ============
-
-export async function listMaps(projectPath: string): Promise<ProjectMap[]> {
-  return invoke<ProjectMap[]>("list_maps", { projectPath });
-}
-
-export async function saveMap(
-  projectPath: string,
-  map: ProjectMap,
-): Promise<void> {
-  return invoke("save_map", { projectPath, map });
-}
-
-export async function deleteMap(
-  projectPath: string,
-  mapId: string,
-): Promise<void> {
-  return invoke("delete_map", { projectPath, mapId });
-}
-
-export async function uploadMapImage(
-  projectPath: string,
-  mapId: string,
-  imageData: number[],
-  fileName: string,
-): Promise<string> {
-  return invoke<string>("upload_map_image", {
-    projectPath,
-    mapId,
-    imageData,
-    fileName,
-  });
-}
-
-// ============ World Timeline Commands ============
-
-export async function listWorldEvents(
-  projectPath: string,
-): Promise<WorldEvent[]> {
-  return invoke<WorldEvent[]>("list_world_events", { projectPath });
-}
-
-export async function saveWorldEvent(
-  projectPath: string,
-  event: WorldEvent,
-): Promise<void> {
-  return invoke("save_world_event", { projectPath, event });
-}
-
-export async function deleteWorldEvent(
-  projectPath: string,
-  eventId: string,
-): Promise<void> {
-  return invoke("delete_world_event", { projectPath, eventId });
 }
 
 // ============ Export Commands ============

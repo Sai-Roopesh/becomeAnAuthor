@@ -172,15 +172,6 @@ pub fn run() {
             get_scene_note,
             save_scene_note,
             delete_scene_note,
-            // Map commands
-            list_maps,
-            save_map,
-            delete_map,
-            upload_map_image,
-            // World timeline commands
-            list_world_events,
-            save_world_event,
-            delete_world_event,
             // App info
             get_app_info,
         ])

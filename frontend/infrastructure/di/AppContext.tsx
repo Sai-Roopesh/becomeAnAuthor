@@ -14,8 +14,6 @@ import { TauriCodexRelationTypeRepository } from "@/infrastructure/repositories/
 import { TauriSceneCodexLinkRepository } from "@/infrastructure/repositories/TauriSceneCodexLinkRepository";
 import { TauriSeriesRepository } from "@/infrastructure/repositories/TauriSeriesRepository";
 import { TauriSceneNoteRepository } from "@/infrastructure/repositories/TauriSceneNoteRepository";
-import { TauriMapRepository } from "@/infrastructure/repositories/TauriMapRepository";
-import { TauriWorldTimelineRepository } from "@/infrastructure/repositories/TauriWorldTimelineRepository";
 // Repository interfaces
 import type { INodeRepository } from "@/domain/repositories/INodeRepository";
 import type { ICodexRepository } from "@/domain/repositories/ICodexRepository";
@@ -29,8 +27,6 @@ import type { ICodexRelationTypeRepository } from "@/domain/repositories/ICodexR
 import type { ISceneCodexLinkRepository } from "@/domain/repositories/ISceneCodexLinkRepository";
 import type { ISeriesRepository } from "@/domain/repositories/ISeriesRepository";
 import type { ISceneNoteRepository } from "@/domain/repositories/ISceneNoteRepository";
-import type { IMapRepository } from "@/domain/repositories/IMapRepository";
-import type { IWorldTimelineRepository } from "@/domain/repositories/IWorldTimelineRepository";
 // Services
 import type { IChatService } from "@/domain/services/IChatService";
 import { ChatService } from "@/infrastructure/services/ChatService";
@@ -59,8 +55,6 @@ interface AppServices {
   // NEW: Series management (GAP-2)
   seriesRepository: ISeriesRepository;
   sceneNoteRepository: ISceneNoteRepository;
-  mapRepository: IMapRepository;
-  worldTimelineRepository: IWorldTimelineRepository;
 
   // Services
   chatService: IChatService;
@@ -125,10 +119,6 @@ export function AppProvider({
       customServices?.seriesRepository ?? new TauriSeriesRepository();
     const sceneNoteRepo =
       customServices?.sceneNoteRepository ?? new TauriSceneNoteRepository();
-    const mapRepo = customServices?.mapRepository ?? new TauriMapRepository();
-    const worldTimelineRepo =
-      customServices?.worldTimelineRepository ??
-      new TauriWorldTimelineRepository();
 
     const chatSvc =
       customServices?.chatService ??
@@ -150,8 +140,6 @@ export function AppProvider({
       sceneCodexLinkRepository: sceneCodexLinkRepo,
       seriesRepository: seriesRepo,
       sceneNoteRepository: sceneNoteRepo,
-      mapRepository: mapRepo,
-      worldTimelineRepository: worldTimelineRepo,
       chatService: chatSvc,
       exportService: exportSvc,
     };

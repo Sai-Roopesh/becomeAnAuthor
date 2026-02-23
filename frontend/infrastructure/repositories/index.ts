@@ -17,5 +17,3 @@ export { TauriSceneCodexLinkRepository } from "./TauriSceneCodexLinkRepository";
 export { TauriCollaborationRepository } from "./TauriCollaborationRepository";
 export { TauriMentionRepository } from "./TauriMentionRepository";
 export { TauriSceneNoteRepository } from "./TauriSceneNoteRepository";
-export { TauriMapRepository } from "./TauriMapRepository";
-export { TauriWorldTimelineRepository } from "./TauriWorldTimelineRepository";
