@@ -50,8 +50,8 @@ export const FEATURE_FLAGS = {
  */
 export const GOOGLE_CONFIG = {
   CLIENT_ID: process.env["NEXT_PUBLIC_GOOGLE_CLIENT_ID"] || "",
-  // Optional for web OAuth clients that require a client secret.
-  // Desktop Tauri OAuth flow does not use this value.
+  // Optional by default, but required if your OAuth client enforces a client secret.
+  // Used by desktop token/refresh exchange.
   CLIENT_SECRET: process.env["NEXT_PUBLIC_GOOGLE_CLIENT_SECRET"] || "",
   REDIRECT_URI:
     typeof window !== "undefined"

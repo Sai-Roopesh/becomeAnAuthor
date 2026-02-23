@@ -11,6 +11,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::utils::get_app_dir;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use reqwest::Client;
@@ -19,7 +20,6 @@ use sha2::{Digest, Sha256};
 use tauri::command;
 use url::Url;
 use uuid::Uuid;
-use crate::utils::get_app_dir;
 
 const TOKENS_ACCOUNT: &str = "google-oauth-tokens";
 const USER_ACCOUNT: &str = "google-oauth-user";
@@ -88,8 +88,8 @@ fn read_oauth_store() -> Result<HashMap<String, String>, String> {
         return Ok(HashMap::new());
     }
 
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read OAuth storage file: {e}"))?;
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read OAuth storage file: {e}"))?;
     serde_json::from_str::<HashMap<String, String>>(&content)
         .map_err(|e| format!("Failed to parse OAuth storage file: {e}"))
 }
@@ -197,20 +197,26 @@ fn wait_for_google_callback(listener: TcpListener) -> Result<HashMap<String, Str
 async fn exchange_code_for_tokens(
     client: &Client,
     client_id: &str,
+    client_secret: Option<&str>,
     code: &str,
     redirect_uri: &str,
     code_verifier: &str,
 ) -> Result<GoogleOAuthTokens, String> {
+    let mut form = vec![
+        ("client_id", client_id.to_string()),
+        ("code", code.to_string()),
+        ("code_verifier", code_verifier.to_string()),
+        ("grant_type", "authorization_code".to_string()),
+        ("redirect_uri", redirect_uri.to_string()),
+    ];
+    if let Some(secret) = client_secret.map(str::trim).filter(|s| !s.is_empty()) {
+        form.push(("client_secret", secret.to_string()));
+    }
+
     let response = client
         .post(GOOGLE_TOKEN_ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .form(&[
-            ("client_id", client_id),
-            ("code", code),
-            ("code_verifier", code_verifier),
-            ("grant_type", "authorization_code"),
-            ("redirect_uri", redirect_uri),
-        ])
+        .form(&form)
         .send()
         .await
         .map_err(|e| format!("Token exchange request failed: {e}"))?;
@@ -239,6 +245,7 @@ async fn exchange_code_for_tokens(
 async fn refresh_access_token(
     client: &Client,
     client_id: &str,
+    client_secret: Option<&str>,
     tokens: &GoogleOAuthTokens,
 ) -> Result<GoogleOAuthTokens, String> {
     let refresh_token = tokens
@@ -246,14 +253,19 @@ async fn refresh_access_token(
         .as_deref()
         .ok_or_else(|| "No refresh token available".to_string())?;
 
+    let mut form = vec![
+        ("client_id", client_id.to_string()),
+        ("refresh_token", refresh_token.to_string()),
+        ("grant_type", "refresh_token".to_string()),
+    ];
+    if let Some(secret) = client_secret.map(str::trim).filter(|s| !s.is_empty()) {
+        form.push(("client_secret", secret.to_string()));
+    }
+
     let response = client
         .post(GOOGLE_TOKEN_ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .form(&[
-            ("client_id", client_id),
-            ("refresh_token", refresh_token),
-            ("grant_type", "refresh_token"),
-        ])
+        .form(&form)
         .send()
         .await
         .map_err(|e| format!("Token refresh request failed: {e}"))?;
@@ -311,6 +323,7 @@ async fn fetch_user_info(client: &Client, access_token: &str) -> Result<GoogleUs
 #[command]
 pub async fn google_oauth_connect(
     client_id: String,
+    client_secret: Option<String>,
     scopes: Vec<String>,
 ) -> Result<GoogleUser, String> {
     if client_id.trim().is_empty() {
@@ -384,8 +397,15 @@ pub async fn google_oauth_connect(
         .ok_or_else(|| "Missing authorization code".to_string())?;
 
     let client = Client::new();
-    let tokens =
-        exchange_code_for_tokens(&client, &client_id, code, &redirect_uri, &code_verifier).await?;
+    let tokens = exchange_code_for_tokens(
+        &client,
+        &client_id,
+        client_secret.as_deref(),
+        code,
+        &redirect_uri,
+        &code_verifier,
+    )
+    .await?;
     let user = fetch_user_info(&client, &tokens.access_token).await?;
 
     store_json(TOKENS_ACCOUNT, &tokens)?;
@@ -395,7 +415,10 @@ pub async fn google_oauth_connect(
 }
 
 #[command]
-pub async fn google_oauth_get_access_token(client_id: String) -> Result<Option<String>, String> {
+pub async fn google_oauth_get_access_token(
+    client_id: String,
+    client_secret: Option<String>,
+) -> Result<Option<String>, String> {
     if client_id.trim().is_empty() {
         return Err("Google client_id is required".to_string());
     }
@@ -410,14 +433,15 @@ pub async fn google_oauth_get_access_token(client_id: String) -> Result<Option<S
     }
 
     let client = Client::new();
-    let refreshed = match refresh_access_token(&client, &client_id, &tokens).await {
-        Ok(t) => t,
-        Err(err) => {
-            let _ = delete_entry(TOKENS_ACCOUNT);
-            let _ = delete_entry(USER_ACCOUNT);
-            return Err(err);
-        }
-    };
+    let refreshed =
+        match refresh_access_token(&client, &client_id, client_secret.as_deref(), &tokens).await {
+            Ok(t) => t,
+            Err(err) => {
+                let _ = delete_entry(TOKENS_ACCOUNT);
+                let _ = delete_entry(USER_ACCOUNT);
+                return Err(err);
+            }
+        };
 
     store_json(TOKENS_ACCOUNT, &refreshed)?;
     Ok(Some(refreshed.access_token))

@@ -13,6 +13,7 @@ Set these repository secrets/variables:
 - `APPLE_SIGNING_IDENTITY` (required for signed macOS release builds)
 - `JULES_API_KEY` (docs workflow only)
 - Repository variable: `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- Repository variable (only if required by your OAuth client): `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET`
 
 Generate updater signing keys locally:
 
@@ -121,7 +122,7 @@ Implementation entry point:
 
 ## 8. Google Drive in Production
 
-Desktop Google OAuth uses system browser + localhost callback and stores tokens in OS keychain.
+Desktop Google OAuth uses system browser + localhost callback and stores tokens in local app data (`.meta/google_oauth_store.json`).
 
 Backend commands:
 
@@ -131,6 +132,14 @@ Backend commands:
 - `google_oauth_sign_out`
 
 Use a **Google OAuth Desktop App client ID** for `NEXT_PUBLIC_GOOGLE_CLIENT_ID`.
+
+Before any production release tag, verify Google Auth Platform state:
+
+1. OAuth consent screen publishing status is **In production** (not Testing/Development).
+2. App domain/privacy/support fields required by Google are completed for your app type.
+3. Release account sign-in works without being manually added to test users.
+
+If left in testing/development state, real-user sign-in is constrained and token behavior can differ from production.
 
 ## 9. App Data Location and Clean First-Run Behavior
 

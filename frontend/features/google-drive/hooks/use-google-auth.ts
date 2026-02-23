@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { googleAuthService } from "@/infrastructure/services/google-auth-service";
 import { GoogleUser } from "@/domain/entities/types";
 import { logger } from "@/shared/utils/logger";
@@ -17,30 +17,43 @@ export function useGoogleAuth() {
   const [user, setUser] = useState<GoogleUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
+  const refreshAuth = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
+    try {
       const authenticated = await googleAuthService.isAuthenticated();
       setIsAuthenticated(authenticated);
 
       if (authenticated) {
         const userInfo = await googleAuthService.getUserInfo();
         setUser(userInfo);
+      } else {
+        setUser(null);
       }
-
-      setIsLoading(false);
-    };
-
-    void checkAuth();
+    } catch (error) {
+      log.error("Failed to refresh auth state:", error);
+      setIsAuthenticated(false);
+      setUser(null);
+    } finally {
+      if (showLoading) {
+        setIsLoading(false);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshAuth(true);
+    const unsubscribe = googleAuthService.subscribeAuthStateChange(() => {
+      void refreshAuth(false);
+    });
+    return unsubscribe;
+  }, [refreshAuth]);
 
   const signIn = async () => {
     try {
       await googleAuthService.signIn();
-      const authenticated = await googleAuthService.isAuthenticated();
-      setIsAuthenticated(authenticated);
-      const userInfo = await googleAuthService.getUserInfo();
-      setUser(userInfo);
+      await refreshAuth(false);
     } catch (error) {
       log.error("Sign-in error:", error);
       throw error;
@@ -50,8 +63,7 @@ export function useGoogleAuth() {
   const signOut = async () => {
     try {
       await googleAuthService.signOut();
-      setIsAuthenticated(false);
-      setUser(null);
+      await refreshAuth(false);
     } catch (error) {
       log.error("Sign-out error:", error);
       throw error;
@@ -64,5 +76,6 @@ export function useGoogleAuth() {
     isLoading,
     signIn,
     signOut,
+    refreshAuth: () => refreshAuth(false),
   };
 }
