@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -56,7 +56,7 @@
 
 | Principle | Implementation |
 |---|---|
-| **Offline-first** | All data on local filesystem; AI keys stored per-machine |
+| **Offline-first** | All data on local filesystem; AI keys stored in local app storage |
 | **Clean Architecture** | Domain → Application → Infrastructure → Presentation layers |
 | **Dependency Injection** | React Context-based DI via `AppContext.tsx` with lazy singletons |
 | **Series-first** | Every project belongs to a series; codex entries are series-scoped |
@@ -443,10 +443,10 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | Service | File | Lines | Purpose |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 124 | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()` |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, and inclusion options. |
+| `DocumentExportService` | `DocumentExportService.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, inclusion options, and section-aware content segmentation (`SceneSectionSegment`). |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with fallback to manual entry. |
-| `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry |
-| `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). **Web:** Standard PKCE flow. |
+| `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry. |
+| `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). Web flow removed. |
 | `GoogleDriveService` | `google-drive-service.ts` | 286 | Drive API: app folder management, backup upload/download/delete, storage quota |
 
 ---
@@ -603,10 +603,9 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ## 13. Security Architecture
 
-- **API Keys**: Tauri keychain (`keyring`) via `security.rs`; Google tokens also stored in keychain on desktop. `localStorage` only persists `hasApiKey` boolean metadata to avoid plaintext exposure.
+- **API Keys**: Stored in local app storage (`.meta/api_keys.json`) via `security.rs`. `localStorage` only persists `hasApiKey` boolean metadata.
 - **OAuth 2.0**:
-  - **Desktop:** System browser + localhost loopback + PKCE. Tokens in OS keychain.
-  - **Web:** Standard PKCE flow. Tokens in localStorage.
+  - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in local app storage (`.meta/google_oauth_store.json`).
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.

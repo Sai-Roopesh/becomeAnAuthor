@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Status:** Living Document
 
 ---
@@ -37,7 +37,7 @@
 | Principle | Implementation |
 |---|---|
 | **Local-first** | All data stored on local filesystem; no cloud dependency |
-| **Privacy-focused** | API keys stored in OS keychain; AI calls made directly from client |
+| **Privacy-focused** | API keys stored in local app storage; AI calls made directly from client |
 | **Clean Architecture** | Domain-driven design with repository pattern and dependency injection |
 | **Feature-modular** | Each feature encapsulated with its own components, hooks, and exports |
 
@@ -106,7 +106,7 @@
 | File Ops | walkdir | 2.x |
 | Markdown | gray_matter | 0.2 |
 | Doc Gen | docx-rs (legacy), epub-builder | 0.4 / 0.7 |
-| Secret Store | keyring (OS keychain) | 2.3 |
+| Secret Store | Local App Storage (JSON) | N/A |
 | Logging | tauri-plugin-log | 2.1 |
 
 ---
@@ -151,14 +151,14 @@ backend/src/
 │   ├── search.rs        # Full-text search across project (7.3KB)
 │   ├── backup.rs        # Emergency backup + export/import + rollback (40KB)
 │   ├── trash.rs         # Soft delete with restore (5.4KB)
-│   ├── security.rs      # OS keychain API key management (5.9KB)
+│   ├── security.rs      # Local app storage API key management (5.9KB)
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
 │   ├── snippet.rs       # Reusable text snippets (1.6KB)
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
 │   ├── world_map.rs     # Map management with image upload (2.7KB)
 │   ├── world_timeline.rs# World-level timeline events (1.8KB)
-│   └── google_oauth.rs  # Desktop OAuth via loopback + keyring (15KB)
+│   └── google_oauth.rs  # Desktop OAuth via loopback + local JSON storage (15KB)
 ├── models/              # Data structures (11 modules)
 │   ├── mod.rs
 │   ├── project.rs       # ProjectMeta, StructureNode, Series
@@ -177,7 +177,7 @@ backend/src/
     ├── text.rs          # Text processing (word count, slugify)
     ├── validation.rs    # Input validation rules (10.7KB)
     ├── timestamp.rs     # RFC 3339 ↔ Unix timestamp conversion
-    └── security.rs      # Keyring operations wrapper
+    └── security.rs      # Security helpers
 ```
 
 ### 4.2 Command Pattern
@@ -500,7 +500,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Uses `extractSceneSectionSegments` to parse section blocks from TipTap JSON. Includes robust PDF text sanitization, clean mention extraction, optional Codex Appendix generation, and section-aware structure controls (section headings, TOC inclusion, per-type page breaks, excluded-section filtering). |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
-| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend / Web: PKCE) |
+| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend). Web flow removed. |
 | `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
 
 ---
@@ -606,8 +606,8 @@ features/editor/
 │  ┌───────────────▼────────────────┐  │
 │  │  Connection Storage             │  │
 │  │  (core/storage/safe-storage)    │  │
-│  │  + OS Keychain for keys (meta-  │  │
-│  │    data only in storage)        │  │
+│  │  + Local App Storage for keys   │  │
+│  │    (metadata only in storage)   │  │
 │  └────────────────────────────────┘  │
 └──────────────────────────────────────┘
 ```
@@ -819,6 +819,8 @@ Rust: commands::chat::create_chat_message()
 | World events | JSON (single array file) | `world-events.json` |
 | Series metadata | JSON (global) | `.meta/series.json` |
 | Recent projects | JSON (global) | `.meta/recent.json` |
+| API Keys | JSON (global) | `.meta/api_keys.json` |
+| OAuth Tokens | JSON (global) | `.meta/google_oauth_store.json` |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
 | Emergency backups | JSON | `.backups/{timestamp}.json` |
 
@@ -826,7 +828,7 @@ Rust: commands::chat::create_chat_message()
 
 | Store | Technology | Purpose |
 |---|---|---|
-| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with encrypted keys metadata (`hasApiKey`); actual keys in OS Keychain |
+| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with `hasApiKey` metadata; actual keys in local app storage |
 | UI preferences | `localStorage` via Zustand persist | Panel states, view modes |
 | Editor format | `localStorage` via Zustand persist | Font, spacing, width preferences |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
@@ -845,16 +847,14 @@ Frontend: invoke("store_api_key", { provider, key })
         │
         ▼
 Rust: security::store_api_key()
-  → keyring::Entry::new("become-an-author", provider)
-  → entry.set_password(key)
-        │
-        ▼
-OS Keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)
+  → load .meta/api_keys.json
+  → update key map
+  → write .meta/api_keys.json
 ```
 
-- Keys are **never** stored in the filesystem or localStorage.
-- Retrieval via `get_api_key(provider)` → OS keychain lookup.
-- **Google OAuth Tokens**: Also stored in `keyring` (Service: `com.becomeauthor.app`, Account: `google-oauth-tokens`).
+- Keys are stored in **local app storage** (`.meta/api_keys.json`).
+- Retrieval via `get_api_key(provider)` → local file lookup.
+- **Google OAuth Tokens**: Stored in `.meta/google_oauth_store.json`.
 
 ### 15.2 Content Security
 
