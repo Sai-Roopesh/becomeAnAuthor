@@ -2,7 +2,7 @@
 
 /**
  * Google OAuth 2.0 Service
- * - Desktop (Tauri): system-browser loopback OAuth via backend command + keychain token storage
+ * - Desktop (Tauri): system-browser loopback OAuth via backend command + local app storage
  * - Web fallback: PKCE SPA flow with localStorage session
  */
 

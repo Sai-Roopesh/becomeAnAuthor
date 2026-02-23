@@ -170,7 +170,7 @@ export function getEnabledConnections(): AIConnection[] {
 
 /**
  * Check whether at least one enabled connection is currently usable.
- * Resolves keychain-backed credentials for providers that require API keys.
+ * Resolves secure local credentials for providers that require API keys.
  */
 export async function hasUsableAIConnection(): Promise<boolean> {
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);

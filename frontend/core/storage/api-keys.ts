@@ -1,9 +1,6 @@
 /**
  * Secure API Key Storage
- * Stores API keys in OS-level encrypted keychain instead of localStorage
- * - macOS: Keychain
- * - Windows: Credential Manager
- * - Linux: Secret Service (gnome-keyring/kwallet)
+ * Stores API keys through backend secure storage commands.
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -14,7 +11,7 @@ const log = logger.scope("APIKeys");
 import { toast } from "@/core/toast";
 
 /**
- * Store an API key securely in OS keychain
+ * Store an API key in local app storage
  */
 export async function storeAPIKey(
   provider: AIProvider,
@@ -23,7 +20,7 @@ export async function storeAPIKey(
 ): Promise<boolean> {
   try {
     await invoke("store_api_key", { provider, connectionId, key: apiKey });
-    log.debug(`Stored API key for ${provider}/${connectionId} in OS keychain`);
+    log.debug(`Stored API key for ${provider}/${connectionId}`);
     return true;
   } catch (error) {
     log.error(
@@ -37,7 +34,7 @@ export async function storeAPIKey(
 }
 
 /**
- * Retrieve an API key from OS keychain
+ * Retrieve an API key from local app storage
  * Returns null if no key is stored
  */
 export async function getAPIKey(
@@ -60,7 +57,7 @@ export async function getAPIKey(
 }
 
 /**
- * Delete an API key from OS keychain
+ * Delete an API key from local app storage
  */
 export async function deleteAPIKey(
   provider: AIProvider,
@@ -185,7 +182,7 @@ export async function storeAPIKeyWithValidation(
     return { success: false, error: validationError };
   }
 
-  // Store in keychain
+  // Store in app-local secure storage
   const success = await storeAPIKey(provider, connectionId, apiKey.trim());
 
   if (!success) {

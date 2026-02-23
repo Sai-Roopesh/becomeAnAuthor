@@ -1,25 +1,26 @@
 // Google OAuth Commands (desktop-safe)
 // Uses system browser + localhost loopback callback + PKCE.
-// Stores OAuth session in OS keychain instead of localStorage.
+// Stores OAuth session in local app-scoped files.
 
 use std::collections::HashMap;
+use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use keyring::Entry;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::command;
 use url::Url;
 use uuid::Uuid;
+use crate::utils::get_app_dir;
 
-const SERVICE_NAME: &str = "com.becomeauthor.app";
 const TOKENS_ACCOUNT: &str = "google-oauth-tokens";
 const USER_ACCOUNT: &str = "google-oauth-user";
 const CALLBACK_TIMEOUT_SECS: u64 = 180;
@@ -74,39 +75,56 @@ fn now_unix() -> i64 {
         .unwrap_or(0)
 }
 
-fn keyring_entry(account: &str) -> Result<Entry, String> {
-    Entry::new(SERVICE_NAME, account)
-        .map_err(|e| format!("Failed to create keyring entry for {account}: {e}"))
+fn oauth_store_path() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let meta_dir = app_dir.join(".meta");
+    fs::create_dir_all(&meta_dir).map_err(|e| format!("Failed to create .meta directory: {e}"))?;
+    Ok(meta_dir.join("google_oauth_store.json"))
+}
+
+fn read_oauth_store() -> Result<HashMap<String, String>, String> {
+    let path = oauth_store_path()?;
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read OAuth storage file: {e}"))?;
+    serde_json::from_str::<HashMap<String, String>>(&content)
+        .map_err(|e| format!("Failed to parse OAuth storage file: {e}"))
+}
+
+fn write_oauth_store(store: &HashMap<String, String>) -> Result<(), String> {
+    let path = oauth_store_path()?;
+    let json = serde_json::to_string_pretty(store)
+        .map_err(|e| format!("Failed to serialize OAuth storage file: {e}"))?;
+    fs::write(&path, json).map_err(|e| format!("Failed to write OAuth storage file: {e}"))
 }
 
 fn store_json<T: Serialize>(account: &str, data: &T) -> Result<(), String> {
-    let entry = keyring_entry(account)?;
     let payload = serde_json::to_string(data)
-        .map_err(|e| format!("Failed to serialize keychain payload: {e}"))?;
-    entry
-        .set_password(&payload)
-        .map_err(|e| format!("Failed to store keychain payload: {e}"))
+        .map_err(|e| format!("Failed to serialize OAuth payload: {e}"))?;
+    let mut store = read_oauth_store()?;
+    store.insert(account.to_string(), payload);
+    write_oauth_store(&store)
 }
 
 fn load_json<T: for<'de> Deserialize<'de>>(account: &str) -> Result<Option<T>, String> {
-    let entry = keyring_entry(account)?;
-    match entry.get_password() {
-        Ok(payload) => {
-            let parsed = serde_json::from_str::<T>(&payload)
-                .map_err(|e| format!("Failed to parse keychain payload: {e}"))?;
-            Ok(Some(parsed))
-        }
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("Failed to read keychain payload: {e}")),
-    }
+    let store = read_oauth_store()?;
+    let Some(payload) = store.get(account) else {
+        return Ok(None);
+    };
+    let parsed = serde_json::from_str::<T>(payload)
+        .map_err(|e| format!("Failed to parse OAuth payload: {e}"))?;
+    Ok(Some(parsed))
 }
 
 fn delete_entry(account: &str) -> Result<(), String> {
-    let entry = keyring_entry(account)?;
-    match entry.delete_password() {
-        Ok(_) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(format!("Failed to delete keychain payload: {e}")),
+    let mut store = read_oauth_store()?;
+    if store.remove(account).is_some() {
+        write_oauth_store(&store)?;
     }
+    Ok(())
 }
 
 fn build_code_verifier() -> String {
