@@ -179,7 +179,7 @@ isScene(node)  → node is Scene    // node.type === "scene"
 | `YjsStateSnapshot` | stateVector, update (Uint8Array) | CRDT persistence |
 | `CollaborationPeer` | id, name, color, cursor | Connected peer state |
 | `WorldEventTemporal` | precision, year, month, day, hour, minute | Temporal data with precision |
-| `SceneSectionSegment` | key, title, sectionType, paragraphs | Section data for export |
+| `SceneSectionSegment` | key, title, sectionType, paragraphs, excludeFromAI, isSection | Section data for export |
 | `SceneSectionType` | standard, chapter, part, appendix | Export section classification |
 
 ---
