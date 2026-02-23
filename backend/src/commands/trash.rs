@@ -21,6 +21,23 @@ fn normalize_codex_category(category: &str) -> &'static str {
     }
 }
 
+fn parse_trash_meta(path: &PathBuf) -> Result<serde_json::Value, String> {
+    let content = fs::read_to_string(path).map_err(|e| {
+        format!(
+            "Failed to read trash metadata at '{}': {}",
+            path.display(),
+            e
+        )
+    })?;
+    serde_json::from_str(&content).map_err(|e| {
+        format!(
+            "Invalid trash metadata JSON at '{}': {}",
+            path.display(),
+            e
+        )
+    })
+}
+
 #[tauri::command]
 pub fn move_to_trash(
     project_path: String,
@@ -98,9 +115,13 @@ pub fn restore_from_trash(
 
     let entries: Vec<_> = fs::read_dir(&trash_dir)
         .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_name() != "meta.json")
-        .collect();
+        .filter_map(|entry| match entry {
+            Ok(dir_entry) if dir_entry.file_name() != "meta.json" => Some(Ok(dir_entry)),
+            Ok(_) => None,
+            Err(err) => Some(Err(err)),
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
 
     let trashed_file = entries.first().ok_or("No file found in trash item")?;
 
@@ -110,9 +131,8 @@ pub fn restore_from_trash(
             .join(trashed_file.file_name()),
         "codex" => {
             let meta_path = trash_dir.join("meta.json");
-            let meta: serde_json::Value = if meta_path.exists() {
-                let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
-                serde_json::from_str(&content).unwrap_or_default()
+            let meta = if meta_path.exists() {
+                parse_trash_meta(&meta_path)?
             } else {
                 serde_json::Value::Null
             };
@@ -155,10 +175,8 @@ pub fn list_trash(project_path: String) -> Result<Vec<serde_json::Value>, String
         if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
             let meta_path = entry.path().join("meta.json");
             if meta_path.exists() {
-                let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
-                if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&content) {
-                    items.push(meta);
-                }
+                let meta = parse_trash_meta(&meta_path)?;
+                items.push(meta);
             }
         }
     }

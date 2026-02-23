@@ -24,7 +24,6 @@ import {
   EXPORT_PAGE_SIZES_MM,
   withExportDefaults,
 } from "@/domain/types/export-types";
-import { extractTextFromTiptapJSON } from "@/shared/utils/editor";
 import { extractSceneSectionSegments } from "@/shared/utils/scene-sections";
 import type { SceneSectionType } from "@/shared/types/sections";
 
@@ -47,6 +46,12 @@ interface CodexAppendixEntry {
   sceneTitles: string[];
 }
 
+interface PreparedExportData {
+  orderedNodes: DocumentNode[];
+  sceneRecords: SceneRecord[];
+  codexAppendixEntries: CodexAppendixEntry[];
+}
+
 /**
  * Document Export Service
  *
@@ -60,20 +65,16 @@ export class DocumentExportService implements IExportService {
     const resolved = withExportDefaults(config);
     const [
       { pdf, Document: PdfDocument, Page, Text, View, StyleSheet, Font },
-      nodes,
+      prepared,
     ] = await Promise.all([
       import("@react-pdf/renderer"),
-      this.getHydratedNodes(projectId),
+      this.prepareExportData(projectId, resolved),
     ]);
 
     // Keep line breaking deterministic and fast for long manuscripts.
     Font.registerHyphenationCallback((word: string) => [word]);
 
-    const orderedNodes = this.getOrderedNodes(nodes);
-    const sceneRecords = this.getSceneRecords(orderedNodes);
-    const codexAppendixEntries = resolved.includeCodexAppendix
-      ? this.getCodexAppendixEntries(orderedNodes)
-      : [];
+    const { orderedNodes, sceneRecords, codexAppendixEntries } = prepared;
 
     const pageSize = mapPdfPageSize(resolved.pageSize);
     const marginTop = mmToPt(resolved.marginsMm.top);
@@ -458,12 +459,8 @@ export class DocumentExportService implements IExportService {
 
   async exportToDOCX(projectId: string, config: ExportConfigV2): Promise<Blob> {
     const resolved = withExportDefaults(config);
-    const nodes = await this.getHydratedNodes(projectId);
-    const orderedNodes = this.getOrderedNodes(nodes);
-    const sceneRecords = this.getSceneRecords(orderedNodes);
-    const codexAppendixEntries = resolved.includeCodexAppendix
-      ? this.getCodexAppendixEntries(orderedNodes)
-      : [];
+    const { orderedNodes, sceneRecords, codexAppendixEntries } =
+      await this.prepareExportData(projectId, resolved);
 
     const { width, height } = EXPORT_PAGE_SIZES_MM[resolved.pageSize];
 
@@ -715,12 +712,8 @@ export class DocumentExportService implements IExportService {
       includeTOC: false,
       ...config,
     });
-    const nodes = await this.getHydratedNodes(projectId);
-    const orderedNodes = this.getOrderedNodes(nodes);
-    const sceneRecords = this.getSceneRecords(orderedNodes);
-    const codexAppendixEntries = resolved.includeCodexAppendix
-      ? this.getCodexAppendixEntries(orderedNodes)
-      : [];
+    const { orderedNodes, sceneRecords, codexAppendixEntries } =
+      await this.prepareExportData(projectId, resolved);
 
     const parts: string[] = [];
 
@@ -820,44 +813,25 @@ export class DocumentExportService implements IExportService {
     return parts.join("\n").trim();
   }
 
-  private async getHydratedNodes(projectId: string): Promise<DocumentNode[]> {
-    const nodes = (await this.nodeRepository.getByProject(
-      projectId,
-    )) as DocumentNode[];
-    const scenes = nodes.filter((node): node is Scene => node.type === "scene");
-
-    const hydratedScenes = await Promise.all(
-      scenes.map(async (scene) => {
-        if (this.sceneHasTextContent(scene)) return scene;
-
-        try {
-          const loaded = await this.nodeRepository.get(scene.id);
-          if (loaded?.type === "scene") {
-            return {
-              ...scene,
-              ...loaded,
-              content: loaded.content ?? scene.content,
-            } as Scene;
-          }
-        } catch {
-          // Keep original scene when hydration fails.
-        }
-
-        return scene;
-      }),
-    );
-
-    const sceneMap = new Map(hydratedScenes.map((scene) => [scene.id, scene]));
-
-    return nodes.map((node) => {
-      if (node.type !== "scene") return node;
-      return sceneMap.get(node.id) ?? node;
-    });
+  private async prepareExportData(
+    projectId: string,
+    config: ExportConfigV2,
+  ): Promise<PreparedExportData> {
+    const nodes = await this.getHydratedNodes(projectId);
+    const orderedNodes = this.getOrderedNodes(nodes);
+    return {
+      orderedNodes,
+      sceneRecords: this.getSceneRecords(orderedNodes),
+      codexAppendixEntries: config.includeCodexAppendix
+        ? this.getCodexAppendixEntries(orderedNodes)
+        : [],
+    };
   }
 
-  private sceneHasTextContent(scene: Scene): boolean {
-    const text = extractTextFromTiptapJSON(scene.content);
-    return text.trim().length > 0;
+  private async getHydratedNodes(projectId: string): Promise<DocumentNode[]> {
+    return (await this.nodeRepository.getByProject(
+      projectId,
+    )) as DocumentNode[];
   }
 
   private getSceneContentBlocks(

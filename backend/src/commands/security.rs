@@ -18,6 +18,23 @@ fn account_key(provider: &str, connection_id: &str) -> String {
     format!("{provider}::{connection_id}")
 }
 
+fn validate_account_inputs(
+    provider: String,
+    connection_id: String,
+) -> Result<(String, String), String> {
+    let provider = provider.trim().to_string();
+    if provider.is_empty() {
+        return Err("Provider name cannot be empty".to_string());
+    }
+
+    let connection_id = connection_id.trim().to_string();
+    if connection_id.is_empty() {
+        return Err("Connection ID cannot be empty".to_string());
+    }
+
+    Ok((provider, connection_id))
+}
+
 fn read_api_key_store() -> Result<HashMap<String, String>, String> {
     let path = storage_path()?;
     if !path.exists() {
@@ -49,17 +66,7 @@ fn write_api_key_store(store: &HashMap<String, String>) -> Result<(), String> {
 /// * `Err(String)` with error message on failure
 #[command]
 pub fn store_api_key(provider: String, connection_id: String, key: String) -> Result<(), String> {
-    log::info!("Storing API key for provider: {}", provider);
-
-    // Validate inputs
-    let provider = provider.trim().to_string();
-    let connection_id = connection_id.trim().to_string();
-    if provider.is_empty() {
-        return Err("Provider name cannot be empty".to_string());
-    }
-    if connection_id.is_empty() {
-        return Err("Connection ID cannot be empty".to_string());
-    }
+    let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
     if key.is_empty() {
         return Err("API key cannot be empty".to_string());
@@ -68,8 +75,6 @@ pub fn store_api_key(provider: String, connection_id: String, key: String) -> Re
     let mut store = read_api_key_store()?;
     store.insert(account_key(&provider, &connection_id), key);
     write_api_key_store(&store)?;
-
-    log::info!("Successfully stored API key for provider: {}", provider);
     Ok(())
 }
 
@@ -85,25 +90,10 @@ pub fn store_api_key(provider: String, connection_id: String, key: String) -> Re
 /// * `Err(String)` on error
 #[command]
 pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<String>, String> {
-    log::info!("Retrieving API key for provider: {}", provider);
-
-    let provider = provider.trim().to_string();
-    let connection_id = connection_id.trim().to_string();
-    if provider.is_empty() {
-        return Err("Provider name cannot be empty".to_string());
-    }
-    if connection_id.is_empty() {
-        return Err("Connection ID cannot be empty".to_string());
-    }
+    let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
     let store = read_api_key_store()?;
-    let key = store.get(&account_key(&provider, &connection_id)).cloned();
-    if key.is_some() {
-        log::info!("Successfully retrieved API key for provider: {}", provider);
-    } else {
-        log::info!("No API key found for provider: {}", provider);
-    }
-    Ok(key)
+    Ok(store.get(&account_key(&provider, &connection_id)).cloned())
 }
 
 /// Delete an API key from local app storage
@@ -117,16 +107,7 @@ pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<Str
 /// * `Err(String)` on error
 #[command]
 pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), String> {
-    log::info!("Deleting API key for provider: {}", provider);
-
-    let provider = provider.trim().to_string();
-    let connection_id = connection_id.trim().to_string();
-    if provider.is_empty() {
-        return Err("Provider name cannot be empty".to_string());
-    }
-    if connection_id.is_empty() {
-        return Err("Connection ID cannot be empty".to_string());
-    }
+    let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
     let mut store = read_api_key_store()?;
     if store
@@ -134,9 +115,6 @@ pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), Str
         .is_some()
     {
         write_api_key_store(&store)?;
-        log::info!("Successfully deleted API key for provider: {}", provider);
-    } else {
-        log::info!("No API key to delete for provider: {}", provider);
     }
     Ok(())
 }
@@ -148,8 +126,6 @@ pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), Str
 /// * `Err(String)` on error
 #[command]
 pub fn list_api_key_providers() -> Result<Vec<String>, String> {
-    log::info!("Listing API key providers");
-
     let store = read_api_key_store()?;
     let mut providers = BTreeSet::new();
     for account in store.keys() {
@@ -159,12 +135,7 @@ pub fn list_api_key_providers() -> Result<Vec<String>, String> {
             }
         }
     }
-    let stored_providers = providers.into_iter().collect::<Vec<_>>();
-    log::info!(
-        "Found {} providers with stored keys",
-        stored_providers.len()
-    );
-    Ok(stored_providers)
+    Ok(providers.into_iter().collect::<Vec<_>>())
 }
 
 #[cfg(test)]
@@ -174,7 +145,9 @@ mod tests {
     #[test]
     fn test_validate_provider_name() {
         // Empty provider should error
-        assert!(store_api_key("".to_string(), "conn-1".to_string(), "test-key".to_string()).is_err());
+        assert!(
+            store_api_key("".to_string(), "conn-1".to_string(), "test-key".to_string()).is_err()
+        );
         assert!(get_api_key("".to_string(), "conn-1".to_string()).is_err());
         assert!(delete_api_key("".to_string(), "conn-1".to_string()).is_err());
     }

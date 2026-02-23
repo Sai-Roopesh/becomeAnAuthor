@@ -95,77 +95,44 @@ export function AppProvider({
   children,
   services: customServices,
 }: AppProviderProps) {
-  // Create singleton instances with LAZY initialization
-  // Repositories are only created when first accessed, improving startup time
   const services: AppServices = useMemo(() => {
-    // Lazy factory helper - creates instance only on first property access
-    const createLazy = <T extends object>(factory: () => T): T => {
-      let instance: T | null = null;
-      return new Proxy({} as T, {
-        get(_, prop: string | symbol) {
-          if (!instance) {
-            instance = factory();
-          }
-          return Reflect.get(instance as object, prop);
-        },
-      });
-    };
-
-    // All repositories use Tauri (filesystem-based) storage
-    // IndexedDB fallback has been removed - this is now a desktop-only app
-    // IMPORTANT: Use singleton for TauriNodeRepository so projectPath is consistent
+    // Desktop-only app: wire one concrete Tauri implementation for each dependency.
     const nodeRepo =
       customServices?.nodeRepository ?? TauriNodeRepository.getInstance();
     const codexRepo =
-      customServices?.codexRepository ??
-      createLazy(() => new TauriCodexRepository());
+      customServices?.codexRepository ?? new TauriCodexRepository();
     const chatRepo =
-      customServices?.chatRepository ??
-      createLazy(() => new TauriChatRepository());
+      customServices?.chatRepository ?? new TauriChatRepository();
     const snippetRepo =
-      customServices?.snippetRepository ??
-      createLazy(() => new TauriSnippetRepository());
+      customServices?.snippetRepository ?? new TauriSnippetRepository();
     const projectRepo =
-      customServices?.projectRepository ??
-      createLazy(() => new TauriProjectRepository());
+      customServices?.projectRepository ?? new TauriProjectRepository();
     const codexRelationRepo =
       customServices?.codexRelationRepository ??
-      createLazy(() => new TauriCodexRelationRepository());
+      new TauriCodexRelationRepository();
     const codexTagRepo =
-      customServices?.codexTagRepository ??
-      createLazy(() => new TauriCodexTagRepository());
+      customServices?.codexTagRepository ?? new TauriCodexTagRepository();
     const codexTemplateRepo =
       customServices?.codexTemplateRepository ??
-      createLazy(() => new TauriCodexTemplateRepository());
+      new TauriCodexTemplateRepository();
     const codexRelationTypeRepo =
       customServices?.codexRelationTypeRepository ??
-      createLazy(() => new TauriCodexRelationTypeRepository());
+      new TauriCodexRelationTypeRepository();
     const sceneCodexLinkRepo =
       customServices?.sceneCodexLinkRepository ??
-      createLazy(() => new TauriSceneCodexLinkRepository());
+      new TauriSceneCodexLinkRepository();
     const seriesRepo =
-      customServices?.seriesRepository ??
-      createLazy(() => new TauriSeriesRepository());
+      customServices?.seriesRepository ?? new TauriSeriesRepository();
     const sceneNoteRepo =
-      customServices?.sceneNoteRepository ??
-      createLazy(() => new TauriSceneNoteRepository());
-    const mapRepo =
-      customServices?.mapRepository ??
-      createLazy(() => new TauriMapRepository());
+      customServices?.sceneNoteRepository ?? new TauriSceneNoteRepository();
+    const mapRepo = customServices?.mapRepository ?? new TauriMapRepository();
     const worldTimelineRepo =
       customServices?.worldTimelineRepository ??
-      createLazy(() => new TauriWorldTimelineRepository());
+      new TauriWorldTimelineRepository();
 
-    // Services still need eager instantiation as they're commonly used
-    // But they use lazy repos internally
     const chatSvc =
       customServices?.chatService ??
-      new ChatService(
-        nodeRepo,
-        codexRepo,
-        chatRepo,
-        projectRepo, // Series-first: needed for seriesId lookup
-      );
+      new ChatService(nodeRepo, codexRepo, chatRepo, projectRepo);
 
     const exportSvc =
       customServices?.exportService ?? new DocumentExportService(nodeRepo);

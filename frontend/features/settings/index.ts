@@ -6,4 +6,3 @@ export { NewConnectionDialog } from "./components/new-connection-dialog";
 
 // Hooks
 export { useAIConnections } from "./hooks/useAIConnections";
-export { useConnectionValidation } from "./hooks/useConnectionValidation";

@@ -3,9 +3,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
 use crate::models::ProjectMeta;
 use crate::utils::get_series_codex_path;
+use serde::{Deserialize, Serialize};
 
 /// A single mention of a codex entry in the manuscript
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ use crate::utils::get_series_codex_path;
 pub struct Mention {
     pub id: String,
     pub codex_entry_id: String,
-    pub source_type: String,  // "scene", "codex", "snippet", "chat"
+    pub source_type: String, // "scene", "codex", "snippet", "chat"
     pub source_id: String,
     pub source_title: String,
     pub position: usize,
@@ -25,34 +25,23 @@ pub struct Mention {
 #[tauri::command]
 pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec<Mention>, String> {
     let project_path_buf = PathBuf::from(&project_path);
-    
-    // Resolve codex location from series metadata (series-first architecture)
-    // Fallback to project-level codex for legacy projects.
-    let meta_codex_dir = {
-        let project_meta_path = project_path_buf.join(".meta/project.json");
-        if project_meta_path.exists() {
-            if let Ok(meta_content) = fs::read_to_string(&project_meta_path) {
-                if let Ok(project_meta) = serde_json::from_str::<ProjectMeta>(&meta_content) {
-                    get_series_codex_path(&project_meta.series_id)
-                        .unwrap_or_else(|_| project_path_buf.join(".meta/codex"))
-                } else {
-                    project_path_buf.join(".meta/codex")
-                }
-            } else {
-                project_path_buf.join(".meta/codex")
-            }
-        } else {
-            project_path_buf.join(".meta/codex")
-        }
-    };
-    
+
+    let project_meta_path = project_path_buf.join(".meta/project.json");
+    let meta_content = fs::read_to_string(&project_meta_path)
+        .map_err(|e| format!("Failed to read project metadata: {}", e))?;
+    let project_meta: ProjectMeta = serde_json::from_str(&meta_content)
+        .map_err(|e| format!("Failed to parse project metadata: {}", e))?;
+    let meta_codex_dir = get_series_codex_path(&project_meta.series_id)?;
+
     // Find the codex entry file
     let mut entry_name = String::new();
     let mut aliases: Vec<String> = Vec::new();
-    
+
     // Search in .meta/codex for the entry
     for category in &["character", "location", "item", "lore", "subplot"] {
-        let entry_path = meta_codex_dir.join(category).join(format!("{}.json", codex_entry_id));
+        let entry_path = meta_codex_dir
+            .join(category)
+            .join(format!("{}.json", codex_entry_id));
         if entry_path.exists() {
             if let Ok(content) = fs::read_to_string(&entry_path) {
                 if let Ok(entry) = serde_json::from_str::<serde_json::Value>(&content) {
@@ -60,7 +49,8 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
                         entry_name = name.to_string();
                     }
                     if let Some(alias_arr) = entry.get("aliases").and_then(|v| v.as_array()) {
-                        aliases = alias_arr.iter()
+                        aliases = alias_arr
+                            .iter()
                             .filter_map(|v| v.as_str().map(|s| s.to_string()))
                             .collect();
                     }
@@ -69,16 +59,14 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
             break;
         }
     }
-    
+
     if entry_name.is_empty() {
         return Ok(Vec::new());
     }
-    
+
     let mut mentions = Vec::new();
-    let search_terms: Vec<String> = std::iter::once(entry_name.clone())
-        .chain(aliases)
-        .collect();
-    
+    let search_terms: Vec<String> = std::iter::once(entry_name.clone()).chain(aliases).collect();
+
     // Search in scenes (manuscript directory)
     let manuscript_dir = project_path_buf.join("manuscript");
     if manuscript_dir.exists() {
@@ -90,35 +78,39 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
                         let parts: Vec<&str> = content.splitn(3, "---").collect();
                         let (scene_id, scene_title) = if parts.len() >= 2 {
                             let yaml = parts[1];
-                            let id = yaml.lines()
+                            let id = yaml
+                                .lines()
                                 .find(|l| l.starts_with("id:"))
                                 .map(|l| l.replace("id:", "").trim().trim_matches('"').to_string())
                                 .unwrap_or_default();
-                            let title = yaml.lines()
+                            let title = yaml
+                                .lines()
                                 .find(|l| l.starts_with("title:"))
-                                .map(|l| l.replace("title:", "").trim().trim_matches('"').to_string())
+                                .map(|l| {
+                                    l.replace("title:", "").trim().trim_matches('"').to_string()
+                                })
                                 .unwrap_or_default();
                             (id, title)
                         } else {
                             continue;
                         };
-                        
+
                         let body = if parts.len() >= 3 { parts[2] } else { "" };
-                        
+
                         // Find mentions in body
                         for term in &search_terms {
                             let term_lower = term.to_lowercase();
                             let body_lower = body.to_lowercase();
                             let mut start = 0;
-                            
+
                             while let Some(pos) = body_lower[start..].find(&term_lower) {
                                 let actual_pos = start + pos;
-                                
+
                                 // Get surrounding context (50 chars before and after)
                                 let context_start = actual_pos.saturating_sub(50);
                                 let context_end = (actual_pos + term.len() + 50).min(body.len());
                                 let context = body[context_start..context_end].to_string();
-                                
+
                                 mentions.push(Mention {
                                     id: uuid::Uuid::new_v4().to_string(),
                                     codex_entry_id: codex_entry_id.clone(),
@@ -129,7 +121,7 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
                                     context: format!("...{}...", context.trim()),
                                     created_at: chrono::Utc::now().timestamp_millis(),
                                 });
-                                
+
                                 start = actual_pos + term.len();
                             }
                         }
@@ -138,7 +130,7 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
             }
         }
     }
-    
+
     // Search in snippet files (project/snippets/*.json)
     let snippets_dir = project_path_buf.join("snippets");
     if snippets_dir.exists() {
@@ -157,7 +149,8 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
                             .unwrap_or("Untitled");
 
                         if let Some(content_obj) = snippet.get("content") {
-                            let content_str = serde_json::to_string(content_obj).unwrap_or_default();
+                            let content_str =
+                                serde_json::to_string(content_obj).unwrap_or_default();
                             for term in &search_terms {
                                 if content_str.to_lowercase().contains(&term.to_lowercase()) {
                                     mentions.push(Mention {
@@ -179,7 +172,7 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
             }
         }
     }
-    
+
     Ok(mentions)
 }
 

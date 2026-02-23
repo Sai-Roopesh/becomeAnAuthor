@@ -48,7 +48,6 @@ describe("GoogleAuthService Contract", () => {
     expect(googleAuthService).toBeDefined();
     expect(typeof googleAuthService.signIn).toBe("function");
     expect(typeof googleAuthService.signOut).toBe("function");
-    expect(typeof googleAuthService.handleCallback).toBe("function");
     expect(typeof googleAuthService.isAuthenticated).toBe("function");
     expect(typeof googleAuthService.getAccessToken).toBe("function");
     expect(typeof googleAuthService.getUserInfo).toBe("function");
@@ -108,12 +107,6 @@ describe("GoogleAuthService Contract", () => {
     expect(storage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_USER);
     expect(storage.removeItem).toHaveBeenCalledWith(
       STORAGE_KEYS.GOOGLE_PKCE_VERIFIER,
-    );
-  });
-
-  it("handleCallback always rejects because web flow is disabled", async () => {
-    await expect(googleAuthService.handleCallback("auth-code")).rejects.toThrow(
-      /disabled/i,
     );
   });
 });

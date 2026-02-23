@@ -9,7 +9,6 @@ import {
   connectionHasApiKey,
   isConnectionUsable,
 } from "@/lib/config/ai-vendors";
-import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
 import { deleteAPIKey, getAPIKey, storeAPIKey } from "@/core/storage/api-keys";
 import { logger } from "@/shared/utils/logger";
 import { AI_CONNECTIONS_UPDATED_EVENT } from "@/hooks/use-has-ai-connection";
@@ -46,7 +45,6 @@ function persistConnections(connections: AIConnection[]) {
 export function useAIConnections() {
   const [connections, setConnections] = useState<AIConnection[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
@@ -209,64 +207,6 @@ export function useAIConnections() {
     persistConnections(updated);
   };
 
-  /**
-   * Fetch available models from the provider API
-   */
-  const refreshModels = useCallback(
-    async (id: string) => {
-      const connection = connections.find((c) => c.id === id);
-      if (!connection) return;
-
-      setLoading(true);
-      setError("");
-
-      try {
-        const keyFromStorage = connection.apiKey || "";
-        const keyFromSecureStore =
-          keyFromStorage.trim() ||
-          (await getAPIKey(connection.provider, connection.id)) ||
-          "";
-        const canFetchWithoutKey = !connectionRequiresApiKey(connection);
-        if (!keyFromSecureStore && !canFetchWithoutKey) {
-          setError("API key is required to fetch models");
-          return;
-        }
-
-        if (keyFromSecureStore && keyFromStorage !== keyFromSecureStore) {
-          saveConnection(id, { apiKey: keyFromSecureStore });
-        }
-
-        log.info(`Fetching models for ${connection.provider}...`);
-
-        const result = await modelDiscoveryService.fetchModels(
-          connection.provider,
-          keyFromSecureStore,
-          connection.customEndpoint,
-        );
-
-        if (result.error) {
-          setError(result.error);
-          log.warn(`Model fetch error: ${result.error}`);
-        } else {
-          // Update connection with fetched models
-          const modelIds = result.models.map((m) => m.id);
-          saveConnection(id, { models: modelIds });
-          log.info(
-            `Found ${modelIds.length} models for ${connection.provider}`,
-          );
-        }
-      } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : "Failed to fetch models";
-        setError(errorMsg);
-        log.error("Failed to fetch models:", err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [connections, saveConnection],
-  );
-
   const selectedConnection = connections.find((c) => c.id === selectedId);
   const connectionStatusById = useMemo(() => {
     const next: Record<string, AIConnectionStatus> = {};
@@ -300,9 +240,7 @@ export function useAIConnections() {
     addConnection,
     deleteConnection,
     toggleEnabled,
-    refreshModels,
     connectionStatusById,
-    loading,
     error,
   };
 }

@@ -100,6 +100,19 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
     return `${CACHE_PREFIX}${provider}_${encodeURIComponent(endpoint.toLowerCase())}`;
   }
 
+  private appendModelsPathSuffix(value: string): string {
+    const normalized = value.replace(/\/+$/, "");
+    if (normalized.endsWith("/models")) return normalized;
+    if (normalized.endsWith("/chat/completions")) {
+      return normalized.replace(/\/chat\/completions$/, "/models");
+    }
+    if (normalized.endsWith("/completions")) {
+      return normalized.replace(/\/completions$/, "/models");
+    }
+    if (normalized.endsWith("/v1")) return `${normalized}/models`;
+    return `${normalized}/models`;
+  }
+
   private normalizeOpenAIEndpoint(endpoint: string): string {
     const trimmed = endpoint.trim();
     if (!trimmed) {
@@ -108,39 +121,12 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
 
     try {
       const url = new URL(trimmed);
-      const path = url.pathname.replace(/\/+$/, "");
-
-      if (path.endsWith("/models")) return url.toString();
-      if (!path || path === "/") {
-        url.pathname = "/v1/models";
-        return url.toString();
-      }
-      if (path.endsWith("/chat/completions")) {
-        url.pathname = path.replace(/\/chat\/completions$/, "/models");
-        return url.toString();
-      }
-      if (path.endsWith("/completions")) {
-        url.pathname = path.replace(/\/completions$/, "/models");
-        return url.toString();
-      }
-      if (path.endsWith("/v1")) {
-        url.pathname = `${path}/models`;
-        return url.toString();
-      }
-
-      url.pathname = `${path}/models`;
+      const path = url.pathname.trim();
+      url.pathname =
+        path && path !== "/" ? this.appendModelsPathSuffix(path) : "/v1/models";
       return url.toString();
     } catch {
-      const normalized = trimmed.replace(/\/+$/, "");
-      if (normalized.endsWith("/models")) return normalized;
-      if (normalized.endsWith("/chat/completions")) {
-        return normalized.replace(/\/chat\/completions$/, "/models");
-      }
-      if (normalized.endsWith("/completions")) {
-        return normalized.replace(/\/completions$/, "/models");
-      }
-      if (normalized.endsWith("/v1")) return `${normalized}/models`;
-      return `${normalized}/models`;
+      return this.appendModelsPathSuffix(trimmed);
     }
   }
 
@@ -352,29 +338,30 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
   }
 
   private parseResponse(provider: string, data: unknown): AIModel[] {
-    try {
-      switch (provider) {
-        case "openai":
-        case "groq":
-        case "mistral":
-        case "deepseek":
-          return this.parseOpenAIFormat(data, provider);
-
-        case "anthropic":
-          return this.parseAnthropicFormat(data, provider);
-
-        case "google":
-          return this.parseGoogleFormat(data, provider);
-
-        case "openrouter":
-          return this.parseOpenRouterFormat(data, provider);
-
-        default:
-          return [];
-      }
-    } catch (error) {
-      log.error(`Failed to parse response from ${provider}:`, error);
+    const parser = this.getResponseParser(provider);
+    if (!parser) {
       return [];
+    }
+    return parser(data);
+  }
+
+  private getResponseParser(
+    provider: string,
+  ): ((data: unknown) => AIModel[]) | null {
+    switch (provider) {
+      case "openai":
+      case "groq":
+      case "mistral":
+      case "deepseek":
+        return (data) => this.parseOpenAIFormat(data, provider);
+      case "anthropic":
+        return (data) => this.parseAnthropicFormat(data, provider);
+      case "google":
+        return (data) => this.parseGoogleFormat(data, provider);
+      case "openrouter":
+        return (data) => this.parseOpenRouterFormat(data, provider);
+      default:
+        return null;
     }
   }
 

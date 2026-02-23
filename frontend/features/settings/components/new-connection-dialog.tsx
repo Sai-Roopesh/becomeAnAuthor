@@ -22,6 +22,7 @@ import {
   AIConnection,
   getAllVendors,
   validateApiKey,
+  connectionRequiresApiKey,
 } from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
 import { parseModelIds } from "@/lib/ai/model-ids";
@@ -96,20 +97,20 @@ export function NewConnectionDialog({
       data.customEndpoint?.trim() || vendor.defaultEndpoint;
     const manualModels = parseModelIds(data.manualModels || "");
 
-    // Manual validation based on provider
-    if (vendor.requiresAuth && !normalizedApiKey) {
-      setError("apiKey", { message: "API key is required" });
-      return;
-    }
-
-    if (
-      selectedProvider === "openai" &&
-      normalizedEndpoint === AI_VENDORS.openai.defaultEndpoint &&
-      !normalizedApiKey
-    ) {
+    const requiresApiKey = connectionRequiresApiKey(
+      normalizedEndpoint
+        ? {
+            provider: selectedProvider,
+            customEndpoint: normalizedEndpoint,
+          }
+        : { provider: selectedProvider },
+    );
+    if (!normalizedApiKey && requiresApiKey) {
       setError("apiKey", {
         message:
-          "API key is required for OpenAI cloud endpoint. For local endpoints, API key can be empty.",
+          selectedProvider === "openai"
+            ? "API key is required for OpenAI cloud endpoint. For local endpoints, API key can be empty."
+            : "API key is required.",
       });
       return;
     }

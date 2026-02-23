@@ -2,19 +2,22 @@
 
 import { useState } from "react";
 import { useConfirmation } from "@/hooks/use-confirmation";
-import { AI_VENDORS } from "@/lib/config/ai-vendors";
+import { AI_VENDORS, connectionRequiresApiKey } from "@/lib/config/ai-vendors";
 import { logger } from "@/shared/utils/logger";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAIConnections } from "../hooks/useAIConnections";
-import { useConnectionValidation } from "../hooks/useConnectionValidation";
 import { ConnectionForm } from "./ai-connections/ConnectionForm";
 import { ConnectionList } from "./ai-connections/ConnectionList";
 import { NewConnectionDialog } from "./new-connection-dialog";
+import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { getAPIKey } from "@/core/storage/api-keys";
 
 const log = logger.scope("AIConnectionsTab");
 
 export function AIConnectionsTab() {
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [isRefreshingModels, setIsRefreshingModels] = useState(false);
+  const [modelRefreshError, setModelRefreshError] = useState("");
   const { confirm, ConfirmationDialog } = useConfirmation();
 
   const {
@@ -27,29 +30,51 @@ export function AIConnectionsTab() {
     deleteConnection,
     toggleEnabled,
     connectionStatusById,
+    error: connectionError,
   } = useAIConnections();
 
-  const { loading, error, refreshModels } = useConnectionValidation();
-
   const handleRefreshModels = async () => {
-    if (!selectedConnection) return;
+    if (!selectedId || !selectedConnection) return;
+
+    setIsRefreshingModels(true);
+    setModelRefreshError("");
 
     try {
-      const fetchedModels = await refreshModels(
-        selectedConnection,
-        selectedConnection.apiKey,
+      const storedApiKey = selectedConnection.apiKey.trim();
+      const secureApiKey =
+        storedApiKey ||
+        (await getAPIKey(selectedConnection.provider, selectedConnection.id)) ||
+        "";
+
+      if (!secureApiKey && connectionRequiresApiKey(selectedConnection)) {
+        setModelRefreshError("API key is required to fetch models");
+        return;
+      }
+
+      if (secureApiKey && secureApiKey !== selectedConnection.apiKey) {
+        saveConnection(selectedId, { apiKey: secureApiKey });
+      }
+
+      const result = await modelDiscoveryService.fetchModels(
+        selectedConnection.provider,
+        secureApiKey,
         selectedConnection.customEndpoint,
       );
+      if (result.error) {
+        setModelRefreshError(result.error);
+        return;
+      }
 
-      await saveConnection(selectedId, {
-        models: fetchedModels,
-        apiKey: selectedConnection.apiKey,
-        ...(selectedConnection.customEndpoint && {
-          customEndpoint: selectedConnection.customEndpoint,
-        }),
+      saveConnection(selectedId, {
+        models: result.models.map((model) => model.id),
       });
     } catch (err) {
       log.error("Failed to refresh models:", err);
+      setModelRefreshError(
+        err instanceof Error ? err.message : "Failed to refresh models",
+      );
+    } finally {
+      setIsRefreshingModels(false);
     }
   };
 
@@ -116,8 +141,8 @@ export function AIConnectionsTab() {
                 onToggleEnabled={() => toggleEnabled(selectedId)}
                 onDelete={handleDelete}
                 onRefreshModels={handleRefreshModels}
-                loading={loading}
-                error={error}
+                loading={isRefreshingModels}
+                error={modelRefreshError || connectionError}
               />
             ) : (
               <div className="min-w-0 rounded-xl border p-6 text-center">

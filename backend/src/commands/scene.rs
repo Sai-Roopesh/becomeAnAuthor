@@ -225,9 +225,14 @@ pub fn save_scene(
 
     let mut meta = if file_path.exists() {
         let raw = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
-        parse_scene_document(&scene_file, &raw)
-            .map(|(m, _)| m)
-            .unwrap_or_else(|_| default_scene_meta(&scene_file, now))
+        let (existing_meta, _) = parse_scene_document(&scene_file, &raw).map_err(|err| {
+            format!(
+                "Scene metadata is corrupted in '{}': {}. Fix the frontmatter or restore from backup before saving.",
+                scene_file,
+                err
+            )
+        })?;
+        existing_meta
     } else {
         default_scene_meta(&scene_file, now)
     };
@@ -253,11 +258,9 @@ pub fn save_scene(
 pub struct SceneMetadataUpdates {
     pub title: Option<String>,
     pub status: Option<String>,
-    #[serde(default, alias = "povCharacter")]
     pub pov: Option<String>,
     pub subtitle: Option<String>,
     pub labels: Option<Vec<String>>,
-    #[serde(default, alias = "excludeFromAi")]
     pub exclude_from_ai: Option<bool>,
     pub summary: Option<String>,
     pub archived: Option<bool>,

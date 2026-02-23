@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { AIConnection, AIVendor } from "@/lib/config/ai-vendors";
+import {
+  AIConnection,
+  AIVendor,
+  connectionRequiresApiKey,
+} from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
 import { formatModelIds, parseModelIds } from "@/lib/ai/model-ids";
 import { VendorLogo } from "@/features/shared/components/VendorLogo";
@@ -65,11 +69,10 @@ export function ConnectionForm({
     connection.models,
   ]);
 
-  const isOpenAICloudEndpoint =
-    vendor.id === "openai" &&
-    (!customEndpoint.trim() ||
-      customEndpoint.trim() === "https://api.openai.com/v1");
-  const requiresApiKey = vendor.requiresAuth || isOpenAICloudEndpoint;
+  const requiresApiKey = connectionRequiresApiKey({
+    provider: connection.provider,
+    customEndpoint,
+  });
   const supportsAutoListing = modelDiscoveryService.supportsModelListing(
     connection.provider,
   );

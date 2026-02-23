@@ -22,11 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import {
-  FEATURE_FLAGS,
-  SECTION_COLORS,
-  SECTION_TYPES,
-} from "@/lib/config/constants";
+import { SECTION_COLORS, SECTION_TYPES } from "@/lib/config/constants";
 import {
   DEFAULT_SCENE_SECTION_TITLE,
   type SceneSectionType,
@@ -54,10 +50,6 @@ export function SectionComponent({
     // Get the text content
     const text = node.textContent;
     navigator.clipboard.writeText(text);
-  };
-
-  const handleDissolve = () => {
-    // Feature hidden by FEATURE_FLAGS
   };
 
   return (
@@ -175,14 +167,6 @@ export function SectionComponent({
                 <Copy className="h-4 w-4 mr-2" />
                 Copy Content
               </DropdownMenuItem>
-
-              {FEATURE_FLAGS.DISSOLVE_SECTION && (
-                <DropdownMenuItem onClick={handleDissolve}>
-                  <ChevronDown className="h-4 w-4 mr-2" />
-                  Dissolve Section
-                </DropdownMenuItem>
-              )}
-
               <DropdownMenuItem
                 onClick={deleteNode}
                 className="text-destructive"
