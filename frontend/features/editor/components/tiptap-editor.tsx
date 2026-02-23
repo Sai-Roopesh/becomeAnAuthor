@@ -197,7 +197,7 @@ export function TiptapEditor({
       Section,
       SlashCommands,
       Placeholder.configure({
-        placeholder: `Start writing your masterpiece... Type / for commands or press ${continueShortcut} to continue`,
+        placeholder: `Start writing your masterpiece... Type @ to tag codex entries, / for commands, or press ${continueShortcut} to continue`,
       }),
       Mention.configure({
         HTMLAttributes: {

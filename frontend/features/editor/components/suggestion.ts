@@ -8,7 +8,12 @@ import type { Editor } from "@tiptap/core";
 interface SuggestionProps {
   editor: Editor;
   clientRect?: (() => DOMRect | null) | null;
-  items: Array<{ id: string; name: string; category: string }>;
+  items: Array<{
+    id: string;
+    name: string;
+    category: string;
+    matchedAlias?: string;
+  }>;
   command: (item: { id: string; label: string }) => void;
   event?: KeyboardEvent;
 }
@@ -29,24 +34,50 @@ export const createCodexSuggestion = (
 ) => ({
   items: async ({ query }: { query: string }) => {
     const entries = await codexRepo.getBySeries(seriesId);
+    const normalizedQuery = query.trim().toLowerCase();
 
-    if (!query) {
-      return entries
-        .slice(0, 5)
-        .map((item) => ({
-          id: item.id,
-          name: item.name,
-          category: item.category || "uncategorized",
-        }));
-    }
-
-    return entries
-      .filter((item) => item.name.toLowerCase().includes(query.toLowerCase()))
-      .slice(0, 10)
-      .map((item) => ({
+    if (!normalizedQuery) {
+      return entries.slice(0, 5).map((item) => ({
         id: item.id,
         name: item.name,
         category: item.category || "uncategorized",
+      }));
+    }
+
+    return entries
+      .map((item) => {
+        const normalizedName = item.name.toLowerCase();
+        const aliases = item.aliases ?? [];
+        const normalizedAliases = aliases.map((alias) => alias.toLowerCase());
+        const aliasMatch = aliases.find((alias) =>
+          alias.toLowerCase().includes(normalizedQuery),
+        );
+
+        let score = 0;
+        if (normalizedName.startsWith(normalizedQuery)) {
+          score = 4;
+        } else if (normalizedName.includes(normalizedQuery)) {
+          score = 3;
+        } else if (
+          normalizedAliases.some((alias) => alias.startsWith(normalizedQuery))
+        ) {
+          score = 2;
+        } else if (aliasMatch) {
+          score = 1;
+        }
+
+        return { item, score, aliasMatch };
+      })
+      .filter((row) => row.score > 0)
+      .sort(
+        (a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name),
+      )
+      .slice(0, 10)
+      .map(({ item, aliasMatch }) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category || "uncategorized",
+        matchedAlias: aliasMatch,
       }));
   },
 
