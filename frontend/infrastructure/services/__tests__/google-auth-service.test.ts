@@ -20,6 +20,7 @@ vi.mock("@/core/storage/safe-storage", () => ({
 vi.mock("@/lib/config/constants", () => ({
   GOOGLE_CONFIG: {
     CLIENT_ID: "test-client-id",
+    CLIENT_SECRET: "",
     REDIRECT_URI: "http://localhost:3000/auth/callback",
     SCOPES: ["https://www.googleapis.com/auth/drive.file"],
     AUTH_ENDPOINT: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -104,6 +105,22 @@ describe("GoogleAuthService Contract", () => {
     expect(storage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_USER);
     expect(storage.removeItem).toHaveBeenCalledWith(
       STORAGE_KEYS.GOOGLE_PKCE_VERIFIER,
+    );
+  });
+
+  it("handleCallback surfaces clear error when client_secret is required", async () => {
+    vi.mocked(storage.getItem).mockImplementation((key) => {
+      if (key === STORAGE_KEYS.GOOGLE_PKCE_VERIFIER) return "pkce-verifier";
+      return null;
+    });
+
+    vi.mocked(global.fetch as unknown as typeof fetch).mockResolvedValue({
+      ok: false,
+      json: async () => ({ error_description: "client_secret is missing." }),
+    } as Response);
+
+    await expect(googleAuthService.handleCallback("auth-code")).rejects.toThrow(
+      /client_secret/i,
     );
   });
 });

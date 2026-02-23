@@ -19,6 +19,28 @@ import { isTauri } from "@/core/tauri/commands";
 
 const log = logger.scope("GoogleAuthService");
 
+function parseTokenExchangeError(errorPayload: unknown): string {
+  if (typeof errorPayload !== "object" || errorPayload === null) {
+    return "Token exchange failed";
+  }
+
+  const payload = errorPayload as {
+    error?: string;
+    error_description?: string;
+  };
+  const description = payload.error_description || payload.error;
+
+  if (!description) {
+    return "Token exchange failed";
+  }
+
+  if (description.toLowerCase().includes("client_secret is missing")) {
+    return "Google OAuth client requires a client_secret for web callback flow. Use desktop sign-in or set NEXT_PUBLIC_GOOGLE_CLIENT_SECRET.";
+  }
+
+  return description;
+}
+
 function generateRandomString(length: number): string {
   const charset =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -99,18 +121,27 @@ class GoogleAuthService {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({
-          client_id: GOOGLE_CONFIG.CLIENT_ID,
-          code,
-          code_verifier: codeVerifier,
-          grant_type: "authorization_code",
-          redirect_uri: GOOGLE_CONFIG.REDIRECT_URI,
-        }),
+        body: (() => {
+          const params = new URLSearchParams({
+            client_id: GOOGLE_CONFIG.CLIENT_ID,
+            code,
+            code_verifier: codeVerifier,
+            grant_type: "authorization_code",
+            redirect_uri: GOOGLE_CONFIG.REDIRECT_URI,
+          });
+          const clientSecret = GOOGLE_CONFIG.CLIENT_SECRET.trim();
+          if (clientSecret) {
+            params.set("client_secret", clientSecret);
+          }
+          return params;
+        })(),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error_description || "Token exchange failed");
+        const error = await response
+          .json()
+          .catch(() => ({ error_description: "Token exchange failed" }));
+        throw new Error(parseTokenExchangeError(error));
       }
 
       const data = await response.json();
@@ -127,7 +158,11 @@ class GoogleAuthService {
       storage.removeItem(STORAGE_KEYS.GOOGLE_PKCE_VERIFIER);
     } catch (error) {
       log.error("OAuth callback error:", error);
-      throw new Error("Failed to complete Google sign-in");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to complete Google sign-in";
+      throw new Error(message);
     }
   }
 
@@ -231,11 +266,18 @@ class GoogleAuthService {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({
-          client_id: GOOGLE_CONFIG.CLIENT_ID,
-          refresh_token: refreshToken,
-          grant_type: "refresh_token",
-        }),
+        body: (() => {
+          const params = new URLSearchParams({
+            client_id: GOOGLE_CONFIG.CLIENT_ID,
+            refresh_token: refreshToken,
+            grant_type: "refresh_token",
+          });
+          const clientSecret = GOOGLE_CONFIG.CLIENT_SECRET.trim();
+          if (clientSecret) {
+            params.set("client_secret", clientSecret);
+          }
+          return params;
+        })(),
       });
 
       if (!response.ok) {
