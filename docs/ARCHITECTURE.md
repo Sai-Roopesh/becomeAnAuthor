@@ -470,7 +470,7 @@ The primary writing environment. 15+ components:
 | `SparkPopover` | `spark-popover.tsx` | 446 | AI prompt generator — generates context-aware writing prompts via `generateObject()` with Zod schema + JSON fallback |
 | `FormatBar` | `format-bar.tsx` | ~200 | Typography settings panel (font, size, line height, alignment, page width) |
 | `SceneBeats` | `scene-beats.tsx` | ~150 | Beat tracking checklist for scene planning |
-| `MentionSuggestion` | `mention-suggestion.tsx` | ~200 | @mention autocomplete for codex entries in editor |
+| `MentionSuggestion` | `mention-suggestion.tsx` | ~200 | @mention autocomplete for codex entries with alias matching and keyboard navigation |
 
 **Editor Extensions** (`features/editor/extensions/`): `MentionExtension` (codex linking), `TypewriterExtension` (cursor centering at configurable offset), `FocusModeExtension` (dims non-focused paragraphs).
 
@@ -618,14 +618,14 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ### 14.1 Export Formats
 
-| Format | Engine | Location |
-|---|---|---|
-| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) |
-| DOCX | docx (npm) | Frontend |
-| Markdown | String assembly | Frontend |
-| ePub | Rust command | Backend |
-| Plain Text | Rust command | Backend |
-| JSON | Rust commands | Backend |
+| Format | Engine | Location | Notes |
+|---|---|---|---|
+| PDF | @react-pdf/renderer | Frontend (`DocumentExportService`) | Preserves @mentions as "@Name" text |
+| DOCX | docx (npm) | Frontend | Preserves @mentions as "@Name" text |
+| Markdown | String assembly | Frontend | Preserves @mentions as "@Name" text |
+| ePub | Rust command | Backend | |
+| Plain Text | Rust command | Backend | |
+| JSON | Rust commands | Backend | |
 
 ### 14.2 Backup Hierarchy
 

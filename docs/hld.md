@@ -232,7 +232,7 @@ graph TB
 
 | Domain | Components | Hooks | Description |
 |---|---|---|---|
-| **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, @mentions, sections, focus mode, typewriter scroll |
+| **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, alias-aware @mentions, sections, focus mode, typewriter scroll |
 | **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
 | **Plan** | 15 | 2 | Manuscript structure views: outline tree, card grid, timeline, world map, world timeline, intelligent linking panel |
@@ -688,10 +688,10 @@ AI Request  → get_api_key(provider)         → OS Keychain
 
 | Format | Engine | Output |
 |---|---|---|
-| **DOCX** | Frontend `docx` (npm) | Native Word document with config (font, size, margins, TOC) |
+| **DOCX** | Frontend `docx` (npm) | Native Word document with config (font, size, margins, TOC). Preserves @mentions text. |
 | **EPUB** | Rust `epub-builder` | eBook with chapters, metadata, CSS styling |
-| **PDF** | Frontend `@react-pdf/renderer` | Native React PDF rendering |
-| **Markdown** | Rust string assembly | Plain markdown with scene concatenation |
+| **PDF** | Frontend `@react-pdf/renderer` | Native React PDF rendering. Preserves @mentions text. |
+| **Markdown** | Rust string assembly | Plain markdown with scene concatenation. Preserves @mentions text. |
 | **Plain Text** | Rust string assembly | Scene content with act/chapter headers |
 
 ### 14.2 Backup Strategy
