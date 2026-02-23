@@ -50,6 +50,15 @@ function assertMessages(messages: AIModelMessage[]): void {
   }
 }
 
+async function resolveConnectionApiKey(
+  connection: AIConnection,
+): Promise<string> {
+  if (connection.apiKey.trim()) {
+    return connection.apiKey.trim();
+  }
+  return (await getAPIKey(connection.provider, connection.id)) || "";
+}
+
 async function getConnection(modelId: string): Promise<AIConnection> {
   const normalizedModel = modelId.trim();
   if (!normalizedModel) {
@@ -67,10 +76,7 @@ async function getConnection(modelId: string): Promise<AIConnection> {
     );
   }
 
-  const apiKey =
-    connection.apiKey.trim() ||
-    (await getAPIKey(connection.provider, connection.id)) ||
-    "";
+  const apiKey = await resolveConnectionApiKey(connection);
   if (connectionRequiresApiKey(connection) && !apiKey) {
     throw new Error(
       `Missing API key for ${AI_VENDORS[connection.provider].name}. Add it in Settings.`,
@@ -182,10 +188,7 @@ export async function hasUsableAIConnection(): Promise<boolean> {
       return true;
     }
 
-    const key =
-      connection.apiKey.trim() ||
-      (await getAPIKey(connection.provider, connection.id)) ||
-      "";
+    const key = await resolveConnectionApiKey(connection);
     if (key.trim().length > 0) {
       return true;
     }

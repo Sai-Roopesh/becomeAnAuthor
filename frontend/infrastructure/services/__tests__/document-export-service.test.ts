@@ -233,7 +233,7 @@ describe("DocumentExportService Contract", () => {
       expect(markdown).toContain("First paragraph.\n\nSecond paragraph.");
     });
 
-    it("MUST hydrate scene content when project listing has empty placeholders", async () => {
+    it("MUST avoid secondary scene hydration lookups during export", async () => {
       vi.mocked(mockRepo.getByProject).mockResolvedValue([
         createMockAct({ id: "act-1" }),
         createMockChapter({ id: "chapter-1", parentId: "act-1" }),
@@ -264,8 +264,8 @@ describe("DocumentExportService Contract", () => {
 
       const markdown = await service.exportToMarkdown("proj-1");
 
-      expect(mockRepo.get).toHaveBeenCalledWith("scene-empty");
-      expect(markdown).toContain("Loaded full content");
+      expect(mockRepo.get).not.toHaveBeenCalled();
+      expect(markdown).not.toContain("Loaded full content");
     });
 
     it("MUST include scenes even when no acts/chapters exist", async () => {

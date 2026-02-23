@@ -1,284 +1,289 @@
-'use client';
+"use client";
 
 /**
  * Google Drive API Service
  * Handles backup and restore operations to user's Google Drive
  */
 
-import { googleAuthService } from './google-auth-service';
-import { DriveFile, DriveQuota, DriveBackupMetadata } from '@/domain/entities/types';
-import { fetchWithTimeout } from '@/core/api/fetch-utils';
-import { logger } from '@/shared/utils/logger';
+import { googleAuthService } from "./google-auth-service";
+import type {
+  DriveFile,
+  DriveQuota,
+  DriveBackupMetadata,
+} from "@/domain/entities/types";
+import { fetchWithTimeout } from "@/core/api/fetch-utils";
 
-const log = logger.scope('GoogleDriveService');
+const DRIVE_API_BASE = "https://www.googleapis.com/drive/v3";
+const UPLOAD_API_BASE = "https://www.googleapis.com/upload/drive/v3";
+const APP_FOLDER_NAME = "BecomeAnAuthor";
 
-const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
-const UPLOAD_API_BASE = 'https://www.googleapis.com/upload/drive/v3';
-const APP_FOLDER_NAME = 'BecomeAnAuthor';
+interface GoogleDriveApiFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  createdTime: string;
+  modifiedTime: string;
+  size?: string;
+}
+
+interface GoogleDriveErrorPayload {
+  error?: {
+    message?: string;
+  };
+  message?: string;
+}
 
 class GoogleDriveService {
-    /**
-     * Ensure app folder exists in user's Drive, create if not
-     */
-    async ensureAppFolder(): Promise<string> {
-        const accessToken = await googleAuthService.getAccessToken();
-        if (!accessToken) {
-            throw new Error('Not authenticated with Google Drive');
-        }
+  private async withAccessToken<T>(
+    operation: (accessToken: string) => Promise<T>,
+  ): Promise<T> {
+    const accessToken = await googleAuthService.getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated with Google Drive");
+    }
+    return operation(accessToken);
+  }
 
-        // Search for existing folder
-        const searchResponse = await fetchWithTimeout(
-            `${DRIVE_API_BASE}/files?q=name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            },
-            30000
-        );
+  private parseSize(value?: string): number {
+    const parsed = Number.parseInt(value || "0", 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
 
-        if (!searchResponse.ok) {
-            const errorData = await searchResponse.json().catch(() => ({ error: 'Unknown error' }));
-            log.error('Drive API Error:', errorData);
-            throw new Error(`Failed to search for app folder: ${errorData.error?.message || searchResponse.statusText}`);
-        }
+  private toDriveFile(file: GoogleDriveApiFile): DriveFile {
+    return {
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      createdTime: file.createdTime,
+      modifiedTime: file.modifiedTime,
+      size: this.parseSize(file.size),
+    };
+  }
 
-        const searchData = await searchResponse.json();
+  private async readErrorMessage(response: Response): Promise<string> {
+    try {
+      const payload = (await response.json()) as GoogleDriveErrorPayload;
+      return payload.error?.message || payload.message || response.statusText;
+    } catch {
+      return response.statusText;
+    }
+  }
 
-        // Return existing folder ID
-        if (searchData.files && searchData.files.length > 0) {
-            return searchData.files[0].id;
-        }
+  private async requestJson<T>(
+    accessToken: string,
+    url: string,
+    options: Omit<RequestInit, "signal">,
+    timeoutMs: number,
+    errorPrefix: string,
+  ): Promise<T> {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          ...(options.headers || {}),
+        },
+      },
+      timeoutMs,
+    );
 
-        // Create new folder
-        const createResponse = await fetchWithTimeout(
-            `${DRIVE_API_BASE}/files`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: APP_FOLDER_NAME,
-                    mimeType: 'application/vnd.google-apps.folder',
-                }),
-            },
-            30000
-        );
-
-        if (!createResponse.ok) {
-            throw new Error('Failed to create app folder');
-        }
-
-        const createData = await createResponse.json();
-        return createData.id;
+    if (!response.ok) {
+      const message = await this.readErrorMessage(response);
+      throw new Error(`${errorPrefix}: ${message}`);
     }
 
-    /**
-     * Upload backup to Google Drive
-     */
-    async uploadBackup(
-        backupData: DriveBackupMetadata,
-        fileName: string
-    ): Promise<DriveFile> {
-        const accessToken = await googleAuthService.getAccessToken();
-        if (!accessToken) {
-            throw new Error('Not authenticated with Google Drive');
-        }
+    return (await response.json()) as T;
+  }
 
-        // Ensure app folder exists
-        const folderId = await this.ensureAppFolder();
+  private async requestNoBody(
+    accessToken: string,
+    url: string,
+    options: Omit<RequestInit, "signal">,
+    timeoutMs: number,
+    errorPrefix: string,
+  ): Promise<void> {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          ...(options.headers || {}),
+        },
+      },
+      timeoutMs,
+    );
 
-        // Prepare file metadata
-        const metadata = {
-            name: fileName,
-            mimeType: 'application/json',
-            parents: [folderId],
+    if (!response.ok) {
+      const message = await this.readErrorMessage(response);
+      throw new Error(`${errorPrefix}: ${message}`);
+    }
+  }
+
+  /**
+   * Ensure app folder exists in user's Drive, create if not
+   */
+  async ensureAppFolder(): Promise<string> {
+    return this.withAccessToken(async (accessToken) => {
+      const searchQuery = `${DRIVE_API_BASE}/files?q=name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+      const searchData = await this.requestJson<{
+        files?: Array<{ id: string }>;
+      }>(
+        accessToken,
+        searchQuery,
+        { method: "GET" },
+        30000,
+        "Failed to search for app folder",
+      );
+
+      const existingFolderId = searchData.files?.[0]?.id;
+      if (existingFolderId) {
+        return existingFolderId;
+      }
+
+      const createData = await this.requestJson<{ id: string }>(
+        accessToken,
+        `${DRIVE_API_BASE}/files`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: APP_FOLDER_NAME,
+            mimeType: "application/vnd.google-apps.folder",
+          }),
+        },
+        30000,
+        "Failed to create app folder",
+      );
+
+      return createData.id;
+    });
+  }
+
+  /**
+   * Upload backup to Google Drive
+   */
+  async uploadBackup(
+    backupData: DriveBackupMetadata,
+    fileName: string,
+  ): Promise<DriveFile> {
+    return this.withAccessToken(async (accessToken) => {
+      const folderId = await this.ensureAppFolder();
+      const metadata = {
+        name: fileName,
+        mimeType: "application/json",
+        parents: [folderId],
+      };
+
+      const boundary = "-------314159265358979323846";
+      const delimiter = `\r\n--${boundary}\r\n`;
+      const closeDelimiter = `\r\n--${boundary}--`;
+
+      const multipartRequestBody =
+        delimiter +
+        "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+        JSON.stringify(metadata) +
+        delimiter +
+        "Content-Type: application/json\r\n\r\n" +
+        JSON.stringify(backupData, null, 2) +
+        closeDelimiter;
+
+      const data = await this.requestJson<GoogleDriveApiFile>(
+        accessToken,
+        `${UPLOAD_API_BASE}/files?uploadType=multipart`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": `multipart/related; boundary=${boundary}`,
+          },
+          body: multipartRequestBody,
+        },
+        60000,
+        "Failed to upload backup",
+      );
+
+      return this.toDriveFile(data);
+    });
+  }
+
+  /**
+   * List all backups in app folder
+   */
+  async listBackups(): Promise<DriveFile[]> {
+    return this.withAccessToken(async (accessToken) => {
+      const folderId = await this.ensureAppFolder();
+      const data = await this.requestJson<{ files?: GoogleDriveApiFile[] }>(
+        accessToken,
+        `${DRIVE_API_BASE}/files?q='${folderId}' in parents and trashed=false&orderBy=modifiedTime desc&fields=files(id,name,mimeType,createdTime,modifiedTime,size)`,
+        { method: "GET" },
+        30000,
+        "Failed to list backups",
+      );
+
+      return (data.files || []).map((file) => this.toDriveFile(file));
+    });
+  }
+
+  /**
+   * Download backup from Google Drive
+   */
+  async downloadBackup(fileId: string): Promise<DriveBackupMetadata> {
+    return this.withAccessToken(async (accessToken) => {
+      return await this.requestJson<DriveBackupMetadata>(
+        accessToken,
+        `${DRIVE_API_BASE}/files/${fileId}?alt=media`,
+        { method: "GET" },
+        60000,
+        "Failed to download backup",
+      );
+    });
+  }
+
+  /**
+   * Delete backup from Google Drive
+   */
+  async deleteBackup(fileId: string): Promise<void> {
+    return this.withAccessToken(async (accessToken) => {
+      await this.requestNoBody(
+        accessToken,
+        `${DRIVE_API_BASE}/files/${fileId}`,
+        { method: "DELETE" },
+        30000,
+        "Failed to delete backup",
+      );
+    });
+  }
+
+  /**
+   * Get Drive storage quota
+   */
+  async getStorageQuota(): Promise<DriveQuota> {
+    return this.withAccessToken(async (accessToken) => {
+      const data = await this.requestJson<{
+        storageQuota: {
+          limit?: string;
+          usage?: string;
+          usageInDrive?: string;
         };
+      }>(
+        accessToken,
+        `${DRIVE_API_BASE}/about?fields=storageQuota`,
+        { method: "GET" },
+        30000,
+        "Failed to get storage quota",
+      );
 
-        // Prepare file content
-        const fileContent = JSON.stringify(backupData, null, 2);
-
-        // Create multipart request body
-        const boundary = '-------314159265358979323846';
-        const delimiter = `\r\n--${boundary}\r\n`;
-        const closeDelimiter = `\r\n--${boundary}--`;
-
-        const multipartRequestBody =
-            delimiter +
-            'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-            JSON.stringify(metadata) +
-            delimiter +
-            'Content-Type: application/json\r\n\r\n' +
-            fileContent +
-            closeDelimiter;
-
-        // Upload file
-        const response = await fetchWithTimeout(
-            `${UPLOAD_API_BASE}/files?uploadType=multipart`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': `multipart/related; boundary=${boundary}`,
-                },
-                body: multipartRequestBody,
-            },
-            60000 // 60 second timeout for upload
-        );
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error?.message || 'Failed to upload backup');
-        }
-
-        const data = await response.json();
-
-        return {
-            id: data.id,
-            name: data.name,
-            mimeType: data.mimeType,
-            createdTime: data.createdTime,
-            modifiedTime: data.modifiedTime,
-            size: parseInt(data.size || '0'),
-        };
-    }
-
-    /**
-     * List all backups in app folder
-     */
-    async listBackups(): Promise<DriveFile[]> {
-        const accessToken = await googleAuthService.getAccessToken();
-        if (!accessToken) {
-            throw new Error('Not authenticated with Google Drive');
-        }
-
-        // Ensure folder exists
-        const folderId = await this.ensureAppFolder();
-
-        // List files in folder
-        const response = await fetchWithTimeout(
-            `${DRIVE_API_BASE}/files?q='${folderId}' in parents and trashed=false&orderBy=modifiedTime desc&fields=files(id,name,mimeType,createdTime,modifiedTime,size)`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            },
-            30000
-        );
-
-        if (!response.ok) {
-            throw new Error('Failed to list backups');
-        }
-
-        const data = await response.json();
-
-        /** Response file structure from Google Drive API */
-        interface GoogleDriveApiFile {
-            id: string;
-            name: string;
-            mimeType: string;
-            createdTime: string;
-            modifiedTime: string;
-            size?: string;
-        }
-
-        return (data.files || []).map((file: GoogleDriveApiFile) => ({
-            id: file.id,
-            name: file.name,
-            mimeType: file.mimeType,
-            createdTime: file.createdTime,
-            modifiedTime: file.modifiedTime,
-            size: parseInt(file.size || '0'),
-        }));
-    }
-
-    /**
-     * Download backup from Google Drive
-     */
-    async downloadBackup(fileId: string): Promise<DriveBackupMetadata> {
-        const accessToken = await googleAuthService.getAccessToken();
-        if (!accessToken) {
-            throw new Error('Not authenticated with Google Drive');
-        }
-
-        // Download file content
-        const response = await fetchWithTimeout(
-            `${DRIVE_API_BASE}/files/${fileId}?alt=media`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            },
-            60000 // 60 second timeout for download
-        );
-
-        if (!response.ok) {
-            throw new Error('Failed to download backup');
-        }
-
-        const data = await response.json();
-        return data as DriveBackupMetadata;
-    }
-
-    /**
-     * Delete backup from Google Drive
-     */
-    async deleteBackup(fileId: string): Promise<void> {
-        const accessToken = await googleAuthService.getAccessToken();
-        if (!accessToken) {
-            throw new Error('Not authenticated with Google Drive');
-        }
-
-        const response = await fetchWithTimeout(
-            `${DRIVE_API_BASE}/files/${fileId}`,
-            {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            },
-            30000
-        );
-
-        if (!response.ok) {
-            throw new Error('Failed to delete backup');
-        }
-    }
-
-    /**
-     * Get Drive storage quota
-     */
-    async getStorageQuota(): Promise<DriveQuota> {
-        const accessToken = await googleAuthService.getAccessToken();
-        if (!accessToken) {
-            throw new Error('Not authenticated with Google Drive');
-        }
-
-        const response = await fetchWithTimeout(
-            `${DRIVE_API_BASE}/about?fields=storageQuota`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            },
-            30000
-        );
-
-        if (!response.ok) {
-            throw new Error('Failed to get storage quota');
-        }
-
-        const data = await response.json();
-        const quota = data.storageQuota;
-
-        return {
-            limit: parseInt(quota.limit || '0'),
-            usage: parseInt(quota.usage || '0'),
-            usageInDrive: parseInt(quota.usageInDrive || '0'),
-        };
-    }
+      const quota = data.storageQuota || {};
+      return {
+        limit: this.parseSize(quota.limit),
+        usage: this.parseSize(quota.usage),
+        usageInDrive: this.parseSize(quota.usageInDrive),
+      };
+    });
+  }
 }
 
 // Export singleton instance

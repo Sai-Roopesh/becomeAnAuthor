@@ -258,11 +258,9 @@ pub fn save_scene(
 pub struct SceneMetadataUpdates {
     pub title: Option<String>,
     pub status: Option<String>,
-    #[serde(default, alias = "povCharacter")]
     pub pov: Option<String>,
     pub subtitle: Option<String>,
     pub labels: Option<Vec<String>>,
-    #[serde(default, alias = "excludeFromAi")]
     pub exclude_from_ai: Option<bool>,
     pub summary: Option<String>,
     pub archived: Option<bool>,

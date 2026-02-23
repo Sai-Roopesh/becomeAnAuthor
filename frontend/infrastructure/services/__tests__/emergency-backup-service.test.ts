@@ -20,14 +20,6 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-vi.mock("@/infrastructure/repositories/TauriNodeRepository", () => ({
-  TauriNodeRepository: {
-    getInstance: () => ({
-      getProjectPath: () => "/mock/project/path",
-    }),
-  },
-}));
-
 vi.mock("@/shared/utils/toast-service", () => ({
   toast: {
     error: vi.fn(),
@@ -123,27 +115,6 @@ describe("EmergencyBackupService Contract", () => {
       expect(JSON.parse(backup.content)).toEqual(content);
     });
 
-    it("MUST return false if no project path set", async () => {
-      // Override mock for this test
-      vi.mocked(invoke).mockRejectedValue(new Error("No path"));
-
-      // Create service with no project path
-      vi.doMock("@/infrastructure/repositories/TauriNodeRepository", () => ({
-        TauriNodeRepository: {
-          getInstance: () => ({
-            getProjectPath: () => null,
-          }),
-        },
-      }));
-
-      const { EmergencyBackupService } =
-        await import("@/infrastructure/services/emergency-backup-service");
-      new EmergencyBackupService();
-
-      // This test verifies the service handles missing path
-      // The actual behavior depends on implementation
-    });
-
     it("MUST return true on successful save", async () => {
       vi.mocked(invoke).mockResolvedValue(undefined);
 
@@ -211,28 +182,6 @@ describe("EmergencyBackupService Contract", () => {
   });
 
   // ========================================
-  // SPECIFICATION: hasBackup Check
-  // ========================================
-
-  describe("hasBackup", () => {
-    it("MUST return true if backup exists", async () => {
-      vi.mocked(invoke).mockResolvedValue({ id: "backup", sceneId: "scene-1" });
-
-      const result = await service.hasBackup("scene-1");
-
-      expect(result).toBe(true);
-    });
-
-    it("MUST return false if no backup exists", async () => {
-      vi.mocked(invoke).mockResolvedValue(null);
-
-      const result = await service.hasBackup("no-backup-scene");
-
-      expect(result).toBe(false);
-    });
-  });
-
-  // ========================================
   // SPECIFICATION: Backup Deletion
   // ========================================
 
@@ -285,15 +234,11 @@ describe("EmergencyBackupService Contract", () => {
 
       const count = await service.cleanupExpired();
 
-      expect(invoke).toHaveBeenCalledWith("cleanup_emergency_backups", {
-        projectPath: "/mock/project/path",
-      });
+      expect(invoke).toHaveBeenCalledWith("cleanup_emergency_backups");
       expect(count).toBe(5);
     });
 
-    it("MUST return 0 if no project path", async () => {
-      // This tests the guard clause - if no project, no cleanup
-      // The current mock always returns a path, so we test return value
+    it("MUST return 0 when backend reports no expired backups", async () => {
       vi.mocked(invoke).mockResolvedValue(0);
 
       const count = await service.cleanupExpired();

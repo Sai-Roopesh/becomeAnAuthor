@@ -13,8 +13,10 @@ import type {
   AIModel,
   ModelDiscoveryResult,
 } from "@/domain/services/IModelDiscoveryService";
-import type { AIConnection } from "@/lib/config/ai-vendors";
-import { AI_VENDORS } from "@/lib/config/ai-vendors";
+import {
+  type AIConnection,
+  connectionRequiresApiKey,
+} from "@/lib/config/ai-vendors";
 import { storage } from "@/core/storage/safe-storage";
 import { getAPIKey } from "@/core/storage/api-keys";
 import { logger } from "@/shared/utils/logger";
@@ -57,15 +59,6 @@ export function useModelDiscovery(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const requiresApiKey = useCallback((connection: AIConnection): boolean => {
-    if (connection.provider !== "openai") {
-      return AI_VENDORS[connection.provider].requiresAuth;
-    }
-    const endpoint =
-      connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
-    return endpoint === AI_VENDORS.openai.defaultEndpoint;
-  }, []);
-
   const resolveConnectionApiKey = useCallback(
     async (connection: AIConnection): Promise<string> => {
       if (connection.apiKey.trim()) return connection.apiKey.trim();
@@ -84,7 +77,7 @@ export function useModelDiscovery(
       }
 
       const resolvedKey = await resolveConnectionApiKey(connection);
-      if (!resolvedKey && requiresApiKey(connection)) {
+      if (!resolvedKey && connectionRequiresApiKey(connection)) {
         return { models: [], error: "Connection is missing an API key" };
       }
 
@@ -117,7 +110,7 @@ export function useModelDiscovery(
 
       return result;
     },
-    [requiresApiKey, resolveConnectionApiKey],
+    [resolveConnectionApiKey],
   );
 
   /**
@@ -143,7 +136,8 @@ export function useModelDiscovery(
         })),
       );
       const usableConnections = resolvedConnections.filter(
-        (connection) => connection.apiKey || !requiresApiKey(connection),
+        (connection) =>
+          connection.apiKey || !connectionRequiresApiKey(connection),
       );
       if (usableConnections.length === 0) {
         setModels([]);
@@ -192,7 +186,7 @@ export function useModelDiscovery(
     } finally {
       setIsLoading(false);
     }
-  }, [fetchModelsForConnection, requiresApiKey, resolveConnectionApiKey]);
+  }, [fetchModelsForConnection, resolveConnectionApiKey]);
 
   /**
    * Clear cache and re-fetch all models

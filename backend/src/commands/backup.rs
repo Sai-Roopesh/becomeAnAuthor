@@ -730,33 +730,31 @@ fn restore_scene_files(
 ) -> Result<(), String> {
     if let Some(files) = scene_files {
         for (file_name, content_value) in files {
-            if let Some(content) = content_value.as_str() {
-                let safe_file_name = validate_scene_file_name(file_name)?;
-                let path = project_dir.join("manuscript").join(safe_file_name);
-                fs::write(path, content).map_err(|e| e.to_string())?;
-            }
+            let content = content_value.as_str().ok_or_else(|| {
+                format!(
+                    "Scene file '{}' must contain string content in backup",
+                    file_name
+                )
+            })?;
+            let safe_file_name = validate_scene_file_name(file_name)?;
+            let path = project_dir.join("manuscript").join(safe_file_name);
+            fs::write(path, content).map_err(|e| e.to_string())?;
         }
     }
     Ok(())
 }
 
-fn ensure_scene_files_exist(project_dir: &Path, nodes: &[StructureNode]) -> Result<(), String> {
+fn validate_scene_files_exist(project_dir: &Path, nodes: &[StructureNode]) -> Result<(), String> {
     fn walk(project_dir: &Path, nodes: &[StructureNode]) -> Result<(), String> {
         for node in nodes {
             if let Some(file_name) = &node.file {
                 let safe_file_name = validate_scene_file_name(file_name)?;
                 let path = project_dir.join("manuscript").join(safe_file_name);
                 if !path.exists() {
-                    let now = chrono::Utc::now().to_rfc3339();
-                    let fallback = format!(
-                        "---\nid: {}\ntitle: \"{}\"\norder: {}\nstatus: draft\nwordCount: 0\npov: null\nsubtitle: null\nlabels: []\nexcludeFromAI: false\nsummary: \"\"\narchived: false\ncreatedAt: {}\nupdatedAt: {}\n---\n\n",
-                        node.id,
-                        node.title.replace('"', "\\\""),
-                        node.order,
-                        now,
-                        now
-                    );
-                    fs::write(path, fallback).map_err(|e| e.to_string())?;
+                    return Err(format!(
+                        "Missing scene file '{}' required by structure node '{}'",
+                        file_name, node.id
+                    ));
                 }
             }
             if !node.children.is_empty() {
@@ -775,38 +773,52 @@ fn restore_snippets(
     project_id: &str,
 ) -> Result<(), String> {
     if let Some(snippets) = snippets {
-        for snippet in snippets {
-            if let Some(id) = snippet.get("id").and_then(|v| v.as_str()) {
-                let safe_id = validate_uuid_identifier(id, "Snippet id")?;
-                let mut snippet_clone = snippet.clone();
-                if let Some(obj) = snippet_clone.as_object_mut() {
-                    obj.insert(
-                        "projectId".to_string(),
-                        serde_json::Value::String(project_id.to_string()),
-                    );
-                }
-                let snippet_path = project_dir
-                    .join("snippets")
-                    .join(format!("{}.json", safe_id));
-                let json =
-                    serde_json::to_string_pretty(&snippet_clone).map_err(|e| e.to_string())?;
-                fs::write(snippet_path, json).map_err(|e| e.to_string())?;
+        for (index, snippet) in snippets.iter().enumerate() {
+            let obj = snippet.as_object().ok_or_else(|| {
+                format!("Snippet payload at index {} must be a JSON object", index)
+            })?;
+            let id = obj
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| format!("Snippet payload at index {} is missing 'id'", index))?;
+
+            let safe_id = validate_uuid_identifier(id, "Snippet id")?;
+            let mut snippet_clone = snippet.clone();
+            if let Some(snippet_obj) = snippet_clone.as_object_mut() {
+                snippet_obj.insert(
+                    "projectId".to_string(),
+                    serde_json::Value::String(project_id.to_string()),
+                );
             }
+            let snippet_path = project_dir.join("snippets").join(format!("{}.json", safe_id));
+            let json = serde_json::to_string_pretty(&snippet_clone).map_err(|e| e.to_string())?;
+            fs::write(snippet_path, json).map_err(|e| e.to_string())?;
         }
     }
     Ok(())
 }
 
-fn normalize_timestamp(value: Option<&serde_json::Value>, fallback: i64) -> i64 {
-    if let Some(v) = value {
-        if let Some(ts) = v.as_i64() {
-            return ts;
-        }
-        if let Some(ts) = v.as_u64() {
-            return ts as i64;
-        }
+fn parse_required_timestamp(
+    value: Option<&serde_json::Value>,
+    field_name: &str,
+) -> Result<i64, String> {
+    let Some(raw_value) = value else {
+        return Err(format!("Missing required timestamp field '{}'", field_name));
+    };
+
+    if let Some(ts) = raw_value.as_i64() {
+        return Ok(ts);
     }
-    fallback
+
+    if let Some(ts) = raw_value.as_u64() {
+        return i64::try_from(ts)
+            .map_err(|_| format!("Timestamp field '{}' exceeds i64 range", field_name));
+    }
+
+    Err(format!(
+        "Timestamp field '{}' must be an integer",
+        field_name
+    ))
 }
 
 fn restore_chats(
@@ -819,7 +831,6 @@ fn restore_chats(
     let messages_dir = chat_root.join("messages");
     fs::create_dir_all(&messages_dir).map_err(|e| e.to_string())?;
 
-    let now = timestamp::now_millis();
     let mut threads: Vec<serde_json::Value> = Vec::new();
     let mut thread_ids: Vec<String> = Vec::new();
     let mut thread_id_set: HashSet<String> = HashSet::new();
@@ -827,36 +838,37 @@ fn restore_chats(
     let mut grouped_messages: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
 
     if let Some(message_values) = messages {
-        for message in message_values {
-            let mut normalized = message.clone();
-            let Some(obj) = normalized.as_object_mut() else {
-                continue;
-            };
+        for (index, message) in message_values.iter().enumerate() {
+            let mut obj = message.as_object().cloned().ok_or_else(|| {
+                format!("Chat message at index {} must be a JSON object", index)
+            })?;
 
-            let thread_id = obj
+            let thread_id_raw = obj
                 .get("threadId")
                 .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .trim()
-                .to_string();
-            if thread_id.is_empty() {
-                continue;
-            }
-            let thread_id = validate_uuid_identifier(&thread_id, "Chat thread id")?;
+                .ok_or_else(|| format!("Chat message at index {} is missing 'threadId'", index))?;
+            let thread_id = validate_uuid_identifier(thread_id_raw, "Chat thread id")?;
 
-            let message_id = obj.get("id").and_then(|v| v.as_str()).unwrap_or("").trim();
-            if message_id.is_empty() {
-                obj.insert(
-                    "id".to_string(),
-                    serde_json::Value::String(uuid::Uuid::new_v4().to_string()),
-                );
-            }
+            let message_id_raw = obj
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| format!("Chat message at index {} is missing 'id'", index))?;
+            let message_id = validate_uuid_identifier(message_id_raw, "Chat message id")?;
+            obj.insert("id".to_string(), serde_json::Value::String(message_id));
 
-            let role = obj.get("role").and_then(|v| v.as_str()).unwrap_or("user");
+            let role = obj
+                .get("role")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| format!("Chat message at index {} is missing 'role'", index))?;
             let normalized_role = if role.eq_ignore_ascii_case("assistant") {
                 "assistant"
-            } else {
+            } else if role.eq_ignore_ascii_case("user") {
                 "user"
+            } else {
+                return Err(format!(
+                    "Chat message at index {} has unsupported role '{}'",
+                    index, role
+                ));
             };
             obj.insert(
                 "role".to_string(),
@@ -866,11 +878,13 @@ fn restore_chats(
             let content = obj
                 .get("content")
                 .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            obj.insert("content".to_string(), serde_json::Value::String(content));
+                .ok_or_else(|| format!("Chat message at index {} is missing 'content'", index))?;
+            obj.insert(
+                "content".to_string(),
+                serde_json::Value::String(content.to_string()),
+            );
 
-            let ts = normalize_timestamp(obj.get("timestamp"), now);
+            let ts = parse_required_timestamp(obj.get("timestamp"), "timestamp")?;
             obj.insert(
                 "timestamp".to_string(),
                 serde_json::Value::Number(serde_json::Number::from(ts)),
@@ -879,7 +893,7 @@ fn restore_chats(
             grouped_messages
                 .entry(thread_id.clone())
                 .or_default()
-                .push(normalized);
+                .push(serde_json::Value::Object(obj));
             thread_max_timestamp
                 .entry(thread_id)
                 .and_modify(|current| {
@@ -892,22 +906,20 @@ fn restore_chats(
     }
 
     if let Some(chat_values) = chats {
-        for chat in chat_values {
-            let mut normalized = chat.clone();
-            let Some(obj) = normalized.as_object_mut() else {
-                continue;
-            };
+        for (index, chat) in chat_values.iter().enumerate() {
+            let mut obj = chat
+                .as_object()
+                .cloned()
+                .ok_or_else(|| format!("Chat thread at index {} must be a JSON object", index))?;
 
-            let thread_id = obj
+            let thread_id_raw = obj
                 .get("id")
                 .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .trim()
-                .to_string();
-            if thread_id.is_empty() || thread_id_set.contains(&thread_id) {
-                continue;
+                .ok_or_else(|| format!("Chat thread at index {} is missing 'id'", index))?;
+            let thread_id = validate_uuid_identifier(thread_id_raw, "Chat thread id")?;
+            if thread_id_set.contains(&thread_id) {
+                return Err(format!("Duplicate chat thread id '{}'", thread_id));
             }
-            let thread_id = validate_uuid_identifier(&thread_id, "Chat thread id")?;
 
             obj.insert(
                 "projectId".to_string(),
@@ -917,26 +929,38 @@ fn restore_chats(
             let name = obj
                 .get("name")
                 .and_then(|v| v.as_str())
-                .map(|s| s.trim().to_string())
+                .map(|s| s.trim())
                 .filter(|s| !s.is_empty())
-                .or_else(|| {
-                    obj.get("title")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                })
-                .unwrap_or_else(|| "Imported Chat".to_string());
-            obj.insert("name".to_string(), serde_json::Value::String(name));
+                .ok_or_else(|| format!("Chat thread '{}' is missing a valid 'name'", thread_id))?;
+            obj.insert(
+                "name".to_string(),
+                serde_json::Value::String(name.to_string()),
+            );
 
-            if obj.get("pinned").is_none() {
+            if let Some(pinned) = obj.get("pinned") {
+                if !pinned.is_boolean() {
+                    return Err(format!(
+                        "Chat thread '{}' field 'pinned' must be boolean",
+                        thread_id
+                    ));
+                }
+            } else {
                 obj.insert("pinned".to_string(), serde_json::Value::Bool(false));
             }
-            if obj.get("archived").is_none() {
+
+            if let Some(archived) = obj.get("archived") {
+                if !archived.is_boolean() {
+                    return Err(format!(
+                        "Chat thread '{}' field 'archived' must be boolean",
+                        thread_id
+                    ));
+                }
+            } else {
                 obj.insert("archived".to_string(), serde_json::Value::Bool(false));
             }
 
-            let created_at = normalize_timestamp(obj.get("createdAt"), now);
-            let mut updated_at = normalize_timestamp(obj.get("updatedAt"), created_at);
+            let created_at = parse_required_timestamp(obj.get("createdAt"), "createdAt")?;
+            let mut updated_at = parse_required_timestamp(obj.get("updatedAt"), "updatedAt")?;
             if let Some(max_ts) = thread_max_timestamp.get(&thread_id) {
                 if *max_ts > updated_at {
                     updated_at = *max_ts;
@@ -954,27 +978,17 @@ fn restore_chats(
 
             thread_id_set.insert(thread_id.clone());
             thread_ids.push(thread_id);
-            threads.push(normalized);
+            threads.push(serde_json::Value::Object(obj));
         }
     }
 
     for thread_id in grouped_messages.keys() {
-        if thread_id_set.contains(thread_id) {
-            continue;
+        if !thread_id_set.contains(thread_id) {
+            return Err(format!(
+                "Chat messages reference unknown chat thread '{}'",
+                thread_id
+            ));
         }
-        let max_ts = *thread_max_timestamp.get(thread_id).unwrap_or(&now);
-        let fallback_thread = serde_json::json!({
-            "id": thread_id,
-            "projectId": project_id,
-            "name": "Imported Chat",
-            "pinned": false,
-            "archived": false,
-            "createdAt": max_ts,
-            "updatedAt": max_ts
-        });
-        thread_id_set.insert(thread_id.clone());
-        thread_ids.push(thread_id.clone());
-        threads.push(fallback_thread);
     }
 
     let threads_json = serde_json::to_string_pretty(&threads).map_err(|e| e.to_string())?;
@@ -982,8 +996,11 @@ fn restore_chats(
 
     for thread_id in thread_ids {
         let mut thread_messages = grouped_messages.remove(&thread_id).unwrap_or_default();
-        thread_messages
-            .sort_by_key(|msg| msg.get("timestamp").and_then(|v| v.as_i64()).unwrap_or(now));
+        thread_messages.sort_by_key(|msg| {
+            msg.get("timestamp")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(i64::MIN)
+        });
         let json = serde_json::to_string_pretty(&thread_messages).map_err(|e| e.to_string())?;
         fs::write(messages_dir.join(format!("{}.json", thread_id)), json)
             .map_err(|e| e.to_string())?;
@@ -1017,8 +1034,7 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
     let projects = backup
         .get("projects")
         .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
+        .ok_or("Missing 'projects' field in backup")?;
 
     let mut rollback = ImportRollbackContext::default();
     let result = (|| -> Result<ImportSeriesResult, String> {
@@ -1089,9 +1105,10 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
 
             let nodes_value = payload
                 .get("nodes")
-                .cloned()
-                .unwrap_or_else(|| serde_json::json!([]));
-            let nodes: Vec<StructureNode> = serde_json::from_value(nodes_value).unwrap_or_default();
+                .ok_or("Missing project nodes in series backup")?
+                .clone();
+            let nodes: Vec<StructureNode> = serde_json::from_value(nodes_value)
+                .map_err(|e| format!("Invalid project structure nodes: {}", e))?;
             validate_scene_files_in_nodes(&nodes)?;
             let structure_json = serde_json::to_string_pretty(&nodes).map_err(|e| e.to_string())?;
             fs::write(project_dir.join(".meta/structure.json"), structure_json)
@@ -1099,7 +1116,7 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
 
             let scene_files = payload.get("sceneFiles").and_then(|v| v.as_object());
             restore_scene_files(&project_dir, scene_files)?;
-            ensure_scene_files_exist(&project_dir, &nodes)?;
+            validate_scene_files_exist(&project_dir, &nodes)?;
 
             let snippets = payload.get("snippets").and_then(|v| v.as_array());
             restore_snippets(&project_dir, snippets, &new_id)?;
@@ -1170,9 +1187,9 @@ pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, S
                     }
                 }
 
-                if let Ok(parsed) = serde_json::from_value::<CodexRelation>(relation_clone) {
-                    relations.push(parsed);
-                }
+                let parsed = serde_json::from_value::<CodexRelation>(relation_clone)
+                    .map_err(|e| format!("Invalid codex relation in backup: {}", e))?;
+                relations.push(parsed);
             }
         }
         let relations_json = serde_json::to_string_pretty(&relations).map_err(|e| e.to_string())?;
