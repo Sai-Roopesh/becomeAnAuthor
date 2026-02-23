@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
 > **Last Updated:** February 24, 2026
-> **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
+> **Codebase Stats:** 321 frontend source files (41,000+ lines) · 38 backend source files (6,200+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -139,9 +139,7 @@ Series (1)
       │         └── summary: string
       ├── ChatThread ──► ChatMessage[] (role, model, prompt, context)
       ├── Snippet (title, content: TiptapContent, pinned)
-      ├── SceneNote (sceneId, content: TiptapContent)
-      ├── ProjectMap (imagePath, markers: MapMarker[], zoom/pan)
-      └── WorldEvent (temporal, era, category, importance, linkedCodexIds)
+      └── SceneNote (sceneId, content: TiptapContent)
 
 Series (shared)
  └── CodexEntry (N) ←── seriesId
@@ -177,7 +175,6 @@ isScene(node)  → node is Scene    // node.type === "scene"
 | `CollaborationRoom` | sceneId, projectId, lastSyncedAt | P2P collaboration session |
 | `YjsStateSnapshot` | stateVector, update (Uint8Array) | CRDT persistence |
 | `CollaborationPeer` | id, name, color, cursor | Connected peer state |
-| `WorldEventTemporal` | precision, year, month, day, hour, minute | Temporal data with precision |
 | `SceneSectionSegment` | key, title, sectionType, paragraphs | Section data for export |
 | `SceneSectionType` | standard, chapter, part, appendix | Export section classification |
 
@@ -191,7 +188,7 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 
 ### 5.2 Command Modules — `commands/mod.rs`
 
-**18 command modules**, all re-exported via `pub use`:
+**14 command modules**, all re-exported via `pub use`:
 
 | Module | File | Lines | Commands | Description |
 |---|---|---|---|---|
@@ -208,13 +205,11 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
 | `collaboration` | `collaboration.rs` | ~60 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
 | `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
-| `world_map` | `world_map.rs` | ~120 | `list_maps`, `save_map`, `delete_map`, `upload_map_image` | Map image + marker storage |
-| `world_timeline` | `world_timeline.rs` | ~80 | `list_world_events`, `save_world_event`, `delete_world_event` | World event timeline |
 | `google_oauth` | `google_oauth.rs` | 428 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
 
 ### 5.3 Models — `models/mod.rs`
 
-**11 model files** defining serde-serializable Rust structs:
+**9 model files** defining serde-serializable Rust structs:
 
 | Model | Key Structs |
 |---|---|
@@ -227,7 +222,6 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `trash.rs` | `TrashedItem`, `TrashedProject` |
 | `series.rs` | `SeriesMeta` |
 | `scene_note.rs` | `SceneNote` |
-| `world.rs` | `ProjectMap`, `MapMarker`, `WorldEvent`, `WorldEventTemporal` |
 
 ### 5.4 Utilities — `utils/mod.rs`
 
@@ -299,7 +293,7 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
 | Directory | Files | Purpose |
 |---|---|---|
 | `entities/types.ts` | 1 (529 lines) | All entity interfaces (30+) |
-| `repositories/` | 11 interfaces | `INodeRepository`, `IProjectRepository`, `ICodexRepository`, `IChatRepository`, `ISnippetRepository`, `ICodexRelationRepository`, `ISceneCodexLinkRepository`, `ISeriesRepository`, `ISceneNoteRepository`, `IMapRepository`, `IWorldTimelineRepository` |
+| `repositories/` | 9 interfaces | `INodeRepository`, `IProjectRepository`, `ICodexRepository`, `IChatRepository`, `ISnippetRepository`, `ICodexRelationRepository`, `ISceneCodexLinkRepository`, `ISeriesRepository`, `ISceneNoteRepository` |
 | `services/` | 2 interfaces | `IChatService`, `IExportService` |
 | `types/` | 1 file | `export-types.ts` — export configuration types |
 
@@ -411,8 +405,6 @@ interface AppServices {
   sceneCodexLinkRepository: ISceneCodexLinkRepository;
   seriesRepository: ISeriesRepository;
   sceneNoteRepository: ISceneNoteRepository;
-  mapRepository: IMapRepository;
-  worldTimelineRepository: IWorldTimelineRepository;
   chatService: IChatService;                // ChatService
   exportService: IExportService;            // DocumentExportService
 }
@@ -420,7 +412,7 @@ interface AppServices {
 
 Test injection via `<AppProvider services={{ nodeRepository: mockRepo }}>`.
 
-### 9.2 Repositories (10 Tauri implementations)
+### 9.2 Repositories (9 Tauri implementations)
 
 Each wraps `invoke()` calls to Tauri backend commands:
 
@@ -435,8 +427,6 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | `TauriSceneCodexLinkRepository` | ~80 | Scene↔Codex link CRUD |
 | `TauriSeriesRepository` | ~120 | Series lifecycle + series-scoped codex |
 | `TauriSceneNoteRepository` | ~60 | Per-scene note storage |
-| `TauriMapRepository` | ~80 | Map CRUD + image upload |
-| `TauriWorldTimelineRepository` | ~60 | World event CRUD |
 
 ### 9.3 Services
 
@@ -483,15 +473,13 @@ The primary writing environment. 15+ components:
 
 ### 10.3 Plan Feature — `features/plan/`
 
-5 views orchestrated by `PlanView` (400 lines):
+3 views orchestrated by `PlanView` (400 lines):
 
 | View | File | Lines | Purpose |
 |---|---|---|---|
 | `GridView` | `grid-view.tsx` | 231 | Collapsible Acts/Chapters/Scenes hierarchy |
 | `OutlineView` | `outline-view.tsx` | 265 | Tree hierarchy with drag-and-drop reordering |
 | `TimelineView` | `timeline-view.tsx` | 162 | Codex-scene matrix showing character/location appearances |
-| `WorldTimelineView` | `world-timeline-view.tsx` | 503 | Era-grouped world events with temporal precision fields |
-| `MapView` | `map-view.tsx` | 579 | Image upload, pan/zoom, marker placement with codex linking |
 | `SceneLinkPanel` | `scene-link-panel.tsx` | ~520 | Sheet-based scene-codex linking interface with unlinked mention detection and consistency warnings |
 
 **Grid Filtering**: The Plan View (Grid) implements structure-preserving filtering via `filterSceneBasedNodes`. It ensures Acts and Chapters remain visible if they match the search query or if no filters are active, providing context even for empty structural nodes.
@@ -583,8 +571,8 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 ├── Projects/{series}/{project}/
 │   ├── project.json, structure.json
 │   ├── scenes/{file}.md (YAML frontmatter + TipTap JSON)
-│   └── .meta/ (chat/, snippets.json, scene-notes/, maps/,
-│         world-timeline.json, codex/{category}/, codex-relations.json,
+│   └── .meta/ (chat/, snippets.json, scene-notes/,
+│         codex/{category}/, codex-relations.json,
 │         codex-tags.json, emergency_backups/, yjs-states/)
 ├── Series/ (series-list.json, {id}/codex/)
 └── .recent.json
@@ -743,7 +731,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `shared/prompts/` | `templates.ts` |
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |
 | `features/codex/` | ~8 components, 2 hooks |
-| `features/plan/` | 5 views + orchestrator + filtering utility |
+| `features/plan/` | 3 views + orchestrator + filtering utility |
 | `features/chat/` | ~5 components, 1 hook |
 | `features/navigation/` | 2 components |
 | `features/settings/` | ~10 components, 2 hooks |
@@ -759,8 +747,8 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | Directory | Files |
 |---|---|
 | Root | `lib.rs` (188 lines), `main.rs` |
-| `commands/` | `mod.rs` + 16 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `scene_note`, `world_map`, `world_timeline` |
-| `models/` | `mod.rs` + 10 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `trash`, `series`, `scene_note`, `world` |
+| `commands/` | `mod.rs` + 13 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `scene_note` |
+| `models/` | `mod.rs` + 9 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `trash`, `series`, `scene_note` |
 | `utils/` | `mod.rs` + 7 utils: `atomic_write`, `timestamp`, `count_words`, `project_dir`, `validate_file_size`, `validate_json_size`, `validate_no_null_bytes` |
 
 ### 19.3 App Routes — `app/` (8 files)
