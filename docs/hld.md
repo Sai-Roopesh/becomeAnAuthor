@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 > **Status:** Living Document
 
 ---
@@ -43,7 +43,7 @@
 - Integration with 14 AI providers for intelligent writing assistance
 - Google Drive cloud backup
 
-The application prioritizes **data privacy** (all data stays local, API keys in OS keychain), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
+The application prioritizes **data privacy** (all data stays local, API keys in local app storage), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
 
 ---
 
@@ -58,7 +58,7 @@ Authors need a dedicated writing environment that combines the organizational po
 | Goal | Description |
 |---|---|
 | **Local-First** | All data persisted on the user's filesystem; zero cloud dependency for core features |
-| **Privacy-First** | API keys stored in OS keychain; no telemetry; AI calls made directly from client |
+| **Privacy-First** | API keys stored in local app storage; no telemetry; AI calls made directly from client |
 | **Offline-Capable** | Full editing, organizing, and exporting without internet; AI features degrade gracefully |
 | **AI-Integrated** | Deep integration with 14 AI providers for writing, rewriting, summarizing, and brainstorming |
 | **Professional Authoring** | Support full novel lifecycle: ideation → drafting → revision → export/publish |
@@ -123,7 +123,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 │  │  └────┬─────┘  └──────────┘  └──────────┘                │  │
 │  │       │                                                    │  │
 │  │  ┌────▼─────────────────────────────────────────────────┐ │  │
-│  │  │     OS APIs: Filesystem, Keychain, Dialogs, Shell    │ │  │
+│  │  │     OS APIs: Filesystem, Dialogs, Shell, Process     │ │  │
 │  │  └──────────────────────────────────────────────────────┘ │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                              │
@@ -173,7 +173,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 |---|---|---|
 | **Storage** | File-based (JSON + YAML/Markdown) | No database installation; human-readable; easy backup/migration; Git-friendly |
 | **Serialization** | serde (JSON/YAML) | Rust ecosystem standard; zero-cost abstractions; type-safe |
-| **Secret Storage** | OS Keychain (keyring crate) | macOS Keychain, Windows Credential Manager, Linux Secret Service; encrypted at rest |
+| **Secret Storage** | Local App Storage (JSON) | API keys and tokens stored in `.meta/` JSON files (local app scope) |
 | **Document Export** | epub-builder | ePub generation (Rust); DOCX/PDF via Frontend |
 | **Search** | Full-text scan (Rust command) | Simple file-based search with deterministic backend ranking for scenes and codex |
 
@@ -243,7 +243,7 @@ graph TB
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
 | **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with section-aware structure controls, customizable settings, and Codex Appendix support |
 | **Data Management** | 3 | 0 | Backup Center UI, series backup import/export, novel archive conversion |
-| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback, Web: PKCE), cloud backup |
+| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback), cloud backup |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
 | **AI** | 1 | 0 | AI-specific UI components |
 | **Project** | 2 | 0 | Project-level settings and metadata editing |
@@ -281,7 +281,6 @@ flowchart LR
 
     subgraph OS["Operating System"]
         FS["File System"]
-        Keychain["OS Keychain"]
         Dialog["Native Dialogs"]
     end
 
@@ -299,7 +298,6 @@ flowchart LR
     Commands --> Models
     Commands --> Utils
     Utils --> FS
-    Utils --> Keychain
     Commands --> Dialog
     Services -->|"HTTPS"| AIProviders
     Services -->|"HTTPS"| GDrive
@@ -616,13 +614,13 @@ onChunk callbacks → UI updates
 ### 11.3 Frontend ↔ Google Drive
 
 ```
-OAuth 2.0 PKCE flow:
+OAuth 2.0 Desktop Flow:
 1. User clicks "Sign In" → GoogleAuthService.signIn()
-2. Opens browser → Google consent screen
-3. Redirect to /auth/callback with authorization code
-4. Exchange code for access token (client-side)
-5. Store tokens in localStorage
-6. Use tokens for Drive API calls
+2. Backend starts local TCP listener (loopback)
+3. Opens system browser → Google consent screen
+4. Redirect to http://127.0.0.1:{port}/oauth2/callback
+5. Backend receives code, exchanges for tokens
+6. Tokens stored in .meta/google_oauth_store.json
 ```
 
 ---
@@ -633,7 +631,7 @@ OAuth 2.0 PKCE flow:
 
 | Threat | Mitigation |
 |---|---|
-| API key exposure | Stored in OS keychain (encrypted at rest); never in filesystem or localStorage |
+| API key exposure | Stored in local app storage (`.meta/api_keys.json`); restricted file permissions (OS dependent) |
 | Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |
@@ -643,10 +641,10 @@ OAuth 2.0 PKCE flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, key) → OS Keychain (key) + localStorage (hasApiKey=true)
-                                              ↓ (encrypted)
-AI Request  → isConnectionUsable()          → get_api_key(provider) → OS Keychain
-                                              ↓ (decrypted)
+Settings UI → store_api_key(provider, key) → .meta/api_keys.json (key) + localStorage (hasApiKey=true)
+                                              ↓
+AI Request  → isConnectionUsable()          → get_api_key(provider) → .meta/api_keys.json
+                                              ↓
               → AI Provider API (HTTPS)
 ```
 
