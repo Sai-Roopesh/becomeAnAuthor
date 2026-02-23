@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useState,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // Types for mention suggestion items
@@ -13,6 +8,7 @@ interface MentionItem {
   id: string;
   name: string;
   category?: string;
+  matchedAlias?: string;
 }
 
 interface MentionListProps {
@@ -76,6 +72,15 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
 
     return (
       <div className="bg-popover text-popover-foreground border rounded-md shadow-md overflow-hidden p-1 min-w-select-sm">
+        {props.items.length > 0 && (
+          <div className="px-2 py-1 text-[11px] text-muted-foreground border-b mb-1">
+            <span>Use </span>
+            <kbd>Up/Down</kbd>
+            <span> to navigate, </span>
+            <kbd>Enter</kbd>
+            <span> to tag</span>
+          </div>
+        )}
         {props.items.length ? (
           props.items.map((item, index) => (
             <button
@@ -88,7 +93,14 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
               key={index}
               onClick={() => selectItem(index)}
             >
-              {item.name}{" "}
+              <span className="truncate">
+                @{item.name}
+                {item.matchedAlias ? (
+                  <span className="ml-1 text-xs text-muted-foreground opacity-70">
+                    via {item.matchedAlias}
+                  </span>
+                ) : null}
+              </span>
               <span className="ml-auto text-xs text-muted-foreground opacity-50">
                 {item.category}
               </span>
@@ -96,7 +108,7 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
           ))
         ) : (
           <div className="px-2 py-1.5 text-sm text-muted-foreground">
-            No result
+            No codex matches. Add entries in Codex to tag with @.
           </div>
         )}
       </div>

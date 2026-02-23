@@ -13,6 +13,10 @@ export function extractTextFromContent(
 ): string {
   if (!content) return "";
 
+  if (content.type === "mention") {
+    return getMentionText(content);
+  }
+
   // Handle text nodes
   if ("text" in content && typeof content.text === "string") {
     return content.text;
@@ -36,6 +40,10 @@ export function extractTextFromTiptapJSON(
   if (!content?.content) return "";
 
   const extractNode = (node: TiptapNode): string => {
+    if (node.type === "mention") {
+      return getMentionText(node);
+    }
+
     if ("text" in node && typeof node.text === "string") {
       return node.text;
     }
@@ -70,6 +78,28 @@ export function extractTextFromTiptapJSON(
     .map((node) => extractNode(node).trim())
     .filter((text) => text.length > 0)
     .join("\n\n");
+}
+
+function getMentionText(node: TiptapNode): string {
+  if (!("attrs" in node) || !node.attrs || typeof node.attrs !== "object") {
+    return "";
+  }
+
+  const attrs = node.attrs as Record<string, unknown>;
+  const rawValue =
+    pickMentionAttr(attrs["label"]) ??
+    pickMentionAttr(attrs["name"]) ??
+    pickMentionAttr(attrs["title"]) ??
+    pickMentionAttr(attrs["id"]);
+  if (!rawValue) return "";
+
+  return rawValue.startsWith("@") ? rawValue : `@${rawValue}`;
+}
+
+function pickMentionAttr(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 /**

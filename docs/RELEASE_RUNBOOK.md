@@ -57,9 +57,11 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 9. Chat lifecycle: archive -> restore -> move to deleted -> permanent delete.
 10. DOCX export (basic + advanced options) produces valid file.
 11. PDF export (advanced options) completes without hang/toast lock.
-12. Responsive checks across dashboard/project/chat/settings at narrow widths.
-13. Google Drive connect, backup, restore, sign out.
-14. In-app updater prompt/install/restart path from an older build.
+12. `@mention` flow: type `@`, select codex suggestion, verify mention renders inline and survives save/reload.
+13. Export mention integrity: DOCX/PDF/Markdown include `@Name` text for mentioned entries.
+14. Responsive checks across dashboard/project/chat/settings at narrow widths.
+15. Google Drive connect, backup, restore, sign out.
+16. In-app updater prompt/install/restart path from an older build.
 
 ## 4. Prepare a Release
 
