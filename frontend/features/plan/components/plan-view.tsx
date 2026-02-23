@@ -13,18 +13,14 @@ import {
   ChevronDown,
   ChevronUp,
   Layers,
-  Map as MapIcon,
-  Calendar,
 } from "lucide-react";
 import { GridView } from "./grid-view";
 import { OutlineView } from "./outline-view";
 import { TimelineView } from "./timeline-view";
-import { MapView } from "./map-view";
-import { WorldTimelineView } from "./world-timeline-view";
 import { CodexFilterBar } from "@/features/plan/components/codex-filter-bar";
 import { filterSceneBasedNodes } from "@/features/plan/utils/filter-scene-based-nodes";
 
-type PlanViewType = "grid" | "outline" | "timeline" | "map" | "world";
+type PlanViewType = "grid" | "outline" | "timeline";
 
 const PLAN_TABS: Array<{
   id: PlanViewType;
@@ -45,16 +41,6 @@ const PLAN_TABS: Array<{
     id: "timeline",
     label: "Timeline",
     description: "Follow entity presence and flow scene-by-scene.",
-  },
-  {
-    id: "map",
-    label: "Map",
-    description: "Manage world maps and location markers.",
-  },
-  {
-    id: "world",
-    label: "World",
-    description: "Track world-history events separate from scene flow.",
   },
 ];
 
@@ -154,8 +140,6 @@ export function PlanView({ projectId }: { projectId: string }) {
                 {type === "grid" && <LayoutGrid className="h-4 w-4" />}
                 {type === "outline" && <List className="h-4 w-4" />}
                 {type === "timeline" && <Layers className="h-4 w-4" />}
-                {type === "map" && <MapIcon className="h-4 w-4" />}
-                {type === "world" && <Calendar className="h-4 w-4" />}
                 <span>{PLAN_TABS.find((tab) => tab.id === type)?.label}</span>
               </button>
             ))}
@@ -219,7 +203,7 @@ export function PlanView({ projectId }: { projectId: string }) {
       </div>
 
       <div
-        className={`flex-1 overflow-auto ${["timeline", "map", "world"].includes(viewType) ? "" : "p-6"}`}
+        className={`flex-1 overflow-auto ${viewType === "timeline" ? "" : "p-6"}`}
       >
         {viewType === "grid" && (
           <GridView
@@ -240,15 +224,6 @@ export function PlanView({ projectId }: { projectId: string }) {
             projectId={projectId}
             seriesId={project.seriesId}
             nodes={filteredNodes}
-          />
-        )}
-        {viewType === "map" && (
-          <MapView projectId={projectId} seriesId={project.seriesId} />
-        )}
-        {viewType === "world" && (
-          <WorldTimelineView
-            projectId={projectId}
-            seriesId={project.seriesId}
           />
         )}
       </div>

@@ -14,8 +14,6 @@ pub mod security;
 pub mod series;
 pub mod snippet;
 pub mod trash;
-pub mod world_map;
-pub mod world_timeline;
 
 // Re-export all commands for easy access in lib.rs
 pub use backup::*;
@@ -31,5 +29,3 @@ pub use search::*;
 pub use series::*;
 pub use snippet::*;
 pub use trash::*;
-pub use world_map::*;
-pub use world_timeline::*;
