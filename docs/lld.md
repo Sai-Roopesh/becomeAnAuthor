@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 24, 2026
+> **Last Updated:** February 25, 2026
 > **Status:** Living Document
 
 ---
@@ -532,7 +532,7 @@ features/{feature-name}/
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
 | **chat** | 10 | 1 | AI chat interface with active/archived/deleted views, thread management, context assembly, mobile-responsive design |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
-| **plan** | 13 | 2 | Outline view, grid view, timeline, maps, world timeline, scene link panel |
+| **plan** | 13+ | 2 | Outline view, grid view, timeline, maps, world timeline, scene link panel, filtering utils |
 | **settings** | 10 | 2 | AI connection management with status reporting (Active/Missing Key/Disabled), editor preferences, appearance settings |
 | **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks, responsive actions |
 | **search** | 6 | 1 | Full-text search across scenes + codex |
@@ -589,6 +589,18 @@ features/editor/
 - Collaboration (Yjs integration)
 - BubbleMenu
 - Custom: SlashCommands, SectionNode, TypewriterExtension
+
+### 9.3 Plan Feature
+
+The plan feature manages manuscript structure visualization. A key component is the **structure-preserving filtering logic**:
+
+**File:** `features/plan/utils/filter-scene-based-nodes.ts`
+
+- **Purpose**: Filters the manuscript tree (acts/chapters/scenes) based on text search and codex entity links.
+- **Behavior**:
+  - Matches text against scene title, summary, POV, labels, and linked codex entry names/aliases.
+  - Preserves hierarchy: If a scene matches, its parent chapter and act are shown.
+  - **Empty Chapter Visibility**: Ensures chapters with no scenes are still visible if they match the filter or if the structure context requires it, preventing "disappearing containers" during filtration.
 
 ---
 

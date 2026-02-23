@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 24, 2026
-> **Codebase Stats:** 331 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
+> **Last Updated:** February 25, 2026
+> **Codebase Stats:** 333 frontend source files (43,000+ lines) · 42 backend source files (6,600+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -509,6 +509,7 @@ Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
   - **Roles**: Assign roles to links (Appears, Mentioned, POV Character, Location, Plot Thread).
 - **Consistency Checks**: Warns if POV character is linked but not matching scene metadata, or if linked characters are missing from the summary.
 - Mutations use live-query invalidation plus duplicate guards to keep badges/filters/timeline state in sync.
+- **Structure-Preserving Filtering**: Uses `filterSceneBasedNodes` utility (in `features/plan/utils/`) to perform search and filtering while maintaining visibility of relevant container nodes (e.g., empty chapters).
 
 ### 10.4 Chat Feature — `features/chat/`
 
@@ -747,7 +748,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `shared/prompts/` | `templates.ts` |
 | `features/editor/` | ~15 components, 3 hooks, 3 extensions |
 | `features/codex/` | ~8 components, 2 hooks |
-| `features/plan/` | 5 views + orchestrator |
+| `features/plan/` | 5 views + orchestrator + filtering utils |
 | `features/chat/` | ~5 components, 1 hook |
 | `features/navigation/` | 2 components |
 | `features/settings/` | ~10 components, 2 hooks |
