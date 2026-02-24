@@ -43,7 +43,7 @@
 - Integration with 14 AI providers for intelligent writing assistance
 - Google Drive cloud backup
 
-The application prioritizes **data privacy** (all data stays local, API keys in local app storage), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
+The application prioritizes **data privacy** (all data stays local, credentials in OS keychain), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
 
 ---
 
@@ -58,7 +58,7 @@ Authors need a dedicated writing environment that combines the organizational po
 | Goal | Description |
 |---|---|
 | **Local-First** | All data persisted on the user's filesystem; zero cloud dependency for core features |
-| **Privacy-First** | API keys stored in local app storage; no telemetry; AI calls made directly from client |
+| **Privacy-First** | Credentials stored in OS keychain; no telemetry; AI calls made directly from client |
 | **Offline-Capable** | Full editing, organizing, and exporting without internet; AI features degrade gracefully |
 | **AI-Integrated** | Deep integration with 14 AI providers for writing, rewriting, summarizing, and brainstorming |
 | **Professional Authoring** | Support full novel lifecycle: ideation → drafting → revision → export/publish |
@@ -108,7 +108,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 │  │  └───────────────────┬────────────────────────────────┘  │  │
 │  │                      │                                    │  │
 │  │  ┌───────────────────▼────────────────────────────────┐  │  │
-│  │  │              IPC Bridge (commands.ts)                │  │  │
+│  │  │     IPC Bridge (commands.ts + command-modules/*)     │  │  │
 │  │  │         130+ typed Tauri invoke wrappers             │  │  │
 │  │  └───────────────────┬────────────────────────────────┘  │  │
 │  └──────────────────────┼────────────────────────────────────┘  │
@@ -119,7 +119,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 │  │                                                            │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐                │  │
 │  │  │ Commands │  │  Models  │  │  Utils   │                │  │
-│  │  │ (14 mod) │  │ (9 mod)  │  │ (7 mod)  │                │  │
+│  │  │ (16 mod) │  │ (7 mod)  │  │ (7 mod)  │                │  │
 │  │  └────┬─────┘  └──────────┘  └──────────┘                │  │
 │  │       │                                                    │  │
 │  │  ┌────▼─────────────────────────────────────────────────┐ │  │
@@ -268,7 +268,7 @@ flowchart LR
         DI["DI Container<br/>(AppContext)"]
     Repos["Repositories<br/>(15 interfaces)"]
         Services["Services<br/>(6 services)"]
-        IPC["IPC Bridge<br/>(commands.ts)"]
+        IPC["IPC Bridge<br/>(commands.ts + command-modules/*)"]
     end
 
     subgraph Backend["Backend (Rust)"]
@@ -344,8 +344,8 @@ graph TB
     L4["Layer 4: Repository Interfaces<br/>domain/repositories/ (15)"]
     L5["Layer 5: Entity Types<br/>domain/entities/types.ts (30+ types)"]
     L6["Layer 6: Service Interfaces<br/>domain/services/ (3)"]
-    L7["Layer 7: Infrastructure<br/>infrastructure/repositories/ (15)<br/>infrastructure/services/ (6)"]
-    L8["Layer 8: Core / IPC Bridge<br/>core/tauri/commands.ts (130+ wrappers)"]
+    L7["Layer 7: Infrastructure<br/>infrastructure/repositories/ (14)<br/>infrastructure/services/ (6)"]
+    L8["Layer 8: Core / IPC Bridge<br/>core/tauri/commands.ts + command-modules/* (130+ wrappers)"]
 
     L1 --> L2 --> L3 --> L4 --> L5
     L3 --> L6
@@ -403,8 +403,8 @@ The Rust backend is organized into three top-level module groups:
 
 | Module Group | Modules | Purpose |
 |---|---|---|
-| **commands/** | 14 modules | Tauri command handlers — the API surface exposed to frontend |
-| **models/** | 9 modules | Data structure definitions (serde-serializable types) |
+| **commands/** | 16 modules | Tauri command handlers — the API surface exposed to frontend |
+| **models/** | 7 modules | Data structure definitions (serde-serializable types) |
 | **utils/** | 7 modules | Shared utility functions (paths, I/O, validation, text, timestamps, security) |
 
 ### 8.2 Command Categories
@@ -416,18 +416,18 @@ The Rust backend is organized into three top-level module groups:
 | **Codex** | `codex.rs` | 18 | Entries, relations, tags, templates, relation types, scene links (all series-scoped) |
 | **Series** | `series.rs` | 15 | Series lifecycle, series codex, codex migration between projects/series |
 | **Chat** | `chat.rs` | 8 | Thread CRUD, message persistence, thread listing |
-| **Backup** | `backup.rs` (1083 lines) | 15 | Emergency backup, manuscript export (text/DOCX/EPUB), series/project backup & restore, import hardening & rollback |
-| **Search** | `search.rs` | 1 | Full-text search across scenes + codex with relevance scoring |
+| **Backup** | `backup.rs` + `backup_emergency.rs` + `backup_manuscript.rs` | 15 | Backup/import orchestration + emergency backup lifecycle + manuscript export commands |
+| **Search** | `search.rs` | 1 | Full-text search across scenes + codex using SQLite FTS5 index |
 | **Security** | `security.rs` | 4 | OS keychain CRUD for API keys |
 | **Trash** | `trash.rs` | 5 | Soft delete, restore, permanent delete, list, empty |
 | **Mention** | `mention.rs` | 2 | Cross-content @mention tracking |
 | **Collaboration** | `collaboration.rs` | 4 | Yjs binary state persistence |
-| **Other** | 3 modules | ~5 | Snippets, scene notes |
+| **Other** | 3 modules | ~7 | Snippets, scene notes, Google OAuth |
 
 ### 8.3 Backend Design Patterns
 
 - **Command Pattern**: Every function exposed via `#[tauri::command]` returns `Result<T, String>`
-- **File-Based Persistence**: All data stored as JSON/YAML/Markdown files
+- **Hybrid Persistence**: Primary project content in JSON/YAML/Markdown files; chat/search indexes in SQLite WAL
 - **Input Validation**: Centralized `validation.rs` with 16 validators (path traversal prevention, size limits, null byte checks, UUID format)
 - **Path Resolution**: `paths.rs` provides safe path construction for app dir, projects dir, series dir, codex dir
 - **Timestamp Normalization**: `timestamp.rs` handles RFC 3339 ↔ Unix millisecond conversion
@@ -522,7 +522,7 @@ graph TD
     P1["Project (Novel)/"]
     P1Meta[".meta/<br/>project.json, structure.json"]
     P1Scenes["manuscript/<br/>scenes/*.md"]
-    P1Chat["chat/<br/>threads/*.json"]
+    P1Chat[".meta/app.db<br/>(chat threads/messages, FTS index)"]
     P1Snippets["snippets/*.json"]
     P1Other["scene-notes/"]
     Trash[".trash/<br/>soft-deleted projects"]
@@ -532,7 +532,7 @@ graph TD
     App --> Projects --> P1
     P1 --> P1Meta
     P1 --> P1Scenes
-    P1 --> P1Chat
+    App --> P1Chat
     P1 --> P1Snippets
     P1 --> P1Other
     App --> Trash
@@ -613,8 +613,8 @@ OAuth 2.0 Desktop Flow:
 2. Backend starts local TCP listener (loopback)
 3. Opens system browser → Google consent screen
 4. Redirect to http://127.0.0.1:{port}/oauth2/callback
-5. Backend receives code, exchanges for tokens (optionally using `client_secret` if configured)
-6. Tokens stored in .meta/google_oauth_store.json
+5. Backend receives code, exchanges for tokens
+6. Tokens stored in OS keychain via `google_oauth` commands
 ```
 
 ---
@@ -625,7 +625,7 @@ OAuth 2.0 Desktop Flow:
 
 | Threat | Mitigation |
 |---|---|
-| API key exposure | Stored in local app storage (`.meta/api_keys.json`); restricted file permissions (OS dependent) |
+| API key exposure | Stored in OS keychain; SQLite stores non-secret provider/account metadata only |
 | Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |
@@ -635,9 +635,9 @@ OAuth 2.0 Desktop Flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, key) → .meta/api_keys.json (key) + localStorage (hasApiKey=true)
+Settings UI → store_api_key(provider, key) → OS keychain (secret) + SQLite secure_accounts (metadata)
                                               ↓
-AI Request  → isConnectionUsable()          → get_api_key(provider) → .meta/api_keys.json
+AI Request  → isConnectionUsable()          → get_api_key(provider) → OS keychain
                                               ↓
               → AI Provider API (HTTPS)
 ```

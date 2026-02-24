@@ -37,7 +37,7 @@
 | Principle | Implementation |
 |---|---|
 | **Local-first** | All data stored on local filesystem; no cloud dependency |
-| **Privacy-focused** | API keys stored in local app storage; AI calls made directly from client |
+| **Privacy-focused** | API keys/tokens stored in OS keychain; AI calls made directly from client |
 | **Clean Architecture** | Domain-driven design with repository pattern and dependency injection |
 | **Feature-modular** | Each feature encapsulated with its own components, hooks, and exports |
 
@@ -106,7 +106,7 @@
 | File Ops | walkdir | 2.x |
 | Markdown | gray_matter | 0.2 |
 | Doc Gen | docx-rs (legacy), epub-builder | 0.4 / 0.7 |
-| Secret Store | Local App Storage (JSON) | N/A |
+| Secret Store | OS Keychain (`keyring`) | N/A |
 | Logging | tauri-plugin-log | 2.1 |
 
 ---
@@ -126,7 +126,7 @@ Layer 5: Domain Entities      → frontend/domain/entities/types.ts
 Layer 6: Domain Services      → frontend/domain/services/ (interfaces)
 Layer 7: Infrastructure       → frontend/infrastructure/repositories/ (15 Tauri impls)
          Implementations       frontend/infrastructure/services/
-Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts
+Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts + frontend/core/tauri/command-modules/*
 ```
 
 **Dependency Rule:** Each layer may only depend on layers below it (higher number). Features depend on hooks, hooks depend on domain interfaces, infrastructure implements domain interfaces.
@@ -149,15 +149,17 @@ backend/src/
 │   ├── series.rs        # Series management + series codex (16.5KB)
 │   ├── chat.rs          # Chat threads and messages CRUD (6.8KB)
 │   ├── search.rs        # Full-text search across project (7.3KB)
-│   ├── backup.rs        # Emergency backup + export/import + rollback (40KB)
+│   ├── backup.rs        # Backup/import orchestration
+│   ├── backup_emergency.rs  # Emergency backup lifecycle
+│   ├── backup_manuscript.rs # Manuscript export commands
 │   ├── trash.rs         # Soft delete with restore (5.4KB)
-│   ├── security.rs      # Local app storage API key management (5.9KB)
+│   ├── security.rs      # OS keychain API key management + secure account metadata
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
 │   ├── snippet.rs       # Reusable text snippets (1.6KB)
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
-│   └── google_oauth.rs  # Desktop OAuth via loopback + local JSON storage (15KB)
-├── models/              # Data structures (9 modules)
+│   └── google_oauth.rs  # Desktop OAuth via loopback + OS keychain storage
+├── models/              # Data structures (7 modules)
 │   ├── mod.rs
 │   ├── project.rs       # ProjectMeta, StructureNode, Series
 │   ├── scene.rs         # SceneMeta, Scene, YamlSceneMeta
@@ -683,7 +685,7 @@ interface ProjectStore {
 
 ### 12.1 Tauri Command Bridge
 
-**File:** `frontend/core/tauri/commands.ts` (993 lines, 135+ exports)
+**Files:** `frontend/core/tauri/commands.ts` + `frontend/core/tauri/command-modules/*` (domain-split wrappers, 130+ exports)
 
 This file provides typed TypeScript wrappers around all 130+ Tauri backend commands:
 
@@ -784,7 +786,7 @@ On complete → chatRepository.createMessage()
         │
         ▼
 Rust: commands::chat::create_chat_message()
-  → Append to chat/{threadId}.json
+  → Insert message row into SQLite `chat_messages`
 ```
 
 ---
@@ -799,13 +801,13 @@ Rust: commands::chat::create_chat_message()
 | Manuscript structure | JSON | `structure.json` |
 | Scenes | YAML frontmatter + Markdown | `scenes/{id}.md` |
 | Codex entries | JSON (individual files) | `codex/{id}.json` |
-| Chat threads | JSON (thread + messages) | `chat/{id}.json` |
+| Chat threads | SQLite tables (`chat_threads`, `chat_messages`) | `.meta/app.db` |
 | Snippets | JSON | `snippets/{id}.json` |
 | Scene notes | JSON | `scene-notes/{id}.json` |
 | Series metadata | JSON (global) | `.meta/series.json` |
 | Recent projects | JSON (global) | `.meta/recent.json` |
-| API Keys | JSON (global) | `.meta/api_keys.json` |
-| OAuth Tokens | JSON (global) | `.meta/google_oauth_store.json` |
+| API Keys | OS keychain secret + SQLite metadata | Keychain + `.meta/app.db` (`secure_accounts`) |
+| OAuth Tokens | OS keychain | Keychain service `become-an-author.google-oauth` |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
 | Emergency backups | JSON | `.backups/{timestamp}.json` |
 
@@ -813,7 +815,7 @@ Rust: commands::chat::create_chat_message()
 
 | Store | Technology | Purpose |
 |---|---|---|
-| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with `hasApiKey` metadata; actual keys in local app storage |
+| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with `hasApiKey` metadata; actual keys in OS keychain |
 | UI preferences | `localStorage` via Zustand persist | Panel states, view modes |
 | Editor format | `localStorage` via Zustand persist | Font, spacing, width preferences |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
@@ -832,14 +834,14 @@ Frontend: invoke("store_api_key", { provider, key })
         │
         ▼
 Rust: security::store_api_key()
-  → load .meta/api_keys.json
+  → load provider+connection secret from OS keychain
   → update key map
-  → write .meta/api_keys.json
+  → write secret to OS keychain + upsert SQLite secure_accounts metadata
 ```
 
-- Keys are stored in **local app storage** (`.meta/api_keys.json`).
+- Keys are stored in the **OS keychain** via `keyring`.
 - Retrieval via `get_api_key(provider)` → local file lookup.
-- **Google OAuth Tokens**: Stored in `.meta/google_oauth_store.json`.
+- **Google OAuth Tokens**: Stored in OS keychain service `become-an-author.google-oauth`.
 
 ### 15.2 Content Security
 

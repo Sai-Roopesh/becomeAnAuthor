@@ -56,7 +56,7 @@
 
 | Principle | Implementation |
 |---|---|
-| **Offline-first** | All data on local filesystem; AI keys stored in local app storage |
+| **Offline-first** | All data on local filesystem; credentials in OS keychain |
 | **Clean Architecture** | Domain → Application → Infrastructure → Presentation layers |
 | **Dependency Injection** | React Context-based DI via `AppContext.tsx` with lazy singletons |
 | **Series-first** | Every project belongs to a series; codex entries are series-scoped |
@@ -188,24 +188,26 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 
 ### 5.2 Command Modules — `commands/mod.rs`
 
-**14 command modules**, all re-exported via `pub use`:
+Command modules are re-exported via `pub use` for centralized Tauri registration.
 
 | Module | File | Lines | Commands | Description |
 |---|---|---|---|---|
-| `project` | `project.rs` | ~940 | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management |
-| `scene` | `scene.rs` | 375 | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene` | Scene content I/O with YAML frontmatter + path security |
-| `codex` | `codex.rs` | 330 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
-| `chat` | `chat.rs` | 190 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message` | Thread & message persistence |
-| `snippet` | `snippet.rs` | ~50 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
-| `backup` | `backup.rs` | ~1230 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup`, `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Multi-format export & import, hardening & rollback |
-| `search` | `search.rs` | ~220 | `search_project` | Full-text search using walkdir + regex |
-| `trash` | `trash.rs` | ~216 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
-| `series` | `series.rs` | ~520 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
-| `security` | `security.rs` | ~186 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
-| `mention` | `mention.rs` | ~184 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
-| `collaboration` | `collaboration.rs` | ~85 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
-| `scene_note` | `scene_note.rs` | ~48 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
-| `google_oauth` | `google_oauth.rs` | ~470 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
+| `project` | `project.rs` | ~480 | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management |
+| `scene` | `scene.rs` | 320 | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene` | Scene content I/O with YAML frontmatter + path security |
+| `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
+| `chat` | `chat.rs` | ~300 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message`, `find_chat_thread_for_message` | Thread/message persistence in SQLite (WAL) |
+| `snippet` | `snippet.rs` | ~80 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
+| `backup` | `backup.rs` | ~300 | `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup` | Backup/import orchestration and restore validation |
+| `backup_manuscript` | `backup_manuscript.rs` | ~300 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub` | Manuscript export commands and scene-file collection |
+| `backup_emergency` | `backup_emergency.rs` | ~80 | `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Emergency backup lifecycle |
+| `search` | `search.rs` | ~300 | `search_project` | Full-text search backed by SQLite FTS5 index with incremental rebuild by signature |
+| `trash` | `trash.rs` | ~120 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
+| `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
+| `security` | `security.rs` | ~60 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
+| `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
+| `collaboration` | `collaboration.rs` | ~60 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
+| `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
+| `google_oauth` | `google_oauth.rs` | ~430 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + OS keychain integration |
 
 ### 5.3 Models — `models/mod.rs`
 
@@ -219,8 +221,7 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 | `chat.rs` | `ChatThread`, `ChatMessage`, `ChatContext` |
 | `snippet.rs` | `Snippet` |
 | `backup.rs` | `EmergencyBackup`, `ExportManifest`, `SeriesBackup`, `ImportResult` |
-| `trash.rs` | `TrashedItem`, `TrashedProject` |
-| `series.rs` | `SeriesMeta` |
+| `series.rs` | `Series` |
 | `scene_note.rs` | `SceneNote` |
 
 ### 5.4 Utilities — `utils/mod.rs`
@@ -301,7 +302,7 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
 
 | File | Lines | Purpose |
 |---|---|---|
-| `core/tauri/commands.ts` | ~400 | Type-safe `invoke()` wrappers for all 100+ Tauri commands |
+| `core/tauri/commands.ts` + `core/tauri/command-modules/*` | ~400 | Type-safe `invoke()` wrappers split by domain (project/scene/codex/chat/series/search/export/dialogs) |
 | `core/tauri/index.ts` | ~30 | Barrel exports |
 | `core/storage/safe-storage.ts` | ~80 | Typed localStorage abstraction with JSON parse/stringify |
 | `lib/core/save-coordinator.ts` | 175 | Singleton preventing race conditions — per-scene mutex, debounce, retry |
@@ -392,7 +393,7 @@ Custom hook (`hooks/use-live-query.ts`) providing a React Query-like pattern for
 
 ### 9.1 Dependency Injection — `infrastructure/di/AppContext.tsx` (214 lines)
 
-**Singleton lazy-proxy pattern**: Creates repository instances only on first property access using `Proxy.get()`.
+`AppProvider` constructs concrete repositories/services with `useMemo`, and test suites can inject overrides through `services`.
 
 ```typescript
 interface AppServices {
@@ -418,7 +419,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 
 | Repository | Lines | Key Operations |
 |---|---|---|
-| `TauriNodeRepository` | ~200 | `getByProject()`, `create()`, `update()`, `delete()`, `getStructure()`, `saveStructure()` — singleton with `setProjectPath()` |
+| `TauriNodeRepository` | ~200 | `getByProject()`, `create()`, `update()`, `delete()`, `getStructure()`, `saveStructure()` — reads active project path from `core/project-path` |
 | `TauriProjectRepository` | 188 | `get()`, `getAll()`, `create()`, `update()`, `archive()`, `delete()`, `listTrash()`, `restoreFromTrash()`, `getBySeries()` |
 | `TauriCodexRepository` | ~150 | `getBySeries()`, `save()`, `delete()` — reads from per-category folders |
 | `TauriChatRepository` | ~100 | Thread/message CRUD, `getMessagesByThread()` |
@@ -433,7 +434,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 | Service | File | Lines | Purpose |
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 124 | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()` |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, inclusion options, and section-aware content segmentation (`SceneSectionSegment`). |
+| `DocumentExportService` | `DocumentExportService.ts` + `document-export/export-utils.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, inclusion options, and section-aware content segmentation (`SceneSectionSegment`). |
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with fallback to manual entry. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry. |
 | `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). Web flow removed. |
@@ -572,9 +573,10 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 ├── Projects/{series}/{project}/
 │   ├── project.json, structure.json
 │   ├── scenes/{file}.md (YAML frontmatter + TipTap JSON)
-│   └── .meta/ (chat/, snippets.json, scene-notes/,
+│   └── .meta/ (snippets.json, scene-notes/,
 │         codex/{category}/, codex-relations.json,
 │         codex-tags.json, emergency_backups/, yjs-states/)
+├── .meta/app.db (SQLite WAL for chat + search index + secure account metadata)
 ├── Series/ (series-list.json, {id}/codex/)
 └── .recent.json
 ```
@@ -583,18 +585,18 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Key | Data |
 |---|---|
-| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) — keys in OS keychain |
+| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) |
 | `project-store` | Zustand: sidebar/timeline visibility, tab selections |
 | `format-settings` | Zustand: typography and editor mode preferences |
-| `google_tokens` | OAuth tokens with expiry |
+| `google_tokens` | OAuth connection metadata (non-secret) |
 
 ---
 
 ## 13. Security Architecture
 
-- **API Keys**: Stored in local app storage (`.meta/api_keys.json`) via `security.rs`. `localStorage` only persists `hasApiKey` boolean metadata.
+- **API Keys**: Stored in OS keychain via `security.rs`; SQLite keeps non-secret provider/account metadata for listing.
 - **OAuth 2.0**:
-  - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in local app storage (`.meta/google_oauth_store.json`). Supports optional `client_secret` via `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET` for clients requiring strict enforcement.
+  - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in OS keychain via `google_oauth.rs`.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.
@@ -715,7 +717,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 | Directory | Key Files |
 |---|---|
-| `core/tauri/` | `commands.ts`, `index.ts` |
+| `core/tauri/` | `commands.ts`, `command-modules/*`, `index.ts` |
 | `core/storage/` | `safe-storage.ts` |
 | `domain/entities/` | `types.ts` (529 lines, 30+ interfaces) |
 | `domain/repositories/` | 12 interface files (`I*Repository.ts`) |
@@ -748,8 +750,8 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | Directory | Files |
 |---|---|
 | Root | `lib.rs` (188 lines), `main.rs` |
-| `commands/` | `mod.rs` + 13 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `scene_note` |
-| `models/` | `mod.rs` + 9 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `trash`, `series`, `scene_note` |
+| `commands/` | `mod.rs` + 16 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `backup_emergency`, `backup_manuscript`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `scene_note`, `google_oauth` |
+| `models/` | `mod.rs` + 7 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `scene_note` |
 | `utils/` | `mod.rs` + 7 utils: `atomic_write`, `timestamp`, `count_words`, `project_dir`, `validate_file_size`, `validate_json_size`, `validate_no_null_bytes` |
 
 ### 19.3 App Routes — `app/` (8 files)
