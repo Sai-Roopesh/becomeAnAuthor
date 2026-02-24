@@ -126,7 +126,7 @@ Layer 5: Domain Entities      → frontend/domain/entities/types.ts
 Layer 6: Domain Services      → frontend/domain/services/ (interfaces)
 Layer 7: Infrastructure       → frontend/infrastructure/repositories/ (15 Tauri impls)
          Implementations       frontend/infrastructure/services/
-Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts + frontend/core/tauri/command-modules/*
+Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts + command-modules/*, frontend/core/project-path.ts
 ```
 
 **Dependency Rule:** Each layer may only depend on layers below it (higher number). Features depend on hooks, hooks depend on domain interfaces, infrastructure implements domain interfaces.
@@ -141,7 +141,7 @@ Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts + frontend/cor
 backend/src/
 ├── main.rs              # Tauri entry point (calls lib::run())
 ├── lib.rs               # Plugin registration + command handler registration (130+ commands)
-├── commands/            # Tauri command implementations (14 modules)
+├── commands/            # Tauri command implementations (16 modules)
 │   ├── mod.rs           # Module declarations and re-exports
 │   ├── project.rs       # Project CRUD, structure, restore logic (recreates deleted series) (32KB)
 │   ├── scene.rs         # Scene load/save with YAML frontmatter (9.7KB)
@@ -168,6 +168,9 @@ backend/src/
 │   ├── snippet.rs       # Snippet
 │   ├── backup.rs        # EmergencyBackup
 │   ├── scene_note.rs    # SceneNote
+├── storage/             # Storage implementations (1 module)
+│   ├── mod.rs
+│   └── sqlite.rs        # SQLite wrapper for chat, search, and secure metadata
 └── utils/               # Shared utilities (7 modules)
     ├── mod.rs
     ├── paths.rs         # App dir, project dir, series dir resolution
@@ -306,7 +309,7 @@ The `AppProvider` creates singleton instances of all repositories and services v
 
 ```typescript
 interface AppServices {
-  // Repositories (15 total)
+  // Repositories (14 total)
   nodeRepository: INodeRepository;
   projectRepository: IProjectRepository;
   codexRepository: ICodexRepository;
@@ -687,7 +690,9 @@ interface ProjectStore {
 
 **Files:** `frontend/core/tauri/commands.ts` + `frontend/core/tauri/command-modules/*` (domain-split wrappers, 130+ exports)
 
-This file provides typed TypeScript wrappers around all 130+ Tauri backend commands:
+The monolithic `commands.ts` delegates to domain-specific modules in `command-modules/`. Repositories often use `requireCurrentProjectPath()` from `core/project-path.ts` to ensure operations target the active project.
+
+This layer provides typed TypeScript wrappers around all 130+ Tauri backend commands:
 
 ```typescript
 // Type-safe invoke wrapper
@@ -834,14 +839,13 @@ Frontend: invoke("store_api_key", { provider, key })
         │
         ▼
 Rust: security::store_api_key()
-  → load provider+connection secret from OS keychain
-  → update key map
-  → write secret to OS keychain + upsert SQLite secure_accounts metadata
+  → write secret to OS keychain using `keyring` crate
+  → upsert non-secret metadata to SQLite `secure_accounts` table
 ```
 
-- Keys are stored in the **OS keychain** via `keyring`.
-- Retrieval via `get_api_key(provider)` → local file lookup.
-- **Google OAuth Tokens**: Stored in OS keychain service `become-an-author.google-oauth`.
+- Keys are stored in the **OS Keychain** via `keyring` (Service: `become-an-author.api-keys`).
+- Retrieval via `get_api_key(provider)` → fetches secret from Keychain.
+- **Google OAuth Tokens**: Stored in OS Keychain service `become-an-author.google-oauth`.
 
 ### 15.2 Content Security
 
@@ -864,6 +868,7 @@ Rust: security::store_api_key()
     maxRetries: 3,
   });
   ```
+- **AppError Handling**: Standardized `AppError` class with error codes. Repositories convert Rust errors (which may include `[CODE]` prefixes) into structured `AppError` objects via `toAppError()`.
 - Toast notifications via Sonner for user-facing errors
 - `toast-service` wrapper provides consistent feedback loops (loading → success/error) for async operations
 - Console logging for development debugging
