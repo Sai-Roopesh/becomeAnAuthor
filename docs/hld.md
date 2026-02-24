@@ -230,7 +230,7 @@ graph TB
 | Domain | Components | Hooks | Description |
 |---|---|---|---|
 | **Editor** | 22 | 2 | TipTap-based writing with AI generation, slash commands, alias-aware @mentions, sections, focus mode, typewriter scroll |
-| **Chat** | 10 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support |
+| **Chat** | 11 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support, sidebar navigation |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
 | **Plan** | 13 | 2 | Manuscript structure views: outline tree, card grid, timeline, intelligent linking panel with unlinked mention detection, section warnings, structure-preserving grid filtering |
 | **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
@@ -613,7 +613,7 @@ OAuth 2.0 Desktop Flow:
 2. Backend starts local TCP listener (loopback)
 3. Opens system browser → Google consent screen
 4. Redirect to http://127.0.0.1:{port}/oauth2/callback
-5. Backend receives code, exchanges for tokens
+5. Backend receives code, exchanges for tokens (optionally using `client_secret` if configured)
 6. Tokens stored in .meta/google_oauth_store.json
 ```
 
@@ -724,6 +724,7 @@ ThemeProvider (dark/light/system)
                 │       ├── PlanView
                 │       │   ├── OutlineView / GridView / TimelineView
                 │       └── ChatInterface
+                │           ├── ChatSidebar
                 │           ├── ChatThread
                 │           └── ChatMessage
                 └── SeriesDetail (/series)
