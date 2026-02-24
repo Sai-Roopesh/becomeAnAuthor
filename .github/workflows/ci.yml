@@ -19,6 +19,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm exec tsc --noEmit
+      - run: pnpm test -- --run
+      - run: pnpm test:coverage -- --run
 
   rust-check:
     runs-on: ubuntu-latest

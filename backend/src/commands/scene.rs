@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use crate::models::{Scene, SceneMeta, YamlSceneMeta};
 use crate::utils::{
-    atomic_write, count_words, project_dir, timestamp, validate_file_size, validate_no_null_bytes,
+    atomic_write, count_words, timestamp, validate_file_size, validate_no_null_bytes,
     MAX_SCENE_SIZE,
 };
 
@@ -201,7 +201,7 @@ fn write_scene_to_path(file_path: &Path, meta: &SceneMeta, content: &str) -> Res
 #[tauri::command]
 pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, String> {
     validate_scene_file_name(&scene_file)?;
-    let project_path_buf = project_dir(&project_path)?;
+    let project_path_buf = PathBuf::from(&project_path);
     let file_path = project_path_buf.join("manuscript").join(&scene_file);
     load_scene_from_path(&scene_file, &file_path)
 }

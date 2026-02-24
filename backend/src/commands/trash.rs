@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::utils::{validate_no_null_bytes, validate_uuid_format};
+use crate::utils::{atomic_write, validate_no_null_bytes, validate_uuid_format};
 
 fn validate_trash_item_id(item_id: &str) -> Result<(), String> {
     validate_no_null_bytes(item_id, "Trash item ID")?;
@@ -91,7 +91,7 @@ pub fn move_to_trash(
     let meta_path = trash_item_dir.join("meta.json");
     let meta_json = serde_json::to_string_pretty(&meta)
         .map_err(|e| format!("Failed to serialize trash metadata: {}", e))?;
-    fs::write(&meta_path, meta_json)
+    atomic_write(&meta_path, &meta_json)
         .map_err(|e| format!("Failed to write trash metadata: {}", e))?;
 
     fs::remove_file(&source_path).map_err(|e| e.to_string())?;

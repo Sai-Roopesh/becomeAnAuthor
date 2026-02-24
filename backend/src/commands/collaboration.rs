@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use crate::utils::atomic_write;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YjsState {
@@ -32,7 +33,7 @@ pub fn save_yjs_state(
     
     let file_path = yjs_dir.join(format!("{}.yjs", scene_id));
     let json = serde_json::to_string(&state).map_err(|e| e.to_string())?;
-    fs::write(&file_path, json).map_err(|e| e.to_string())?;
+    atomic_write(&file_path, &json)?;
     
     Ok(())
 }

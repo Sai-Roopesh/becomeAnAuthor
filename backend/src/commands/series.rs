@@ -7,7 +7,8 @@ use walkdir::WalkDir;
 
 use crate::models::{CodexEntry, CodexRelation, Series};
 use crate::utils::{
-    get_app_dir, get_series_codex_path, get_series_dir, get_series_path, validate_project_title,
+    atomic_write, get_app_dir, get_series_codex_path, get_series_dir, get_series_path,
+    read_json_file_if_exists, validate_project_title, write_json_file,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -45,18 +46,12 @@ fn deleted_series_registry_path() -> Result<PathBuf, String> {
 
 fn read_deleted_series_registry() -> Result<Vec<DeletedSeriesRecord>, String> {
     let path = deleted_series_registry_path()?;
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    Ok(serde_json::from_str(&content).unwrap_or_default())
+    read_json_file_if_exists(&path, "deleted series registry")
 }
 
 fn write_deleted_series_registry(records: &[DeletedSeriesRecord]) -> Result<(), String> {
     let path = deleted_series_registry_path()?;
-    let json = serde_json::to_string_pretty(records).map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| e.to_string())
+    write_json_file(&path, records, "deleted series registry")
 }
 
 pub(crate) fn mark_series_deleted(series: &Series) -> Result<(), String> {
@@ -231,8 +226,7 @@ pub fn create_series(
     all_series.push(new_series);
 
     let series_path = get_series_path()?;
-    let json = serde_json::to_string_pretty(&all_series).map_err(|e| e.to_string())?;
-    fs::write(&series_path, json).map_err(|e| e.to_string())?;
+    write_json_file(&series_path, &all_series, "series list")?;
 
     Ok(result)
 }
@@ -277,8 +271,7 @@ pub fn update_series(series_id: String, updates: serde_json::Value) -> Result<()
     }
 
     let series_path = get_series_path()?;
-    let json = serde_json::to_string_pretty(&all_series).map_err(|e| e.to_string())?;
-    fs::write(&series_path, json).map_err(|e| e.to_string())?;
+    write_json_file(&series_path, &all_series, "series list")?;
 
     Ok(())
 }
@@ -303,12 +296,18 @@ pub fn delete_series(series_id: String) -> Result<(), String> {
     all_series.retain(|s| s.id != series_id);
 
     let series_path = get_series_path()?;
-    let json = serde_json::to_string_pretty(&all_series).map_err(|e| e.to_string())?;
-    fs::write(&series_path, json).map_err(|e| e.to_string())?;
+    write_json_file(&series_path, &all_series, "series list")?;
 
     // Also delete the series codex directory
-    if let Ok(series_dir) = get_series_dir(&series_id) {
-        let _ = fs::remove_dir_all(series_dir);
+    let series_dir = get_series_dir(&series_id)?;
+    if series_dir.exists() {
+        fs::remove_dir_all(&series_dir).map_err(|e| {
+            format!(
+                "Failed to remove series directory '{}' during delete: {}",
+                series_dir.display(),
+                e
+            )
+        })?;
     }
 
     Ok(())
@@ -372,11 +371,21 @@ pub fn list_series_codex_entries(
         .flatten()
     {
         if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
-            if let Ok(content) = fs::read_to_string(entry.path()) {
-                if let Ok(codex_entry) = serde_json::from_str::<CodexEntry>(&content) {
-                    entries.push(codex_entry);
-                }
-            }
+            let content = fs::read_to_string(entry.path()).map_err(|e| {
+                format!(
+                    "Failed to read series codex entry '{}': {}",
+                    entry.path().display(),
+                    e
+                )
+            })?;
+            let codex_entry = serde_json::from_str::<CodexEntry>(&content).map_err(|e| {
+                format!(
+                    "Failed to parse series codex entry '{}': {}",
+                    entry.path().display(),
+                    e
+                )
+            })?;
+            entries.push(codex_entry);
         }
     }
 
@@ -419,7 +428,7 @@ pub fn save_series_codex_entry(series_id: String, entry: CodexEntry) -> Result<(
 
     let entry_path = category_dir.join(format!("{}.json", entry.id));
     let json = serde_json::to_string_pretty(&entry).map_err(|e| e.to_string())?;
-    fs::write(&entry_path, json).map_err(|e| e.to_string())?;
+    atomic_write(&entry_path, &json)?;
 
     Ok(())
 }
@@ -458,10 +467,9 @@ pub fn delete_series_codex_entry(
 
     // Cascade remove relations that reference the deleted entry.
     let relations_path = get_relations_path(&series_id)?;
-    let mut relations = list_series_codex_relations(series_id).unwrap_or_default();
+    let mut relations = list_series_codex_relations(series_id)?;
     relations.retain(|r| r.parent_id != entry_id && r.child_id != entry_id);
-    let json = serde_json::to_string_pretty(&relations).map_err(|e| e.to_string())?;
-    fs::write(&relations_path, json).map_err(|e| e.to_string())?;
+    write_json_file(&relations_path, &relations, "series codex relations")?;
 
     Ok(())
 }
@@ -477,13 +485,7 @@ fn get_relations_path(series_id: &str) -> Result<PathBuf, String> {
 #[tauri::command]
 pub fn list_series_codex_relations(series_id: String) -> Result<Vec<CodexRelation>, String> {
     let relations_path = get_relations_path(&series_id)?;
-
-    if !relations_path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let content = fs::read_to_string(&relations_path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    read_json_file_if_exists(&relations_path, "series codex relations")
 }
 
 /// Save a codex relation to series storage
@@ -493,7 +495,7 @@ pub fn save_series_codex_relation(
     relation: CodexRelation,
 ) -> Result<(), String> {
     let relations_path = get_relations_path(&series_id)?;
-    let mut relations = list_series_codex_relations(series_id.clone()).unwrap_or_default();
+    let mut relations = list_series_codex_relations(series_id)?;
 
     // Update existing or add new
     if let Some(idx) = relations.iter().position(|r| r.id == relation.id) {
@@ -502,22 +504,16 @@ pub fn save_series_codex_relation(
         relations.push(relation);
     }
 
-    let json = serde_json::to_string_pretty(&relations).map_err(|e| e.to_string())?;
-    fs::write(&relations_path, json).map_err(|e| e.to_string())?;
-
-    Ok(())
+    write_json_file(&relations_path, &relations, "series codex relations")
 }
 
 /// Delete a codex relation from series storage
 #[tauri::command]
 pub fn delete_series_codex_relation(series_id: String, relation_id: String) -> Result<(), String> {
     let relations_path = get_relations_path(&series_id)?;
-    let mut relations = list_series_codex_relations(series_id).unwrap_or_default();
+    let mut relations = list_series_codex_relations(series_id)?;
 
     relations.retain(|r| r.id != relation_id);
 
-    let json = serde_json::to_string_pretty(&relations).map_err(|e| e.to_string())?;
-    fs::write(&relations_path, json).map_err(|e| e.to_string())?;
-
-    Ok(())
+    write_json_file(&relations_path, &relations, "series codex relations")
 }

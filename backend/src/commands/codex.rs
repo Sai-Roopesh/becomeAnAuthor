@@ -9,6 +9,7 @@ use crate::models::{
     CodexEntry, CodexEntryTag, CodexRelation, CodexRelationType, CodexTag, CodexTemplate,
     SceneCodexLink,
 };
+use crate::utils::atomic_write;
 
 fn read_json_vec<T>(path: &Path) -> Result<Vec<T>, String>
 where
@@ -32,7 +33,7 @@ where
     }
 
     let json = serde_json::to_string_pretty(items).map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| e.to_string())
+    atomic_write(path, &json)
 }
 
 fn meta_json_path(project_path: &str, file_name: &str) -> PathBuf {
@@ -46,7 +47,7 @@ where
     F: FnMut(&T) -> bool,
 {
     let mut items: Vec<T> = read_json_vec(path)?;
-    if let Some(idx) = items.iter().position(|existing| is_match(existing)) {
+    if let Some(idx) = items.iter().position(&mut is_match) {
         items[idx] = item;
     } else {
         items.push(item);
@@ -114,7 +115,7 @@ pub fn save_codex_entry(project_path: String, entry: CodexEntry) -> Result<(), S
     fs::create_dir_all(parent_dir)
         .map_err(|e| format!("Failed to create codex directory: {}", e))?;
     let json = serde_json::to_string_pretty(&entry).map_err(|e| e.to_string())?;
-    fs::write(&entry_path, json).map_err(|e| e.to_string())?;
+    atomic_write(&entry_path, &json)?;
 
     Ok(())
 }

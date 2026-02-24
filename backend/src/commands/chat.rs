@@ -1,146 +1,377 @@
 // Chat commands
 
-use std::fs;
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::PathBuf;
 
-use serde::de::DeserializeOwned;
+use crate::models::{ChatMessage, ChatThread};
+use crate::storage::open_app_db;
+use crate::utils::{read_json_file_if_exists, validate_json_size, validate_no_null_bytes};
 
-use crate::models::{ChatThread, ChatMessage};
-use crate::utils::{validate_no_null_bytes, validate_json_size};
-
-fn read_json_value<T: DeserializeOwned>(path: &PathBuf, label: &str) -> Result<T, String> {
-    let content = fs::read_to_string(path).map_err(|e| {
-        format!(
-            "Failed to read {} at '{}': {}",
-            label,
-            path.display(),
-            e
-        )
-    })?;
-    serde_json::from_str(&content).map_err(|e| {
-        format!(
-            "Failed to parse {} JSON at '{}': {}",
-            label,
-            path.display(),
-            e
-        )
-    })
+fn bool_to_sql(value: bool) -> i64 {
+    if value { 1 } else { 0 }
 }
 
-fn read_json_vec_if_exists<T: DeserializeOwned>(
-    path: &PathBuf,
-    label: &str,
-) -> Result<Vec<T>, String> {
-    if !path.exists() {
-        return Ok(Vec::new());
+fn sql_to_bool(value: i64) -> bool {
+    value != 0
+}
+
+fn migrate_chat_files_if_needed(conn: &mut Connection, project_path: &str) -> Result<(), String> {
+    let existing_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(1) FROM chat_threads WHERE project_path = ?1",
+            params![project_path],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed checking existing chat rows: {e}"))?;
+    if existing_count > 0 {
+        return Ok(());
     }
-    read_json_value(path, label)
+
+    let threads_path = PathBuf::from(project_path).join(".meta/chat/threads.json");
+    if !threads_path.exists() {
+        return Ok(());
+    }
+    let threads: Vec<ChatThread> = read_json_file_if_exists(&threads_path, "chat threads")?;
+    if threads.is_empty() {
+        return Ok(());
+    }
+
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("Failed starting chat migration transaction: {e}"))?;
+
+    for thread in threads {
+        tx.execute(
+            r#"
+            INSERT INTO chat_threads (
+                project_path, id, project_id, name, pinned, archived, deleted_at,
+                default_model, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            ON CONFLICT(project_path, id) DO UPDATE SET
+                project_id = excluded.project_id,
+                name = excluded.name,
+                pinned = excluded.pinned,
+                archived = excluded.archived,
+                deleted_at = excluded.deleted_at,
+                default_model = excluded.default_model,
+                created_at = excluded.created_at,
+                updated_at = excluded.updated_at
+            "#,
+            params![
+                project_path,
+                thread.id,
+                thread.project_id,
+                thread.name,
+                bool_to_sql(thread.pinned),
+                bool_to_sql(thread.archived),
+                thread.deleted_at,
+                thread.default_model,
+                thread.created_at,
+                thread.updated_at
+            ],
+        )
+        .map_err(|e| format!("Failed migrating chat thread: {e}"))?;
+
+        let messages_path = PathBuf::from(project_path)
+            .join(".meta/chat/messages")
+            .join(format!("{}.json", thread.id));
+        let messages: Vec<ChatMessage> =
+            read_json_file_if_exists(&messages_path, "chat messages")?;
+        for message in messages {
+            tx.execute(
+                r#"
+                INSERT INTO chat_messages (
+                    project_path, id, thread_id, role, content, model, timestamp
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                ON CONFLICT(project_path, id) DO UPDATE SET
+                    thread_id = excluded.thread_id,
+                    role = excluded.role,
+                    content = excluded.content,
+                    model = excluded.model,
+                    timestamp = excluded.timestamp
+                "#,
+                params![
+                    project_path,
+                    message.id,
+                    message.thread_id,
+                    message.role,
+                    message.content,
+                    message.model,
+                    message.timestamp
+                ],
+            )
+            .map_err(|e| format!("Failed migrating chat message: {e}"))?;
+        }
+    }
+
+    tx.commit()
+        .map_err(|e| format!("Failed committing chat migration: {e}"))?;
+
+    Ok(())
+}
+
+fn with_chat_db<F, T>(project_path: &str, mut f: F) -> Result<T, String>
+where
+    F: FnMut(&Connection) -> Result<T, String>,
+{
+    let mut conn = open_app_db()?;
+    migrate_chat_files_if_needed(&mut conn, project_path)?;
+    f(&conn)
 }
 
 #[tauri::command]
 pub fn list_chat_threads(project_path: String) -> Result<Vec<ChatThread>, String> {
-    let threads_path = PathBuf::from(&project_path).join(".meta/chat/threads.json");
-    if !threads_path.exists() {
-        return Ok(Vec::new());
-    }
-    let content = fs::read_to_string(&threads_path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    with_chat_db(&project_path, |conn| {
+        let mut statement = conn
+            .prepare(
+                r#"
+                SELECT id, project_id, name, pinned, archived, deleted_at, default_model, created_at, updated_at
+                FROM chat_threads
+                WHERE project_path = ?1
+                ORDER BY updated_at DESC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing list_chat_threads query: {e}"))?;
+        let mut rows = statement
+            .query(params![project_path])
+            .map_err(|e| format!("Failed querying chat threads: {e}"))?;
+        let mut threads = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .map_err(|e| format!("Failed iterating chat thread rows: {e}"))?
+        {
+            threads.push(ChatThread {
+                id: row.get(0).map_err(|e| format!("Invalid thread id column: {e}"))?,
+                project_id: row
+                    .get(1)
+                    .map_err(|e| format!("Invalid thread project_id column: {e}"))?,
+                name: row
+                    .get(2)
+                    .map_err(|e| format!("Invalid thread name column: {e}"))?,
+                pinned: sql_to_bool(
+                    row.get::<_, i64>(3)
+                        .map_err(|e| format!("Invalid thread pinned column: {e}"))?,
+                ),
+                archived: sql_to_bool(
+                    row.get::<_, i64>(4)
+                        .map_err(|e| format!("Invalid thread archived column: {e}"))?,
+                ),
+                deleted_at: row
+                    .get(5)
+                    .map_err(|e| format!("Invalid thread deleted_at column: {e}"))?,
+                default_model: row
+                    .get(6)
+                    .map_err(|e| format!("Invalid thread default_model column: {e}"))?,
+                created_at: row
+                    .get(7)
+                    .map_err(|e| format!("Invalid thread created_at column: {e}"))?,
+                updated_at: row
+                    .get(8)
+                    .map_err(|e| format!("Invalid thread updated_at column: {e}"))?,
+            });
+        }
+        Ok(threads)
+    })
 }
 
 #[tauri::command]
 pub fn get_chat_thread(project_path: String, thread_id: String) -> Result<Option<ChatThread>, String> {
-    let threads = list_chat_threads(project_path)?;
-    Ok(threads.into_iter().find(|t| t.id == thread_id))
+    with_chat_db(&project_path, |conn| {
+        conn.query_row(
+            r#"
+            SELECT id, project_id, name, pinned, archived, deleted_at, default_model, created_at, updated_at
+            FROM chat_threads
+            WHERE project_path = ?1 AND id = ?2
+            "#,
+            params![project_path, thread_id],
+            |row| {
+                Ok(ChatThread {
+                    id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    name: row.get(2)?,
+                    pinned: sql_to_bool(row.get::<_, i64>(3)?),
+                    archived: sql_to_bool(row.get::<_, i64>(4)?),
+                    deleted_at: row.get(5)?,
+                    default_model: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|e| format!("Failed to load chat thread '{thread_id}': {e}"))
+    })
 }
 
 #[tauri::command]
 pub fn create_chat_thread(project_path: String, thread: ChatThread) -> Result<ChatThread, String> {
-    // Validate thread name
     validate_no_null_bytes(&thread.name, "Thread name")?;
-    
-    let threads_path = PathBuf::from(&project_path).join(".meta/chat/threads.json");
-    // Create parent directory if needed
-    if let Some(parent) = threads_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    // Read existing threads directly to avoid cloning project_path
-    let mut threads: Vec<ChatThread> = read_json_vec_if_exists(&threads_path, "chat threads")?;
-    let result = thread.clone();
-    threads.push(thread);
-    
-    let json = serde_json::to_string_pretty(&threads).map_err(|e| e.to_string())?;
-    fs::write(&threads_path, json).map_err(|e| e.to_string())?;
-    
-    Ok(result)
+    with_chat_db(&project_path, |conn| {
+        conn.execute(
+            r#"
+            INSERT INTO chat_threads (
+                project_path, id, project_id, name, pinned, archived, deleted_at,
+                default_model, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            "#,
+            params![
+                project_path,
+                thread.id,
+                thread.project_id,
+                thread.name,
+                bool_to_sql(thread.pinned),
+                bool_to_sql(thread.archived),
+                thread.deleted_at,
+                thread.default_model,
+                thread.created_at,
+                thread.updated_at
+            ],
+        )
+        .map_err(|e| format!("Failed to create chat thread: {e}"))?;
+        Ok(thread.clone())
+    })
 }
 
 #[tauri::command]
 pub fn update_chat_thread(project_path: String, thread: ChatThread) -> Result<(), String> {
-    let threads_path = PathBuf::from(&project_path).join(".meta/chat/threads.json");
-    let mut threads: Vec<ChatThread> = read_json_vec_if_exists(&threads_path, "chat threads")?;
-    
-    if let Some(idx) = threads.iter().position(|t| t.id == thread.id) {
-        threads[idx] = thread;
-    }
-    
-    let json = serde_json::to_string_pretty(&threads).map_err(|e| e.to_string())?;
-    fs::write(&threads_path, json).map_err(|e| e.to_string())?;
-    
-    Ok(())
+    validate_no_null_bytes(&thread.name, "Thread name")?;
+    with_chat_db(&project_path, |conn| {
+        let changed = conn
+            .execute(
+                r#"
+                UPDATE chat_threads
+                SET project_id = ?3,
+                    name = ?4,
+                    pinned = ?5,
+                    archived = ?6,
+                    deleted_at = ?7,
+                    default_model = ?8,
+                    created_at = ?9,
+                    updated_at = ?10
+                WHERE project_path = ?1 AND id = ?2
+                "#,
+                params![
+                    project_path,
+                    thread.id,
+                    thread.project_id,
+                    thread.name,
+                    bool_to_sql(thread.pinned),
+                    bool_to_sql(thread.archived),
+                    thread.deleted_at,
+                    thread.default_model,
+                    thread.created_at,
+                    thread.updated_at
+                ],
+            )
+            .map_err(|e| format!("Failed to update chat thread: {e}"))?;
+        if changed == 0 {
+            return Err("Thread not found".to_string());
+        }
+        Ok(())
+    })
 }
 
 #[tauri::command]
 pub fn delete_chat_thread(project_path: String, thread_id: String) -> Result<(), String> {
-    let threads_path = PathBuf::from(&project_path).join(".meta/chat/threads.json");
-    let mut threads: Vec<ChatThread> = read_json_vec_if_exists(&threads_path, "chat threads")?;
-    threads.retain(|t| t.id != thread_id);
-    
-    let json = serde_json::to_string_pretty(&threads).map_err(|e| e.to_string())?;
-    fs::write(&threads_path, json).map_err(|e| e.to_string())?;
-    
-    // Also delete thread messages
-    let messages_path = PathBuf::from(&project_path).join(".meta/chat/messages").join(format!("{}.json", thread_id));
-    if messages_path.exists() {
-        let _ = fs::remove_file(&messages_path);
-    }
-    
-    Ok(())
+    with_chat_db(&project_path, |conn| {
+        conn.execute(
+            "DELETE FROM chat_threads WHERE project_path = ?1 AND id = ?2",
+            params![project_path, thread_id],
+        )
+        .map_err(|e| format!("Failed to delete chat thread: {e}"))?;
+        Ok(())
+    })
 }
 
 #[tauri::command]
 pub fn get_chat_messages(project_path: String, thread_id: String) -> Result<Vec<ChatMessage>, String> {
-    let messages_path = PathBuf::from(&project_path).join(".meta/chat/messages").join(format!("{}.json", thread_id));
-    if !messages_path.exists() {
-        return Ok(Vec::new());
-    }
-    let content = fs::read_to_string(&messages_path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    with_chat_db(&project_path, |conn| {
+        let mut statement = conn
+            .prepare(
+                r#"
+                SELECT id, thread_id, role, content, model, timestamp
+                FROM chat_messages
+                WHERE project_path = ?1 AND thread_id = ?2
+                ORDER BY timestamp ASC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing get_chat_messages query: {e}"))?;
+        let mut rows = statement
+            .query(params![project_path, thread_id])
+            .map_err(|e| format!("Failed querying chat messages: {e}"))?;
+        let mut messages = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .map_err(|e| format!("Failed iterating chat message rows: {e}"))?
+        {
+            messages.push(ChatMessage {
+                id: row.get(0).map_err(|e| format!("Invalid message id column: {e}"))?,
+                thread_id: row
+                    .get(1)
+                    .map_err(|e| format!("Invalid message thread_id column: {e}"))?,
+                role: row
+                    .get(2)
+                    .map_err(|e| format!("Invalid message role column: {e}"))?,
+                content: row
+                    .get(3)
+                    .map_err(|e| format!("Invalid message content column: {e}"))?,
+                model: row
+                    .get(4)
+                    .map_err(|e| format!("Invalid message model column: {e}"))?,
+                timestamp: row
+                    .get(5)
+                    .map_err(|e| format!("Invalid message timestamp column: {e}"))?,
+            });
+        }
+        Ok(messages)
+    })
+}
+
+#[tauri::command]
+pub fn find_chat_thread_for_message(
+    project_path: String,
+    message_id: String,
+) -> Result<Option<String>, String> {
+    with_chat_db(&project_path, |conn| {
+        conn.query_row(
+            "SELECT thread_id FROM chat_messages WHERE project_path = ?1 AND id = ?2",
+            params![project_path, message_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| format!("Failed to locate chat thread for message: {e}"))
+    })
 }
 
 #[tauri::command]
 pub fn create_chat_message(project_path: String, message: ChatMessage) -> Result<ChatMessage, String> {
-    // Validate message content
     validate_no_null_bytes(&message.content, "Message content")?;
     validate_json_size(&message.content)?;
-    
-    let messages_dir = PathBuf::from(&project_path).join(".meta/chat/messages");
-    fs::create_dir_all(&messages_dir).map_err(|e| e.to_string())?;
-    
-    let messages_path = messages_dir.join(format!("{}.json", message.thread_id));
-    let mut messages: Vec<ChatMessage> =
-        read_json_vec_if_exists(&messages_path, "chat messages")?;
-    
-    messages.push(message.clone());
-    
-    let json = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
-    fs::write(&messages_path, json).map_err(|e| e.to_string())?;
-    
-    Ok(message)
+
+    with_chat_db(&project_path, |conn| {
+        conn.execute(
+            r#"
+            INSERT INTO chat_messages (
+                project_path, id, thread_id, role, content, model, timestamp
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "#,
+            params![
+                project_path,
+                message.id,
+                message.thread_id,
+                message.role,
+                message.content,
+                message.model,
+                message.timestamp
+            ],
+        )
+        .map_err(|e| format!("Failed to create chat message: {e}"))?;
+        Ok(message.clone())
+    })
 }
 
 #[tauri::command]
 pub fn update_chat_message(project_path: String, thread_id: String, message: ChatMessage) -> Result<(), String> {
-    // Validate message content
     validate_no_null_bytes(&message.content, "Message content")?;
     validate_json_size(&message.content)?;
 
@@ -148,40 +379,40 @@ pub fn update_chat_message(project_path: String, thread_id: String, message: Cha
         return Err("Message threadId does not match target thread".to_string());
     }
 
-    let messages_path = PathBuf::from(&project_path)
-        .join(".meta/chat/messages")
-        .join(format!("{}.json", thread_id));
-
-    if !messages_path.exists() {
-        return Err("Thread messages not found".to_string());
-    }
-
-    let mut messages: Vec<ChatMessage> = read_json_value(&messages_path, "chat messages")?;
-
-    if let Some(idx) = messages.iter().position(|m| m.id == message.id) {
-        messages[idx] = message;
-    } else {
-        return Err("Message not found".to_string());
-    }
-
-    let json = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
-    fs::write(&messages_path, json).map_err(|e| e.to_string())?;
-
-    Ok(())
+    with_chat_db(&project_path, |conn| {
+        let changed = conn
+            .execute(
+                r#"
+                UPDATE chat_messages
+                SET role = ?4, content = ?5, model = ?6, timestamp = ?7
+                WHERE project_path = ?1 AND thread_id = ?2 AND id = ?3
+                "#,
+                params![
+                    project_path,
+                    thread_id,
+                    message.id,
+                    message.role,
+                    message.content,
+                    message.model,
+                    message.timestamp
+                ],
+            )
+            .map_err(|e| format!("Failed to update chat message: {e}"))?;
+        if changed == 0 {
+            return Err("Message not found".to_string());
+        }
+        Ok(())
+    })
 }
 
 #[tauri::command]
 pub fn delete_chat_message(project_path: String, thread_id: String, message_id: String) -> Result<(), String> {
-    let messages_path = PathBuf::from(&project_path).join(".meta/chat/messages").join(format!("{}.json", thread_id));
-    if !messages_path.exists() {
-        return Ok(());
-    }
-    
-    let mut messages: Vec<ChatMessage> = read_json_value(&messages_path, "chat messages")?;
-    messages.retain(|m| m.id != message_id);
-    
-    let json = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
-    fs::write(&messages_path, json).map_err(|e| e.to_string())?;
-    
-    Ok(())
+    with_chat_db(&project_path, |conn| {
+        conn.execute(
+            "DELETE FROM chat_messages WHERE project_path = ?1 AND thread_id = ?2 AND id = ?3",
+            params![project_path, thread_id, message_id],
+        )
+        .map_err(|e| format!("Failed to delete chat message: {e}"))?;
+        Ok(())
+    })
 }
