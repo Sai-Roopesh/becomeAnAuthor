@@ -1,0 +1,30 @@
+
+> become-an-author@0.0.1 build /app
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 22.0s
+  Running TypeScript ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/6) ...
+  Generating static pages using 3 workers (1/6)
+  Generating static pages using 3 workers (2/6)
+  Generating static pages using 3 workers (4/6)
+✓ Generating static pages using 3 workers (6/6) in 872.9ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /project
+└ ○ /series
+
+
+○  (Static)  prerendered as static content

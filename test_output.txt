@@ -1,0 +1,81 @@
+
+> become-an-author@0.0.1 test /app
+> vitest
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/app[39m
+
+ [32m✓[39m frontend/shared/schemas/__tests__/import-schema.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m frontend/lib/core/__tests__/editor-state-manager.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+ [32m✓[39m frontend/infrastructure/services/__tests__/document-export-service.test.ts [2m([22m[2m27 tests[22m[2m | [22m[33m4 skipped[39m[2m)[22m[32m 159[2mms[22m[39m
+ [32m✓[39m frontend/lib/ai/__tests__/token-calculator.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+[90mstderr[2m | frontend/infrastructure/repositories/__tests__/TauriCodexRepository.test.ts[2m > [22m[2mTauriCodexRepository Contract[2m > [22m[2mError Handling[2m > [22m[2mMUST throw when Rust command fails on create
+[22m[39m[ERROR] [TauriCodexRepository] Failed to save codex entry: Error: Disk full
+    at [90m/app/[39mfrontend/infrastructure/repositories/__tests__/TauriCodexRepository.test.ts:355:9
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10[90m)[39m
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/vitest@4.0.18_@opentelemetry+api@1.9.0_@types+node@20.19.33_happy-dom@20.6.0_jiti@2.6.1_c2055a18615122694704a1bdf0cba9aa/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27[90m)[39m
+    at trace [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/vitest@4.0.18_@opentelemetry+api@1.9.0_@types+node@20.19.33_happy-dom@20.6.0_jiti@2.6.1_c2055a18615122694704a1bdf0cba9aa/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21[90m)[39m
+    at runTest [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12[90m)[39m
+
+[90mstderr[2m | frontend/infrastructure/repositories/__tests__/TauriCodexRepository.test.ts[2m > [22m[2mTauriCodexRepository Contract[2m > [22m[2mError Handling[2m > [22m[2mMUST throw typed error when listing fails
+[22m[39m[ERROR] [TauriCodexRepository] Failed to list codex entries: Error: Read error
+    at [90m/app/[39mfrontend/infrastructure/repositories/__tests__/TauriCodexRepository.test.ts:368:9
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10[90m)[39m
+    at [90mfile:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/vitest@4.0.18_@opentelemetry+api@1.9.0_@types+node@20.19.33_happy-dom@20.6.0_jiti@2.6.1_c2055a18615122694704a1bdf0cba9aa/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27[90m)[39m
+    at trace [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/vitest@4.0.18_@opentelemetry+api@1.9.0_@types+node@20.19.33_happy-dom@20.6.0_jiti@2.6.1_c2055a18615122694704a1bdf0cba9aa/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21[90m)[39m
+    at runTest [90m(file:///app/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.0.18/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12[90m)[39m
+
+ [32m✓[39m frontend/infrastructure/repositories/__tests__/TauriCodexRepository.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m frontend/features/series/components/__tests__/SeriesCard.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[32m 229[2mms[22m[39m
+ [32m✓[39m frontend/lib/core/__tests__/save-coordinator.test.ts [2m([22m[2m11 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m frontend/hooks/use-dialog-state.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m frontend/features/dashboard/components/__tests__/ProjectCard.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[32m 167[2mms[22m[39m
+ [32m✓[39m frontend/hooks/__tests__/use-collaboration.test.ts [2m([22m[2m25 tests[22m[2m | [22m[33m13 skipped[39m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m frontend/features/plan/components/__tests__/scene-link-panel.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 181[2mms[22m[39m
+ [32m✓[39m frontend/features/chat/components/__tests__/chat-header.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[32m 184[2mms[22m[39m
+ [32m✓[39m frontend/features/search/components/__tests__/search-components.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m frontend/features/snippets/components/__tests__/snippet-list.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m frontend/core/storage/__tests__/api-keys.test.ts [2m([22m[2m19 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m frontend/infrastructure/services/__tests__/emergency-backup-service.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m frontend/features/codex/components/__tests__/tag-manager.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 102[2mms[22m[39m
+ [32m✓[39m frontend/features/editor/components/__tests__/FocusModeToggle.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m frontend/components/__tests__/error-boundary.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m frontend/hooks/__tests__/use-repository.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m frontend/features/data-management/services/__tests__/novel-zip-converter.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m frontend/features/plan/utils/__tests__/filter-scene-based-nodes.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m app/__tests__/page-trash.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 193[2mms[22m[39m
+ [32m✓[39m frontend/infrastructure/services/__tests__/google-auth-service.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m frontend/infrastructure/repositories/__tests__/TauriSceneCodexLinkRepository.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m frontend/lib/ai/__tests__/client-connections.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 373[2mms[22m[39m
+     [33m[2m✓[22m[39m excludes enabled providers that require keys when key metadata is false [33m 355[2mms[22m[39m
+ [32m✓[39m frontend/hooks/use-debounce.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m frontend/hooks/use-mobile.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [2m[90m↓[39m[22m frontend/features/settings/components/__tests__/ai-connections-tab.test.tsx [2m([22m[2m18 tests[22m[2m | [22m[33m18 skipped[39m[2m)[22m
+[90mstdout[2m | frontend/infrastructure/services/__tests__/model-discovery-service.test.ts[2m > [22m[2mModelDiscoveryService[2m > [22m[2mnormalizes OpenAI-compatible custom endpoints to /models
+[22m[39m[INFO] [ModelDiscoveryService] Fetched 1 models from openai
+
+[90mstderr[2m | frontend/infrastructure/services/__tests__/model-discovery-service.test.ts[2m > [22m[2mModelDiscoveryService[2m > [22m[2mreturns an error instead of stale defaults when dynamic listing fails
+[22m[39m[WARN] [ModelDiscoveryService] API error from google: 401 Invalid API key
+
+ [32m✓[39m frontend/infrastructure/services/__tests__/model-discovery-service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m frontend/hooks/use-live-query.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 195[2mms[22m[39m
+ [32m✓[39m frontend/hooks/use-ai.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m frontend/features/dashboard/components/__tests__/EmptyState.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m frontend/shared/utils/__tests__/editor.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m frontend/hooks/use-context-assembly.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m frontend/lib/ai/__tests__/model-ids.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m35 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (36)[39m
+[2m      Tests [22m [1m[32m373 passed[39m[22m[2m | [22m[90m39 todo[39m[90m (412)[39m
+[2m   Start at [22m 18:52:34
+[2m   Duration [22m 12.80s[2m (transform 2.32s, setup 9.03s, import 3.47s, tests 2.84s, environment 14.62s)[22m

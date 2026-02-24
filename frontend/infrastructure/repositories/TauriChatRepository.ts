@@ -65,7 +65,6 @@ export class TauriChatRepository implements IChatRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getThreadsByProject(_projectId: string): Promise<ChatThread[]> {
     const projectPath = this.requireProjectPath();
 

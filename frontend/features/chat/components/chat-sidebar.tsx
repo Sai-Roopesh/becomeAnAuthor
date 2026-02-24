@@ -30,6 +30,86 @@ interface ChatSidebarProps {
   onCloseMobileSidebar?: () => void;
 }
 
+interface ThreadActionsProps {
+  threadId: string;
+  threadView: "active" | "archived" | "deleted";
+  compact?: boolean;
+  onArchive: (id: string) => void;
+  onRestore: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function ThreadActions({
+  threadId,
+  threadView,
+  compact = false,
+  onArchive,
+  onRestore,
+  onDelete,
+}: ThreadActionsProps) {
+  return (
+    <div className={cn("flex items-center gap-1", !compact && "justify-end")}>
+      {threadView === "active" && (
+        <Button
+          variant="ghost"
+          size={compact ? "sm" : "icon"}
+          className={cn(
+            compact
+              ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-muted hover:text-foreground"
+              : "h-7 w-7 text-foreground/90 hover:bg-muted hover:text-foreground",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onArchive(threadId);
+          }}
+          title="Archive chat"
+        >
+          {!compact && <Archive className="h-3.5 w-3.5" />}
+          {compact && "Archive"}
+        </Button>
+      )}
+      {(threadView === "archived" || threadView === "deleted") && (
+        <Button
+          variant="ghost"
+          size={compact ? "sm" : "icon"}
+          className={cn(
+            compact
+              ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-muted hover:text-foreground"
+              : "h-7 w-7 text-foreground/90 hover:bg-muted hover:text-foreground",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRestore(threadId);
+          }}
+          title="Restore chat"
+        >
+          {!compact && <RotateCcw className="h-3.5 w-3.5" />}
+          {compact && "Restore"}
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size={compact ? "sm" : "icon"}
+        className={cn(
+          compact
+            ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-destructive/10 hover:text-destructive"
+            : "h-7 w-7 text-foreground/90 hover:bg-destructive/10 hover:text-destructive",
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(threadId);
+        }}
+        title={
+          threadView === "deleted" ? "Delete permanently" : "Move to Deleted"
+        }
+      >
+        {!compact && <Trash2 className="h-3.5 w-3.5" />}
+        {compact && (threadView === "deleted" ? "Delete" : "Move to Deleted")}
+      </Button>
+    </div>
+  );
+}
+
 export function ChatSidebar({
   projectId,
   activeThreadId,
@@ -50,75 +130,13 @@ export function ChatSidebar({
     (t.name || "Untitled").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const tabButtonClass = (view: "active" | "archived" | "deleted") =>
+  const getTabButtonClass = (view: "active" | "archived" | "deleted") =>
     cn(
       "h-8 w-full min-w-0 px-2 text-xs",
       threadView === view
         ? "bg-background border shadow-sm text-foreground"
         : "text-muted-foreground",
     );
-
-  const renderThreadActions = (threadId: string, compact = false) => (
-    <>
-      {threadView === "active" && (
-        <Button
-          variant="ghost"
-          size={compact ? "sm" : "icon"}
-          className={cn(
-            compact
-              ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-muted hover:text-foreground"
-              : "h-7 w-7 text-foreground/90 hover:bg-muted hover:text-foreground",
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            onArchiveThread(threadId);
-          }}
-          title="Archive chat"
-        >
-          {!compact && <Archive className="h-3.5 w-3.5" />}
-          {compact && "Archive"}
-        </Button>
-      )}
-      {(threadView === "archived" || threadView === "deleted") && (
-        <Button
-          variant="ghost"
-          size={compact ? "sm" : "icon"}
-          className={cn(
-            compact
-              ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-muted hover:text-foreground"
-              : "h-7 w-7 text-foreground/90 hover:bg-muted hover:text-foreground",
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRestoreThread(threadId);
-          }}
-          title="Restore chat"
-        >
-          {!compact && <RotateCcw className="h-3.5 w-3.5" />}
-          {compact && "Restore"}
-        </Button>
-      )}
-      <Button
-        variant="ghost"
-        size={compact ? "sm" : "icon"}
-        className={cn(
-          compact
-            ? "h-6 px-2 text-[11px] text-foreground/90 hover:bg-destructive/10 hover:text-destructive"
-            : "h-7 w-7 text-foreground/90 hover:bg-destructive/10 hover:text-destructive",
-        )}
-        onClick={(e) => {
-          e.stopPropagation();
-          onDeleteThread(threadId);
-        }}
-        title={
-          threadView === "deleted" ? "Delete permanently" : "Move to Deleted"
-        }
-      >
-        {!compact && <Trash2 className="h-3.5 w-3.5" />}
-        {compact && (threadView === "deleted" ? "Delete" : "Move to Deleted")}
-      </Button>
-    </>
-  );
 
   return (
     <div className="h-full flex flex-col">
@@ -150,7 +168,7 @@ export function ChatSidebar({
           <Button
             variant="ghost"
             size="sm"
-            className={tabButtonClass("active")}
+            className={getTabButtonClass("active")}
             onClick={() => setThreadView(projectId, "active")}
           >
             Active
@@ -158,7 +176,7 @@ export function ChatSidebar({
           <Button
             variant="ghost"
             size="sm"
-            className={tabButtonClass("archived")}
+            className={getTabButtonClass("archived")}
             onClick={() => setThreadView(projectId, "archived")}
           >
             Archived
@@ -166,7 +184,7 @@ export function ChatSidebar({
           <Button
             variant="ghost"
             size="sm"
-            className={tabButtonClass("deleted")}
+            className={getTabButtonClass("deleted")}
             onClick={() => setThreadView(projectId, "deleted")}
           >
             Deleted
@@ -223,15 +241,29 @@ export function ChatSidebar({
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <span>{new Date(thread.updatedAt).toLocaleDateString()}</span>
                 </div>
-                {/* Mobile actions are always visible on mobile, but here we can just show them unconditionally if we want, or hide via CSS */}
-                {/* The original code had isMobile check. Here we can use CSS. */}
-                <div className="mt-1 flex items-center gap-1 md:hidden">
-                  {renderThreadActions(thread.id, true)}
+                {/* Mobile actions */}
+                <div className="mt-1 md:hidden">
+                  <ThreadActions
+                    threadId={thread.id}
+                    threadView={threadView}
+                    compact={true}
+                    onArchive={onArchiveThread}
+                    onRestore={onRestoreThread}
+                    onDelete={onDeleteThread}
+                  />
                 </div>
               </div>
 
-              <div className="ml-2 w-[72px] shrink-0 items-center justify-end gap-1 hidden md:flex">
-                {renderThreadActions(thread.id)}
+              {/* Desktop actions */}
+              <div className="hidden md:block ml-2 shrink-0">
+                <ThreadActions
+                  threadId={thread.id}
+                  threadView={threadView}
+                  compact={false}
+                  onArchive={onArchiveThread}
+                  onRestore={onRestoreThread}
+                  onDelete={onDeleteThread}
+                />
               </div>
             </div>
           ))}

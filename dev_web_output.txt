@@ -1,0 +1,14 @@
+
+> become-an-author@0.0.1 dev:web /app
+> bash ./scripts/dev-web-safe.sh
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+✓ Ready in 1133ms
+○ Compiling / ...
+ GET / 200 in 12.1s (compile: 10.6s, render: 1510ms)
+○ Compiling /project ...
+ GET /project/ 200 in 11.8s (compile: 10.8s, render: 988ms)
