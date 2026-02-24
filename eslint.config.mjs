@@ -19,6 +19,15 @@ export default [
       "@next/next/no-img-element": "off",
       // Prevent console.log pollution in production - use logger instead
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      // Allow unused variables starting with _
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_"
+        }
+      ],
     },
   },
   // Allow console in logger files (they're the logging implementation)

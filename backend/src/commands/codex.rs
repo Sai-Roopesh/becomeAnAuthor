@@ -39,6 +39,7 @@ fn meta_json_path(project_path: &str, file_name: &str) -> PathBuf {
     PathBuf::from(project_path).join(".meta").join(file_name)
 }
 
+#[allow(clippy::redundant_closure)]
 fn upsert_json_vec<T, F>(path: &Path, item: T, mut is_match: F) -> Result<(), String>
 where
     T: DeserializeOwned + Serialize,
