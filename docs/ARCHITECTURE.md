@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
 > **Last Updated:** February 24, 2026
-> **Codebase Stats:** 321 frontend source files (41,000+ lines) · 38 backend source files (6,200+ lines) · 8 app route files
+> **Codebase Stats:** 322 frontend source files (41,200+ lines) · 38 backend source files (6,300+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -192,20 +192,20 @@ Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_hand
 
 | Module | File | Lines | Commands | Description |
 |---|---|---|---|---|
-| `project` | `project.rs` | ~480 | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management |
-| `scene` | `scene.rs` | 320 | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene` | Scene content I/O with YAML frontmatter + path security |
-| `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
-| `chat` | `chat.rs` | 180 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message` | Thread & message persistence |
-| `snippet` | `snippet.rs` | ~80 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
-| `backup` | `backup.rs` | ~400 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup`, `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Multi-format export & import, hardening & rollback |
-| `search` | `search.rs` | ~100 | `search_project` | Full-text search using walkdir + regex |
-| `trash` | `trash.rs` | ~120 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
-| `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
-| `security` | `security.rs` | ~60 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
-| `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
-| `collaboration` | `collaboration.rs` | ~60 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
-| `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
-| `google_oauth` | `google_oauth.rs` | 428 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
+| `project` | `project.rs` | ~940 | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management |
+| `scene` | `scene.rs` | 375 | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene` | Scene content I/O with YAML frontmatter + path security |
+| `codex` | `codex.rs` | 330 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
+| `chat` | `chat.rs` | 190 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message` | Thread & message persistence |
+| `snippet` | `snippet.rs` | ~50 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
+| `backup` | `backup.rs` | ~1230 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup`, `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Multi-format export & import, hardening & rollback |
+| `search` | `search.rs` | ~220 | `search_project` | Full-text search using walkdir + regex |
+| `trash` | `trash.rs` | ~216 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
+| `series` | `series.rs` | ~520 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
+| `security` | `security.rs` | ~186 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
+| `mention` | `mention.rs` | ~184 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
+| `collaboration` | `collaboration.rs` | ~85 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
+| `scene_note` | `scene_note.rs` | ~48 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
+| `google_oauth` | `google_oauth.rs` | ~470 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + keyring |
 
 ### 5.3 Models — `models/mod.rs`
 
@@ -499,7 +499,8 @@ Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 
 | Component | Lines | Purpose |
 |---|---|---|
-| `ChatInterface` | 395 | Thread sidebar, message list, input, model/prompt selection |
+| `ChatInterface` | 278 | Thread sidebar, message list, input, model/prompt selection |
+| `ChatSidebar` | 254 | Thread list, active thread management, sidebar visibility control |
 | `ChatMessage` | ~150 | Markdown rendering, copy, regenerate, mobile-responsive layout |
 | `ContextSelector` | ~200 | Select scenes, codex entries, snippets as context |
 
@@ -593,7 +594,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 - **API Keys**: Stored in local app storage (`.meta/api_keys.json`) via `security.rs`. `localStorage` only persists `hasApiKey` boolean metadata.
 - **OAuth 2.0**:
-  - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in local app storage (`.meta/google_oauth_store.json`).
+  - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in local app storage (`.meta/google_oauth_store.json`). Supports optional `client_secret` via `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET` for clients requiring strict enforcement.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.
