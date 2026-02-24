@@ -11,6 +11,7 @@ import { GoogleUser } from "@/domain/entities/types";
 import { storage } from "@/core/storage/safe-storage";
 import { logger } from "@/shared/utils/logger";
 import { isTauri } from "@/core/tauri/commands";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("GoogleAuthService");
 const GOOGLE_AUTH_STATE_EVENT = "google-auth-state-updated";
@@ -93,8 +94,13 @@ class GoogleAuthService {
         clientSecret: getConfiguredClientSecret(),
       });
     } catch (error) {
-      log.error("Failed to get desktop OAuth token", error);
-      return null;
+      const appError = toAppError(
+        error,
+        "E_GOOGLE_OAUTH_TOKEN_FAILED",
+        "Failed to get desktop OAuth token",
+      );
+      log.error("Failed to get desktop OAuth token", appError);
+      throw appError;
     }
   }
 
@@ -114,8 +120,13 @@ class GoogleAuthService {
       }
       return user;
     } catch (error) {
-      log.error("Failed to get desktop Google user", error);
-      return storage.getItem<GoogleUser | null>(STORAGE_KEYS.GOOGLE_USER, null);
+      const appError = toAppError(
+        error,
+        "E_GOOGLE_OAUTH_USER_FAILED",
+        "Failed to load Google account from desktop OAuth",
+      );
+      log.error("Failed to get desktop Google user", appError);
+      throw appError;
     }
   }
 }

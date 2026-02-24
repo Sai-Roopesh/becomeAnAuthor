@@ -10,7 +10,7 @@ import {
   showOpenProjectDialog,
   type ProjectMeta,
 } from "@/core/tauri";
-import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import { setCurrentProjectPath } from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
 import { toast } from "@/shared/utils/toast-service";
 
@@ -74,7 +74,7 @@ export function useOpenProject(): UseOpenProjectResult {
       const project = await openProject(selectedPath);
 
       // Use canonical backend path to keep repositories aligned even after folder moves.
-      TauriNodeRepository.getInstance().setProjectPath(project.path);
+      setCurrentProjectPath(project.path);
 
       log.info("Opened project from picker", {
         path: selectedPath,
@@ -103,7 +103,7 @@ export function useOpenProject(): UseOpenProjectResult {
         const project = await openProject(path);
 
         // Use canonical backend path to keep repositories aligned even after folder moves.
-        TauriNodeRepository.getInstance().setProjectPath(project.path);
+        setCurrentProjectPath(project.path);
 
         log.info("Opened project by path", { path, title: project.title });
         return project;

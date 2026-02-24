@@ -8,6 +8,7 @@ import {
 import type { ISeriesRepository } from "@/domain/repositories/ISeriesRepository";
 import type { Series } from "@/domain/entities/types";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriSeriesRepository");
 
@@ -21,7 +22,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
       return await listSeries();
     } catch (error) {
       log.error("Failed to list series:", error);
-      return [];
+      throw toAppError(error, "E_SERIES_LIST_FAILED", "Failed to load series");
     }
   }
 
@@ -31,7 +32,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
       return all.find((s: Series) => s.id === id);
     } catch (error) {
       log.error("Failed to get series:", error);
-      return undefined;
+      throw toAppError(error, "E_SERIES_GET_FAILED", "Failed to load series");
     }
   }
 
@@ -50,7 +51,11 @@ export class TauriSeriesRepository implements ISeriesRepository {
       return result.id;
     } catch (error) {
       log.error("Failed to create series:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SERIES_CREATE_FAILED",
+        "Failed to create series",
+      );
     }
   }
 
@@ -59,7 +64,11 @@ export class TauriSeriesRepository implements ISeriesRepository {
       return await updateSeries(id, updates);
     } catch (error) {
       log.error("Failed to update series:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SERIES_UPDATE_FAILED",
+        "Failed to update series",
+      );
     }
   }
 
@@ -68,7 +77,11 @@ export class TauriSeriesRepository implements ISeriesRepository {
       await deleteSeries(id);
     } catch (error) {
       log.error("Failed to delete series:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SERIES_DELETE_FAILED",
+        "Failed to delete series",
+      );
     }
   }
 
@@ -77,7 +90,11 @@ export class TauriSeriesRepository implements ISeriesRepository {
       return await deleteSeriesCascade(id);
     } catch (error) {
       log.error("Failed to cascade delete series:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SERIES_DELETE_CASCADE_FAILED",
+        "Failed to delete series",
+      );
     }
   }
 }

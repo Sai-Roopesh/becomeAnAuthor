@@ -13,6 +13,7 @@ import {
   deleteSeriesCodexEntry,
 } from "@/core/tauri";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriCodexRepository");
 
@@ -29,7 +30,11 @@ export class TauriCodexRepository implements ICodexRepository {
       return entry ?? undefined;
     } catch (error) {
       log.error("Failed to get codex entry:", error);
-      return undefined;
+      throw toAppError(
+        error,
+        "E_CODEX_GET_FAILED",
+        "Failed to load codex entry",
+      );
     }
   }
 
@@ -40,7 +45,11 @@ export class TauriCodexRepository implements ICodexRepository {
       return await listSeriesCodexEntries(seriesId);
     } catch (error) {
       log.error("Failed to list codex entries:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_CODEX_LIST_FAILED",
+        "Failed to load codex entries",
+      );
     }
   }
 
@@ -54,7 +63,11 @@ export class TauriCodexRepository implements ICodexRepository {
       return await listSeriesCodexEntries(seriesId, category);
     } catch (error) {
       log.error("Failed to list codex entries by category:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_CODEX_LIST_FAILED",
+        "Failed to load codex entries by category",
+      );
     }
   }
 

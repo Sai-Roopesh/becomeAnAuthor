@@ -17,8 +17,9 @@ import {
   archiveProject as archiveProjectCommand,
   type ProjectMeta,
 } from "@/core/tauri";
-import { TauriNodeRepository } from "./TauriNodeRepository";
+import { setCurrentProjectPath } from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriProjectRepository");
 
@@ -59,9 +60,7 @@ export class TauriProjectRepository implements IProjectRepository {
       // Set the current project path for other repos to use
       const tauriProject = project as Project & { _tauriPath?: string };
       if (tauriProject._tauriPath) {
-        TauriNodeRepository.getInstance().setProjectPath(
-          tauriProject._tauriPath,
-        );
+        setCurrentProjectPath(tauriProject._tauriPath);
       }
     }
 
@@ -74,7 +73,11 @@ export class TauriProjectRepository implements IProjectRepository {
       return projects.map(projectMetaToProject);
     } catch (error) {
       log.error("Failed to list projects:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_PROJECT_LIST_FAILED",
+        "Failed to load projects",
+      );
     }
   }
 
@@ -104,8 +107,8 @@ export class TauriProjectRepository implements IProjectRepository {
       params.seriesId,
       params.seriesIndex,
     );
-    // Set the current project path so TauriNodeRepository can create nodes
-    TauriNodeRepository.getInstance().setProjectPath(created.path);
+    // Set the current project path for all project-scoped repositories
+    setCurrentProjectPath(created.path);
     return created.id;
   }
 
@@ -163,7 +166,11 @@ export class TauriProjectRepository implements IProjectRepository {
       return await listProjectTrash();
     } catch (error) {
       log.error("Failed to list trashed projects:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_PROJECT_TRASH_LIST_FAILED",
+        "Failed to load project trash",
+      );
     }
   }
 

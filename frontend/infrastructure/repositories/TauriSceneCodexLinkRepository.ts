@@ -13,26 +13,34 @@ import {
   saveSceneCodexLink,
   deleteSceneCodexLink,
 } from "@/core/tauri";
-import { TauriNodeRepository } from "./TauriNodeRepository";
+import { requireCurrentProjectPath } from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
 import { invalidateQueries } from "@/hooks/use-live-query";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriSceneCodexLinkRepository");
 
 export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository {
+  private requireProjectPath(): string {
+    return requireCurrentProjectPath();
+  }
+
   private notifyLinksChanged(): void {
     invalidateQueries(["scene-codex-links", "codex"]);
   }
 
   private async getAllLinks(): Promise<SceneCodexLink[]> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
     try {
       return await listSceneCodexLinks(projectPath);
     } catch (error) {
       log.error("Failed to list scene codex links:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_SCENE_CODEX_LINK_LIST_FAILED",
+        "Failed to load scene-codex links",
+      );
     }
   }
 
@@ -67,8 +75,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
   async create(
     link: Omit<SceneCodexLink, "id" | "createdAt" | "updatedAt">,
   ): Promise<SceneCodexLink> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) throw new Error("No project path set");
+    const projectPath = this.requireProjectPath();
 
     const existing = (await this.getAllLinks()).find(
       (item) => item.sceneId === link.sceneId && item.codexId === link.codexId,
@@ -91,7 +98,11 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
       return newLink;
     } catch (error) {
       log.error("Failed to create scene codex link:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SCENE_CODEX_LINK_CREATE_FAILED",
+        "Failed to create scene-codex link",
+      );
     }
   }
 
@@ -110,8 +121,7 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
     id: string,
     updates: Partial<Pick<SceneCodexLink, "role">>,
   ): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     const links = await this.getAllLinks();
     const existing = links.find((l) => l.id === id);
@@ -128,26 +138,32 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
       this.notifyLinksChanged();
     } catch (error) {
       log.error("Failed to update scene codex link:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SCENE_CODEX_LINK_UPDATE_FAILED",
+        "Failed to update scene-codex link",
+      );
     }
   }
 
   async delete(id: string): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       await deleteSceneCodexLink(projectPath, id);
       this.notifyLinksChanged();
     } catch (error) {
       log.error("Failed to delete scene codex link:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SCENE_CODEX_LINK_DELETE_FAILED",
+        "Failed to delete scene-codex link",
+      );
     }
   }
 
   async deleteByScene(sceneId: string): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       const links = await this.getByScene(sceneId);
@@ -157,13 +173,16 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
       this.notifyLinksChanged();
     } catch (error) {
       log.error("Failed to delete links by scene:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SCENE_CODEX_LINK_DELETE_FAILED",
+        "Failed to delete scene links",
+      );
     }
   }
 
   async deleteByCodex(codexId: string): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       const links = await this.getByCodex(codexId);
@@ -173,13 +192,16 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
       this.notifyLinksChanged();
     } catch (error) {
       log.error("Failed to delete links by codex:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SCENE_CODEX_LINK_DELETE_FAILED",
+        "Failed to delete codex links",
+      );
     }
   }
 
   async deleteAutoDetected(sceneId: string): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       const links = await this.getByScene(sceneId);
@@ -189,7 +211,11 @@ export class TauriSceneCodexLinkRepository implements ISceneCodexLinkRepository 
       this.notifyLinksChanged();
     } catch (error) {
       log.error("Failed to delete auto-detected links:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SCENE_CODEX_LINK_DELETE_FAILED",
+        "Failed to delete auto-detected links",
+      );
     }
   }
 }

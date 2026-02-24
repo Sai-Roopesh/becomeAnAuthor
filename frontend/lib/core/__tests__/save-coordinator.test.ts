@@ -19,12 +19,8 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-vi.mock("@/infrastructure/repositories/TauriNodeRepository", () => ({
-  TauriNodeRepository: {
-    getInstance: () => ({
-      getProjectPath: () => "/mock/project/path",
-    }),
-  },
+vi.mock("@/core/project-path", () => ({
+  getCurrentProjectPath: () => "/mock/project/path",
 }));
 
 vi.mock("@/shared/utils/toast-service", () => ({

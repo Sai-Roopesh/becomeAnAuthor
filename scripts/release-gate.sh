@@ -17,6 +17,12 @@ pnpm run lint
 echo "[release:gate] frontend typecheck"
 pnpm exec tsc --noEmit
 
+echo "[release:gate] frontend tests"
+pnpm test -- --run
+
+echo "[release:gate] frontend test coverage"
+pnpm test:coverage -- --run
+
 echo "[release:gate] frontend production build"
 pnpm run build
 

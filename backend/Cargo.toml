@@ -42,6 +42,8 @@ dirs = "5"
 walkdir = "2"
 log = "0.4"
 slug = "0.1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+keyring = "3"
 
 # Markdown parsing
 gray_matter = "0.2"

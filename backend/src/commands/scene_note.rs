@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 use crate::models::SceneNote;
+use crate::utils::atomic_write;
 
 #[tauri::command]
 pub fn get_scene_note(project_path: String, scene_id: String) -> Result<Option<SceneNote>, String> {
@@ -28,7 +29,7 @@ pub fn save_scene_note(project_path: String, note: SceneNote) -> Result<(), Stri
     
     let note_path = notes_dir.join(format!("{}.json", note.scene_id));
     let json = serde_json::to_string_pretty(&note).map_err(|e| e.to_string())?;
-    fs::write(&note_path, json).map_err(|e| e.to_string())?;
+    atomic_write(&note_path, &json)?;
     
     Ok(())
 }

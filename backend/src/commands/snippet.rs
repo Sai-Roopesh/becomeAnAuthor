@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::Snippet;
+use crate::utils::atomic_write;
 
 #[tauri::command]
 pub fn list_snippets(project_path: String) -> Result<Vec<Snippet>, String> {
@@ -34,7 +35,7 @@ pub fn save_snippet(project_path: String, snippet: Snippet) -> Result<(), String
     
     let snippet_path = snippets_dir.join(format!("{}.json", snippet.id));
     let json = serde_json::to_string_pretty(&snippet).map_err(|e| e.to_string())?;
-    fs::write(&snippet_path, json).map_err(|e| e.to_string())?;
+    atomic_write(&snippet_path, &json)?;
     
     Ok(())
 }

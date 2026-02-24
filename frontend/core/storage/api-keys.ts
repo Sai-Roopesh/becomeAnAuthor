@@ -6,6 +6,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AIProvider, validateApiKey } from "@/lib/config/ai-vendors";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("APIKeys");
 import { toast } from "@/core/toast";
@@ -23,13 +24,17 @@ export async function storeAPIKey(
     log.debug(`Stored API key for ${provider}/${connectionId}`);
     return true;
   } catch (error) {
+    const appError = toAppError(
+      error,
+      "E_API_KEY_STORE_FAILED",
+      `Failed to store ${provider} API key`,
+    );
     log.error(
       `Failed to store API key for ${provider}/${connectionId}:`,
-      error,
+      appError,
     );
-    const message = error instanceof Error ? error.message : "Unknown error";
-    toast.error(`Failed to store ${provider} API key: ${message}`);
-    return false;
+    toast.error(`Failed to store ${provider} API key: ${appError.message}`);
+    throw appError;
   }
 }
 
@@ -48,11 +53,16 @@ export async function getAPIKey(
     });
     return key;
   } catch (error) {
+    const appError = toAppError(
+      error,
+      "E_API_KEY_GET_FAILED",
+      `Failed to retrieve ${provider} API key`,
+    );
     log.error(
       `Failed to retrieve API key for ${provider}/${connectionId}:`,
-      error,
+      appError,
     );
-    return null;
+    throw appError;
   }
 }
 
@@ -68,11 +78,16 @@ export async function deleteAPIKey(
     log.debug(`Deleted API key for ${provider}/${connectionId}`);
     return true;
   } catch (error) {
+    const appError = toAppError(
+      error,
+      "E_API_KEY_DELETE_FAILED",
+      `Failed to delete ${provider} API key`,
+    );
     log.error(
       `Failed to delete API key for ${provider}/${connectionId}:`,
-      error,
+      appError,
     );
-    return false;
+    throw appError;
   }
 }
 
@@ -84,8 +99,13 @@ export async function listStoredProviders(): Promise<AIProvider[]> {
     const providers = await invoke<AIProvider[]>("list_api_key_providers");
     return providers;
   } catch (error) {
-    log.error("Failed to list stored providers:", error);
-    return [];
+    const appError = toAppError(
+      error,
+      "E_API_KEY_PROVIDER_LIST_FAILED",
+      "Failed to list providers with stored API keys",
+    );
+    log.error("Failed to list stored providers:", appError);
+    throw appError;
   }
 }
 
@@ -151,12 +171,14 @@ export async function storeAPIKeyWithValidation(
   }
 
   // Store in app-local secure storage
-  const success = await storeAPIKey(provider, connectionId, apiKey.trim());
-
-  if (!success) {
+  try {
+    await storeAPIKey(provider, connectionId, apiKey.trim());
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to store API key";
     return {
       success: false,
-      error: "Failed to store API key in secure storage",
+      error: message,
     };
   }
 

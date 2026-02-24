@@ -6,7 +6,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import { getCurrentProjectPath } from "@/core/project-path";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
 
@@ -57,7 +57,7 @@ class SaveCoordinator {
       }
 
       // Now perform our save via Tauri
-      const projectPath = TauriNodeRepository.getInstance().getProjectPath();
+      const projectPath = getCurrentProjectPath();
       if (!projectPath) {
         log.warn("No project path set, cannot save");
         return;
