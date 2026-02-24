@@ -117,10 +117,10 @@ The system follows a **two-tier architecture** with a clear separation between t
 │  │               BACKEND (Native OS Tier)                     │  │
 │  │                  Rust / Tauri v2                            │  │
 │  │                                                            │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐                │  │
-│  │  │ Commands │  │  Models  │  │  Utils   │                │  │
-│  │  │ (16 mod) │  │ (7 mod)  │  │ (7 mod)  │                │  │
-│  │  └────┬─────┘  └──────────┘  └──────────┘                │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐   │  │
+│  │  │ Commands │  │  Models  │  │  Utils   │  │ Storage │   │  │
+│  │  │ (16 mod) │  │ (7 mod)  │  │ (7 mod)  │  │ (1 mod) │   │  │
+│  │  └────┬─────┘  └──────────┘  └──────────┘  └─────────┘   │  │
 │  │       │                                                    │  │
 │  │  ┌────▼─────────────────────────────────────────────────┐ │  │
 │  │  │     OS APIs: Filesystem, Dialogs, Shell, Process     │ │  │
@@ -345,7 +345,7 @@ graph TB
     L5["Layer 5: Entity Types<br/>domain/entities/types.ts (30+ types)"]
     L6["Layer 6: Service Interfaces<br/>domain/services/ (3)"]
     L7["Layer 7: Infrastructure<br/>infrastructure/repositories/ (14)<br/>infrastructure/services/ (6)"]
-    L8["Layer 8: Core / IPC Bridge<br/>core/tauri/commands.ts + command-modules/* (130+ wrappers)"]
+    L8["Layer 8: Core / IPC Bridge<br/>core/tauri/commands.ts + command-modules/* (130+ wrappers)<br/>core/project-path.ts"]
 
     L1 --> L2 --> L3 --> L4 --> L5
     L3 --> L6
@@ -416,9 +416,9 @@ The Rust backend is organized into three top-level module groups:
 | **Codex** | `codex.rs` | 18 | Entries, relations, tags, templates, relation types, scene links (all series-scoped) |
 | **Series** | `series.rs` | 15 | Series lifecycle, series codex, codex migration between projects/series |
 | **Chat** | `chat.rs` | 8 | Thread CRUD, message persistence, thread listing |
-| **Backup** | `backup.rs` + `backup_emergency.rs` + `backup_manuscript.rs` | 15 | Backup/import orchestration + emergency backup lifecycle + manuscript export commands |
+| **Backup** | `backup.rs` + `backup_emergency.rs` + `backup_manuscript.rs` | 15 | Series/Project backup/import + emergency backup + manuscript export |
 | **Search** | `search.rs` | 1 | Full-text search across scenes + codex using SQLite FTS5 index |
-| **Security** | `security.rs` | 4 | OS keychain CRUD for API keys |
+| **Security** | `security.rs` | 4 | OS Keychain CRUD for API keys + SQLite metadata |
 | **Trash** | `trash.rs` | 5 | Soft delete, restore, permanent delete, list, empty |
 | **Mention** | `mention.rs` | 2 | Cross-content @mention tracking |
 | **Collaboration** | `collaboration.rs` | 4 | Yjs binary state persistence |
@@ -635,9 +635,9 @@ OAuth 2.0 Desktop Flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, key) → OS keychain (secret) + SQLite secure_accounts (metadata)
+Settings UI → store_api_key(provider, key) → OS Keychain (secret) + SQLite secure_accounts (metadata)
                                               ↓
-AI Request  → isConnectionUsable()          → get_api_key(provider) → OS keychain
+AI Request  → isConnectionUsable()          → get_api_key(provider) → OS Keychain
                                               ↓
               → AI Provider API (HTTPS)
 ```
