@@ -20,6 +20,10 @@ import {
   deleteSceneCodexLink,
   type StructureNode,
 } from "@/core/tauri";
+import {
+  getCurrentProjectPath,
+  requireCurrentProjectPath,
+} from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("TauriNodeRepository");
@@ -159,34 +163,18 @@ function parseSceneContent(rawContent: unknown) {
  * Tauri-based Node Repository
  * Only used when running in Tauri desktop app
  *
- * Note: Uses instance-level project path to avoid global mutable state.
- * Access via singleton getInstance() or create with specific path.
+ * Uses the shared current-project path store.
  */
 export class TauriNodeRepository implements INodeRepository {
-  private projectPath: string | null = null;
-
-  // Singleton instance for default usage
-  private static instance: TauriNodeRepository | null = null;
-
-  static getInstance(): TauriNodeRepository {
-    if (!TauriNodeRepository.instance) {
-      TauriNodeRepository.instance = new TauriNodeRepository();
-    }
-    return TauriNodeRepository.instance;
-  }
-
-  /**
-   * Set the project path for this repository instance
-   */
-  setProjectPath(path: string | null): void {
-    this.projectPath = path;
-  }
-
   /**
    * Get the current project path
    */
   getProjectPath(): string | null {
-    return this.projectPath;
+    return getCurrentProjectPath();
+  }
+
+  private requireProjectPath(): string {
+    return requireCurrentProjectPath();
   }
 
   private collectSceneMetadata(nodes: StructureNode[]): {
@@ -212,26 +200,30 @@ export class TauriNodeRepository implements INodeRepository {
   }
 
   private async deleteSceneCodexLinksBySceneIds(
+    projectPath: string,
     sceneIds: string[],
   ): Promise<void> {
-    if (!this.projectPath || sceneIds.length === 0) return;
+    if (sceneIds.length === 0) return;
 
-    const links = await listSceneCodexLinks(this.projectPath);
+    const links = await listSceneCodexLinks(projectPath);
     const targetIds = new Set(sceneIds);
     const linksToDelete = links.filter((link) => targetIds.has(link.sceneId));
 
     for (const link of linksToDelete) {
-      await deleteSceneCodexLink(this.projectPath, link.id);
+      await deleteSceneCodexLink(projectPath, link.id);
     }
   }
 
-  private async cleanupSceneArtifacts(sceneIds: string[]): Promise<void> {
-    if (!this.projectPath || sceneIds.length === 0) return;
+  private async cleanupSceneArtifacts(
+    projectPath: string,
+    sceneIds: string[],
+  ): Promise<void> {
+    if (sceneIds.length === 0) return;
 
     for (const sceneId of new Set(sceneIds)) {
       const results = await Promise.allSettled([
-        deleteYjsState(this.projectPath, sceneId),
-        deleteSceneNote(this.projectPath, sceneId),
+        deleteYjsState(projectPath, sceneId),
+        deleteSceneNote(projectPath, sceneId),
       ]);
 
       if (results[0].status === "rejected") {
@@ -250,9 +242,9 @@ export class TauriNodeRepository implements INodeRepository {
   }
 
   async get(id: string): Promise<DocumentNode | Scene | undefined> {
-    if (!this.projectPath) return undefined;
+    const projectPath = this.requireProjectPath();
 
-    const structure = await getStructure(this.projectPath);
+    const structure = await getStructure(projectPath);
     const allNodes = flattenStructure(structure, "current");
     const node = allNodes.find((n) => n.id === id);
 
@@ -260,20 +252,16 @@ export class TauriNodeRepository implements INodeRepository {
     if (node && node.type === "scene") {
       const tauriNode = node as Scene & { _tauriFile?: string };
       if (tauriNode._tauriFile) {
-        try {
-          const scene = await loadScene(this.projectPath, tauriNode._tauriFile);
-          const data = scene as unknown as Record<string, unknown>;
-          const metadata = extractSceneMetadata(data);
-          const parsedContent = parseSceneContent(data["content"]);
+        const scene = await loadScene(projectPath, tauriNode._tauriFile);
+        const data = scene as unknown as Record<string, unknown>;
+        const metadata = extractSceneMetadata(data);
+        const parsedContent = parseSceneContent(data["content"]);
 
-          return {
-            ...node,
-            content: parsedContent,
-            ...metadata,
-          } as Scene;
-        } catch {
-          return node;
-        }
+        return {
+          ...node,
+          content: parsedContent,
+          ...metadata,
+        } as Scene;
       }
     }
 
@@ -281,9 +269,9 @@ export class TauriNodeRepository implements INodeRepository {
   }
 
   async getByProject(projectId: string): Promise<(DocumentNode | Scene)[]> {
-    if (!this.projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
-    const structure = await getStructure(this.projectPath);
+    const structure = await getStructure(projectPath);
     const nodes = flattenStructure(structure, projectId);
 
     // Load word counts for scenes from their individual files
@@ -296,10 +284,10 @@ export class TauriNodeRepository implements INodeRepository {
       nodes.map(async (node) => {
         if (node.type === "scene") {
           const sceneNode = node as Scene & { _tauriFile?: string };
-          if (sceneNode._tauriFile && this.projectPath) {
+          if (sceneNode._tauriFile) {
             try {
               const sceneData = await loadScene(
-                this.projectPath,
+                projectPath,
                 sceneNode._tauriFile,
               );
               const data = sceneData as unknown as Record<string, unknown>;
@@ -332,9 +320,9 @@ export class TauriNodeRepository implements INodeRepository {
     projectId: string,
     parentId: string | null,
   ): Promise<(DocumentNode | Scene)[]> {
-    if (!this.projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
-    const structure = await getStructure(this.projectPath);
+    const structure = await getStructure(projectPath);
 
     if (parentId === null) {
       // Return root level nodes
@@ -374,13 +362,11 @@ export class TauriNodeRepository implements INodeRepository {
       type: "act" | "chapter" | "scene";
     },
   ): Promise<DocumentNode | Scene> {
-    if (!this.projectPath) {
-      throw new Error("No project path set");
-    }
+    const projectPath = this.requireProjectPath();
 
     const parentId = node.parentId || null;
     const createdNode = await createNode(
-      this.projectPath,
+      projectPath,
       parentId,
       node.type,
       node.title || "Untitled",
@@ -390,17 +376,13 @@ export class TauriNodeRepository implements INodeRepository {
   }
 
   async update(id: string, data: Partial<DocumentNode | Scene>): Promise<void> {
-    log.debug("update called", { id, data, projectPath: this.projectPath });
-
-    if (!this.projectPath) {
-      log.warn("No project path set - returning early");
-      return;
-    }
+    const projectPath = this.requireProjectPath();
+    log.debug("update called", { id, data, projectPath });
 
     // If updating scene content, save to file
     if ("content" in data && data.content) {
       log.debug("Updating scene content");
-      const structure = await getStructure(this.projectPath);
+      const structure = await getStructure(projectPath);
       const allNodes = flattenStructure(structure, "current");
       const node = allNodes.find((n) => n.id === id) as
         | (Scene & { _tauriFile?: string })
@@ -408,12 +390,7 @@ export class TauriNodeRepository implements INodeRepository {
 
       if (node?._tauriFile) {
         // saveScene expects TiptapContent object, not string
-        await saveScene(
-          this.projectPath,
-          node._tauriFile,
-          data.content,
-          data.title,
-        );
+        await saveScene(projectPath, node._tauriFile, data.content, data.title);
         log.debug("Scene content saved");
       }
     }
@@ -421,7 +398,7 @@ export class TauriNodeRepository implements INodeRepository {
     // Update structure if title changed
     if (data.title) {
       log.debug("Updating title", { newTitle: data.title });
-      const structure = await getStructure(this.projectPath);
+      const structure = await getStructure(projectPath);
       log.debug("Got structure, updating...");
 
       const updateNodeTitle = (nodes: StructureNode[]): boolean => {
@@ -444,7 +421,7 @@ export class TauriNodeRepository implements INodeRepository {
 
       if (updated) {
         log.debug("Saving structure...");
-        await saveStructure(this.projectPath, structure);
+        await saveStructure(projectPath, structure);
         log.debug("Structure saved successfully");
       } else {
         log.warn("Node not found in structure!");
@@ -455,9 +432,9 @@ export class TauriNodeRepository implements INodeRepository {
   }
 
   async updateMetadata(id: string, metadata: Partial<Scene>): Promise<void> {
-    if (!this.projectPath) return;
+    const projectPath = this.requireProjectPath();
 
-    const structure = await getStructure(this.projectPath);
+    const structure = await getStructure(projectPath);
     const allNodes = flattenStructure(structure, "current");
     const node = allNodes.find((n) => n.id === id) as
       | (Scene & { _tauriFile?: string })
@@ -490,7 +467,7 @@ export class TauriNodeRepository implements INodeRepository {
 
     if (Object.keys(updates).length === 0) return;
 
-    await updateSceneMetadata(this.projectPath, node._tauriFile, updates);
+    await updateSceneMetadata(projectPath, node._tauriFile, updates);
 
     // Keep manuscript structure title aligned with scene frontmatter title.
     if (updates.title) {
@@ -499,9 +476,9 @@ export class TauriNodeRepository implements INodeRepository {
   }
 
   async delete(id: string): Promise<void> {
-    if (!this.projectPath) return;
+    const projectPath = this.requireProjectPath();
 
-    const structure = await getStructure(this.projectPath);
+    const structure = await getStructure(projectPath);
 
     // Find and remove node
     const removeNode = (
@@ -527,12 +504,15 @@ export class TauriNodeRepository implements INodeRepository {
       const removedScenes = this.collectSceneMetadata([removed]);
 
       for (const file of removedScenes.files) {
-        await deleteScene(this.projectPath, file);
+        await deleteScene(projectPath, file);
       }
-      await this.deleteSceneCodexLinksBySceneIds(removedScenes.ids);
-      await this.cleanupSceneArtifacts(removedScenes.ids);
+      await this.deleteSceneCodexLinksBySceneIds(
+        projectPath,
+        removedScenes.ids,
+      );
+      await this.cleanupSceneArtifacts(projectPath, removedScenes.ids);
 
-      await saveStructure(this.projectPath, structure);
+      await saveStructure(projectPath, structure);
     }
   }
 
@@ -540,9 +520,9 @@ export class TauriNodeRepository implements INodeRepository {
     id: string,
     type: "act" | "chapter" | "scene",
   ): Promise<void> {
-    if (!this.projectPath) return;
+    const projectPath = this.requireProjectPath();
 
-    const structure = await getStructure(this.projectPath);
+    const structure = await getStructure(projectPath);
 
     const removeNode = (
       nodes: StructureNode[],
@@ -573,12 +553,15 @@ export class TauriNodeRepository implements INodeRepository {
 
       const removedScenes = this.collectSceneMetadata([removed]);
       for (const file of new Set(removedScenes.files)) {
-        await deleteScene(this.projectPath, file);
+        await deleteScene(projectPath, file);
       }
-      await this.deleteSceneCodexLinksBySceneIds(removedScenes.ids);
-      await this.cleanupSceneArtifacts(removedScenes.ids);
+      await this.deleteSceneCodexLinksBySceneIds(
+        projectPath,
+        removedScenes.ids,
+      );
+      await this.cleanupSceneArtifacts(projectPath, removedScenes.ids);
 
-      await saveStructure(this.projectPath, structure);
+      await saveStructure(projectPath, structure);
     }
   }
 

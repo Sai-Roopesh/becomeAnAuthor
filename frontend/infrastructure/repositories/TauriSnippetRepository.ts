@@ -6,8 +6,9 @@
 import type { ISnippetRepository } from "@/domain/repositories/ISnippetRepository";
 import type { Snippet } from "@/domain/entities/types";
 import { listSnippets, saveSnippet, deleteSnippet } from "@/core/tauri";
-import { TauriNodeRepository } from "./TauriNodeRepository";
+import { requireCurrentProjectPath } from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriSnippetRepository");
 
@@ -16,9 +17,12 @@ const log = logger.scope("TauriSnippetRepository");
  * Stores snippets as JSON files in ~/BecomeAnAuthor/Projects/{project}/snippets/
  */
 export class TauriSnippetRepository implements ISnippetRepository {
+  private requireProjectPath(): string {
+    return requireCurrentProjectPath();
+  }
+
   async get(id: string): Promise<Snippet | undefined> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return undefined;
+    this.requireProjectPath();
 
     const snippets = await this.getByProject("current");
     return snippets.find((s) => s.id === id);
@@ -26,14 +30,17 @@ export class TauriSnippetRepository implements ISnippetRepository {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getByProject(_projectId: string): Promise<Snippet[]> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
     try {
       return await listSnippets(projectPath);
     } catch (error) {
       log.error("Failed to list snippets:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_SNIPPET_LIST_FAILED",
+        "Failed to load snippets",
+      );
     }
   }
 
@@ -45,10 +52,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
   async create(
     snippet: Partial<Snippet> & { projectId: string; title: string },
   ): Promise<Snippet> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) {
-      throw new Error("No project path set");
-    }
+    const projectPath = this.requireProjectPath();
 
     const now = Date.now();
     const newSnippet: Snippet = {
@@ -66,13 +70,16 @@ export class TauriSnippetRepository implements ISnippetRepository {
       return newSnippet;
     } catch (error) {
       log.error("Failed to create snippet:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SNIPPET_CREATE_FAILED",
+        "Failed to create snippet",
+      );
     }
   }
 
   async update(id: string, data: Partial<Snippet>): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     const existing = await this.get(id);
     if (!existing) return;
@@ -87,7 +94,11 @@ export class TauriSnippetRepository implements ISnippetRepository {
       await saveSnippet(projectPath, updated);
     } catch (error) {
       log.error("Failed to update snippet:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SNIPPET_UPDATE_FAILED",
+        "Failed to update snippet",
+      );
     }
   }
 
@@ -99,14 +110,17 @@ export class TauriSnippetRepository implements ISnippetRepository {
   }
 
   async delete(id: string): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       await deleteSnippet(projectPath, id);
     } catch (error) {
       log.error("Failed to delete snippet:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_SNIPPET_DELETE_FAILED",
+        "Failed to delete snippet",
+      );
     }
   }
 }

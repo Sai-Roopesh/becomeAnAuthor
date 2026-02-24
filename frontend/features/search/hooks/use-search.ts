@@ -6,7 +6,7 @@ import {
   type SearchResult as BackendSearchResult,
 } from "@/core/tauri/commands";
 import { useAppServices } from "@/infrastructure/di/AppContext";
-import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import { getCurrentProjectPath } from "@/core/project-path";
 import {
   type SearchResult,
   type SearchableCodex,
@@ -91,9 +91,7 @@ export function useSearch(projectId: string) {
         const tauriProject = project as
           | (typeof project & { _tauriPath?: string })
           | undefined;
-        const projectPath =
-          tauriProject?._tauriPath ||
-          TauriNodeRepository.getInstance().getProjectPath();
+        const projectPath = tauriProject?._tauriPath || getCurrentProjectPath();
 
         if (!projectPath) {
           if (!cancelled) setResults({ scenes: [], codex: [] });

@@ -12,12 +12,14 @@ import {
   updateChatThread,
   deleteChatThread,
   getChatMessages,
+  findChatThreadForMessage,
   createChatMessage,
   updateChatMessage,
   deleteChatMessage,
 } from "@/core/tauri";
-import { TauriNodeRepository } from "./TauriNodeRepository";
+import { requireCurrentProjectPath } from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriChatRepository");
 const DELETED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -32,49 +34,50 @@ async function refreshQueries(): Promise<void> {
  * Stores chat threads with embedded messages as JSON files in ~/BecomeAnAuthor/Projects/{project}/.meta/chat/threads/
  */
 export class TauriChatRepository implements IChatRepository {
-  private getProjectPath(): string | null {
-    return TauriNodeRepository.getInstance().getProjectPath();
+  private requireProjectPath(): string {
+    return requireCurrentProjectPath();
   }
 
   private async findThreadIdForMessage(
     projectPath: string,
     messageId: string,
   ): Promise<string | undefined> {
-    const threads = await listChatThreads(projectPath);
-    for (const thread of threads) {
-      const messages = await getChatMessages(projectPath, thread.id);
-      if (messages.some((m) => m.id === messageId)) {
-        return thread.id;
-      }
-    }
-    return undefined;
+    return (
+      (await findChatThreadForMessage(projectPath, messageId)) ?? undefined
+    );
   }
 
   // ============ Thread Operations ============
 
   async get(id: string): Promise<ChatThread | undefined> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return undefined;
+    const projectPath = this.requireProjectPath();
 
     try {
       const result = await getChatThread(projectPath, id);
       return result || undefined;
     } catch (error) {
       log.error("Failed to get chat thread:", error);
-      return undefined;
+      throw toAppError(
+        error,
+        "E_CHAT_THREAD_GET_FAILED",
+        "Failed to load chat thread",
+      );
     }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getThreadsByProject(_projectId: string): Promise<ChatThread[]> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
     try {
       return await listChatThreads(projectPath);
     } catch (error) {
       log.error("Failed to list chat threads:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_CHAT_THREAD_LIST_FAILED",
+        "Failed to load chat threads",
+      );
     }
   }
 
@@ -118,10 +121,7 @@ export class TauriChatRepository implements IChatRepository {
   async createThread(
     thread: Partial<ChatThread> & { projectId: string; name: string },
   ): Promise<ChatThread> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) {
-      throw new Error("No project path set");
-    }
+    const projectPath = this.requireProjectPath();
 
     // Build complete ChatThread object matching backend structure
     const now = Date.now();
@@ -145,13 +145,16 @@ export class TauriChatRepository implements IChatRepository {
       return created;
     } catch (error) {
       log.error("Failed to create chat thread:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CHAT_THREAD_CREATE_FAILED",
+        "Failed to create chat thread",
+      );
     }
   }
 
   async updateThread(id: string, data: Partial<ChatThread>): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     // Backend expects full ChatThread object, so fetch current thread and merge
     const currentThread = await this.get(id);
@@ -169,7 +172,11 @@ export class TauriChatRepository implements IChatRepository {
       await refreshQueries();
     } catch (error) {
       log.error("Failed to update chat thread:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CHAT_THREAD_UPDATE_FAILED",
+        "Failed to update chat thread",
+      );
     }
   }
 
@@ -182,21 +189,23 @@ export class TauriChatRepository implements IChatRepository {
   }
 
   async purgeThread(id: string): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       await deleteChatThread(projectPath, id);
       await refreshQueries();
     } catch (error) {
       log.error("Failed to permanently delete chat thread:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CHAT_THREAD_DELETE_FAILED",
+        "Failed to delete chat thread",
+      );
     }
   }
 
   async restoreThread(id: string): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     const currentThread = await this.get(id);
     if (!currentThread) throw new Error("Thread not found");
@@ -214,8 +223,7 @@ export class TauriChatRepository implements IChatRepository {
   // ============ Message Operations ============
 
   async getMessage(id: string): Promise<ChatMessage | undefined> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return undefined;
+    const projectPath = this.requireProjectPath();
 
     const threadId = await this.findThreadIdForMessage(projectPath, id);
     if (!threadId) return undefined;
@@ -225,14 +233,17 @@ export class TauriChatRepository implements IChatRepository {
   }
 
   async getMessagesByThread(threadId: string): Promise<ChatMessage[]> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
     try {
       return await getChatMessages(projectPath, threadId);
     } catch (error) {
       log.error("Failed to get chat messages:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_CHAT_MESSAGE_LIST_FAILED",
+        "Failed to load chat messages",
+      );
     }
   }
 
@@ -243,10 +254,7 @@ export class TauriChatRepository implements IChatRepository {
       content: string;
     },
   ): Promise<ChatMessage> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) {
-      throw new Error("No project path set");
-    }
+    const projectPath = this.requireProjectPath();
 
     // Backend expects full ChatMessage object
     const newMessage: ChatMessage = {
@@ -264,13 +272,16 @@ export class TauriChatRepository implements IChatRepository {
       return created;
     } catch (error) {
       log.error("Failed to create chat message:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CHAT_MESSAGE_CREATE_FAILED",
+        "Failed to create chat message",
+      );
     }
   }
 
   async updateMessage(id: string, data: Partial<ChatMessage>): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     const threadId = await this.findThreadIdForMessage(projectPath, id);
     if (!threadId) {
@@ -296,13 +307,16 @@ export class TauriChatRepository implements IChatRepository {
       await refreshQueries();
     } catch (error) {
       log.error("Failed to update chat message:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CHAT_MESSAGE_UPDATE_FAILED",
+        "Failed to update chat message",
+      );
     }
   }
 
   async deleteMessage(id: string): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     const threadId = await this.findThreadIdForMessage(projectPath, id);
     if (!threadId) return;
@@ -312,7 +326,11 @@ export class TauriChatRepository implements IChatRepository {
       await refreshQueries();
     } catch (error) {
       log.error("Failed to delete chat message:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CHAT_MESSAGE_DELETE_FAILED",
+        "Failed to delete chat message",
+      );
     }
   }
 
@@ -321,21 +339,24 @@ export class TauriChatRepository implements IChatRepository {
     threadId: string,
     messageId: string,
   ): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       await deleteChatMessage(projectPath, threadId, messageId);
       await refreshQueries();
     } catch (error) {
       log.error("Failed to delete chat message:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CHAT_MESSAGE_DELETE_FAILED",
+        "Failed to delete chat message",
+      );
     }
   }
 
   async bulkDeleteMessages(ids: string[]): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath || ids.length === 0) return;
+    if (ids.length === 0) return;
+    const projectPath = this.requireProjectPath();
 
     const idSet = new Set(ids);
     const threads = await listChatThreads(projectPath);

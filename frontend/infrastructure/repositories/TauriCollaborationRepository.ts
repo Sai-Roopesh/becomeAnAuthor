@@ -12,7 +12,8 @@ import type { ICollaborationRepository } from "@/domain/repositories/ICollaborat
 import type { YjsStateSnapshot } from "@/domain/entities/types";
 import { invoke } from "@tauri-apps/api/core";
 import { logger } from "@/shared/utils/logger";
-import { TauriNodeRepository } from "./TauriNodeRepository";
+import { requireCurrentProjectPath } from "@/core/project-path";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriCollaborationRepository");
 
@@ -29,8 +30,8 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     return TauriCollaborationRepository.instance;
   }
 
-  private getProjectPath(): string | null {
-    return TauriNodeRepository.getInstance().getProjectPath();
+  private requireProjectPath(): string {
+    return requireCurrentProjectPath();
   }
 
   async saveYjsState(
@@ -39,11 +40,7 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     update: Uint8Array,
   ): Promise<void> {
     // Project identity is part of domain contract; storage uses active project path.
-    const projectPath = this.getProjectPath();
-    if (!projectPath) {
-      log.debug("Cannot save Yjs state: No project path set");
-      return;
-    }
+    const projectPath = this.requireProjectPath();
 
     try {
       // Convert Uint8Array to number array for JSON serialization
@@ -57,7 +54,11 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
       log.debug("Saved Yjs state", { sceneId });
     } catch (error) {
       log.error("Failed to save Yjs state", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_COLLAB_SAVE_FAILED",
+        "Failed to save collaboration state",
+      );
     }
   }
 
@@ -65,11 +66,7 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     sceneId: string,
     _projectId: string,
   ): Promise<YjsStateSnapshot | null> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) {
-      log.debug("Cannot load Yjs state: No project path set");
-      return null;
-    }
+    const projectPath = this.requireProjectPath();
 
     try {
       const result = await invoke<{
@@ -93,30 +90,33 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
       };
     } catch (error) {
       log.error("Failed to load Yjs state", error);
-      return null;
+      throw toAppError(
+        error,
+        "E_COLLAB_LOAD_FAILED",
+        "Failed to load collaboration state",
+      );
     }
   }
 
   async hasYjsState(sceneId: string, _projectId: string): Promise<boolean> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return false;
+    const projectPath = this.requireProjectPath();
 
     try {
       return await invoke<boolean>("has_yjs_state", {
         projectPath,
         sceneId,
       });
-    } catch {
-      return false;
+    } catch (error) {
+      throw toAppError(
+        error,
+        "E_COLLAB_CHECK_FAILED",
+        "Failed to check collaboration state",
+      );
     }
   }
 
   async deleteYjsState(sceneId: string, _projectId: string): Promise<void> {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) {
-      log.debug("Cannot delete Yjs state: No project path set");
-      return;
-    }
+    const projectPath = this.requireProjectPath();
 
     try {
       await invoke("delete_yjs_state", {
@@ -126,7 +126,11 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
       log.debug("Deleted Yjs state", { sceneId });
     } catch (error) {
       log.error("Failed to delete Yjs state", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_COLLAB_DELETE_FAILED",
+        "Failed to delete collaboration state",
+      );
     }
   }
 }

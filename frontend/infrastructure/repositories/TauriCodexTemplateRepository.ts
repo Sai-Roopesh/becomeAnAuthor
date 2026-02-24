@@ -10,70 +10,86 @@ import {
   saveCodexTemplate,
   deleteCodexTemplate,
 } from "@/core/tauri";
-import { TauriNodeRepository } from "./TauriNodeRepository";
+import { requireCurrentProjectPath } from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriCodexTemplateRepository");
 
 export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
+  private requireProjectPath(): string {
+    return requireCurrentProjectPath();
+  }
+
   async get(id: string): Promise<CodexTemplate | undefined> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return undefined;
+    const projectPath = this.requireProjectPath();
 
     try {
       const templates = await listCodexTemplates(projectPath);
       return templates.find((t) => t.id === id);
     } catch (error) {
       log.error("Failed to get codex template:", error);
-      return undefined;
+      throw toAppError(
+        error,
+        "E_CODEX_TEMPLATE_GET_FAILED",
+        "Failed to load codex template",
+      );
     }
   }
 
   async getByCategory(category: CodexCategory): Promise<CodexTemplate[]> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
     try {
       const templates = await listCodexTemplates(projectPath);
       return templates.filter((t) => t.category === category);
     } catch (error) {
       log.error("Failed to list codex templates by category:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_CODEX_TEMPLATE_LIST_FAILED",
+        "Failed to load codex templates",
+      );
     }
   }
 
   async getBuiltInTemplates(): Promise<CodexTemplate[]> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
     try {
       const templates = await listCodexTemplates(projectPath);
       return templates.filter((t) => t.isBuiltIn);
     } catch (error) {
       log.error("Failed to get built-in templates:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_CODEX_TEMPLATE_LIST_FAILED",
+        "Failed to load codex templates",
+      );
     }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getCustomTemplates(_projectId: string): Promise<CodexTemplate[]> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return [];
+    const projectPath = this.requireProjectPath();
 
     try {
       const templates = await listCodexTemplates(projectPath);
       return templates.filter((t) => !t.isBuiltIn);
     } catch (error) {
       log.error("Failed to get custom templates:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_CODEX_TEMPLATE_LIST_FAILED",
+        "Failed to load codex templates",
+      );
     }
   }
 
   async create(
     template: Omit<CodexTemplate, "id" | "createdAt">,
   ): Promise<CodexTemplate> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) throw new Error("No project path set");
+    const projectPath = this.requireProjectPath();
 
     const newTemplate: CodexTemplate = {
       ...template,
@@ -86,13 +102,16 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
       return newTemplate;
     } catch (error) {
       log.error("Failed to create codex template:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CODEX_TEMPLATE_CREATE_FAILED",
+        "Failed to create codex template",
+      );
     }
   }
 
   async update(id: string, data: Partial<CodexTemplate>): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     const existing = await this.get(id);
     if (!existing) return;
@@ -102,19 +121,26 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
       await saveCodexTemplate(projectPath, updated);
     } catch (error) {
       log.error("Failed to update codex template:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CODEX_TEMPLATE_UPDATE_FAILED",
+        "Failed to update codex template",
+      );
     }
   }
 
   async delete(id: string): Promise<void> {
-    const projectPath = TauriNodeRepository.getInstance().getProjectPath();
-    if (!projectPath) return;
+    const projectPath = this.requireProjectPath();
 
     try {
       await deleteCodexTemplate(projectPath, id);
     } catch (error) {
       log.error("Failed to delete codex template:", error);
-      throw error;
+      throw toAppError(
+        error,
+        "E_CODEX_TEMPLATE_DELETE_FAILED",
+        "Failed to delete codex template",
+      );
     }
   }
 }

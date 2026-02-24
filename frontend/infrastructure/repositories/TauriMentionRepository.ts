@@ -3,6 +3,7 @@ import type { IMentionRepository } from "@/domain/repositories/IMentionRepositor
 import type { Mention } from "@/domain/entities/types";
 import { listProjects } from "@/core/tauri";
 import { logger } from "@/shared/utils/logger";
+import { toAppError } from "@/shared/errors/app-error";
 
 const log = logger.scope("TauriMentionRepository");
 
@@ -13,7 +14,7 @@ const log = logger.scope("TauriMentionRepository");
 export class TauriMentionRepository implements IMentionRepository {
   private projectPathCache = new Map<string, string>();
 
-  private async resolveProjectPath(projectIdOrPath: string): Promise<string | null> {
+  private async resolveProjectPath(projectIdOrPath: string): Promise<string> {
     if (projectIdOrPath.includes("/") || projectIdOrPath.includes("\\")) {
       return projectIdOrPath;
     }
@@ -24,7 +25,9 @@ export class TauriMentionRepository implements IMentionRepository {
     const projects = await listProjects();
     const project = projects.find((p) => p.id === projectIdOrPath);
     if (!project?.path) {
-      return null;
+      throw new Error(
+        `[E_PROJECT_NOT_FOUND] Project '${projectIdOrPath}' not found`,
+      );
     }
 
     this.projectPathCache.set(projectIdOrPath, project.path);
@@ -40,7 +43,6 @@ export class TauriMentionRepository implements IMentionRepository {
   ): Promise<Mention[]> {
     try {
       const projectPath = await this.resolveProjectPath(projectId);
-      if (!projectPath) return [];
 
       return await invoke<Mention[]>("find_mentions", {
         projectPath,
@@ -48,7 +50,11 @@ export class TauriMentionRepository implements IMentionRepository {
       });
     } catch (error) {
       log.error("Failed to get mentions by codex entry:", error);
-      return [];
+      throw toAppError(
+        error,
+        "E_MENTION_LIST_FAILED",
+        "Failed to load mentions",
+      );
     }
   }
 
@@ -61,7 +67,6 @@ export class TauriMentionRepository implements IMentionRepository {
   ): Promise<number> {
     try {
       const projectPath = await this.resolveProjectPath(projectId);
-      if (!projectPath) return 0;
 
       return await invoke<number>("count_mentions", {
         projectPath,
@@ -69,7 +74,11 @@ export class TauriMentionRepository implements IMentionRepository {
       });
     } catch (error) {
       log.error("Failed to count mentions by codex entry:", error);
-      return 0;
+      throw toAppError(
+        error,
+        "E_MENTION_COUNT_FAILED",
+        "Failed to count mentions",
+      );
     }
   }
 
@@ -87,9 +96,7 @@ export class TauriMentionRepository implements IMentionRepository {
    * Get all mentions in a project grouped by codex entry
    * Not yet implemented - would need a new backend command
    */
-  async getAllByProject(
-    projectId: string,
-  ): Promise<Record<string, Mention[]>> {
+  async getAllByProject(projectId: string): Promise<Record<string, Mention[]>> {
     void projectId;
     // Not implemented yet - would require backend support
     return {};

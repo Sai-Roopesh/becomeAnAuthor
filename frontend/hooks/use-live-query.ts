@@ -110,7 +110,7 @@ export function useLiveQuery<T>(
         if (mountedRef.current) {
           log.error("Query execution failed", err);
           setError(err instanceof Error ? err : new Error(String(err)));
-          setResult(undefined);
+          // Preserve last successful result so UI can remain usable while showing error state.
         }
       }
     };

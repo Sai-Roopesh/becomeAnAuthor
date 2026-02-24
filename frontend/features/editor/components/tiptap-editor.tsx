@@ -40,7 +40,7 @@ import type { TiptapContent } from "@/shared/types/tiptap";
 import type { EditorView } from "@tiptap/pm/view";
 import type { ContextItem } from "@/features/shared/components/ContextSelector";
 import { getStructure, loadScene } from "@/core/tauri/commands";
-import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import { getCurrentProjectPath } from "@/core/project-path";
 import { formatShortcut, isModKey } from "@/shared/utils/platform";
 import { toast } from "@/shared/utils/toast-service";
 
@@ -344,8 +344,7 @@ export function TiptapEditor({
         // Step 2: Fetch FRESH content DIRECTLY from backend, bypassing ALL caches
         log.debug(`Fetching fresh content for scene ${sceneId} from BACKEND`);
         try {
-          const projectPath =
-            TauriNodeRepository.getInstance().getProjectPath();
+          const projectPath = getCurrentProjectPath();
           if (!projectPath) throw new Error("No project path");
 
           // Get structure to find the scene file

@@ -92,7 +92,7 @@ export function AppProvider({
   const services: AppServices = useMemo(() => {
     // Desktop-only app: wire one concrete Tauri implementation for each dependency.
     const nodeRepo =
-      customServices?.nodeRepository ?? TauriNodeRepository.getInstance();
+      customServices?.nodeRepository ?? new TauriNodeRepository();
     const codexRepo =
       customServices?.codexRepository ?? new TauriCodexRepository();
     const chatRepo =

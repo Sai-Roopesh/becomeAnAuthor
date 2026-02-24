@@ -22,7 +22,7 @@ import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
 import { CreateProjectDialog } from "@/features/project";
 import { ExportDialog } from "@/features/export";
 import { toast } from "@/shared/utils/toast-service";
-import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import { setCurrentProjectPath } from "@/core/project-path";
 import { useImportExport } from "@/hooks/use-import-export";
 
 function SeriesContent() {
@@ -126,7 +126,7 @@ function SeriesContent() {
       | undefined;
 
     if (project?._tauriPath) {
-      TauriNodeRepository.getInstance().setProjectPath(project._tauriPath);
+      setCurrentProjectPath(project._tauriPath);
     }
 
     setExportProjectId(projectId);

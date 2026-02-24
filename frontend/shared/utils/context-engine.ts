@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { TauriNodeRepository } from "@/infrastructure/repositories/TauriNodeRepository";
+import { getCurrentProjectPath } from "@/core/project-path";
 import type { CodexEntry } from "@/domain/entities/types";
 import type { Scene } from "@/core/tauri/commands";
 import { logger } from "@/shared/utils/logger";
@@ -126,7 +126,7 @@ export async function assembleContext(
   seriesId?: string,
 ): Promise<string> {
   let context = "";
-  const projectPath = TauriNodeRepository.getInstance().getProjectPath();
+  const projectPath = getCurrentProjectPath();
   if (!projectPath) return context;
 
   if (sceneId) {
