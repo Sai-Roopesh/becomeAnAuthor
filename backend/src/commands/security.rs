@@ -1,21 +1,27 @@
-// Secure Storage Commands
-// Stores sensitive data in local app-scoped files.
+// Secure credential commands
+// Stores sensitive keys in the OS keychain and keeps non-secret account metadata in SQLite.
 
-use crate::utils::get_app_dir;
-use std::collections::{BTreeSet, HashMap};
-use std::fs;
-use std::path::PathBuf;
+use crate::storage::sqlite::{
+    delete_secure_account, list_secure_account_providers, open_app_db, upsert_secure_account,
+};
+use chrono::Utc;
+use keyring::Entry;
 use tauri::command;
 
-fn storage_path() -> Result<PathBuf, String> {
-    let app_dir = get_app_dir()?;
-    let meta_dir = app_dir.join(".meta");
-    fs::create_dir_all(&meta_dir).map_err(|e| format!("Failed to create .meta directory: {e}"))?;
-    Ok(meta_dir.join("api_keys.json"))
+const API_KEY_NAMESPACE: &str = "api_key";
+const API_KEY_SERVICE: &str = "become-an-author.api-keys";
+
+fn keyring_username(provider: &str, connection_id: &str) -> String {
+    format!("{provider}::{connection_id}")
 }
 
-fn account_key(provider: &str, connection_id: &str) -> String {
-    format!("{provider}::{connection_id}")
+fn keyring_entry(provider: &str, connection_id: &str) -> Result<Entry, String> {
+    Entry::new(API_KEY_SERVICE, &keyring_username(provider, connection_id))
+        .map_err(|e| format!("Failed to initialize keychain entry: {e}"))
+}
+
+fn is_keyring_missing_entry(error: &keyring::Error) -> bool {
+    matches!(error, keyring::Error::NoEntry)
 }
 
 fn validate_account_inputs(
@@ -35,107 +41,80 @@ fn validate_account_inputs(
     Ok((provider, connection_id))
 }
 
-fn read_api_key_store() -> Result<HashMap<String, String>, String> {
-    let path = storage_path()?;
-    if !path.exists() {
-        return Ok(HashMap::new());
-    }
-
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read API key storage file: {e}"))?;
-    serde_json::from_str::<HashMap<String, String>>(&content)
-        .map_err(|e| format!("Failed to parse API key storage file: {e}"))
+fn record_account(provider: &str, connection_id: &str) -> Result<(), String> {
+    let conn = open_app_db()?;
+    upsert_secure_account(
+        &conn,
+        API_KEY_NAMESPACE,
+        provider,
+        connection_id,
+        Utc::now().timestamp_millis(),
+    )
 }
 
-fn write_api_key_store(store: &HashMap<String, String>) -> Result<(), String> {
-    let path = storage_path()?;
-    let json = serde_json::to_string_pretty(store)
-        .map_err(|e| format!("Failed to serialize API key store: {e}"))?;
-    fs::write(&path, json).map_err(|e| format!("Failed to write API key store: {e}"))
+fn remove_account(provider: &str, connection_id: &str) -> Result<(), String> {
+    let conn = open_app_db()?;
+    delete_secure_account(&conn, API_KEY_NAMESPACE, provider, connection_id)
 }
 
-/// Store an API key in local app storage
+/// Store an API key in the OS keychain
 ///
 /// # Arguments
 /// * `provider` - The AI provider name (e.g., "openai", "anthropic", "google")
 /// * `connection_id` - The unique AI connection ID
 /// * `key` - The API key to store
-///
-/// # Returns
-/// * `Ok(())` on success
-/// * `Err(String)` with error message on failure
 #[command]
 pub fn store_api_key(provider: String, connection_id: String, key: String) -> Result<(), String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
-    if key.is_empty() {
+    let normalized_key = key.trim();
+    if normalized_key.is_empty() {
         return Err("API key cannot be empty".to_string());
     }
 
-    let mut store = read_api_key_store()?;
-    store.insert(account_key(&provider, &connection_id), key);
-    write_api_key_store(&store)?;
+    keyring_entry(&provider, &connection_id)?
+        .set_password(normalized_key)
+        .map_err(|e| format!("Failed to store API key in keychain: {e}"))?;
+
+    record_account(&provider, &connection_id)?;
     Ok(())
 }
 
-/// Retrieve an API key from local app storage
-///
-/// # Arguments
-/// * `provider` - The AI provider name
-/// * `connection_id` - The unique AI connection ID
-///
-/// # Returns
-/// * `Ok(Some(String))` with the API key if found
-/// * `Ok(None)` if no key is stored for this provider
-/// * `Err(String)` on error
+/// Retrieve an API key from the OS keychain
 #[command]
 pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<String>, String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
-    let store = read_api_key_store()?;
-    Ok(store.get(&account_key(&provider, &connection_id)).cloned())
+    match keyring_entry(&provider, &connection_id)?
+        .get_password()
+        .map(Some)
+    {
+        Ok(value) => Ok(value),
+        Err(e) if is_keyring_missing_entry(&e) => Ok(None),
+        Err(e) => Err(format!("Failed to read API key from keychain: {e}")),
+    }
 }
 
-/// Delete an API key from local app storage
-///
-/// # Arguments
-/// * `provider` - The AI provider name
-/// * `connection_id` - The unique AI connection ID
-///
-/// # Returns
-/// * `Ok(())` on success (even if key didn't exist)
-/// * `Err(String)` on error
+/// Delete an API key from the OS keychain
 #[command]
 pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
-    let mut store = read_api_key_store()?;
-    if store
-        .remove(&account_key(&provider, &connection_id))
-        .is_some()
-    {
-        write_api_key_store(&store)?;
+    match keyring_entry(&provider, &connection_id)?.delete_credential() {
+        Ok(()) => {}
+        Err(e) if is_keyring_missing_entry(&e) => {}
+        Err(e) => return Err(format!("Failed to delete API key from keychain: {e}")),
     }
+
+    remove_account(&provider, &connection_id)?;
     Ok(())
 }
 
-/// List all stored API key providers (without revealing the actual keys)
-///
-/// # Returns
-/// * `Ok(Vec<String>)` with provider names that have keys stored
-/// * `Err(String)` on error
+/// List all providers that have at least one stored API key
 #[command]
 pub fn list_api_key_providers() -> Result<Vec<String>, String> {
-    let store = read_api_key_store()?;
-    let mut providers = BTreeSet::new();
-    for account in store.keys() {
-        if let Some((provider, _)) = account.split_once("::") {
-            if !provider.trim().is_empty() {
-                providers.insert(provider.to_string());
-            }
-        }
-    }
-    Ok(providers.into_iter().collect::<Vec<_>>())
+    let conn = open_app_db()?;
+    list_secure_account_providers(&conn, API_KEY_NAMESPACE)
 }
 
 #[cfg(test)]
@@ -144,7 +123,6 @@ mod tests {
 
     #[test]
     fn test_validate_provider_name() {
-        // Empty provider should error
         assert!(
             store_api_key("".to_string(), "conn-1".to_string(), "test-key".to_string()).is_err()
         );
@@ -161,26 +139,21 @@ mod tests {
 
     #[test]
     fn test_validate_api_key() {
-        // Empty key should error
         assert!(store_api_key("test".to_string(), "conn-1".to_string(), "".to_string()).is_err());
     }
 
-    // Integration tests for actual storage operations
     #[test]
-    #[ignore] // Run with: cargo test -- --ignored
+    #[ignore]
     fn test_store_and_retrieve() {
         let provider = "test-provider".to_string();
         let connection_id = "test-connection".to_string();
         let api_key = "test-key-12345".to_string();
 
-        // Store
         assert!(store_api_key(provider.clone(), connection_id.clone(), api_key.clone()).is_ok());
 
-        // Retrieve
         let retrieved = get_api_key(provider.clone(), connection_id.clone()).unwrap();
         assert_eq!(retrieved, Some(api_key));
 
-        // Cleanup
         assert!(delete_api_key(provider, connection_id).is_ok());
     }
 }

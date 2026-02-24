@@ -1,19 +1,17 @@
 // Google OAuth Commands (desktop-safe)
 // Uses system browser + localhost loopback callback + PKCE.
-// Stores OAuth session in local app-scoped files.
+// Stores OAuth session in the OS keychain.
 
-use std::collections::HashMap;
-use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
 
-use crate::utils::get_app_dir;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use keyring::Entry;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -24,6 +22,7 @@ use uuid::Uuid;
 const TOKENS_ACCOUNT: &str = "google-oauth-tokens";
 const USER_ACCOUNT: &str = "google-oauth-user";
 const CALLBACK_TIMEOUT_SECS: u64 = 180;
+const OAUTH_KEYRING_SERVICE: &str = "become-an-author.google-oauth";
 
 const GOOGLE_AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
@@ -75,56 +74,40 @@ fn now_unix() -> i64 {
         .unwrap_or(0)
 }
 
-fn oauth_store_path() -> Result<PathBuf, String> {
-    let app_dir = get_app_dir()?;
-    let meta_dir = app_dir.join(".meta");
-    fs::create_dir_all(&meta_dir).map_err(|e| format!("Failed to create .meta directory: {e}"))?;
-    Ok(meta_dir.join("google_oauth_store.json"))
+fn oauth_entry(account: &str) -> Result<Entry, String> {
+    Entry::new(OAUTH_KEYRING_SERVICE, account)
+        .map_err(|e| format!("Failed to initialize OAuth keychain entry: {e}"))
 }
 
-fn read_oauth_store() -> Result<HashMap<String, String>, String> {
-    let path = oauth_store_path()?;
-    if !path.exists() {
-        return Ok(HashMap::new());
-    }
-
-    let content =
-        fs::read_to_string(&path).map_err(|e| format!("Failed to read OAuth storage file: {e}"))?;
-    serde_json::from_str::<HashMap<String, String>>(&content)
-        .map_err(|e| format!("Failed to parse OAuth storage file: {e}"))
-}
-
-fn write_oauth_store(store: &HashMap<String, String>) -> Result<(), String> {
-    let path = oauth_store_path()?;
-    let json = serde_json::to_string_pretty(store)
-        .map_err(|e| format!("Failed to serialize OAuth storage file: {e}"))?;
-    fs::write(&path, json).map_err(|e| format!("Failed to write OAuth storage file: {e}"))
+fn is_keyring_missing_entry(error: &keyring::Error) -> bool {
+    matches!(error, keyring::Error::NoEntry)
 }
 
 fn store_json<T: Serialize>(account: &str, data: &T) -> Result<(), String> {
     let payload = serde_json::to_string(data)
         .map_err(|e| format!("Failed to serialize OAuth payload: {e}"))?;
-    let mut store = read_oauth_store()?;
-    store.insert(account.to_string(), payload);
-    write_oauth_store(&store)
+    oauth_entry(account)?
+        .set_password(&payload)
+        .map_err(|e| format!("Failed to store OAuth payload in keychain: {e}"))
 }
 
 fn load_json<T: for<'de> Deserialize<'de>>(account: &str) -> Result<Option<T>, String> {
-    let store = read_oauth_store()?;
-    let Some(payload) = store.get(account) else {
-        return Ok(None);
+    let payload = match oauth_entry(account)?.get_password() {
+        Ok(value) => value,
+        Err(e) if is_keyring_missing_entry(&e) => return Ok(None),
+        Err(e) => return Err(format!("Failed to read OAuth payload from keychain: {e}")),
     };
-    let parsed = serde_json::from_str::<T>(payload)
+    let parsed = serde_json::from_str::<T>(&payload)
         .map_err(|e| format!("Failed to parse OAuth payload: {e}"))?;
     Ok(Some(parsed))
 }
 
 fn delete_entry(account: &str) -> Result<(), String> {
-    let mut store = read_oauth_store()?;
-    if store.remove(account).is_some() {
-        write_oauth_store(&store)?;
+    match oauth_entry(account)?.delete_credential() {
+        Ok(()) => Ok(()),
+        Err(e) if is_keyring_missing_entry(&e) => Ok(()),
+        Err(e) => Err(format!("Failed to delete OAuth payload from keychain: {e}")),
     }
-    Ok(())
 }
 
 fn build_code_verifier() -> String {

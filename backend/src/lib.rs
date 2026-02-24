@@ -8,6 +8,7 @@
 
 pub mod commands;
 pub mod models;
+pub mod storage;
 pub mod utils;
 
 use commands::*;
@@ -91,6 +92,7 @@ pub fn run() {
             create_chat_message,
             update_chat_message,
             delete_chat_message,
+            find_chat_thread_for_message,
             // Codex enhancement commands
             list_codex_relations,
             save_codex_relation,

@@ -217,26 +217,30 @@ describe("API Key Security Contract", () => {
   // ========================================
 
   describe("SPEC: Error Handling - MUST NOT expose keys in errors", () => {
-    it("getAPIKey MUST return null on error (not throw)", async () => {
+    it("getAPIKey MUST throw typed error on secure storage failure", async () => {
       mockInvoke.mockRejectedValue(new Error("Secure storage access denied"));
 
-      const key = await getAPIKey("openai", "conn-openai");
-
-      expect(key).toBeNull();
+      await expect(getAPIKey("openai", "conn-openai")).rejects.toMatchObject({
+        code: "E_API_KEY_GET_FAILED",
+      });
     });
 
-    it("storeAPIKey MUST return false on error", async () => {
+    it("storeAPIKey MUST throw typed error on failure", async () => {
       mockInvoke.mockRejectedValue(new Error("Storage failed"));
 
-      const result = await storeAPIKey("google", "conn-google", "api-key");
-
-      expect(result).toBe(false);
+      await expect(
+        storeAPIKey("google", "conn-google", "api-key"),
+      ).rejects.toMatchObject({
+        code: "E_API_KEY_STORE_FAILED",
+      });
     });
 
     it("storeAPIKey MUST show toast on failure", async () => {
       mockInvoke.mockRejectedValue(new Error("Secure storage locked"));
 
-      await storeAPIKey("openai", "conn-openai", "test-key");
+      await expect(
+        storeAPIKey("openai", "conn-openai", "test-key"),
+      ).rejects.toBeDefined();
 
       expect(toast.error).toHaveBeenCalled();
     });
