@@ -575,6 +575,9 @@ features/editor/
 - BubbleMenu
 - Custom: SlashCommands, SectionNode, TypewriterExtension
 
+**Performance Optimization:**
+The `tiptap-editor.tsx` component utilizes **static imports** for core editor dependencies (instead of dynamic `import()`) to prevent loading waterfalls and improve initial render performance, while heavy AI components remain lazily loaded.
+
 ---
 
 ## 10. AI Integration Design

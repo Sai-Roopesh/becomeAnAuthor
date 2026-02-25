@@ -23,7 +23,7 @@
 13. [Collaboration Architecture](#13-collaboration-architecture)
 14. [Export & Backup Architecture](#14-export--backup-architecture)
 15. [User Interface Architecture](#15-user-interface-architecture)
-16. [Configuration & Feature Flags](#16-configuration--feature-flags)
+16. [Configuration](#16-configuration)
 17. [Error Handling & Resilience](#17-error-handling--resilience)
 18. [Quality Assurance Strategy](#18-quality-assurance-strategy)
 19. [Deployment Architecture](#19-deployment-architecture)
@@ -233,7 +233,7 @@ graph TB
 | **Chat** | 11 | 1 | AI chat threads with context-aware manuscript knowledge, multi-model support, sidebar navigation |
 | **Codex** | 14 | 0 | Character/location/item/lore/subplot encyclopedia with relations, tags, templates |
 | **Plan** | 13 | 2 | Manuscript structure views: outline tree, card grid, timeline, intelligent linking panel with unlinked mention detection, section warnings, structure-preserving grid filtering |
-| **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management |
+| **Dashboard** | 6 | 0 | Project listing, series cards, recently opened, trash management. Uses SPA navigation (`router.push`) for seamless transitions. |
 | **Series** | 5 | 0 | Multi-book series management, shared codex, book ordering |
 | **Settings** | 13 | 2 | AI connection management, editor preferences, appearance settings |
 | **Search** | 6 | 1 | Full-text search across scenes and codex entries with relevance scoring |
@@ -748,6 +748,8 @@ ThemeProvider (dark/light/system)
 - **Chat**: Optimized message bubble padding on mobile devices to maximize content area.
 - **Dashboard**: `ProjectCard` dropdown menus adapt width for small screens.
 - **Settings**: Connection lists use flexible viewport heights to prevent scrolling issues.
+- **Timeline**: `TimelineControls` use wrapping flex layouts to prevent overflow on narrow screens.
+- **Export**: `ExportDialog` uses a responsive grid layout (single column on mobile, multi-column on desktop).
 
 ### 15.3 UI Component Library (37+ components)
 
@@ -762,9 +764,20 @@ Built on **Radix UI** primitives with **class-variance-authority** for variant s
 | **Specialized** | TagInput, TimeWheelPicker, QuickCaptureModal, CommandPalette |
 | **Composite** | Sidebar (5-part system) |
 
+### 15.4 Accessibility (A11y)
+
+The application adheres to WCAG 2.1 AA standards:
+
+| Feature | Implementation |
+|---|---|
+| **Keyboard Navigation** | Full keyboard support for editor, menus, and dialogs using Radix UI primitives. |
+| **Screen Readers** | Explicit `aria-label` attributes on all icon-only buttons (50+ instances), tabs, and toggles. |
+| **Focus Management** | Focus trapping in modals; logical tab order in forms. |
+| **Contrast** | Shadcn/ui tokens ensure sufficient color contrast in light and dark modes. |
+
 ---
 
-## 16. Configuration & Feature Flags
+## 16. Configuration
 
 ### 16.1 Application Constants
 
@@ -778,18 +791,6 @@ All magic numbers and configuration values are centralized in `lib/config/consta
 | **Editor** | Font size: 12-24px, Page width: 400-1000px, Line height: 1.2-2.5 |
 | **Collaboration** | Room prefix: "becomeauthor-", 3 signaling servers, 3 reconnect attempts |
 | **Backup** | Intervals: 15min / 1hour / daily |
-
-### 16.2 Feature Flags
-
-Currently controlled via `FEATURE_FLAGS` constant:
-
-| Flag | Status | Description |
-|---|---|---|
-| `CHARACTER_DETECTION` | 🔴 Off | Auto-detect characters in scene text |
-| `CHAT_WITH_SCENE` | 🔴 Off | Chat about specific scene content |
-| `SAVE_AS_SNIPPET` | 🔴 Off | Save chat responses as snippets |
-| `RETRY_MESSAGE` | 🔴 Off | Retry failed AI messages |
-| `DISSOLVE_SECTION` | 🔴 Off | Merge section blocks into body |
 
 ---
 
