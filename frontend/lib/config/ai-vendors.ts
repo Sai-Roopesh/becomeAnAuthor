@@ -181,10 +181,6 @@ export function connectionRequiresApiKey(
 export function connectionHasApiKey(
   connection: Pick<AIConnection, "apiKey" | "hasApiKey">,
 ): boolean {
-  if (connection.hasApiKey === undefined) {
-    return true;
-  }
-
   return Boolean(connection.apiKey?.trim()) || connection.hasApiKey === true;
 }
 

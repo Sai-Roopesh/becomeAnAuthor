@@ -65,7 +65,6 @@ export class TauriChatRepository implements IChatRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getThreadsByProject(_projectId: string): Promise<ChatThread[]> {
     const projectPath = this.requireProjectPath();
 
@@ -98,23 +97,12 @@ export class TauriChatRepository implements IChatRepository {
   async getDeletedThreads(projectId: string): Promise<ChatThread[]> {
     const threads = await this.getThreadsByProject(projectId);
     const now = Date.now();
-    const staleThreads = threads.filter(
-      (thread) =>
-        typeof thread.deletedAt === "number" &&
-        now - thread.deletedAt > DELETED_RETENTION_MS,
-    );
-
-    for (const stale of staleThreads) {
-      await this.purgeThread(stale.id);
-    }
-
-    const refreshed =
-      staleThreads.length > 0
-        ? await this.getThreadsByProject(projectId)
-        : threads;
-
-    return refreshed
-      .filter((thread) => typeof thread.deletedAt === "number")
+    return threads
+      .filter(
+        (thread) =>
+          typeof thread.deletedAt === "number" &&
+          now - thread.deletedAt <= DELETED_RETENTION_MS,
+      )
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 

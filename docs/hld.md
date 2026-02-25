@@ -635,11 +635,15 @@ OAuth 2.0 Desktop Flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, key) → OS keychain (secret) + SQLite secure_accounts (metadata)
+Settings UI → store_api_key(provider, connection_id, key)
+              → OS keychain (secret) + SQLite secure_accounts (metadata)
+              → update `ai_connections.hasApiKey` metadata in localStorage
                                               ↓
-AI Request  → isConnectionUsable()          → get_api_key(provider) → OS keychain
+AI readiness UI (`useHasAIConnection`) uses enabled + `hasApiKey` metadata
                                               ↓
-              → AI Provider API (HTTPS)
+AI Request execution resolves key via get_api_key(provider, connection_id)
+                                              ↓
+AI Provider API (HTTPS)
 ```
 
 **Updater Security:**
