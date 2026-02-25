@@ -593,7 +593,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ## 13. Security Architecture
 
-- **API Keys**: Stored in OS keychain via `security.rs`; SQLite keeps non-secret provider/account metadata for listing.
+- **API Keys**: Secrets stored in OS keychain via `security.rs`. Metadata (provider/enabled status) stored in `localStorage` for UI, with a shadow record in SQLite for backend enumeration.
 - **OAuth 2.0**:
   - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in OS keychain via `google_oauth.rs`.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.

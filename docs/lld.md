@@ -597,8 +597,8 @@ features/editor/
 │  ┌───────────────▼────────────────┐  │
 │  │  Connection Storage             │  │
 │  │  (core/storage/safe-storage)    │  │
-│  │  + Local App Storage for keys   │  │
-│  │    (metadata only in storage)   │  │
+│  │  + OS Keychain for secrets      │  │
+│  │  + LocalStorage for config      │  │
 │  └────────────────────────────────┘  │
 └──────────────────────────────────────┘
 ```
@@ -832,18 +832,26 @@ Rust: commands::chat::create_chat_message()
 User enters API key in Settings
         │
         ▼
+Frontend: Optimistic update of localStorage metadata (hasApiKey: true)
+        │
+        ▼
 Frontend: invoke("store_api_key", { provider, connection_id, key })
         │
         ▼
 Rust: security::store_api_key()
   → validate provider + connection_id + key
   → write secret to OS keychain
-  → upsert SQLite secure_accounts metadata
+  → upsert SQLite secure_accounts metadata (shadow record)
+        │
+        ▼
+Frontend: Revert localStorage metadata on failure
 ```
 
-- Keys are stored in the **OS keychain** via `keyring`.
-- Connection readiness in UI is driven by persisted `hasApiKey` metadata in `ai_connections`.
-- Actual secrets are resolved only during model refresh / AI request execution via `get_api_key(provider, connection_id)`.
+- **Dual Metadata Strategy**:
+  - **Frontend (`localStorage`)**: Stores full connection config (`ai_connections`) including the `hasApiKey` flag. This drives the UI state (Active/Missing Key) to avoid async keychain reads on render.
+  - **Backend (SQLite)**: Stores a shadow record of existing keys (`secure_accounts`) to allow `list_api_key_providers` without accessing the keychain.
+- **Secrets**: Actual API keys are stored **only** in the OS Keychain via `keyring`.
+- **Race Handling**: The `useAIConnections` hook implements optimistic updates with rollback protection to ensure UI responsiveness while maintaining consistency with the backend.
 - **Google OAuth Tokens**: Stored in OS keychain service `become-an-author.google-oauth`.
 
 ### 15.2 Content Security
