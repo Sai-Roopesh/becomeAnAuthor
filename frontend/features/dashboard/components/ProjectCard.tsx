@@ -84,7 +84,7 @@ export function ProjectCard({
           </p>
         </CardContent>
 
-        <CardFooter className="p-4 text-xs text-muted-foreground flex justify-between items-center border-t border-border/30 bg-muted/20">
+        <CardFooter className="p-4 text-xs text-muted-foreground flex flex-wrap gap-y-2 justify-between items-center border-t border-border/30 bg-muted/20">
           <div className="flex gap-3">
             <span className="flex items-center gap-1" title="Language">
               <Globe className="w-3 h-3" />

@@ -1,0 +1,10 @@
+frontend/features/editor/components/tiptap-editor.tsx(300,23): error TS6133: 'view' is declared but its value is never read.
+frontend/features/settings/components/ai-connections/ConnectionForm.tsx(79,56): error TS2379: Argument of type '{ apiKey: string; hasApiKey: boolean | undefined; }' is not assignable to parameter of type 'Pick<AIConnection, "apiKey" | "hasApiKey">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'hasApiKey' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+frontend/infrastructure/repositories/__tests__/TauriChatRepository.test.ts(28,5): error TS2783: 'id' is specified more than once, so this usage will be overwritten.
+frontend/infrastructure/repositories/__tests__/TauriChatRepository.test.ts(58,9): error TS2379: Argument of type '{ id: string; deletedAt: undefined; updatedAt: number; }' is not assignable to parameter of type 'Partial<ChatThread> & { id: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type '{ id: string; deletedAt: undefined; updatedAt: number; }' is not assignable to type 'Partial<ChatThread>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'deletedAt' are incompatible.
+      Type 'undefined' is not assignable to type 'number'.
