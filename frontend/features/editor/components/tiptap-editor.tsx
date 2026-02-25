@@ -297,7 +297,7 @@ export function TiptapEditor({
         class:
           "prose dark:prose-invert max-w-full focus:outline-none h-full px-8 py-6",
       },
-      handleKeyDown: (view, event) => {
+      handleKeyDown: (_view, event) => {
         if (isModKey(event as unknown as KeyboardEvent) && event.key === "j") {
           event.preventDefault();
           setContinueMenuMode("continue-writing");

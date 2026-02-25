@@ -242,7 +242,7 @@ export function ChatSidebar({
                   <span>{new Date(thread.updatedAt).toLocaleDateString()}</span>
                 </div>
                 {/* Mobile actions */}
-                <div className="mt-1 md:hidden">
+                <div className="mt-2 md:hidden">
                   <ThreadActions
                     threadId={thread.id}
                     threadView={threadView}

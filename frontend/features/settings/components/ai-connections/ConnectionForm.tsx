@@ -78,7 +78,9 @@ export function ConnectionForm({
   });
   const hasStoredOrEnteredApiKey = connectionHasApiKey({
     apiKey,
-    hasApiKey: connection.hasApiKey,
+    ...(connection.hasApiKey !== undefined && {
+      hasApiKey: connection.hasApiKey,
+    }),
   });
   const supportsAutoListing = modelDiscoveryService.supportsModelListing(
     connection.provider,
