@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 24, 2026
+> **Last Updated:** February 25, 2026
 > **Status:** Living Document
 
 ---
@@ -168,7 +168,7 @@ backend/src/
 │   ├── snippet.rs       # Snippet
 │   ├── backup.rs        # EmergencyBackup
 │   ├── scene_note.rs    # SceneNote
-└── utils/               # Shared utilities (7 modules)
+├── utils/               # Shared utilities (7 modules)
     ├── mod.rs
     ├── paths.rs         # App dir, project dir, series dir resolution
     ├── io.rs            # File read/write helpers
@@ -176,6 +176,9 @@ backend/src/
     ├── validation.rs    # Input validation rules (10.7KB)
     ├── timestamp.rs     # RFC 3339 ↔ Unix timestamp conversion
     └── security.rs      # Security helpers
+└── storage/             # Storage implementations (1 module)
+    ├── mod.rs
+    └── sqlite.rs        # SQLite FTS5 index + secure account metadata
 ```
 
 ### 4.2 Command Pattern
@@ -270,7 +273,6 @@ app/
 ├── globals.css           # Global styles + Tailwind config
 ├── loading.tsx           # Loading spinner
 ├── not-found.tsx         # 404 page
-├── auth/                 # OAuth callback handling (Google Drive)
 ├── project/
 │   └── [id]/
 │       └── page.tsx      # Main project workspace (editor, plan, chat views)

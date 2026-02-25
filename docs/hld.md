@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 24, 2026
+> **Last Updated:** February 25, 2026
 > **Status:** Living Document
 
 ---
@@ -390,7 +390,6 @@ app/
 ├── page.tsx              # Dashboard — project/series listing
 ├── project/page.tsx      # Project workspace — editor/plan/chat views
 ├── series/page.tsx       # Series detail — book listing + codex
-└── auth/callback/page.tsx # Google OAuth callback handler
 ```
 
 ---
@@ -740,6 +739,7 @@ ThemeProvider (dark/light/system)
 | **Focus Mode** | Cmd+Shift+F toggle | Full-screen editor, no chrome |
 
 **Component-Level Responsiveness:**
+- **Editor**: Toolbar adapts to screen width, removing fixed margins for better mobile support.
 - **Chat**: Optimized message bubble padding on mobile devices to maximize content area.
 - **Dashboard**: `ProjectCard` dropdown menus adapt width for small screens.
 - **Settings**: Connection lists use flexible viewport heights to prevent scrolling issues.

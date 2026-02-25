@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 24, 2026
-> **Codebase Stats:** 322 frontend source files (41,200+ lines) · 38 backend source files (6,300+ lines) · 8 app route files
+> **Last Updated:** February 25, 2026
+> **Codebase Stats:** 306 frontend source files (41,500+ lines) · 37 backend source files (6,800+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -74,12 +74,11 @@ becomeAnAuthor/
 │   ├── loading.tsx               # Global loading state
 │   ├── not-found.tsx             # 404 page
 │   ├── globals.css               # Global styles
-│   ├── auth/callback/page.tsx    # Google OAuth callback
 │   ├── project/
 │   │   ├── layout.tsx            # Project workspace layout
 │   │   └── page.tsx              # Project workspace (editor/plan/chat)
 │   └── series/page.tsx           # Series management
-├── frontend/                     # Frontend source (311 files, 42K lines)
+├── frontend/                     # Frontend source (306 files, 41.5K lines)
 │   ├── core/                     # Tauri bridge & low-level utilities
 │   ├── domain/                   # Domain entities, repositories, services (interfaces)
 │   ├── features/                 # Feature modules (editor, codex, plan, chat, etc.)
@@ -89,7 +88,7 @@ becomeAnAuthor/
 │   ├── shared/                   # Cross-cutting utilities, prompts, types
 │   ├── store/                    # Zustand state stores
 │   └── components/               # Shared UI component library
-├── backend/                      # Rust/Tauri backend (40 files, 5.8K lines)
+├── backend/                      # Rust/Tauri backend (37 files, 6.8K lines)
 │   └── src/
 │       ├── lib.rs                # Entry point, command registration (188 lines)
 │       ├── commands/             # 18 command modules
@@ -451,7 +450,7 @@ The primary writing environment. 15+ components:
 | Component | File | Lines | Purpose |
 |---|---|---|---|
 | `SceneEditor` | `scene-editor.tsx` | ~500 | Main editor orchestrator — TipTap initialization, extension loading, toolbar, save coordination |
-| `EditorToolbar` | `editor-toolbar.tsx` | ~250 | Formatting toolbar with text style, alignment, lists, undo/redo |
+| `EditorToolbar` | `editor-toolbar.tsx` | 173 | Formatting toolbar with text style, alignment, lists, undo/redo (responsive layout) |
 | `TextSelectionMenu` | `text-selection-menu.tsx` | 208 | Floating tippy.js menu on text selection with 4 AI actions (Tweak, Expand, Rephrase, Shorten) and Link to Codex |
 | `CodexLinkDialog` | `codex-link-dialog.tsx` | ~300 | Dialog for linking selected text to codex entries with filtering and role selection |
 | `TextReplaceDialog` | `text-replace-dialog.tsx` | ~300 | AI-powered text replacement dialog with streaming preview, accept/reject |
@@ -501,7 +500,7 @@ Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 | Component | Lines | Purpose |
 |---|---|---|
 | `ChatInterface` | 278 | Thread sidebar, message list, input, model/prompt selection |
-| `ChatSidebar` | 254 | Thread list, active thread management, sidebar visibility control |
+| `ChatSidebar` | 286 | Thread list, active thread management, sidebar visibility control (mobile responsive) |
 | `ChatMessage` | ~150 | Markdown rendering, copy, regenerate, mobile-responsive layout |
 | `ContextSelector` | ~200 | Select scenes, codex entries, snippets as context |
 
@@ -745,7 +744,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `features/search/` | 1 component |
 | `components/ui/` | 36+ shadcn/ui components |
 
-### 19.2 Backend — `backend/src/` (40 source files)
+### 19.2 Backend — `backend/src/` (37 source files)
 
 | Directory | Files |
 |---|---|
@@ -753,6 +752,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `commands/` | `mod.rs` + 16 modules: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `backup_emergency`, `backup_manuscript`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `scene_note`, `google_oauth` |
 | `models/` | `mod.rs` + 7 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `scene_note` |
 | `utils/` | `mod.rs` + 7 utils: `atomic_write`, `timestamp`, `count_words`, `project_dir`, `validate_file_size`, `validate_json_size`, `validate_no_null_bytes` |
+| `storage/` | `mod.rs` + 1 module: `sqlite` |
 
 ### 19.3 App Routes — `app/` (8 files)
 
@@ -763,7 +763,6 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | `loading.tsx` | Suspense fallback |
 | `not-found.tsx` | 404 page |
 | `globals.css` | Global CSS with design tokens |
-| `auth/callback/page.tsx` | Google OAuth callback |
 | `project/layout.tsx` | Project workspace layout |
 | `project/page.tsx` | Project workspace (editor/plan/chat tabs) |
 | `series/page.tsx` | Series management |
