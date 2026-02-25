@@ -832,17 +832,18 @@ Rust: commands::chat::create_chat_message()
 User enters API key in Settings
         │
         ▼
-Frontend: invoke("store_api_key", { provider, key })
+Frontend: invoke("store_api_key", { provider, connection_id, key })
         │
         ▼
 Rust: security::store_api_key()
-  → load provider+connection secret from OS keychain
-  → update key map
-  → write secret to OS keychain + upsert SQLite secure_accounts metadata
+  → validate provider + connection_id + key
+  → write secret to OS keychain
+  → upsert SQLite secure_accounts metadata
 ```
 
 - Keys are stored in the **OS keychain** via `keyring`.
-- Retrieval via `get_api_key(provider)` → local file lookup.
+- Connection readiness in UI is driven by persisted `hasApiKey` metadata in `ai_connections`.
+- Actual secrets are resolved only during model refresh / AI request execution via `get_api_key(provider, connection_id)`.
 - **Google OAuth Tokens**: Stored in OS keychain service `become-an-author.google-oauth`.
 
 ### 15.2 Content Security

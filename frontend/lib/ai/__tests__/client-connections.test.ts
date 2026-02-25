@@ -41,7 +41,7 @@ describe("ai/client connection usability", () => {
     expect(getEnabledConnections()).toEqual([]);
   });
 
-  it("keeps legacy enabled providers usable when key metadata is unknown", async () => {
+  it("treats legacy enabled providers with unknown key metadata as unusable", async () => {
     mockGetItem.mockReturnValue([
       {
         id: "google-legacy",
@@ -57,7 +57,7 @@ describe("ai/client connection usability", () => {
 
     const { getEnabledConnections } = await import("@/lib/ai/client");
 
-    expect(getEnabledConnections()).toHaveLength(1);
+    expect(getEnabledConnections()).toEqual([]);
   });
 
   it("detects usable key-required connection from secure storage", async () => {

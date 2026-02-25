@@ -78,6 +78,7 @@ export function useLiveQuery<T>(
   const [refreshKey, setRefreshKey] = useState(0);
   const mountedRef = useRef(true);
   const keysRef = useRef<Set<string>>(normalizeKeys(options.keys));
+  const requestVersionRef = useRef(0);
 
   useEffect(() => {
     keysRef.current = normalizeKeys(options.keys);
@@ -98,16 +99,24 @@ export function useLiveQuery<T>(
 
   useEffect(() => {
     mountedRef.current = true;
+    const requestVersion = requestVersionRef.current + 1;
+    requestVersionRef.current = requestVersion;
 
     const executeQuery = async () => {
       try {
         const data = await queryFn();
-        if (mountedRef.current) {
+        if (
+          mountedRef.current &&
+          requestVersionRef.current === requestVersion
+        ) {
           setResult(data);
           setError(undefined);
         }
       } catch (err) {
-        if (mountedRef.current) {
+        if (
+          mountedRef.current &&
+          requestVersionRef.current === requestVersion
+        ) {
           log.error("Query execution failed", err);
           setError(err instanceof Error ? err : new Error(String(err)));
           // Preserve last successful result so UI can remain usable while showing error state.

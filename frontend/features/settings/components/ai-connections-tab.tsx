@@ -33,14 +33,15 @@ export function AIConnectionsTab() {
     error: connectionError,
   } = useAIConnections();
 
-  const handleRefreshModels = async () => {
+  const handleRefreshModels = async (apiKeyOverride?: string) => {
     if (!selectedId || !selectedConnection) return;
 
     setIsRefreshingModels(true);
     setModelRefreshError("");
 
     try {
-      const storedApiKey = selectedConnection.apiKey.trim();
+      const storedApiKey =
+        apiKeyOverride?.trim() || selectedConnection.apiKey.trim();
       const secureApiKey =
         storedApiKey ||
         (await getAPIKey(selectedConnection.provider, selectedConnection.id)) ||
@@ -49,10 +50,6 @@ export function AIConnectionsTab() {
       if (!secureApiKey && connectionRequiresApiKey(selectedConnection)) {
         setModelRefreshError("API key is required to fetch models");
         return;
-      }
-
-      if (secureApiKey && secureApiKey !== selectedConnection.apiKey) {
-        saveConnection(selectedId, { apiKey: secureApiKey });
       }
 
       const result = await modelDiscoveryService.fetchModels(

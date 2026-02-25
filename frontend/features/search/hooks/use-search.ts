@@ -6,7 +6,6 @@ import {
   type SearchResult as BackendSearchResult,
 } from "@/core/tauri/commands";
 import { useAppServices } from "@/infrastructure/di/AppContext";
-import { getCurrentProjectPath } from "@/core/project-path";
 import {
   type SearchResult,
   type SearchableCodex,
@@ -91,9 +90,12 @@ export function useSearch(projectId: string) {
         const tauriProject = project as
           | (typeof project & { _tauriPath?: string })
           | undefined;
-        const projectPath = tauriProject?._tauriPath || getCurrentProjectPath();
+        const projectPath = tauriProject?._tauriPath?.trim();
 
         if (!projectPath) {
+          log.warn("Search skipped because project path is unavailable", {
+            projectId,
+          });
           if (!cancelled) setResults({ scenes: [], codex: [] });
           return;
         }

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AIConnection,
   AIVendor,
+  connectionHasApiKey,
   connectionRequiresApiKey,
 } from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
@@ -29,7 +30,7 @@ interface ConnectionFormProps {
   }) => void;
   onToggleEnabled: () => void;
   onDelete: () => void;
-  onRefreshModels: () => void;
+  onRefreshModels: (apiKeyOverride?: string) => void;
   loading: boolean;
   error: string;
 }
@@ -54,6 +55,7 @@ export function ConnectionForm({
   );
   const [manualModelError, setManualModelError] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyDirty, setApiKeyDirty] = useState(false);
 
   useEffect(() => {
     setConnectionName(connection.name);
@@ -61,6 +63,7 @@ export function ConnectionForm({
     setCustomEndpoint(connection.customEndpoint || "");
     setManualModelInput(formatModelIds(connection.models));
     setManualModelError("");
+    setApiKeyDirty(false);
   }, [
     connection.id,
     connection.name,
@@ -73,11 +76,17 @@ export function ConnectionForm({
     provider: connection.provider,
     customEndpoint,
   });
+  const hasStoredOrEnteredApiKey = connectionHasApiKey({
+    apiKey,
+    hasApiKey: connection.hasApiKey,
+  });
   const supportsAutoListing = modelDiscoveryService.supportsModelListing(
     connection.provider,
   );
   const canRefreshModels =
-    loading || !supportsAutoListing || (requiresApiKey && !apiKey.trim());
+    loading ||
+    !supportsAutoListing ||
+    (requiresApiKey && !hasStoredOrEnteredApiKey);
 
   const handleNameChange = (value: string) => {
     setConnectionName(value);
@@ -86,7 +95,13 @@ export function ConnectionForm({
 
   const handleApiKeyChange = (value: string) => {
     setApiKey(value);
-    onSave({ apiKey: value });
+    setApiKeyDirty(true);
+  };
+
+  const commitApiKey = () => {
+    if (!apiKeyDirty) return;
+    onSave({ apiKey });
+    setApiKeyDirty(false);
   };
 
   const handleEndpointChange = (value: string) => {
@@ -103,6 +118,14 @@ export function ConnectionForm({
 
     setManualModelError("");
     onSave({ models });
+  };
+
+  const handleRefreshModels = () => {
+    if (apiKeyDirty) {
+      onSave({ apiKey });
+      setApiKeyDirty(false);
+    }
+    onRefreshModels(apiKey.trim());
   };
 
   return (
@@ -138,6 +161,7 @@ export function ConnectionForm({
               type={showApiKey ? "text" : "password"}
               value={apiKey}
               onChange={(e) => handleApiKeyChange(e.target.value)}
+              onBlur={commitApiKey}
               placeholder={vendor.apiKeyPlaceholder}
             />
             <Button
@@ -167,6 +191,17 @@ export function ConnectionForm({
               </a>
             )}
           </p>
+          {connection.hasApiKey && !apiKey.trim() && (
+            <p className="text-xs text-muted-foreground">
+              API key is stored securely on this device. Enter a new key only to
+              replace it.
+            </p>
+          )}
+          {apiKeyDirty && (
+            <p className="text-xs text-muted-foreground">
+              API key will be saved when you leave this field.
+            </p>
+          )}
         </div>
 
         {vendor.id === "openai" && (
@@ -187,7 +222,7 @@ export function ConnectionForm({
         <div className="space-y-2">
           <Label>Available Models</Label>
           <Button
-            onClick={onRefreshModels}
+            onClick={handleRefreshModels}
             disabled={canRefreshModels}
             variant="outline"
             className="w-full"
@@ -273,7 +308,7 @@ export function ConnectionForm({
           />
         </div>
 
-        {requiresApiKey && !apiKey.trim() && (
+        {requiresApiKey && !hasStoredOrEnteredApiKey && (
           <p className="text-xs text-destructive">
             This provider needs an API key before it can be used.
           </p>

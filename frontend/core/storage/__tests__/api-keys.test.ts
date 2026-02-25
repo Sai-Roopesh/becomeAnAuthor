@@ -4,8 +4,7 @@
  * SPECIFICATIONS (from implementation plan):
  * 1. API keys MUST be stored via backend secure storage commands, NEVER in localStorage
  * 2. API keys MUST be validated before storing
- * 3. Migration MUST move legacy localStorage keys to secure command-based storage
- * 4. Failed operations MUST NOT expose key in error messages
+ * 3. Failed operations MUST NOT expose key in error messages
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

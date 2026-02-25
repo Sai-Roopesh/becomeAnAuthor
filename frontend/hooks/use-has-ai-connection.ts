@@ -1,38 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getEnabledConnections, hasUsableAIConnection } from "@/lib/ai";
+import { getEnabledConnections } from "@/lib/ai";
 
 export const AI_CONNECTIONS_UPDATED_EVENT = "ai-connections-updated";
 
 export function useHasAIConnection() {
-  const [hasAIConnection, setHasAIConnection] = useState(
-    () => getEnabledConnections().length > 0,
-  );
+  const readConnectionState = () => getEnabledConnections().length > 0;
+  const [hasAIConnection, setHasAIConnection] = useState(readConnectionState);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const refresh = async () => {
-      const hasUsable = await hasUsableAIConnection();
-      if (!cancelled) {
-        setHasAIConnection(hasUsable);
-      }
+    const refresh = () => {
+      setHasAIConnection(readConnectionState());
     };
 
-    void refresh();
-    const onRefresh = () => {
-      void refresh();
-    };
-    window.addEventListener(AI_CONNECTIONS_UPDATED_EVENT, onRefresh);
-    window.addEventListener("focus", onRefresh);
-    window.addEventListener("storage", onRefresh);
+    refresh();
+    window.addEventListener(AI_CONNECTIONS_UPDATED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", refresh);
 
     return () => {
-      cancelled = true;
-      window.removeEventListener(AI_CONNECTIONS_UPDATED_EVENT, onRefresh);
-      window.removeEventListener("focus", onRefresh);
-      window.removeEventListener("storage", onRefresh);
+      window.removeEventListener(AI_CONNECTIONS_UPDATED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("storage", refresh);
     };
   }, []);
 
