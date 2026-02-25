@@ -129,6 +129,7 @@ export function RelationsTab({ entityId, seriesId }: RelationsTabProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remove relation"
                   className="h-6 w-6"
                   onClick={() => relation && removeRelation(relation.id)}
                 >

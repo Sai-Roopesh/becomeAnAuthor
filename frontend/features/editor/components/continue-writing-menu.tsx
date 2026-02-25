@@ -34,7 +34,6 @@ interface ContinueWritingMenuProps {
   initialMode?: GenerationMode;
   isGenerating?: boolean;
   onCancel?: () => void;
-  position?: { x: number; y: number } | null; // Unused now - keeping for API compat
 }
 
 export const ContinueWritingMenu = memo(function ContinueWritingMenu({

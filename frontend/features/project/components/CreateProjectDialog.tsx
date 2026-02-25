@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   Plus,
@@ -109,6 +110,7 @@ export function CreateProjectDialog({
   seriesId: lockedSeriesId,
   seriesTitle,
 }: CreateProjectDialogProps) {
+  const router = useRouter();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = (value: boolean) => {
@@ -347,7 +349,7 @@ export function CreateProjectDialog({
       setSeriesIndexManuallyEdited(false);
       setNewSeriesName("");
       setFormData(initialFormData);
-      window.location.href = `/project?id=${projectId}`;
+      router.push(`/project?id=${projectId}`);
     } catch (error) {
       log.error("Failed to create project", error);
       const message =

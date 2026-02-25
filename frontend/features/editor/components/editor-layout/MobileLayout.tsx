@@ -58,6 +58,7 @@ export function MobileLayout({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Open sidebar"
           onClick={() => onSetShowSidebar(true)}
         >
           <PanelLeft className="h-5 w-5" />
@@ -71,6 +72,7 @@ export function MobileLayout({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Open timeline"
           onClick={() => onSetShowTimeline(true)}
         >
           <PanelRight className="h-5 w-5" />

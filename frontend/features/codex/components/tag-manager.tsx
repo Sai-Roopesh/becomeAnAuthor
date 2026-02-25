@@ -143,7 +143,12 @@ export function TagManager({ seriesId, entryId }: TagManagerProps) {
             {...register("name")}
             disabled={isAdding}
           />
-          <Button type="submit" size="icon" disabled={!isValid || isAdding}>
+          <Button
+            type="submit"
+            size="icon"
+            aria-label="Add tag"
+            disabled={!isValid || isAdding}
+          >
             <Plus className="h-4 w-4" />
           </Button>
         </form>

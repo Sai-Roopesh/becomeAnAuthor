@@ -256,6 +256,7 @@ export function CodexList({
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Codex entry actions"
                           className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
                           onClick={(e) => e.stopPropagation()}
                         >

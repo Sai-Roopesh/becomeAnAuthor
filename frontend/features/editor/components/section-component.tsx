@@ -63,6 +63,7 @@ export function SectionComponent({
           <Button
             variant="ghost"
             size="icon"
+            aria-label={collapsed ? "Expand section" : "Collapse section"}
             className="h-6 w-6"
             onClick={() => updateAttributes({ collapsed: !collapsed })}
           >
@@ -109,7 +110,12 @@ export function SectionComponent({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Section actions"
+                className="h-6 w-6"
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

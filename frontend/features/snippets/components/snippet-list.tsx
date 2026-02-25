@@ -110,6 +110,7 @@ export function SnippetList({
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Snippet actions"
                   className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
                 >
                   <MoreVertical className="h-3 w-3" />

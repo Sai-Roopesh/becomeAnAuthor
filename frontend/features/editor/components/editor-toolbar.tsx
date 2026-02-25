@@ -46,6 +46,7 @@ function ToolbarButton({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={label}
           onClick={onClick}
           disabled={disabled}
           className={`h-8 w-8 rounded-full ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}

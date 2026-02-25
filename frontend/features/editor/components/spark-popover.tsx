@@ -324,6 +324,7 @@ export const SparkPopover = memo(function SparkPopover({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Close"
             className="h-7 w-7"
             onClick={onClose}
           >
@@ -350,6 +351,7 @@ export const SparkPopover = memo(function SparkPopover({
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Regenerate prompts"
               className="h-8 w-8"
               onClick={generatePrompts}
               disabled={isLoading}

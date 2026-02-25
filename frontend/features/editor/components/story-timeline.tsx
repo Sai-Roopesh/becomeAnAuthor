@@ -39,7 +39,7 @@ export function StoryTimeline({
 
   const scenes = useLiveQuery(async () => {
     const nodes = await nodeRepo.getByProject(projectId);
-    return nodes.filter((n) => n.type === "scene");
+    return nodes.filter((n): n is Scene => n.type === "scene");
   }, [projectId, nodeRepo]);
 
   const handleSceneClick = (sceneId: string) => {
@@ -105,6 +105,7 @@ export function StoryTimeline({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Expand timeline"
           className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
           onClick={() => setCollapsed(false)}
         >
@@ -126,6 +127,7 @@ export function StoryTimeline({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Collapse timeline"
             className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
             onClick={() => setCollapsed(true)}
           >
@@ -145,14 +147,13 @@ export function StoryTimeline({
             <div className="space-y-6">
               {scenes.map((scene, index) => {
                 const isActive = scene.id === activeSceneId;
-                // Type assertion after filtering for scenes
-                const sceneTyped = scene as Scene;
+                // scene is already typed as Scene via type predicate
 
                 // Use live word count for active scene, stored for others
                 const displayWordCount =
                   isActive && activeSceneWordCount !== undefined
                     ? activeSceneWordCount
-                    : sceneTyped.wordCount || 0;
+                    : scene.wordCount || 0;
 
                 return (
                   <div key={scene.id} className="relative pl-6 group">
@@ -180,7 +181,7 @@ export function StoryTimeline({
                         <span className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">
                           Scene {index + 1}
                         </span>
-                        {sceneTyped.excludeFromAI && (
+                        {scene.excludeFromAI && (
                           <span
                             className="h-1.5 w-1.5 rounded-full bg-orange-500"
                             title="Excluded from AI context"
@@ -197,9 +198,9 @@ export function StoryTimeline({
                         {scene.title}
                       </div>
 
-                      {sceneTyped.subtitle && (
+                      {scene.subtitle && (
                         <div className="text-xs text-muted-foreground italic truncate mb-2 opacity-80">
-                          "{sceneTyped.subtitle}"
+                          "{scene.subtitle}"
                         </div>
                       )}
 
@@ -208,10 +209,10 @@ export function StoryTimeline({
                           <Hash className="h-3 w-3" />
                           <span>{displayWordCount.toLocaleString()}</span>
                         </div>
-                        {sceneTyped.pov && (
+                        {scene.pov && (
                           <div className="flex items-center gap-1">
                             <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-                            <span>{sceneTyped.pov}</span>
+                            <span>{scene.pov}</span>
                           </div>
                         )}
                       </div>
@@ -262,13 +263,7 @@ export function StoryTimeline({
             <span>Total Words</span>
             <span className="font-medium font-mono bg-background/50 px-1.5 py-0.5 rounded border border-border/30">
               {scenes
-                .reduce(
-                  (sum, s) =>
-                    sum +
-                    ((s as import("@/domain/entities/types").Scene).wordCount ||
-                      0),
-                  0,
-                )
+                .reduce((sum, s) => sum + (s.wordCount || 0), 0)
                 .toLocaleString()}
             </span>
           </div>

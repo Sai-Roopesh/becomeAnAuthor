@@ -51,6 +51,7 @@ function TabButton({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={label}
           onClick={() => onClick(id)}
           className={cn(
             "min-h-11 min-w-11 relative transition-all duration-200",

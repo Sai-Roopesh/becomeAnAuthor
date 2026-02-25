@@ -180,14 +180,11 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
       <div className="flex items-center p-2 border-b border-border/50 bg-background/80 backdrop-blur-md z-30 md:hidden">
         <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="Open chat sidebar">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent
-            side="left"
-            className="p-0 w-[90vw] max-w-mobile-sheet"
-          >
+          <SheetContent side="left" className="p-0 w-[90vw] max-w-mobile-sheet">
             <ChatSidebar
               projectId={projectId}
               activeThreadId={activeThreadId}

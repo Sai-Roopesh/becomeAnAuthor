@@ -96,6 +96,7 @@ export function GridView({ projectId, seriesId, nodes }: GridViewProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={isExpanded ? "Collapse act" : "Expand act"}
                   className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
                   onClick={() => toggleAct(act.id)}
                 >
@@ -146,6 +147,7 @@ export function GridView({ projectId, seriesId, nodes }: GridViewProps) {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Add scene"
                           className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover/chapter:opacity-100 sm:group-focus-within/chapter:opacity-100 transition-opacity"
                           onClick={() => openCreateDialog(chapter.id, "scene")}
                           title="Add Scene"

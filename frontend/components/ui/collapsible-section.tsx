@@ -111,6 +111,7 @@ export function CollapsibleSection({
           <Button
             variant="ghost"
             size="icon"
+            aria-label={addTooltip || "Add item"}
             onClick={(e) => {
               e.stopPropagation();
               onAdd();

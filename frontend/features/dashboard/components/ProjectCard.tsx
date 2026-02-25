@@ -117,6 +117,7 @@ export function ProjectCard({
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Project actions"
                   className="h-7 w-7 -mr-2 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.preventDefault();

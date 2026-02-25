@@ -43,7 +43,12 @@ export function TopNavigation({ onOpenSearch }: TopNavigationProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/">
-                  <Button variant="ghost" size="sm" className="mr-1 sm:mr-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Home"
+                    className="mr-1 sm:mr-2"
+                  >
                     <Home className="h-4 w-4" />
                     <span className="hidden sm:inline ml-2">Home</span>
                   </Button>
@@ -59,6 +64,7 @@ export function TopNavigation({ onOpenSearch }: TopNavigationProps) {
                 key={mode.id}
                 variant={viewMode === mode.id ? "default" : "ghost"}
                 size="sm"
+                aria-label={mode.label}
                 onClick={() => handleModeChange(mode.id)}
                 className="gap-2"
               >
@@ -74,6 +80,7 @@ export function TopNavigation({ onOpenSearch }: TopNavigationProps) {
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label="Search"
                     className="gap-2"
                     onClick={onOpenSearch}
                   >

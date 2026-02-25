@@ -68,6 +68,7 @@ export function ChatInput({
                   onClick={onCancel}
                   size="icon"
                   variant="destructive"
+                  aria-label="Cancel generation"
                   className="h-8 w-8 rounded-lg"
                   title="Cancel generation"
                 >
@@ -78,6 +79,7 @@ export function ChatInput({
                   onClick={onSend}
                   disabled={disabled || !value.trim()}
                   size="icon"
+                  aria-label="Send message"
                   data-chat-send
                   className={cn(
                     "h-8 w-8 rounded-lg transition-all",

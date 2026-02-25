@@ -51,6 +51,7 @@ export function EntityEditorHeader({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Save"
           onClick={onSave}
           title="Save now (auto-saves after 1s idle)"
         >
@@ -59,6 +60,7 @@ export function EntityEditorHeader({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Delete entity"
           onClick={onDelete}
           title="Delete entity"
         >
