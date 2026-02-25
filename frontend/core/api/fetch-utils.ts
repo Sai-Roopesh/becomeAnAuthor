@@ -23,7 +23,6 @@ export async function fetchWithTimeout(
   }
 
   // Build options with our controller's signal (excludes the original signal)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { signal: _, ...restOptions } = options;
   const fetchOptions: RequestInit = {
     ...restOptions,

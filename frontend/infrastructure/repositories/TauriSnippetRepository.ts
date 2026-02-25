@@ -28,7 +28,6 @@ export class TauriSnippetRepository implements ISnippetRepository {
     return snippets.find((s) => s.id === id);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getByProject(_projectId: string): Promise<Snippet[]> {
     const projectPath = this.requireProjectPath();
 

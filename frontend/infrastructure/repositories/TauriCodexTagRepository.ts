@@ -40,7 +40,6 @@ export class TauriCodexTagRepository implements ICodexTagRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getByProject(_projectId: string): Promise<CodexTag[]> {
     const projectPath = this.requireProjectPath();
 

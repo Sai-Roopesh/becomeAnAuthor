@@ -69,7 +69,6 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getCustomTemplates(_projectId: string): Promise<CodexTemplate[]> {
     const projectPath = this.requireProjectPath();
 
