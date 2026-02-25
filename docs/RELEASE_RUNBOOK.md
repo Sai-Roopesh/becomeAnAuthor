@@ -71,6 +71,7 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 22. Responsive checks across dashboard/project/chat/settings at narrow widths.
 23. Google Drive connect, backup, restore, sign out.
 24. In-app updater prompt/install/restart path from an older build.
+25. Verify accessibility (aria-labels, keyboard nav) for key flows.
 
 ## 4. Prepare a Release
 

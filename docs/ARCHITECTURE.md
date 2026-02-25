@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
 > **Last Updated:** February 25, 2026
-> **Codebase Stats:** 306 frontend source files (41,500+ lines) · 37 backend source files (6,800+ lines) · 8 app route files
+> **Codebase Stats:** 297 frontend source files (41,600+ lines) · 36 backend source files (6,800 lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -78,7 +78,7 @@ becomeAnAuthor/
 │   │   ├── layout.tsx            # Project workspace layout
 │   │   └── page.tsx              # Project workspace (editor/plan/chat)
 │   └── series/page.tsx           # Series management
-├── frontend/                     # Frontend source (306 files, 41.5K lines)
+├── frontend/                     # Frontend source (297 files, 41.6K lines)
 │   ├── core/                     # Tauri bridge & low-level utilities
 │   ├── domain/                   # Domain entities, repositories, services (interfaces)
 │   ├── features/                 # Feature modules (editor, codex, plan, chat, etc.)
@@ -88,7 +88,7 @@ becomeAnAuthor/
 │   ├── shared/                   # Cross-cutting utilities, prompts, types
 │   ├── store/                    # Zustand state stores
 │   └── components/               # Shared UI component library
-├── backend/                      # Rust/Tauri backend (37 files, 6.8K lines)
+├── backend/                      # Rust/Tauri backend (36 files, 6.8K lines)
 │   └── src/
 │       ├── lib.rs                # Entry point, command registration (188 lines)
 │       ├── commands/             # 18 command modules
@@ -307,6 +307,8 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
 | `lib/core/save-coordinator.ts` | 175 | Singleton preventing race conditions — per-scene mutex, debounce, retry |
 | `lib/core/editor-state-manager.ts` | 236 | VS Code-style dirty tracking, debounced saves, emergency backups, status notifications |
 
+**Navigation Note:** Project creation now utilizes SPA navigation via `router.push` (Next.js App Router) instead of full page reloads, improving transition performance.
+
 ---
 
 ## 7. AI Subsystem
@@ -461,6 +463,10 @@ The primary writing environment. 15+ components:
 | `MentionSuggestion` | `mention-suggestion.tsx` | ~200 | @mention autocomplete for codex entries with alias matching and slash command /link |
 
 **Editor Extensions** (`features/editor/extensions/`): `MentionExtension` (codex linking), `TypewriterExtension` (cursor centering at configurable offset), `FocusModeExtension` (dims non-focused paragraphs).
+
+**Recent Improvements:**
+- **Performance**: `tiptap-editor` uses static imports for critical dependencies to improve load time.
+- **Stability**: Fixed memory leaks in `NodeActionsMenu` (Blob URL cleanup) and `CollaborationPanel` (timeout cleanup).
 
 ### 10.2 Codex Feature — `features/codex/`
 
@@ -669,6 +675,10 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | **Navigation** | `dropdown-menu`, `context-menu`, `menubar`, `command`, `breadcrumb` |
 | **Overlay** | `alert-dialog`, `hover-card` |
 | **Custom** | `empty-state`, `decorative-grid`, `loading-spinner` |
+
+**Design System Updates:**
+- **Accessibility**: Comprehensive `aria-label` coverage for icon-only buttons, tabs, and interactive elements.
+- **Responsive Design**: Mobile-first grid layouts (`ProjectGrid`, `ExportDialog`) and flexible toolbars (`EditorToolbar`, `TimelineControls`) adapting to viewport width.
 
 ---
 
