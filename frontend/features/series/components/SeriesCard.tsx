@@ -136,6 +136,7 @@ export function SeriesCard({ series, projects }: SeriesCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Series actions"
                   className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
                   onClick={(e) => {
                     e.preventDefault();

@@ -88,6 +88,7 @@ export function DesktopLayout({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
                 className="h-8 w-8 bg-background/80 backdrop-blur-sm border border-border/50"
                 onClick={onToggleSidebar}
               >
@@ -113,6 +114,7 @@ export function DesktopLayout({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={showTimeline ? "Hide timeline" : "Show timeline"}
                 className="h-8 w-8 bg-background/80 backdrop-blur-sm border border-border/50"
                 onClick={onToggleTimeline}
               >
@@ -241,6 +243,7 @@ export function DesktopLayout({
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label="Unpin snippet"
                             className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
                             onClick={async () => {
                               await snippetRepo.togglePin(snippet.id);

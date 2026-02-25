@@ -167,6 +167,7 @@ export function ConnectionForm({
             <Button
               variant="outline"
               size="icon"
+              aria-label={showApiKey ? "Hide API key" : "Show API key"}
               onClick={() => setShowApiKey((current) => !current)}
             >
               {showApiKey ? (

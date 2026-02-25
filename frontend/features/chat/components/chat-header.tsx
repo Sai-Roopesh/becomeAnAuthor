@@ -90,6 +90,7 @@ export function ChatHeader({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={isArchived ? "Restore chat" : "Archive chat"}
           className="rounded-full hover:bg-muted"
           onClick={onArchive}
           title={isArchived ? "Restore Chat" : "Archive Chat"}
@@ -99,6 +100,7 @@ export function ChatHeader({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Delete chat"
           className="rounded-full hover:bg-destructive/10 hover:text-destructive"
           onClick={onDelete}
           title="Delete Chat"
@@ -113,6 +115,7 @@ export function ChatHeader({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Thread actions"
             className="shrink-0 rounded-full hover:bg-muted"
           >
             <MoreVertical className="h-4 w-4" />

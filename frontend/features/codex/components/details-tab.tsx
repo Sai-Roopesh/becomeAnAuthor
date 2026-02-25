@@ -215,6 +215,7 @@ Generate now for: ${entity.name} (${entity.category})`;
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remove attribute"
                   className="h-6 w-6 text-muted-foreground hover:text-destructive"
                   onClick={() => removeAttribute(key)}
                 >

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { TippyPopover } from "@/components/ui/tippy-popover";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { joinRoomSchema, type JoinRoomFormData } from "@/shared/schemas/forms";
@@ -54,6 +54,13 @@ export function CollaborationPanel({
 }: CollaborationPanelProps) {
   const [copied, setCopied] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    },
+    [],
+  );
 
   const {
     register,
@@ -69,7 +76,11 @@ export function CollaborationPanel({
   const copyRoomId = () => {
     navigator.clipboard.writeText(roomId);
     setCopied(true);
-    setTimeout(() => setCopied(false), TIMING.COPIED_FEEDBACK_MS);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(
+      () => setCopied(false),
+      TIMING.COPIED_FEEDBACK_MS,
+    );
   };
 
   const handleJoinRoom = async (data: JoinRoomFormData) => {
@@ -167,6 +178,7 @@ export function CollaborationPanel({
               <Button
                 variant="outline"
                 size="icon"
+                aria-label="Copy room ID"
                 className="h-8 w-8 shrink-0"
                 onClick={copyRoomId}
               >

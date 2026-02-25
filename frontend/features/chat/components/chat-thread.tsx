@@ -406,10 +406,7 @@ export function ChatThread({ threadId, projectId }: ChatThreadProps) {
 
   const handleSuggestionClick = (suggestion: string) => {
     setMessage(suggestion);
-    // Send on next tick after state update
-    queueMicrotask(() => {
-      handleSend(suggestion);
-    });
+    handleSend(suggestion);
   };
 
   if (!thread) {

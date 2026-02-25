@@ -303,6 +303,7 @@ export function NewConnectionDialog({
                     type="button"
                     variant="outline"
                     size="icon"
+                    aria-label={showApiKey ? "Hide API key" : "Show API key"}
                     onClick={() => setShowApiKey(!showApiKey)}
                   >
                     {showApiKey ? (

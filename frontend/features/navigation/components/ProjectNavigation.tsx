@@ -257,6 +257,7 @@ export function ProjectNavigation({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={node.type === "act" ? "Add chapter" : "Add scene"}
                 className="h-6 w-6 opacity-100 lg:opacity-40 lg:group-hover:opacity-100 transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -282,7 +283,12 @@ export function ProjectNavigation({
                 // Fallback minimal menu if no slot provided
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="More actions"
+                      className="h-6 w-6"
+                    >
                       <MoreHorizontal className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -335,6 +341,7 @@ export function ProjectNavigation({
         <TabsList className="grid w-full grid-cols-3 rounded-none border-b bg-transparent p-0 overflow-hidden">
           <TabsTrigger
             value="manuscript"
+            aria-label="Manuscript"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1.5 min-w-0 gap-1"
           >
             <Book className="h-4 w-4 mr-0 lg:mr-2" />{" "}
@@ -342,6 +349,7 @@ export function ProjectNavigation({
           </TabsTrigger>
           <TabsTrigger
             value="codex"
+            aria-label="Codex"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1.5 min-w-0 gap-1"
           >
             <Users className="h-4 w-4 mr-0 lg:mr-2" />{" "}
@@ -349,6 +357,7 @@ export function ProjectNavigation({
           </TabsTrigger>
           <TabsTrigger
             value="snippets"
+            aria-label="Snippets"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-1.5 min-w-0 gap-1"
           >
             <FileText className="h-4 w-4 mr-0 lg:mr-2" />{" "}
@@ -398,6 +407,7 @@ export function ProjectNavigation({
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="Restore scene"
                         className="h-7 w-7"
                         onClick={() => restoreArchivedScene(scene.id)}
                         title="Restore scene"

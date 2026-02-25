@@ -694,6 +694,7 @@ export function SceneLinkPanel({
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="Unlink entry"
                         className="h-7 w-7"
                         disabled={pending}
                         onClick={() => toggleLink(entry)}

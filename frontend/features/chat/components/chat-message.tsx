@@ -98,8 +98,8 @@ export function ChatMessage({
       }
     } catch (error) {
       log.error("Failed to update message:", error);
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(`Failed to update message: ${message}`);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to update message: ${errorMsg}`);
     }
   };
 
@@ -316,6 +316,7 @@ export function ChatMessage({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Message actions"
                 className="h-6 w-6 rounded-full hover:bg-muted"
               >
                 <MoreVertical className="h-3 w-3 text-muted-foreground" />

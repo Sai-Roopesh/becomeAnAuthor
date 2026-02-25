@@ -41,8 +41,8 @@ export function TimelineControls({
   };
 
   return (
-    <div className="flex items-center justify-between p-3 border-b bg-muted/30">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-y-2 p-3 border-b bg-muted/30">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Show:</span>
         {categoryOrder.map((cat) => {
           const config = CATEGORY_CONFIG[cat as CodexCategory];

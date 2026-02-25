@@ -245,6 +245,7 @@ SUMMARY (2-3 sentences, present tense):`,
     a.href = url;
     a.download = `${node.title}.txt`;
     a.click();
+    URL.revokeObjectURL(url);
     toast.success("Scene exported");
   };
 
@@ -308,7 +309,12 @@ SUMMARY (2-3 sentences, present tense):`,
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-6 w-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Scene actions"
+            className="h-6 w-6"
+          >
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>

@@ -199,6 +199,7 @@ export function ModelSelector({
       <Button
         variant="ghost"
         size="icon"
+        aria-label="Refresh models"
         onClick={handleRefresh}
         disabled={isRefreshing || isLoading}
         title="Refresh models"

@@ -90,6 +90,7 @@ export function SceneCard({ scene, seriesId }: SceneCardProps) {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Scene actions"
               className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
             >
               <MoreVertical className="h-3 w-3" />

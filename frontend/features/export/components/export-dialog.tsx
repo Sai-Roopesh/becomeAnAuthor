@@ -197,7 +197,7 @@ export function ExportDialog({
           </TabsContent>
 
           <TabsContent value="advanced" className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Page Size</Label>
                 <Select
@@ -242,7 +242,7 @@ export function ExportDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <NumberField
                 id="font-size"
                 label="Font Size"
@@ -299,7 +299,7 @@ export function ExportDialog({
 
             <div className="space-y-2 rounded-md border p-3">
               <Label className="text-sm">Margins (mm)</Label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <NumberField
                   id="margin-top"
                   label="Top"

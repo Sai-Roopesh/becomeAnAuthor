@@ -1,4 +1,5 @@
 import { logger } from "@/shared/utils/logger";
+import { calculateMaxTokens } from "@/lib/config/model-specs";
 
 const log = logger.scope("TiptapEditor");
 
@@ -92,10 +93,6 @@ export function TiptapEditor({
   const [showContinueMenu, setShowContinueMenu] = useState(false);
   const [continueMenuMode, setContinueMenuMode] =
     useState<GenerationMode>("continue-writing");
-  const [menuPosition, setMenuPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
   const [showSparkPopover, setShowSparkPopover] = useState(false);
   const [showCodexLinkDialog, setShowCodexLinkDialog] = useState(false);
   const [codexLinkDraft, setCodexLinkDraft] = useState<{
@@ -303,9 +300,7 @@ export function TiptapEditor({
       handleKeyDown: (view, event) => {
         if (isModKey(event as unknown as KeyboardEvent) && event.key === "j") {
           event.preventDefault();
-          const pos = getCursorPosition(view);
           setContinueMenuMode("continue-writing");
-          setMenuPosition(pos);
           setShowContinueMenu(true);
           return true;
         }
@@ -562,9 +557,7 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
         model: modelToUse,
         messages,
         // Use word count from UI with fallback
-        maxTokens: (
-          await import("@/lib/config/model-specs")
-        ).calculateMaxTokens(modelToUse, options.wordCount || 400),
+        maxTokens: calculateMaxTokens(modelToUse, options.wordCount || 400),
         temperature: AI_DEFAULTS.TEMPERATURE,
       },
       {
@@ -692,23 +685,13 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
       setShowSparkPopover(true);
     };
 
-    const handleContinueWriting = (rawEvent: Event) => {
-      const event = rawEvent as CustomEvent<SlashCommandEventDetail>;
-      const pos =
-        normalizeSlashMenuPosition(event.detail?.position) ??
-        getCursorPosition(editor.view);
+    const handleContinueWriting = (_rawEvent: Event) => {
       setContinueMenuMode("continue-writing");
-      setMenuPosition(pos);
       setShowContinueMenu(true);
     };
 
-    const handleSceneBeat = (rawEvent: Event) => {
-      const event = rawEvent as CustomEvent<SlashCommandEventDetail>;
-      const pos =
-        normalizeSlashMenuPosition(event.detail?.position) ??
-        getCursorPosition(editor.view);
+    const handleSceneBeat = (_rawEvent: Event) => {
       setContinueMenuMode("scene-beat");
-      setMenuPosition(pos);
       setShowContinueMenu(true);
     };
 
@@ -777,10 +760,11 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
 
   useEffect(() => {
     if (editor) {
-      editor.view.dom.setAttribute(
-        "style",
-        `font-family: ${formatSettings.fontFamily}; font-size: ${formatSettings.fontSize}px; line-height: ${formatSettings.lineHeight}; text-align: ${formatSettings.alignment};`,
-      );
+      const style = editor.view.dom.style;
+      style.fontFamily = formatSettings.fontFamily;
+      style.fontSize = `${formatSettings.fontSize}px`;
+      style.lineHeight = String(formatSettings.lineHeight);
+      style.textAlign = formatSettings.alignment;
     }
   }, [editor, formatSettings]);
 
@@ -805,9 +789,6 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
 
   const handleMenuClose = (open: boolean) => {
     setShowContinueMenu(open);
-    if (!open) {
-      setMenuPosition(null);
-    }
   };
 
   const handleSparkClose = () => {
@@ -871,7 +852,6 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
         initialMode={continueMenuMode}
         isGenerating={isGenerating}
         onCancel={cancel}
-        position={menuPosition}
       />
       <SparkPopover
         isOpen={showSparkPopover}

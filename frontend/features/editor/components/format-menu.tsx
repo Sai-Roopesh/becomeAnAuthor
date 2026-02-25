@@ -192,7 +192,12 @@ export function FormatMenu() {
             interactive
             maxWidth={320}
           >
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Write settings"
+              className="h-8 w-8"
+            >
               <Settings2 className="h-4 w-4" />
             </Button>
           </TippyPopover>

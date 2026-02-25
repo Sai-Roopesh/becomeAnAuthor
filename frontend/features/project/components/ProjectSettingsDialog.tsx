@@ -61,7 +61,9 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     watch,
     formState: { errors },
   } = useForm<ProjectSettingsFormData>({
-    resolver: zodResolver(projectSettingsSchema) as Resolver<ProjectSettingsFormData>,
+    resolver: zodResolver(
+      projectSettingsSchema,
+    ) as Resolver<ProjectSettingsFormData>,
     defaultValues: {
       title: "",
       author: "",
@@ -164,7 +166,7 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" aria-label="Novel settings">
             <Settings className="h-5 w-5" />
           </Button>
         </DialogTrigger>

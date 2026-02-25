@@ -37,13 +37,6 @@ export const DEFAULT_MODEL_LIMITS = {
   RECOMMENDED_OUTPUT: 2000,
 } as const;
 
-export const FEATURE_FLAGS = {
-  CHARACTER_DETECTION: false,
-  CHAT_WITH_SCENE: false,
-  SAVE_AS_SNIPPET: false,
-  RETRY_MESSAGE: false,
-} as const;
-
 /**
  * Google OAuth 2.0 Configuration
  */
