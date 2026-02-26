@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 25, 2026
+> **Last Updated:** February 27, 2026
 > **Status:** Living Document
 
 ---
@@ -745,7 +745,7 @@ ThemeProvider (dark/light/system)
 
 **Component-Level Responsiveness:**
 - **Editor**: Toolbar adapts to screen width, removing fixed margins for better mobile support.
-- **Chat**: Optimized message bubble padding on mobile devices to maximize content area.
+- **Chat**: Optimized message bubble padding on mobile devices to maximize content area. Sidebar width adapts (full width on mobile, fixed 540px on desktop) with `min-h-0` scroll containment.
 - **Dashboard**: `ProjectCard` dropdown menus adapt width for small screens.
 - **Settings**: Connection lists use flexible viewport heights to prevent scrolling issues.
 - **Timeline**: `TimelineControls` use wrapping flex layouts to prevent overflow on narrow screens.
