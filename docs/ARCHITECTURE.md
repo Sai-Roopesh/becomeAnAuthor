@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 25, 2026
-> **Codebase Stats:** 297 frontend source files (41,600+ lines) · 36 backend source files (6,800 lines) · 8 app route files
+> **Last Updated:** February 27, 2026
+> **Codebase Stats:** 342 frontend source files (49,400+ lines) · 36 backend source files (6,800 lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -505,9 +505,9 @@ Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 
 | Component | Lines | Purpose |
 |---|---|---|
-| `ChatInterface` | 278 | Thread sidebar, message list, input, model/prompt selection |
-| `ChatSidebar` | 286 | Thread list, active thread management, sidebar visibility control (mobile responsive) |
-| `ChatMessage` | ~150 | Markdown rendering, copy, regenerate, mobile-responsive layout |
+| `ChatInterface` | 278 | Thread sidebar, message list, input, model/prompt selection. **Mobile:** `w-full`, **Desktop:** `w-[540px]`. |
+| `ChatSidebar` | 286 | Thread list, active thread management, sidebar visibility control (mobile responsive). |
+| `ChatMessage` | ~150 | Markdown rendering, copy, regenerate, mobile-responsive layout. |
 | `ContextSelector` | ~200 | Select scenes, codex entries, snippets as context |
 
 ### 10.5 Navigation — `ProjectNavigation` (489 lines)
@@ -679,6 +679,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 **Design System Updates:**
 - **Accessibility**: Comprehensive `aria-label` coverage for icon-only buttons, tabs, and interactive elements.
 - **Responsive Design**: Mobile-first grid layouts (`ProjectGrid`, `ExportDialog`) and flexible toolbars (`EditorToolbar`, `TimelineControls`) adapting to viewport width.
+- **Layout Fixes**: `ChatSidebar` flex container now correctly handles overflow with `min-h-0` on ScrollArea, preventing layout blowouts.
 
 ---
 

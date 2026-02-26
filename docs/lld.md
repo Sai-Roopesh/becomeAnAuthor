@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 25, 2026
+> **Last Updated:** February 27, 2026
 > **Status:** Living Document
 
 ---
@@ -515,7 +515,7 @@ features/{feature-name}/
 | Feature | Components | Hooks | Description |
 |---|---|---|---|
 | **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 11 | 1 | AI chat interface with sidebar navigation, active/archived/deleted views, thread management, context assembly, mobile-responsive design |
+| **chat** | 11 | 1 | AI chat interface with sidebar navigation, active/archived/deleted views, thread management, context assembly, mobile-responsive sidebar (w-full on small screens) |
 | **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
 | **plan** | 11 | 2 | Outline view, grid view, timeline, scene link panel, structure-preserving filtering |
 | **settings** | 10 | 2 | AI connection management with status reporting (Active/Missing Key/Disabled), editor preferences, appearance settings |

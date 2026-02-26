@@ -25,7 +25,6 @@ function buildThread(
   now: number,
 ): ChatThread {
   return {
-    id: overrides.id,
     projectId: "project-1",
     name: "Thread",
     pinned: false,
@@ -57,7 +56,6 @@ describe("TauriChatRepository.getDeletedThreads", () => {
       buildThread(
         {
           id: "active",
-          deletedAt: undefined,
           updatedAt: now - 100,
         },
         now,
