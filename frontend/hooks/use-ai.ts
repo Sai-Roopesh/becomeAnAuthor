@@ -84,7 +84,7 @@ function getDefaultModel(preferred?: string): string {
  *   { messages: [{ role: 'user', content: 'Write a story' }] },
  *   {
  *     onChunk: (chunk) => setResult(prev => prev + chunk),
- *     onComplete: (text) => console.log('Done!', text)
+ *     onComplete: (text) => {}
  *   }
  * );
  * ```

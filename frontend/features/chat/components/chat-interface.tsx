@@ -184,7 +184,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-[90vw] max-w-mobile-sheet">
+          <SheetContent side="left" className="p-0 w-full sm:w-[540px] max-w-[90vw] md:max-w-none">
             <ChatSidebar
               projectId={projectId}
               activeThreadId={activeThreadId}

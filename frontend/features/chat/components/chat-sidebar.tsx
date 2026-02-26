@@ -197,8 +197,8 @@ export function ChatSidebar({
         )}
       </div>
 
-      <ScrollArea className="flex-1 p-3">
-        <div className="space-y-2">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="space-y-2 p-3">
           {filteredThreads.map((thread) => (
             <div
               key={thread.id}
