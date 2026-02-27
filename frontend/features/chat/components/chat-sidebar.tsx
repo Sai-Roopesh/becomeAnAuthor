@@ -146,6 +146,7 @@ export function ChatSidebar({
           className="w-full shadow-sm bg-primary/90 hover:bg-primary transition-all"
           size="default"
           disabled={!hasAIConnection}
+          aria-label="New Chat"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Chat
@@ -162,6 +163,7 @@ export function ChatSidebar({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 bg-muted/50 border-transparent focus:bg-background transition-all"
+            aria-label="Search chats"
           />
         </div>
         <div className="grid grid-cols-3 items-center gap-1 p-1 rounded-lg bg-muted/40 border overflow-hidden">
@@ -198,7 +200,7 @@ export function ChatSidebar({
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="space-y-2 p-3">
+        <div className="space-y-2 p-3 min-h-0">
           {filteredThreads.map((thread) => (
             <div
               key={thread.id}

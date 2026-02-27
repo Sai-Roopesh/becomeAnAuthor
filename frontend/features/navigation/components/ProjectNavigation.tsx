@@ -369,7 +369,7 @@ export function ProjectNavigation({
           value="manuscript"
           className="flex-1 min-h-0 overflow-hidden flex flex-col m-0"
         >
-          <div className="p-2 border-b flex justify-between items-center bg-background/50">
+          <div className="p-2 border-b flex justify-between items-center bg-background/50 shrink-0">
             <span className="text-xs font-medium text-muted-foreground">
               Structure
             </span>
