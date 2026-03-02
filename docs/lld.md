@@ -93,6 +93,7 @@
 | Markdown | react-markdown + marked | 10.1 / 17.0 |
 | Export | docx (npm), JSZip, @react-pdf/renderer | Various |
 | Package Manager | pnpm | 10.29.2 |
+| **TypeScript Configuration** | Strict Mode | `exactOptionalPropertyTypes`, `noUnusedLocals`, `noUncheckedIndexedAccess` enabled |
 
 ### Backend
 

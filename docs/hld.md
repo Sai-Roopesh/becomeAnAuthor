@@ -848,6 +848,7 @@ Accidental delete → Trash System
 |---|---|
 | ESLint | TypeScript linting with strict rules |
 | TypeScript strict mode | Compile-time type checking |
+| TypeScript Strictness | `exactOptionalPropertyTypes`, `noUnusedLocals`, `noUncheckedIndexedAccess` enabled |
 | Zod schemas | Runtime validation for forms and imports |
 | Rust compiler | Memory safety, type checking, exhaustive pattern matching |
 | CI pipeline | GitHub Actions for linting and build verification |
