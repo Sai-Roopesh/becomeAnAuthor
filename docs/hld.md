@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 27, 2026
+> **Last Updated:** March 2, 2026
 > **Status:** Living Document
 
 ---
@@ -171,7 +171,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| **Storage** | SQLite + filesystem | SQLite (`.meta/app.db`) is source of truth for non-manuscript state; filesystem is used for manuscript text and export/backup artifacts |
+| **Storage** | SQLite + filesystem | SQLite (`.meta/app.db`) is the source of truth for app state; filesystem-only runtime persistence is used for manuscripts. |
 | **Serialization** | serde (JSON/YAML) | Rust ecosystem standard; zero-cost abstractions; type-safe |
 | **Secret Storage** | Encrypted SQLite + local master key | API keys and OAuth tokens stored as AES-GCM ciphertext in `.meta/app.db` (`secure_secrets`) |
 | **Document Export** | epub-builder | ePub generation (Rust); DOCX/PDF via Frontend |
