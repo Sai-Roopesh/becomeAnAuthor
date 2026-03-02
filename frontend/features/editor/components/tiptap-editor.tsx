@@ -297,7 +297,7 @@ export function TiptapEditor({
         class:
           "prose dark:prose-invert max-w-full focus:outline-none h-full px-8 py-6",
       },
-        handleKeyDown: (_view, event) => {
+      handleKeyDown: (_view, event) => {
         if (isModKey(event as unknown as KeyboardEvent) && event.key === "j") {
           event.preventDefault();
           setContinueMenuMode("continue-writing");
@@ -399,7 +399,7 @@ export function TiptapEditor({
           }
         } catch (error) {
           log.error("Failed to fetch from backend:", error);
-          // Fallback to prop
+          // Use the latest provided prop content if backend fetch fails
           editor.commands.setContent(validatedContent);
         }
 
@@ -556,7 +556,7 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
       {
         model: modelToUse,
         messages,
-        // Use word count from UI with fallback
+        // Use word count from UI, defaulting to 400 when empty
         maxTokens: calculateMaxTokens(modelToUse, options.wordCount || 400),
         temperature: AI_DEFAULTS.TEMPERATURE,
       },
@@ -800,7 +800,7 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
     <div className="w-full h-full flex flex-col">
       <div className="flex items-center justify-between border-b">
         <EditorToolbar editor={editor} onInsertSection={handleInsertSection} />
-        <div className="flex items-center gap-4 pr-4">
+        <div className="flex items-center gap-4 pr-32">
           <SaveStatusIndicator
             status={saveStatus}
             {...(lastSaved !== undefined && { lastSaved })}

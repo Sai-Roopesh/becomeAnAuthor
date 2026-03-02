@@ -20,7 +20,9 @@ export async function storeAPIKey(
   apiKey: string,
 ): Promise<boolean> {
   try {
-    await invoke("store_api_key", { provider, connectionId, key: apiKey });
+    const normalized = apiKey.trim();
+    await invoke("store_api_key", { provider, connectionId, key: normalized });
+
     log.debug(`Stored API key for ${provider}/${connectionId}`);
     return true;
   } catch (error) {
@@ -112,12 +114,28 @@ export async function listStoredProviders(): Promise<AIProvider[]> {
 /**
  * Check if an API key exists for a provider (without retrieving it)
  */
-export async function hasAPIKey(
+export async function isApiKeyStored(
   provider: AIProvider,
   connectionId: string,
 ): Promise<boolean> {
-  const key = await getAPIKey(provider, connectionId);
-  return key !== null && key.length > 0;
+  try {
+    const hasKey = await invoke<boolean>("has_api_key", {
+      provider,
+      connectionId,
+    });
+    return hasKey === true;
+  } catch (error) {
+    const appError = toAppError(
+      error,
+      "E_API_KEY_HAS_FAILED",
+      `Failed to check ${provider} API key presence`,
+    );
+    log.error(
+      `Failed to check API key presence for ${provider}/${connectionId}:`,
+      appError,
+    );
+    throw appError;
+  }
 }
 
 /**

@@ -56,7 +56,7 @@
 
 | Principle | Implementation |
 |---|---|
-| **Offline-first** | All data on local filesystem; credentials in OS keychain |
+| **Offline-first** | All data on local filesystem; credentials remain local on device |
 | **Clean Architecture** | Domain → Application → Infrastructure → Presentation layers |
 | **Dependency Injection** | React Context-based DI via `AppContext.tsx` with lazy singletons |
 | **Series-first** | Every project belongs to a series; codex entries are series-scoped |
@@ -202,7 +202,7 @@ Command modules are re-exported via `pub use` for centralized Tauri registration
 | `search` | `search.rs` | ~300 | `search_project` | Full-text search backed by SQLite FTS5 index with incremental rebuild by signature |
 | `trash` | `trash.rs` | ~120 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
 | `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
-| `security` | `security.rs` | ~60 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` | Secure credential storage |
+| `security` | `security.rs` | ~170 | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers` | Encrypted API-key storage in SQLite |
 | `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
 | `collaboration` | `collaboration.rs` | ~60 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
 | `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
@@ -436,7 +436,7 @@ Each wraps `invoke()` calls to Tauri backend commands:
 |---|---|---|---|
 | `ChatService` | `ChatService.ts` | 124 | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()` |
 | `DocumentExportService` | `DocumentExportService.ts` + `document-export/export-utils.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, inclusion options, and section-aware content segmentation (`SceneSectionSegment`). |
-| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with fallback to manual entry. |
+| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with manual model entry support. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 123 | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry. |
 | `GoogleAuthService` | `google-auth-service.ts` | 301 | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). Web flow removed. |
 | `GoogleDriveService` | `google-drive-service.ts` | 286 | Drive API: app folder management, backup upload/download/delete, storage quota |
@@ -457,7 +457,7 @@ The primary writing environment. 15+ components:
 | `CodexLinkDialog` | `codex-link-dialog.tsx` | ~300 | Dialog for linking selected text to codex entries with filtering and role selection |
 | `TextReplaceDialog` | `text-replace-dialog.tsx` | ~300 | AI-powered text replacement dialog with streaming preview, accept/reject |
 | `ContinueWritingMenu` | `continue-writing-menu.tsx` | 332 | Dialog for AI text continuation with mode selection (continue/rewrite/summarize), model picker |
-| `SparkPopover` | `spark-popover.tsx` | 446 | AI prompt generator — generates context-aware writing prompts via `generateObject()` with Zod schema + JSON fallback |
+| `SparkPopover` | `spark-popover.tsx` | 446 | AI prompt generator — generates context-aware writing prompts via `generateObject()` with Zod schema-based JSON parsing |
 | `FormatBar` | `format-bar.tsx` | ~200 | Typography settings panel (font, size, line height, alignment, page width) |
 | `SceneBeats` | `scene-beats.tsx` | ~150 | Beat tracking checklist for scene planning |
 | `MentionSuggestion` | `mention-suggestion.tsx` | ~200 | @mention autocomplete for codex entries with alias matching and slash command /link |
@@ -520,7 +520,7 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 |---|---|---|
 | `SettingsDialog` | 131 | 4-tab dialog orchestrator with theme toggle |
 | `AIConnectionsTab` | 171 | AI vendor connection CRUD with model refresh, API key status checks, responsive list view |
-| `useAIConnections` | 158 | Hook: CRUD, localStorage persistence (metadata only), keychain integration, model discovery |
+| `useAIConnections` | 158 | Hook: CRUD, localStorage persistence (metadata only), encrypted secure-store checks, model discovery |
 
 ### 10.7 Dashboard — `features/dashboard/`
 
@@ -590,7 +590,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 | Key | Data |
 |---|---|
-| `ai_connections` | AIConnection[] (vendor, hasApiKey metadata, models, enabled) |
+| `ai_connections` | AIConnection[] (provider config only; no key state metadata, no plaintext secrets) |
 | `project-store` | Zustand: sidebar/timeline visibility, tab selections |
 | `format-settings` | Zustand: typography and editor mode preferences |
 | `google_tokens` | OAuth connection metadata (non-secret) |
@@ -599,7 +599,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ## 13. Security Architecture
 
-- **API Keys**: Secrets stored in OS keychain via `security.rs`. Metadata (provider/enabled status) stored in `localStorage` for UI, with a shadow record in SQLite for backend enumeration.
+- **API Keys**: Secrets stored encrypted in SQLite via `security.rs`. UI keeps provider config in `localStorage` (no plaintext keys) and checks secure-store presence with `has_api_key`.
 - **OAuth 2.0**:
   - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in OS keychain via `google_oauth.rs`.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
@@ -771,7 +771,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 |---|---|
 | `layout.tsx` | Root layout — ThemeProvider, AppProvider, Toaster |
 | `page.tsx` | Dashboard — project list, create, series filter |
-| `loading.tsx` | Suspense fallback |
+| `loading.tsx` | Suspense loading placeholder |
 | `not-found.tsx` | 404 page |
 | `globals.css` | Global CSS with design tokens |
 | `project/layout.tsx` | Project workspace layout |

@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AIConnection,
   AIVendor,
-  connectionHasApiKey,
   connectionRequiresApiKey,
 } from "@/lib/config/ai-vendors";
 import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
@@ -22,12 +21,13 @@ const MAX_VISIBLE_MODELS = 10;
 interface ConnectionFormProps {
   connection: AIConnection;
   vendor: AIVendor;
+  hasStoredApiKey: boolean;
   onSave: (updates: {
     name?: string;
     apiKey?: string;
     customEndpoint?: string;
     models?: string[];
-  }) => void;
+  }) => void | Promise<void>;
   onToggleEnabled: () => void;
   onDelete: () => void;
   onRefreshModels: (apiKeyOverride?: string) => void;
@@ -38,6 +38,7 @@ interface ConnectionFormProps {
 export function ConnectionForm({
   connection,
   vendor,
+  hasStoredApiKey,
   onSave,
   onToggleEnabled,
   onDelete,
@@ -56,6 +57,7 @@ export function ConnectionForm({
   const [manualModelError, setManualModelError] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeyDirty, setApiKeyDirty] = useState(false);
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
 
   useEffect(() => {
     setConnectionName(connection.name);
@@ -64,6 +66,7 @@ export function ConnectionForm({
     setManualModelInput(formatModelIds(connection.models));
     setManualModelError("");
     setApiKeyDirty(false);
+    setIsSavingApiKey(false);
   }, [
     connection.id,
     connection.name,
@@ -76,15 +79,13 @@ export function ConnectionForm({
     provider: connection.provider,
     customEndpoint,
   });
-  const hasStoredOrEnteredApiKey = connectionHasApiKey({
-    apiKey,
-    hasApiKey: !!connection.hasApiKey,
-  });
+  const hasStoredOrEnteredApiKey = Boolean(apiKey.trim()) || hasStoredApiKey;
   const supportsAutoListing = modelDiscoveryService.supportsModelListing(
     connection.provider,
   );
   const canRefreshModels =
     loading ||
+    isSavingApiKey ||
     !supportsAutoListing ||
     (requiresApiKey && !hasStoredOrEnteredApiKey);
 
@@ -98,10 +99,16 @@ export function ConnectionForm({
     setApiKeyDirty(true);
   };
 
-  const commitApiKey = () => {
-    if (!apiKeyDirty) return;
-    onSave({ apiKey });
-    setApiKeyDirty(false);
+  const commitApiKey = async () => {
+    if (!apiKeyDirty || isSavingApiKey) return;
+
+    setIsSavingApiKey(true);
+    try {
+      await onSave({ apiKey });
+      setApiKeyDirty(false);
+    } finally {
+      setIsSavingApiKey(false);
+    }
   };
 
   const handleEndpointChange = (value: string) => {
@@ -120,10 +127,9 @@ export function ConnectionForm({
     onSave({ models });
   };
 
-  const handleRefreshModels = () => {
+  const handleRefreshModels = async () => {
     if (apiKeyDirty) {
-      onSave({ apiKey });
-      setApiKeyDirty(false);
+      await commitApiKey();
     }
     onRefreshModels(apiKey.trim());
   };
@@ -161,10 +167,19 @@ export function ConnectionForm({
               type={showApiKey ? "text" : "password"}
               value={apiKey}
               onChange={(e) => handleApiKeyChange(e.target.value)}
-              onBlur={commitApiKey}
+              onBlur={() => {
+                void commitApiKey();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void commitApiKey();
+                }
+              }}
               placeholder={vendor.apiKeyPlaceholder}
             />
             <Button
+              type="button"
               variant="outline"
               size="icon"
               aria-label={showApiKey ? "Hide API key" : "Show API key"}
@@ -175,6 +190,17 @@ export function ConnectionForm({
               ) : (
                 <Eye className="h-4 w-4" />
               )}
+            </Button>
+            <Button
+              type="button"
+              variant={apiKeyDirty ? "default" : "outline"}
+              onClick={() => {
+                void commitApiKey();
+              }}
+              disabled={!apiKeyDirty || isSavingApiKey}
+              className="shrink-0"
+            >
+              {isSavingApiKey ? "Saving..." : "Save API Key"}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -192,7 +218,7 @@ export function ConnectionForm({
               </a>
             )}
           </p>
-          {connection.hasApiKey && !apiKey.trim() && (
+          {hasStoredApiKey && !apiKey.trim() && (
             <p className="text-xs text-muted-foreground">
               API key is stored securely on this device. Enter a new key only to
               replace it.
@@ -200,7 +226,8 @@ export function ConnectionForm({
           )}
           {apiKeyDirty && (
             <p className="text-xs text-muted-foreground">
-              API key will be saved when you leave this field.
+              Unsaved API key change. Click Save API Key, press Enter, or leave
+              this field.
             </p>
           )}
         </div>
@@ -223,7 +250,9 @@ export function ConnectionForm({
         <div className="space-y-2">
           <Label>Available Models</Label>
           <Button
-            onClick={handleRefreshModels}
+            onClick={() => {
+              void handleRefreshModels();
+            }}
             disabled={canRefreshModels}
             variant="outline"
             className="w-full"

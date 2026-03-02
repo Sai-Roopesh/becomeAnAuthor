@@ -42,7 +42,7 @@ type ConnectionFormData = z.infer<typeof connectionSchema>;
 interface NewConnectionDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (connection: AIConnection) => void;
+  onSave: (connection: AIConnection) => void | Promise<void>;
 }
 
 export function NewConnectionDialog({
@@ -177,7 +177,7 @@ export function NewConnectionDialog({
         connection.models = models;
       }
 
-      onSave(connection);
+      await onSave(connection);
       handleClose();
     } catch (err) {
       setError("root", {

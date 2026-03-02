@@ -44,6 +44,8 @@ log = "0.4"
 slug = "0.1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 keyring = "3"
+aes-gcm = "0.10"
+rand = "0.8"
 
 # Markdown parsing
 gray_matter = "0.2"

@@ -22,6 +22,7 @@ export function AIConnectionsTab() {
 
   const {
     connections,
+    hasStoredApiKeyById,
     selectedId,
     setSelectedId,
     selectedConnection,
@@ -40,10 +41,8 @@ export function AIConnectionsTab() {
     setModelRefreshError("");
 
     try {
-      const storedApiKey =
-        apiKeyOverride?.trim() || selectedConnection.apiKey.trim();
       const secureApiKey =
-        storedApiKey ||
+        apiKeyOverride?.trim() ||
         (await getAPIKey(selectedConnection.provider, selectedConnection.id)) ||
         "";
 
@@ -99,7 +98,7 @@ export function AIConnectionsTab() {
     customEndpoint?: string;
     models?: string[];
   }) => {
-    saveConnection(selectedId, updates);
+    return saveConnection(selectedId, updates);
   };
 
   const vendor = selectedConnection
@@ -134,6 +133,9 @@ export function AIConnectionsTab() {
               <ConnectionForm
                 connection={selectedConnection}
                 vendor={vendor}
+                hasStoredApiKey={
+                  hasStoredApiKeyById[selectedConnection.id] === true
+                }
                 onSave={handleSave}
                 onToggleEnabled={() => toggleEnabled(selectedId)}
                 onDelete={handleDelete}

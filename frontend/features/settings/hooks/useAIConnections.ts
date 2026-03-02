@@ -6,10 +6,12 @@ import {
   AIConnection,
   AIProvider,
   connectionRequiresApiKey,
-  connectionHasApiKey,
-  isConnectionUsable,
 } from "@/lib/config/ai-vendors";
-import { deleteAPIKey, storeAPIKey } from "@/core/storage/api-keys";
+import {
+  deleteAPIKey,
+  isApiKeyStored,
+  storeAPIKey,
+} from "@/core/storage/api-keys";
 import { logger } from "@/shared/utils/logger";
 import { AI_CONNECTIONS_UPDATED_EVENT } from "@/hooks/use-has-ai-connection";
 
@@ -20,9 +22,17 @@ export type AIConnectionStatus = "active" | "disabled" | "missing-api-key";
 
 function toStoredConnection(connection: AIConnection): AIConnection {
   return {
-    ...connection,
+    id: connection.id,
+    name: connection.name,
+    provider: connection.provider,
     apiKey: "",
-    hasApiKey: connection.hasApiKey === true,
+    ...(connection.customEndpoint
+      ? { customEndpoint: connection.customEndpoint }
+      : {}),
+    enabled: connection.enabled,
+    ...(connection.models ? { models: connection.models } : {}),
+    createdAt: connection.createdAt,
+    updatedAt: connection.updatedAt,
   };
 }
 
@@ -45,47 +55,107 @@ function persistConnections(connections: AIConnection[], emitEvent = true) {
 
 /**
  * Hook for managing AI connections state.
- * Handles CRUD operations and keeps `hasApiKey` metadata aligned with secure storage writes.
+ * Handles CRUD operations and keeps API key presence derived from secure storage.
  */
 export function useAIConnections() {
   const [connections, setConnections] = useState<AIConnection[]>([]);
+  const [hasStoredApiKeyById, setHasStoredApiKeyById] = useState<
+    Record<string, boolean>
+  >({});
   const [selectedId, setSelectedId] = useState<string>("");
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    const parsed = storage.getItem<AIConnection[]>(STORAGE_KEY, []);
-    const hydrated = parsed.map((connection) => ({
-      ...connection,
-      apiKey: "",
-      hasApiKey: connection.hasApiKey === true,
-    }));
+    let cancelled = false;
 
-    if (hydrated.length === 0) {
-      setConnections([]);
-      setSelectedId("");
-      return;
-    }
+    const initializeConnections = async () => {
+      const parsed = storage.getItem<AIConnection[]>(STORAGE_KEY, []);
+      const hydrated = parsed.map((connection) =>
+        toStoredConnection(connection),
+      );
 
-    // Persist sanitized records to prevent accidental plaintext key storage.
-    persistConnections(hydrated, false);
-    setConnections(hydrated);
-    setSelectedId(hydrated[0]?.id || "");
+      if (hydrated.length === 0) {
+        if (!cancelled) {
+          setConnections([]);
+          setHasStoredApiKeyById({});
+          setSelectedId("");
+        }
+        return;
+      }
+
+      // Persist sanitized records to prevent accidental plaintext key storage.
+      persistConnections(hydrated, false);
+
+      if (!cancelled) {
+        setConnections(hydrated);
+        setSelectedId(hydrated[0]?.id ?? "");
+      }
+
+      try {
+        const storedKeyPresence = await Promise.all(
+          hydrated.map(async (connection) => {
+            if (!connectionRequiresApiKey(connection)) {
+              return [connection.id, false] as const;
+            }
+
+            const present = await isApiKeyStored(
+              connection.provider,
+              connection.id,
+            );
+            return [connection.id, present] as const;
+          }),
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setHasStoredApiKeyById(Object.fromEntries(storedKeyPresence));
+      } catch (keyCheckError) {
+        log.error(
+          "Failed to initialize secure API key presence:",
+          keyCheckError,
+        );
+        if (!cancelled) {
+          setError("Failed to read API key presence from secure storage");
+        }
+      }
+    };
+
+    void initializeConnections();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const persistApiKey = useCallback(
     async (provider: AIProvider, connectionId: string, key: string) => {
       const normalized = key.trim();
-      if (!normalized) {
+      const expectsStoredKey = normalized.length > 0;
+
+      if (!expectsStoredKey) {
         await deleteAPIKey(provider, connectionId);
-        return;
+      } else {
+        await storeAPIKey(provider, connectionId, normalized);
       }
-      await storeAPIKey(provider, connectionId, normalized);
+
+      const keyPresent = await isApiKeyStored(provider, connectionId);
+      if (keyPresent !== expectsStoredKey) {
+        throw new Error(
+          expectsStoredKey
+            ? "API key save could not be verified in secure storage"
+            : "API key deletion could not be verified in secure storage",
+        );
+      }
+
+      return keyPresent;
     },
     [],
   );
 
   const saveConnection = useCallback(
-    (
+    async (
       id: string,
       updates: {
         name?: string;
@@ -94,128 +164,129 @@ export function useAIConnections() {
         models?: string[];
       },
     ) => {
+      setError("");
       const existing = connections.find((connection) => connection.id === id);
       if (!existing) return;
       const provider = existing.provider;
       const nextApiKey = updates.apiKey;
 
-      setConnections((prev) => {
-        const updated = prev.map((c) =>
-          c.id === id
-            ? {
-                ...c,
-                ...updates,
-                ...(nextApiKey !== undefined ? { apiKey: nextApiKey } : {}),
-                updatedAt: Date.now(),
-              }
-            : c,
-        );
-        persistConnections(updated, nextApiKey === undefined);
-        return updated;
-      });
+      let resolvedKeyPresence = hasStoredApiKeyById[id] === true;
 
       if (nextApiKey !== undefined) {
-        void persistApiKey(provider, id, nextApiKey)
-          .then(() => {
-            setConnections((prev) => {
-              const committed = prev.map((connection) =>
-                connection.id === id
-                  ? {
-                      ...connection,
-                      hasApiKey: Boolean(nextApiKey.trim()),
-                      updatedAt: Date.now(),
-                    }
-                  : connection,
-              );
-              persistConnections(committed);
-              return committed;
-            });
-          })
-          .catch((err) => {
-            log.error("Failed to persist API key in local storage:", err);
-            setError("Failed to persist API key in secure storage");
-            setConnections((prev) => {
-              const reverted = prev.map((connection) =>
-                connection.id === id
-                  ? {
-                      ...connection,
-                      apiKey: existing.apiKey,
-                      hasApiKey: existing.hasApiKey === true,
-                      updatedAt: Date.now(),
-                    }
-                  : connection,
-              );
-              persistConnections(reverted);
-              return reverted;
-            });
-          });
+        try {
+          resolvedKeyPresence = await persistApiKey(provider, id, nextApiKey);
+        } catch (err) {
+          log.error("Failed to persist API key in secure storage:", err);
+          setError("Failed to persist API key in secure storage");
+          throw err;
+        }
+      } else if (updates.customEndpoint !== undefined) {
+        const nextConnection = {
+          ...existing,
+          ...updates,
+        } as AIConnection;
+        if (connectionRequiresApiKey(nextConnection)) {
+          try {
+            resolvedKeyPresence = await isApiKeyStored(provider, id);
+          } catch (keyCheckError) {
+            log.error(
+              "Failed to refresh API key presence after endpoint update",
+              {
+                connectionId: id,
+                provider,
+                error: keyCheckError,
+              },
+            );
+            setError("Failed to refresh API key presence from secure storage");
+            throw keyCheckError;
+          }
+        } else {
+          resolvedKeyPresence = false;
+        }
       }
+
+      const updated = connections.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              ...updates,
+              ...(nextApiKey !== undefined ? { apiKey: "" } : {}),
+              updatedAt: Date.now(),
+            }
+          : c,
+      );
+
+      setConnections(updated);
+      persistConnections(updated);
+
+      if (nextApiKey !== undefined || updates.customEndpoint !== undefined) {
+        setHasStoredApiKeyById((prev) => ({
+          ...prev,
+          [id]: resolvedKeyPresence,
+        }));
+      }
+    },
+    [connections, hasStoredApiKeyById, persistApiKey],
+  );
+
+  const addConnection = useCallback(
+    async (
+      connection: Omit<AIConnection, "id" | "createdAt" | "updatedAt">,
+    ) => {
+      setError("");
+      const newConnection: AIConnection = {
+        ...connection,
+        id: `${connection.provider}-${Date.now()}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      let keyPresent = false;
+      if (newConnection.apiKey.trim()) {
+        try {
+          keyPresent = await persistApiKey(
+            newConnection.provider,
+            newConnection.id,
+            newConnection.apiKey,
+          );
+        } catch (err) {
+          log.error("Failed to store API key in secure storage:", err);
+          setError("Failed to store API key in secure storage");
+          throw err;
+        }
+      }
+
+      const sanitizedConnection: AIConnection = {
+        ...newConnection,
+        apiKey: "",
+      };
+
+      const updated = [...connections, sanitizedConnection];
+      setConnections(updated);
+      setHasStoredApiKeyById((prev) => ({
+        ...prev,
+        [newConnection.id]: keyPresent,
+      }));
+      persistConnections(updated);
+      setSelectedId(newConnection.id);
     },
     [connections, persistApiKey],
   );
-
-  const addConnection = (
-    connection: Omit<AIConnection, "id" | "createdAt" | "updatedAt">,
-  ) => {
-    const newConnection: AIConnection = {
-      ...connection,
-      hasApiKey: false,
-      id: `${connection.provider}-${Date.now()}`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    const updated = [...connections, newConnection];
-    setConnections(updated);
-    persistConnections(updated, !newConnection.apiKey.trim());
-    if (newConnection.apiKey.trim()) {
-      void persistApiKey(
-        newConnection.provider,
-        newConnection.id,
-        newConnection.apiKey,
-      )
-        .then(() => {
-          setConnections((prev) => {
-            const committed = prev.map((entry) =>
-              entry.id === newConnection.id
-                ? { ...entry, hasApiKey: true, updatedAt: Date.now() }
-                : entry,
-            );
-            persistConnections(committed);
-            return committed;
-          });
-        })
-        .catch((err) => {
-          log.error("Failed to store API key in local storage:", err);
-          setError("Failed to store API key in secure storage");
-          setConnections((prev) => {
-            const downgraded = prev.map((entry) =>
-              entry.id === newConnection.id
-                ? {
-                    ...entry,
-                    apiKey: "",
-                    hasApiKey: false,
-                    updatedAt: Date.now(),
-                  }
-                : entry,
-            );
-            persistConnections(downgraded);
-            return downgraded;
-          });
-        });
-    }
-    setSelectedId(newConnection.id);
-  };
 
   const deleteConnection = (id: string) => {
     const removedConnection = connections.find((c) => c.id === id);
     const updated = connections.filter((c) => c.id !== id);
     setConnections(updated);
+    setHasStoredApiKeyById((prev) => {
+      const { [id]: _removed, ...rest } = prev;
+      return rest;
+    });
     persistConnections(updated);
 
     if (removedConnection) {
       void deleteAPIKey(removedConnection.provider, removedConnection.id).catch(
         (err) => {
-          log.error("Failed to delete API key from local storage:", err);
+          log.error("Failed to delete API key from secure storage:", err);
         },
       );
     }
@@ -242,21 +313,20 @@ export function useAIConnections() {
 
       if (
         connectionRequiresApiKey(connection) &&
-        !connectionHasApiKey(connection)
+        !hasStoredApiKeyById[connection.id]
       ) {
         next[connection.id] = "missing-api-key";
         return;
       }
 
-      next[connection.id] = isConnectionUsable(connection)
-        ? "active"
-        : "missing-api-key";
+      next[connection.id] = "active";
     });
     return next;
-  }, [connections]);
+  }, [connections, hasStoredApiKeyById]);
 
   return {
     connections,
+    hasStoredApiKeyById,
     selectedId,
     setSelectedId,
     selectedConnection,
