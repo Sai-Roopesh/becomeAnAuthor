@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 27, 2026
+> **Last Updated:** March 02, 2026
 > **Status:** Living Document
 
 ---
@@ -37,7 +37,7 @@
 | Principle | Implementation |
 |---|---|
 | **Local-first** | All data stored on local filesystem; no cloud dependency |
-| **Privacy-focused** | API keys encrypted in local SQLite; AI calls made directly from client |
+| **Privacy-focused** | API keys/tokens stored in OS keychain; AI calls made directly from client |
 | **Clean Architecture** | Domain-driven design with repository pattern and dependency injection |
 | **Feature-modular** | Each feature encapsulated with its own components, hooks, and exports |
 
@@ -106,7 +106,7 @@
 | File Ops | walkdir | 2.x |
 | Markdown | gray_matter | 0.2 |
 | Doc Gen | docx-rs (legacy), epub-builder | 0.4 / 0.7 |
-| Secret Store | SQLite (`secure_secrets`) + AES-GCM + local master key file | N/A |
+| Secret Store | OS Keychain (`keyring`) | N/A |
 | Logging | tauri-plugin-log | 2.1 |
 
 ---
@@ -153,7 +153,7 @@ backend/src/
 │   ├── backup_emergency.rs  # Emergency backup lifecycle
 │   ├── backup_manuscript.rs # Manuscript export commands
 │   ├── trash.rs         # Soft delete with restore (5.4KB)
-│   ├── security.rs      # Encrypted SQLite API key management + secure account metadata
+│   ├── security.rs      # OS keychain API key management + secure account metadata
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
 │   ├── snippet.rs       # Reusable text snippets (1.6KB)
@@ -389,7 +389,7 @@ DocumentNode = Act | Chapter | Scene
 - `CodexAddition` — Scene-codex link
 - `CodexTag`, `CodexEntryTag`, `CodexTemplate`, `CodexRelationType`, `SceneCodexLink`, `ExportConfigV2`
 - `ChatContext` — Contextual data for AI (novelText, acts, chapters, scenes, snippets, codexEntries)
-- `AIConnection` — Provider config (provider, transient apiKey input, models, customEndpoint, enabled)
+- `AIConnection` — Provider config (provider, apiKey, hasApiKey, models, customEndpoint, enabled)
 - `AIConnectionStatus` — Connection state (active, disabled, missing-api-key)
 - `TrashedProject` — Soft-deleted project metadata
 
@@ -717,7 +717,7 @@ export async function loadScene(
 | **Trash** | 5 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` |
 | **Export** | 9 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_project_backup` |
 | **Import** | 2 | `import_series_backup`, `import_project_backup` |
-| **Security** | 5 | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers` |
+| **Security** | 4 | `store_api_key`, `get_api_key`, `delete_api_key`, `list_api_key_providers` |
 | **Backup** | 6 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `export_series_as_json` |
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
 | **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
@@ -811,7 +811,7 @@ Rust: commands::chat::create_chat_message()
 | Scene notes | JSON | `scene-notes/{id}.json` |
 | Series metadata | JSON (global) | `.meta/series.json` |
 | Recent projects | JSON (global) | `.meta/recent.json` |
-| API Keys | AES-GCM ciphertext + SQLite metadata | `.meta/app.db` (`secure_secrets`, `secure_accounts`) + `.meta/api_key_master.key` |
+| API Keys | OS keychain secret + SQLite metadata | Keychain + `.meta/app.db` (`secure_accounts`) |
 | OAuth Tokens | OS keychain | Keychain service `become-an-author.google-oauth` |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
 | Emergency backups | JSON | `.backups/{timestamp}.json` |
@@ -820,7 +820,7 @@ Rust: commands::chat::create_chat_message()
 
 | Store | Technology | Purpose |
 |---|---|---|
-| AI connections | `localStorage` (safe-storage wrapper) | Provider configs only (no key state metadata); actual keys in encrypted SQLite |
+| AI connections | `localStorage` (safe-storage wrapper) | Provider configs with `hasApiKey` metadata; actual keys in OS keychain |
 | UI preferences | `localStorage` via Zustand persist | Panel states, view modes |
 | Editor format | `localStorage` via Zustand persist | Font, spacing, width preferences |
 | Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
@@ -835,25 +835,26 @@ Rust: commands::chat::create_chat_message()
 User enters API key in Settings
         │
         ▼
-Frontend: invoke("store_api_key", { provider, connectionId, key })
+Frontend: Optimistic update of localStorage metadata (hasApiKey: true)
+        │
+        ▼
+Frontend: invoke("store_api_key", { provider, connection_id, key })
         │
         ▼
 Rust: security::store_api_key()
   → validate provider + connection_id + key
-  → encrypt secret via AES-256-GCM using local master key
-  → upsert SQLite secure_secrets ciphertext row
+  → write secret to OS keychain
   → upsert SQLite secure_accounts metadata (shadow record)
         │
         ▼
-Frontend: update runtime key-presence map from secure store result
+Frontend: Revert localStorage metadata on failure
 ```
 
-- **Key State Strategy**:
-  - **Frontend (`localStorage`)**: Stores sanitized connection config (`ai_connections`) with no key-state flags and no secrets.
-  - **Frontend (runtime state)**: Derives Active/Missing Key status from secure-store checks (`has_api_key`) and enablement state.
-  - **Backend (SQLite)**: Stores non-secret secure account index (`secure_accounts`) to allow provider/account enumeration without exposing secrets.
-- **Secrets**: API keys are stored as AES-GCM ciphertext in SQLite (`secure_secrets`), keyed by a local master key file.
-- **Race Handling**: The `useAIConnections` hook verifies secure-store key presence after save/delete before marking a connection active.
+- **Dual Metadata Strategy**:
+  - **Frontend (`localStorage`)**: Stores full connection config (`ai_connections`) including the `hasApiKey` flag. This drives the UI state (Active/Missing Key) to avoid async keychain reads on render.
+  - **Backend (SQLite)**: Stores a shadow record of existing keys (`secure_accounts`) to allow `list_api_key_providers` without accessing the keychain.
+- **Secrets**: Actual API keys are stored **only** in the OS Keychain via `keyring`.
+- **Race Handling**: The `useAIConnections` hook implements optimistic updates with rollback protection to ensure UI responsiveness while maintaining consistency with the backend.
 - **Google OAuth Tokens**: Stored in OS keychain service `become-an-author.google-oauth`.
 
 ### 15.2 Content Security
