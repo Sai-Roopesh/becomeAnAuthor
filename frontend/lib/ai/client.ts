@@ -9,7 +9,6 @@ import { storage } from "@/core/storage/safe-storage";
 import {
   AI_VENDORS,
   connectionRequiresApiKey,
-  isConnectionUsable,
   type AIConnection,
 } from "@/lib/config/ai-vendors";
 import { getAPIKey } from "@/core/storage/api-keys";
@@ -53,9 +52,6 @@ function assertMessages(messages: AIModelMessage[]): void {
 async function resolveConnectionApiKey(
   connection: AIConnection,
 ): Promise<string> {
-  if (connection.apiKey.trim()) {
-    return connection.apiKey.trim();
-  }
   return (await getAPIKey(connection.provider, connection.id)) || "";
 }
 
@@ -66,24 +62,35 @@ async function getConnection(modelId: string): Promise<AIConnection> {
   }
 
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  const connection = connections.find(
-    (c) => isConnectionUsable(c) && c.models?.includes(normalizedModel),
+  const candidates = connections.filter(
+    (connection) =>
+      connection.enabled && connection.models?.includes(normalizedModel),
   );
 
-  if (!connection) {
+  if (candidates.length === 0) {
     throw new Error(
-      `No usable AI connection supports model "${normalizedModel}". Add an API key in Settings or pick another model.`,
+      `No enabled AI connection supports model "${normalizedModel}". Add or configure a matching connection in Settings.`,
     );
   }
 
-  const apiKey = await resolveConnectionApiKey(connection);
-  if (connectionRequiresApiKey(connection) && !apiKey) {
-    throw new Error(
-      `Missing API key for ${AI_VENDORS[connection.provider].name}. Add it in Settings.`,
-    );
+  for (const connection of candidates) {
+    if (!connectionRequiresApiKey(connection)) {
+      return { ...connection, apiKey: "" };
+    }
+
+    const apiKey = await resolveConnectionApiKey(connection);
+    if (apiKey.trim().length > 0) {
+      return { ...connection, apiKey };
+    }
   }
 
-  return { ...connection, apiKey };
+  const providerList = Array.from(
+    new Set(
+      candidates.map((connection) => AI_VENDORS[connection.provider].name),
+    ),
+  ).join(", ");
+
+  throw new Error(`Missing API key for ${providerList}. Add it in Settings.`);
 }
 
 /**
@@ -171,7 +178,7 @@ export async function object<T>(opts: GenerateObjectOptions<T>) {
  */
 export function getEnabledConnections(): AIConnection[] {
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  return connections.filter((c) => isConnectionUsable(c));
+  return connections.filter((c) => c.enabled);
 }
 
 /**
@@ -204,7 +211,5 @@ export function getConnectionForModel(
   modelId: string,
 ): AIConnection | undefined {
   const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  return connections.find(
-    (c) => isConnectionUsable(c) && c.models?.includes(modelId),
-  );
+  return connections.find((c) => c.enabled && c.models?.includes(modelId));
 }

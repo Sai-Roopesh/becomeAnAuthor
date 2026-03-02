@@ -154,16 +154,26 @@ export interface AIConnection {
   name: string;
   provider: AIProvider;
   apiKey: string;
-  /**
-   * Persisted metadata indicating whether a key exists in secure storage.
-   * Avoids storing plaintext API keys in local storage.
-   */
-  hasApiKey?: boolean;
   customEndpoint?: string;
   enabled: boolean;
   models?: string[];
   createdAt: number;
   updatedAt: number;
+}
+
+function normalizeEndpoint(endpoint: string): string {
+  const trimmed = endpoint.trim();
+  if (!trimmed) return "";
+
+  try {
+    const parsed = new URL(trimmed);
+    parsed.hash = "";
+    parsed.search = "";
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    return `${parsed.origin}${parsed.pathname}`.toLowerCase();
+  } catch {
+    return trimmed.replace(/\/+$/, "").toLowerCase();
+  }
 }
 
 export function connectionRequiresApiKey(
@@ -173,21 +183,16 @@ export function connectionRequiresApiKey(
     return AI_VENDORS[connection.provider].requiresAuth;
   }
 
-  const endpoint =
-    connection.customEndpoint?.trim() || AI_VENDORS.openai.defaultEndpoint;
-  return endpoint === AI_VENDORS.openai.defaultEndpoint;
-}
+  const endpoint = normalizeEndpoint(
+    connection.customEndpoint?.trim() ||
+      AI_VENDORS.openai.defaultEndpoint ||
+      "",
+  );
+  const openAICloudEndpoint = normalizeEndpoint(
+    AI_VENDORS.openai.defaultEndpoint || "",
+  );
 
-export function connectionHasApiKey(
-  connection: Pick<AIConnection, "apiKey" | "hasApiKey">,
-): boolean {
-  return Boolean(connection.apiKey?.trim()) || connection.hasApiKey === true;
-}
-
-export function isConnectionUsable(connection: AIConnection): boolean {
-  if (!connection.enabled) return false;
-  if (!connectionRequiresApiKey(connection)) return true;
-  return connectionHasApiKey(connection);
+  return endpoint === openAICloudEndpoint;
 }
 
 export function getAllVendors(): AIVendor[] {

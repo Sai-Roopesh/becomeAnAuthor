@@ -156,6 +156,7 @@ pub fn run() {
             // Security commands
             security::store_api_key,
             security::get_api_key,
+            security::has_api_key,
             security::delete_api_key,
             security::list_api_key_providers,
             google_oauth_connect,

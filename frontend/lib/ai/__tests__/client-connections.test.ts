@@ -21,14 +21,13 @@ describe("ai/client connection usability", () => {
     mockGetAPIKey.mockReset();
   });
 
-  it("excludes enabled providers that require keys when key metadata is false", async () => {
+  it("returns enabled connections for runtime secure-key checks", async () => {
     mockGetItem.mockReturnValue([
       {
         id: "google-1",
         name: "Google AI Studio",
         provider: "google",
         apiKey: "",
-        hasApiKey: false,
         enabled: true,
         models: ["gemini-2.5-flash"],
         createdAt: 1,
@@ -38,14 +37,14 @@ describe("ai/client connection usability", () => {
 
     const { getEnabledConnections } = await import("@/lib/ai/client");
 
-    expect(getEnabledConnections()).toEqual([]);
+    expect(getEnabledConnections()).toHaveLength(1);
   });
 
-  it("treats legacy enabled providers with unknown key metadata as unusable", async () => {
+  it("keeps enabled providers available for runtime key resolution", async () => {
     mockGetItem.mockReturnValue([
       {
-        id: "google-legacy",
-        name: "Google Legacy",
+        id: "google-enabled",
+        name: "Google Enabled",
         provider: "google",
         apiKey: "",
         enabled: true,
@@ -57,7 +56,7 @@ describe("ai/client connection usability", () => {
 
     const { getEnabledConnections } = await import("@/lib/ai/client");
 
-    expect(getEnabledConnections()).toEqual([]);
+    expect(getEnabledConnections()).toHaveLength(1);
   });
 
   it("detects usable key-required connection from secure storage", async () => {
@@ -67,7 +66,6 @@ describe("ai/client connection usability", () => {
         name: "Google",
         provider: "google",
         apiKey: "",
-        hasApiKey: false,
         enabled: true,
         models: ["gemini-2.5-flash"],
         createdAt: 1,
@@ -88,7 +86,6 @@ describe("ai/client connection usability", () => {
         name: "Google",
         provider: "google",
         apiKey: "",
-        hasApiKey: false,
         enabled: true,
         models: ["gemini-2.5-flash"],
         createdAt: 1,
@@ -109,7 +106,6 @@ describe("ai/client connection usability", () => {
         name: "Local OpenAI",
         provider: "openai",
         apiKey: "",
-        hasApiKey: false,
         customEndpoint: "http://localhost:11434/v1",
         enabled: true,
         models: ["gpt-4.1-mini"],

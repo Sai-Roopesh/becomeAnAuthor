@@ -54,7 +54,7 @@ import {
   deleteAPIKey,
   validateAPIKey,
   storeAPIKeyWithValidation,
-  hasAPIKey,
+  isApiKeyStored,
 } from "@/core/storage/api-keys";
 
 // ============================================
@@ -246,32 +246,44 @@ describe("API Key Security Contract", () => {
   });
 
   // ========================================
-  // SPECIFICATION 5: hasAPIKey Helper
+  // SPECIFICATION 5: isApiKeyStored Helper
   // ========================================
 
-  describe("SPEC: hasAPIKey - Existence check without exposing key", () => {
+  describe("SPEC: isApiKeyStored - Existence check without exposing key", () => {
     it("MUST return true if key exists", async () => {
-      mockInvoke.mockResolvedValue("sk-secret-key");
+      mockInvoke.mockResolvedValue(true);
 
-      const exists = await hasAPIKey("openai", "conn-openai");
+      const exists = await isApiKeyStored("openai", "conn-openai");
 
       expect(exists).toBe(true);
+      expect(mockInvoke).toHaveBeenCalledWith("has_api_key", {
+        provider: "openai",
+        connectionId: "conn-openai",
+      });
     });
 
     it("MUST return false if no key", async () => {
-      mockInvoke.mockResolvedValue(null);
+      mockInvoke.mockResolvedValue(false);
 
-      const exists = await hasAPIKey("anthropic", "conn-anthropic");
+      const exists = await isApiKeyStored("anthropic", "conn-anthropic");
 
       expect(exists).toBe(false);
+      expect(mockInvoke).toHaveBeenCalledWith("has_api_key", {
+        provider: "anthropic",
+        connectionId: "conn-anthropic",
+      });
     });
 
-    it("MUST return false for empty string key", async () => {
-      mockInvoke.mockResolvedValue("");
+    it("MUST return false when command reports no key", async () => {
+      mockInvoke.mockResolvedValue(false);
 
-      const exists = await hasAPIKey("google", "conn-google");
+      const exists = await isApiKeyStored("google", "conn-google");
 
       expect(exists).toBe(false);
+      expect(mockInvoke).toHaveBeenCalledWith("has_api_key", {
+        provider: "google",
+        connectionId: "conn-google",
+      });
     });
   });
 });

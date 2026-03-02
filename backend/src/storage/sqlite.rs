@@ -1,4 +1,4 @@
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{params, Connection, OptionalExtension};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -80,8 +80,24 @@ fn initialize_schema(conn: &Connection) -> Result<(), String> {
             PRIMARY KEY(namespace, provider, connection_id)
         );
 
+        CREATE TABLE IF NOT EXISTS secure_secrets (
+            namespace TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            connection_id TEXT NOT NULL,
+            nonce BLOB NOT NULL,
+            ciphertext BLOB NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY(namespace, provider, connection_id),
+            FOREIGN KEY(namespace, provider, connection_id)
+                REFERENCES secure_accounts(namespace, provider, connection_id)
+                ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_secure_accounts_namespace_provider
             ON secure_accounts(namespace, provider);
+
+        CREATE INDEX IF NOT EXISTS idx_secure_secrets_namespace_provider
+            ON secure_secrets(namespace, provider);
         "#,
     )
     .map_err(|e| format!("Failed to initialize SQLite schema: {e}"))?;
@@ -98,7 +114,10 @@ pub fn open_app_db() -> Result<Connection, String> {
     Ok(conn)
 }
 
-pub fn get_search_signature(conn: &Connection, project_path: &str) -> Result<Option<String>, String> {
+pub fn get_search_signature(
+    conn: &Connection,
+    project_path: &str,
+) -> Result<Option<String>, String> {
     conn.query_row(
         "SELECT signature FROM search_sync_state WHERE project_path = ?1",
         params![project_path],
@@ -216,7 +235,76 @@ pub fn list_secure_account_providers(
 
     let mut providers = Vec::new();
     for row in rows {
-        providers.push(row.map_err(|e| format!("Failed to decode secure account provider row: {e}"))?);
+        providers
+            .push(row.map_err(|e| format!("Failed to decode secure account provider row: {e}"))?);
     }
     Ok(providers)
+}
+
+pub fn upsert_secure_secret(
+    conn: &Connection,
+    namespace: &str,
+    provider: &str,
+    connection_id: &str,
+    nonce: &[u8],
+    ciphertext: &[u8],
+    updated_at: i64,
+) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO secure_secrets(namespace, provider, connection_id, nonce, ciphertext, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(namespace, provider, connection_id) DO UPDATE SET
+            nonce = excluded.nonce,
+            ciphertext = excluded.ciphertext,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            namespace,
+            provider,
+            connection_id,
+            nonce,
+            ciphertext,
+            updated_at
+        ],
+    )
+    .map_err(|e| format!("Failed to upsert secure secret: {e}"))?;
+    Ok(())
+}
+
+pub fn get_secure_secret(
+    conn: &Connection,
+    namespace: &str,
+    provider: &str,
+    connection_id: &str,
+) -> Result<Option<(Vec<u8>, Vec<u8>)>, String> {
+    conn.query_row(
+        r#"
+        SELECT nonce, ciphertext
+        FROM secure_secrets
+        WHERE namespace = ?1 AND provider = ?2 AND connection_id = ?3
+        "#,
+        params![namespace, provider, connection_id],
+        |row| {
+            let nonce = row.get::<_, Vec<u8>>(0)?;
+            let ciphertext = row.get::<_, Vec<u8>>(1)?;
+            Ok((nonce, ciphertext))
+        },
+    )
+    .optional()
+    .map_err(|e| format!("Failed to read secure secret: {e}"))
+}
+
+pub fn delete_secure_secret(
+    conn: &Connection,
+    namespace: &str,
+    provider: &str,
+    connection_id: &str,
+) -> Result<(), String> {
+    conn.execute(
+        "DELETE FROM secure_secrets WHERE namespace = ?1 AND provider = ?2 AND connection_id = ?3",
+        params![namespace, provider, connection_id],
+    )
+    .map_err(|e| format!("Failed to delete secure secret: {e}"))?;
+    Ok(())
 }

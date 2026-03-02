@@ -1,27 +1,93 @@
 // Secure credential commands
-// Stores sensitive keys in the OS keychain and keeps non-secret account metadata in SQLite.
+// Stores encrypted API keys in SQLite and keeps non-secret account metadata in SQLite.
 
 use crate::storage::sqlite::{
-    delete_secure_account, list_secure_account_providers, open_app_db, upsert_secure_account,
+    delete_secure_account, delete_secure_secret, get_secure_secret, list_secure_account_providers,
+    open_app_db, upsert_secure_account, upsert_secure_secret,
 };
+use crate::utils::get_app_dir;
+use aes_gcm::aead::Aead;
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use chrono::Utc;
-use keyring::Entry;
+use rand::RngCore;
+use std::fs;
+use std::path::PathBuf;
 use tauri::command;
 
 const API_KEY_NAMESPACE: &str = "api_key";
-const API_KEY_SERVICE: &str = "become-an-author.api-keys";
+const MASTER_KEY_FILE: &str = "api_key_master.key";
+const KEY_LENGTH: usize = 32;
+const NONCE_LENGTH: usize = 12;
 
-fn keyring_username(provider: &str, connection_id: &str) -> String {
-    format!("{provider}::{connection_id}")
+fn master_key_path() -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let meta_dir = app_dir.join(".meta");
+    fs::create_dir_all(&meta_dir)
+        .map_err(|e| format!("Failed to create secure storage directory: {e}"))?;
+    Ok(meta_dir.join(MASTER_KEY_FILE))
 }
 
-fn keyring_entry(provider: &str, connection_id: &str) -> Result<Entry, String> {
-    Entry::new(API_KEY_SERVICE, &keyring_username(provider, connection_id))
-        .map_err(|e| format!("Failed to initialize keychain entry: {e}"))
+fn apply_master_key_permissions(path: &PathBuf) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Failed to set master key permissions: {e}"))?;
+    }
+
+    Ok(())
 }
 
-fn is_keyring_missing_entry(error: &keyring::Error) -> bool {
-    matches!(error, keyring::Error::NoEntry)
+fn load_or_create_master_key() -> Result<[u8; KEY_LENGTH], String> {
+    let path = master_key_path()?;
+
+    if path.exists() {
+        let bytes = fs::read(&path).map_err(|e| format!("Failed to read master key file: {e}"))?;
+        if bytes.len() != KEY_LENGTH {
+            return Err("Invalid master key length".to_string());
+        }
+
+        let mut key = [0u8; KEY_LENGTH];
+        key.copy_from_slice(&bytes);
+        return Ok(key);
+    }
+
+    let mut key = [0u8; KEY_LENGTH];
+    rand::rngs::OsRng.fill_bytes(&mut key);
+    fs::write(&path, key).map_err(|e| format!("Failed to create master key file: {e}"))?;
+    apply_master_key_permissions(&path)?;
+    Ok(key)
+}
+
+fn encrypt_api_key(plaintext: &str) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let key = load_or_create_master_key()?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key).map_err(|e| format!("Failed to initialize cipher: {e}"))?;
+
+    let mut nonce = [0u8; NONCE_LENGTH];
+    rand::rngs::OsRng.fill_bytes(&mut nonce);
+
+    let ciphertext = cipher
+        .encrypt(Nonce::from_slice(&nonce), plaintext.as_bytes())
+        .map_err(|_| "Failed to encrypt API key".to_string())?;
+
+    Ok((nonce.to_vec(), ciphertext))
+}
+
+fn decrypt_api_key(nonce: &[u8], ciphertext: &[u8]) -> Result<String, String> {
+    if nonce.len() != NONCE_LENGTH {
+        return Err("Invalid API key nonce length".to_string());
+    }
+
+    let key = load_or_create_master_key()?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key).map_err(|e| format!("Failed to initialize cipher: {e}"))?;
+
+    let plaintext = cipher
+        .decrypt(Nonce::from_slice(nonce), ciphertext)
+        .map_err(|_| "Failed to decrypt API key".to_string())?;
+
+    String::from_utf8(plaintext).map_err(|e| format!("Failed to decode decrypted API key: {e}"))
 }
 
 fn validate_account_inputs(
@@ -41,28 +107,7 @@ fn validate_account_inputs(
     Ok((provider, connection_id))
 }
 
-fn record_account(provider: &str, connection_id: &str) -> Result<(), String> {
-    let conn = open_app_db()?;
-    upsert_secure_account(
-        &conn,
-        API_KEY_NAMESPACE,
-        provider,
-        connection_id,
-        Utc::now().timestamp_millis(),
-    )
-}
-
-fn remove_account(provider: &str, connection_id: &str) -> Result<(), String> {
-    let conn = open_app_db()?;
-    delete_secure_account(&conn, API_KEY_NAMESPACE, provider, connection_id)
-}
-
-/// Store an API key in the OS keychain
-///
-/// # Arguments
-/// * `provider` - The AI provider name (e.g., "openai", "anthropic", "google")
-/// * `connection_id` - The unique AI connection ID
-/// * `key` - The API key to store
+/// Store an encrypted API key in SQLite.
 #[command]
 pub fn store_api_key(provider: String, connection_id: String, key: String) -> Result<(), String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
@@ -72,45 +117,65 @@ pub fn store_api_key(provider: String, connection_id: String, key: String) -> Re
         return Err("API key cannot be empty".to_string());
     }
 
-    keyring_entry(&provider, &connection_id)?
-        .set_password(normalized_key)
-        .map_err(|e| format!("Failed to store API key in keychain: {e}"))?;
+    let (nonce, ciphertext) = encrypt_api_key(normalized_key)?;
+    let conn = open_app_db()?;
+    let now = Utc::now().timestamp_millis();
 
-    record_account(&provider, &connection_id)?;
+    upsert_secure_account(&conn, API_KEY_NAMESPACE, &provider, &connection_id, now)?;
+    upsert_secure_secret(
+        &conn,
+        API_KEY_NAMESPACE,
+        &provider,
+        &connection_id,
+        &nonce,
+        &ciphertext,
+        now,
+    )?;
+
     Ok(())
 }
 
-/// Retrieve an API key from the OS keychain
+/// Retrieve and decrypt an API key from SQLite.
 #[command]
 pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<String>, String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
-    match keyring_entry(&provider, &connection_id)?
-        .get_password()
-        .map(Some)
-    {
-        Ok(value) => Ok(value),
-        Err(e) if is_keyring_missing_entry(&e) => Ok(None),
-        Err(e) => Err(format!("Failed to read API key from keychain: {e}")),
+    let conn = open_app_db()?;
+    let secret = get_secure_secret(&conn, API_KEY_NAMESPACE, &provider, &connection_id)?;
+
+    let Some((nonce, ciphertext)) = secret else {
+        return Ok(None);
+    };
+
+    let plaintext = decrypt_api_key(&nonce, &ciphertext)?;
+    if plaintext.trim().is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(plaintext))
     }
 }
 
-/// Delete an API key from the OS keychain
+/// Check whether an API key exists for a provider/connection.
+#[command]
+pub fn has_api_key(provider: String, connection_id: String) -> Result<bool, String> {
+    Ok(get_api_key(provider, connection_id)?
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false))
+}
+
+/// Delete an API key from encrypted SQLite storage.
 #[command]
 pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
 
-    match keyring_entry(&provider, &connection_id)?.delete_credential() {
-        Ok(()) => {}
-        Err(e) if is_keyring_missing_entry(&e) => {}
-        Err(e) => return Err(format!("Failed to delete API key from keychain: {e}")),
-    }
+    let conn = open_app_db()?;
+    delete_secure_secret(&conn, API_KEY_NAMESPACE, &provider, &connection_id)?;
+    delete_secure_account(&conn, API_KEY_NAMESPACE, &provider, &connection_id)?;
 
-    remove_account(&provider, &connection_id)?;
     Ok(())
 }
 
-/// List all providers that have at least one stored API key
+/// List all providers that have at least one stored API key.
 #[command]
 pub fn list_api_key_providers() -> Result<Vec<String>, String> {
     let conn = open_app_db()?;
@@ -127,6 +192,7 @@ mod tests {
             store_api_key("".to_string(), "conn-1".to_string(), "test-key".to_string()).is_err()
         );
         assert!(get_api_key("".to_string(), "conn-1".to_string()).is_err());
+        assert!(has_api_key("".to_string(), "conn-1".to_string()).is_err());
         assert!(delete_api_key("".to_string(), "conn-1".to_string()).is_err());
     }
 
@@ -134,6 +200,7 @@ mod tests {
     fn test_validate_connection_id() {
         assert!(store_api_key("test".to_string(), "".to_string(), "test-key".to_string()).is_err());
         assert!(get_api_key("test".to_string(), "".to_string()).is_err());
+        assert!(has_api_key("test".to_string(), "".to_string()).is_err());
         assert!(delete_api_key("test".to_string(), "".to_string()).is_err());
     }
 

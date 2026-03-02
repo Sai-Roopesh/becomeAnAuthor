@@ -61,7 +61,6 @@ export function useModelDiscovery(
 
   const resolveConnectionApiKey = useCallback(
     async (connection: AIConnection): Promise<string> => {
-      if (connection.apiKey.trim()) return connection.apiKey.trim();
       return (await getAPIKey(connection.provider, connection.id)) || "";
     },
     [],
@@ -135,10 +134,12 @@ export function useModelDiscovery(
           apiKey: await resolveConnectionApiKey(connection),
         })),
       );
-      const usableConnections = resolvedConnections.filter(
-        (connection) =>
-          connection.apiKey || !connectionRequiresApiKey(connection),
-      );
+      const usableConnections = resolvedConnections.filter((connection) => {
+        if (!connectionRequiresApiKey(connection)) {
+          return true;
+        }
+        return connection.apiKey.trim().length > 0;
+      });
       if (usableConnections.length === 0) {
         setModels([]);
         setError("No usable AI connections. Add an API key in Settings.");
