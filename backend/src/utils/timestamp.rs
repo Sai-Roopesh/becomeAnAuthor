@@ -1,16 +1,15 @@
 //! Timestamp serialization helpers for IPC
 //! Stores i64 internally, serializes as RFC3339 for human-readable files
 
-use serde::{Deserializer, Serializer};
 use chrono::{DateTime, Utc};
+use serde::{Deserializer, Serializer};
 
 /// Serialize i64 timestamp as RFC3339 string for file storage
 pub fn serialize_as_rfc3339<S>(ts: &i64, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let dt = DateTime::from_timestamp_millis(*ts)
-        .unwrap_or_else(Utc::now);
+    let dt = DateTime::from_timestamp_millis(*ts).unwrap_or_else(Utc::now);
     serializer.serialize_str(&dt.to_rfc3339())
 }
 

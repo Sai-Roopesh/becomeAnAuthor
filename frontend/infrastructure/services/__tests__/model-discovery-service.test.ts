@@ -1,32 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { modelDiscoveryService } from "../ModelDiscoveryService";
 
-vi.mock("@/core/storage/safe-storage", () => ({
-  storage: {
-    getItem: <T>(key: string, fallback: T): T => {
-      const raw = localStorage.getItem(key);
-      if (!raw) return fallback;
-      try {
-        return JSON.parse(raw) as T;
-      } catch {
-        return fallback;
-      }
-    },
-    setItem: (key: string, value: unknown) => {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    },
-    removeItem: (key: string) => {
-      localStorage.removeItem(key);
-    },
+const mockCache = new Map<string, unknown>();
+
+vi.mock("@/core/state/app-state", () => ({
+  getModelDiscoveryCache: async (provider: string, endpoint: string) =>
+    (mockCache.get(`${provider}|${endpoint}`) as unknown) ?? null,
+  setModelDiscoveryCache: async (
+    provider: string,
+    endpoint: string,
+    payload: unknown,
+  ) => {
+    mockCache.set(`${provider}|${endpoint}`, payload);
+  },
+  clearModelDiscoveryCache: async (provider?: string) => {
+    if (!provider) {
+      mockCache.clear();
+      return;
+    }
+
+    Array.from(mockCache.keys())
+      .filter((key) => key.startsWith(`${provider}|`))
+      .forEach((key) => mockCache.delete(key));
   },
 }));
 
 describe("ModelDiscoveryService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    localStorage.clear();
-    modelDiscoveryService.clearCache();
+    mockCache.clear();
+    await modelDiscoveryService.clearCache();
   });
 
   it("normalizes OpenAI-compatible custom endpoints to /models", async () => {

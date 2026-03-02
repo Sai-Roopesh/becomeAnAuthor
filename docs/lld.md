@@ -83,7 +83,7 @@
 | Styling | TailwindCSS | 4.x |
 | State | Zustand | 5.0.9 |
 | Rich Editor | TipTap | 3.11+ |
-| Collaboration | Yjs + y-webrtc + y-indexeddb | 13.6.28 |
+| Collaboration | Yjs + y-webrtc + SQLite snapshot persistence | 13.6.28 |
 | Forms | React Hook Form + Zod | 7.68 / 4.1 |
 | UI Primitives | Radix UI | Various |
 | AI SDK | Vercel AI SDK (`ai`) | 6.0.3 |
@@ -158,7 +158,7 @@ backend/src/
 │   ├── collaboration.rs # Yjs state persistence (2.1KB)
 │   ├── snippet.rs       # Reusable text snippets (1.6KB)
 │   ├── scene_note.rs    # Per-scene notes (1.4KB)
-│   └── google_oauth.rs  # Desktop OAuth via loopback + OS keychain storage
+│   └── google_oauth.rs  # Desktop OAuth via loopback + encrypted SQLite secure storage
 ├── models/              # Data structures (7 modules)
 │   ├── mod.rs
 │   ├── project.rs       # ProjectMeta, StructureNode, Series
@@ -206,55 +206,23 @@ pub fn command_name(param1: Type1, param2: Type2) -> Result<ReturnType, String> 
 ~/BecomeAnAuthor/{dev|release}/
 ├── Projects/
 │   └── {project-slug}/
-│       ├── project.json          # ProjectMeta
-│       ├── structure.json        # StructureNode[]
-│       ├── scenes/
-│       │   └── {scene-id}.md     # YAML frontmatter + markdown content
-│       ├── codex/
-│       │   └── {entry-id}.json   # CodexEntry
-│       ├── codex-relations.json  # CodexRelation[]
-│       ├── codex-tags.json       # CodexTag[]
-│       ├── codex-entry-tags.json # CodexEntryTag[]
-│       ├── codex-templates.json  # CodexTemplate[]
-│       ├── codex-relation-types.json
-│       ├── scene-codex-links.json
-│       ├── chat/
-│       │   └── {thread-id}.json  # ChatThread + ChatMessage[]
-│       ├── snippets/
-│       │   └── {snippet-id}.json
-│       ├── scene-notes/
-│       │   └── {scene-id}.json
-│       ├── yjs/                  # Collaboration state
-│       ├── trash/                # Soft-deleted items
-│       └── .backups/             # Emergency backups
-├── series/
-│   └── {series-id}/
-│       └── codex/                # Series-level codex entries
+│       ├── manuscript/
+│       │   └── {scene-file}.md   # Scene text only (no metadata frontmatter)
+│       ├── exports/              # User export artifacts
+│       ├── snippets/             # Optional user-owned artifacts
+│       ├── .backups/             # Emergency backups
+│       └── .meta/                # Project-local auxiliary files if needed
 ├── .meta/
-│   ├── series.json               # All series metadata
-│   └── recent.json               # Recently opened projects
+│   ├── app.db                    # SQLite source of truth for non-manuscript state
+│   └── api_key_master.key        # Local encryption key for secure_secrets
 └── .trash/                       # Trashed projects
 ```
 
 ### 4.4 Scene File Format
 
-Scenes use a YAML frontmatter + Markdown body format:
+Scenes use plain Markdown body text (metadata is stored in SQLite `scene_metadata`):
 
 ```markdown
----
-id: "abc-123"
-title: "Chapter One"
-order: 0
-status: "draft"
-wordCount: 1234
-povCharacter: "Alice"
-labels: ["action", "intro"]
-excludeFromAI: false
-summary: "Alice discovers the portal"
-createdAt: "2025-12-01T10:00:00Z"
-updatedAt: "2025-12-15T14:30:00Z"
----
-
 The story content goes here in Markdown format...
 ```
 
@@ -286,7 +254,7 @@ app/
 ```tsx
 <html>
   <body>
-    <ThemeProvider>           {/* next-themes: dark/light/system */}
+    <ThemeProvider>           {/* SQLite-backed dark/light/system */}
       <TooltipProvider>       {/* Radix UI tooltip context */}
         <AppProvider>         {/* DI container — all repos + services */}
           <ErrorBoundary>     {/* Global error catch */}
@@ -370,15 +338,15 @@ DocumentNode = Act | Chapter | Scene
 
 | Entity | Key Fields | Storage |
 |---|---|---|
-| `Project` | id, title, author, seriesId, seriesIndex, language, coverImage | `project.json` |
-| `Series` | id, title, description, author, genre, status | `series.json` |
+| `Project` | id, title, author, seriesId, seriesIndex, language, coverImage | SQLite `projects` |
+| `Series` | id, title, description, author, genre, status | SQLite `series` |
 | `Scene` | BaseNode + content (TipTap JSON), status (draft/revised/final), wordCount, beats, pov, labels | `{id}.md` |
-| `CodexEntry` | id, name, category (character/location/item/lore/subplot), aliases, attributes, tags, aiContext, templateId, customFields | `{id}.json` |
-| `CodexRelation` | id, parentId, childId, typeId, label, strength | `codex-relations.json` |
-| `ChatThread` | id, projectId, name, pinned, archived, defaultModel | `{id}.json` |
-| `ChatMessage` | id, threadId, role (user/assistant), content, model, context | Embedded in thread |
-| `Snippet` | id, projectId, title, content (TipTap), pinned | `{id}.json` |
-| `SceneNote` | id, sceneId, content (TipTap) | `{id}.json` |
+| `CodexEntry` | id, name, category (character/location/item/lore/subplot), aliases, attributes, tags, aiContext, templateId, customFields | SQLite `codex_entries` |
+| `CodexRelation` | id, parentId, childId, typeId, label, strength | SQLite `codex_relations` |
+| `ChatThread` | id, projectId, name, pinned, archived, defaultModel | SQLite `chat_threads` |
+| `ChatMessage` | id, threadId, role (user/assistant), content, model, context | SQLite `chat_messages` |
+| `Snippet` | id, projectId, title, content (TipTap), pinned | SQLite `snippets` |
+| `SceneNote` | id, sceneId, content (TipTap) | SQLite `scene_notes` |
 | `Mention` | id, codexEntryId, sourceType, sourceId, position, context | Runtime |
 
 ### 6.3 Supporting Types
@@ -599,9 +567,9 @@ The `tiptap-editor.tsx` component utilizes **static imports** for core editor de
 │                  │                   │
 │  ┌───────────────▼────────────────┐  │
 │  │  Connection Storage             │  │
-│  │  (core/storage/safe-storage)    │  │
-│  │  + OS Keychain for secrets      │  │
-│  │  + LocalStorage for config      │  │
+│  │  (core/state/app-state.ts)      │  │
+│  │  + Encrypted SQLite secrets     │  │
+│  │  + SQLite metadata/config       │  │
 │  └────────────────────────────────┘  │
 └──────────────────────────────────────┘
 ```
@@ -662,9 +630,9 @@ Assembles contextual information for AI prompts:
 
 | Store | File | Persistence | Purpose |
 |---|---|---|---|
-| `useProjectStore` | `use-project-store.ts` | `zustand/persist` (localStorage) | Active scene, view mode (plan/write/chat), panel visibility, active tabs |
+| `useProjectStore` | `use-project-store.ts` | SQLite `app_preferences["ui.project_store"]` | Active scene, view mode (plan/write/chat), panel visibility, active tabs |
 | `useChatStore` | `use-chat-store.ts` | None | Active chat thread state |
-| `useFormatStore` | `use-format-store.ts` | `zustand/persist` | Editor formatting preferences |
+| `useFormatStore` | `use-format-store.ts` | SQLite `app_preferences["ui.format_settings"]` | Editor formatting preferences |
 
 ### 11.2 ProjectStore State Shape
 
@@ -712,11 +680,11 @@ export async function loadScene(
 | **Scene** | 5 | `load_scene`, `save_scene`, `update_scene_metadata`, `delete_scene` |
 | **Codex** | 18 | `list_codex_entries`, `save_codex_entry`, relations, tags, templates, relation types, scene links |
 | **Chat** | 8 | `list_chat_threads`, `create_chat_thread`, `get_chat_messages`, `create_chat_message` |
-| **Series** | 15 | `list_series`, `create_series`, series codex, `migrate_codex_to_series` |
+| **Series** | 15 | `list_series`, `create_series`, `update_series`, series codex, deleted-series lifecycle |
 | **Search** | 1 | `search_project` |
 | **Trash** | 5 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` |
 | **Export** | 9 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_project_backup` |
-| **Import** | 2 | `import_series_backup`, `import_project_backup` |
+| **Import** | 1 | `import_series_backup` |
 | **Security** | 5 | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers` |
 | **Backup** | 6 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `export_series_as_json` |
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
@@ -802,28 +770,28 @@ Rust: commands::chat::create_chat_message()
 
 | Data Type | Format | Location |
 |---|---|---|
-| Project metadata | JSON | `project.json` |
-| Manuscript structure | JSON | `structure.json` |
-| Scenes | YAML frontmatter + Markdown | `scenes/{id}.md` |
-| Codex entries | JSON (individual files) | `codex/{id}.json` |
+| Project metadata | SQLite | `.meta/app.db` (`projects`) |
+| Manuscript structure | SQLite | `.meta/app.db` (`structure_nodes`) |
+| Scenes | Markdown text | `manuscript/{scene-file}.md` |
+| Codex entries | SQLite (typed + JSON payload) | `.meta/app.db` (`codex_entries`) |
 | Chat threads | SQLite tables (`chat_threads`, `chat_messages`) | `.meta/app.db` |
-| Snippets | JSON | `snippets/{id}.json` |
-| Scene notes | JSON | `scene-notes/{id}.json` |
-| Series metadata | JSON (global) | `.meta/series.json` |
-| Recent projects | JSON (global) | `.meta/recent.json` |
+| Snippets | SQLite | `.meta/app.db` (`snippets`) |
+| Scene notes | SQLite | `.meta/app.db` (`scene_notes`) |
+| Series metadata | SQLite | `.meta/app.db` (`series`) |
+| Recent projects | SQLite | `.meta/app.db` (`recent_projects`) |
 | API Keys | AES-GCM ciphertext + SQLite metadata | `.meta/app.db` (`secure_secrets`, `secure_accounts`) + `.meta/api_key_master.key` |
-| OAuth Tokens | OS keychain | Keychain service `become-an-author.google-oauth` |
-| Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
+| OAuth Tokens | AES-GCM ciphertext in SQLite secure store | `.meta/app.db` (`secure_secrets`, namespace `oauth`) |
+| Yjs docs | SQLite `yjs_snapshots` | CRDT document state for offline recovery |
 | Emergency backups | JSON | `.backups/{timestamp}.json` |
 
 ### 14.2 Client-Side Storage
 
 | Store | Technology | Purpose |
 |---|---|---|
-| AI connections | `localStorage` (safe-storage wrapper) | Provider configs only (no key state metadata); actual keys in encrypted SQLite |
-| UI preferences | `localStorage` via Zustand persist | Panel states, view modes |
-| Editor format | `localStorage` via Zustand persist | Font, spacing, width preferences |
-| Yjs docs | IndexedDB (y-indexeddb) | CRDT document state for offline |
+| AI connections | SQLite tables (`ai_connections`, `ai_connection_models`) | Provider configs + model mapping |
+| UI preferences | SQLite `app_preferences` | Panel states, view modes, theme/sidebar preferences |
+| Editor format | SQLite `app_preferences["ui.format_settings"]` | Font, spacing, width preferences |
+| Yjs docs | SQLite `yjs_snapshots` | CRDT document state for offline recovery |
 
 ---
 
@@ -849,12 +817,12 @@ Frontend: update runtime key-presence map from secure store result
 ```
 
 - **Key State Strategy**:
-  - **Frontend (`localStorage`)**: Stores sanitized connection config (`ai_connections`) with no key-state flags and no secrets.
+  - **Frontend (`app-state` repository)**: Uses SQLite command responses as the single source of connection metadata + key presence.
   - **Frontend (runtime state)**: Derives Active/Missing Key status from secure-store checks (`has_api_key`) and enablement state.
   - **Backend (SQLite)**: Stores non-secret secure account index (`secure_accounts`) to allow provider/account enumeration without exposing secrets.
 - **Secrets**: API keys are stored as AES-GCM ciphertext in SQLite (`secure_secrets`), keyed by a local master key file.
 - **Race Handling**: The `useAIConnections` hook verifies secure-store key presence after save/delete before marking a connection active.
-- **Google OAuth Tokens**: Stored in OS keychain service `become-an-author.google-oauth`.
+- **Google OAuth Tokens**: Stored in encrypted SQLite secure storage (`secure_secrets`, namespace `oauth`).
 
 ### 15.2 Content Security
 
@@ -915,7 +883,6 @@ The backend `ImportRollbackContext` ensures data consistency during series impor
 | Testing Library | React component testing |
 | happy-dom / jsdom | DOM environment |
 | MSW | API mocking |
-| fake-indexeddb | IndexedDB mocking for Yjs tests |
 | release:gate | Release validation script (lint, build, cargo test) |
 
 ### 17.2 Test Organization

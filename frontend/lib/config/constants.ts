@@ -13,15 +13,6 @@ export const AI_DEFAULTS = {
   RETRY_DELAY_MS: 1000,
 } as const;
 
-export const STORAGE_KEYS = {
-  AI_CONNECTIONS: "ai_connections",
-  LAST_USED_MODEL: "last_used_model",
-  // Google Drive OAuth
-  GOOGLE_TOKENS: "google_oauth_tokens",
-  GOOGLE_USER: "google_user_info",
-  GOOGLE_PKCE_VERIFIER: "google_pkce_verifier",
-} as const;
-
 export const DEBOUNCE_DELAYS = {
   AUTO_SAVE_MS: 1000,
   SEARCH_MS: 300,
@@ -116,8 +107,6 @@ export const UI_CONSTANTS = {
   SIDEBAR_WIDTH_MOBILE: "18rem",
   SIDEBAR_WIDTH_ICON: "3rem",
   SIDEBAR_KEYBOARD_SHORTCUT: "b",
-  SIDEBAR_COOKIE_NAME: "sidebar_state",
-  SIDEBAR_COOKIE_MAX_AGE: 60 * 60 * 24 * 7, // 7 days
   MAX_CRASH_REPORTS: 10,
 } as const;
 

@@ -1,7 +1,7 @@
 // Project-related models
 
-use serde::{Deserialize, Serialize};
 use crate::utils::timestamp;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProjectMeta {
@@ -38,13 +38,13 @@ pub struct ProjectMeta {
 pub struct StructureNode {
     pub id: String,
     #[serde(rename = "type")]
-    pub node_type: String,  // "act", "chapter", "scene"
+    pub node_type: String, // "act", "chapter", "scene"
     pub title: String,
     pub order: i32,
     #[serde(default)]
     pub children: Vec<StructureNode>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file: Option<String>,  // Only for scenes
+    pub file: Option<String>, // Only for scenes
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

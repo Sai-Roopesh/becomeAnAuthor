@@ -17,7 +17,7 @@ import {
   type AIConnection,
   connectionRequiresApiKey,
 } from "@/lib/config/ai-vendors";
-import { storage } from "@/core/storage/safe-storage";
+import { listAIConnections, toAIConnection } from "@/core/state/app-state";
 import { getAPIKey } from "@/core/storage/api-keys";
 import { logger } from "@/shared/utils/logger";
 
@@ -121,8 +121,10 @@ export function useModelDiscovery(
 
     try {
       // Get all enabled connections
-      const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-      const enabledConnections = connections.filter((c) => c.enabled);
+      const persistedConnections = await listAIConnections();
+      const enabledConnections = persistedConnections
+        .filter((connection) => connection.enabled)
+        .map(toAIConnection);
       if (enabledConnections.length === 0) {
         setModels([]);
         return;
@@ -194,7 +196,7 @@ export function useModelDiscovery(
    */
   const refreshModels = useCallback(async () => {
     log.info("Refreshing models (clearing cache)...");
-    modelDiscoveryService.clearCache();
+    await modelDiscoveryService.clearCache();
     await fetchAllModels();
   }, [fetchAllModels]);
 

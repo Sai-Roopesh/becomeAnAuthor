@@ -6,7 +6,7 @@
  * Strategy:
  * - Use dynamic fetch for providers with model-listing endpoints
  * - Require manual model IDs when listing endpoints are unavailable
- * - Cache results to avoid repeated API calls
+ * - Cache results in SQLite to avoid repeated API calls
  *
  * @see CODING_GUIDELINES.md - 8-Layer Architecture, Layer 5 (Infrastructure)
  */
@@ -18,12 +18,14 @@ import type {
 } from "@/domain/services/IModelDiscoveryService";
 import { AI_VENDORS, type AIProvider } from "@/lib/config/ai-vendors";
 import { logger } from "@/shared/utils/logger";
-import { storage } from "@/core/storage/safe-storage";
 import { CACHE_CONSTANTS } from "@/lib/config/constants";
+import {
+  clearModelDiscoveryCache,
+  getModelDiscoveryCache,
+  setModelDiscoveryCache,
+} from "@/core/state/app-state";
 
 const log = logger.scope("ModelDiscoveryService");
-
-const CACHE_PREFIX = "model_cache_";
 
 // Provider API endpoints with reliable model listing support
 const MODEL_ENDPOINTS: Partial<Record<AIProvider, string>> = {
@@ -57,47 +59,30 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
     return provider in MODEL_ENDPOINTS;
   }
 
-  getCachedModels(provider: string): ModelDiscoveryResult | null {
-    const cacheKey = this.getCacheKey(provider);
-    return this.getCachedModelsForKey(cacheKey);
+  async getCachedModels(
+    provider: string,
+  ): Promise<ModelDiscoveryResult | null> {
+    const endpoint = this.resolveEndpoint(provider);
+    return this.getCachedModelsForEntry(provider, endpoint);
   }
 
-  private getCachedModelsForKey(cacheKey: string): ModelDiscoveryResult | null {
-    const cached = storage.getItem<ModelDiscoveryResult | null>(cacheKey, null);
+  private async getCachedModelsForEntry(
+    provider: string,
+    endpoint: string,
+  ): Promise<ModelDiscoveryResult | null> {
+    const cached = await getModelDiscoveryCache(provider, endpoint);
 
     if (!cached || !cached.cachedAt) return null;
 
     if (Date.now() - cached.cachedAt > CACHE_CONSTANTS.MODEL_CACHE_TTL_MS) {
-      storage.removeItem(cacheKey);
       return null;
     }
 
     return cached;
   }
 
-  clearCache(provider?: string): void {
-    if (provider) {
-      this.clearCacheByPrefix(`${CACHE_PREFIX}${provider}`);
-    } else {
-      this.clearCacheByPrefix(CACHE_PREFIX);
-    }
-  }
-
-  private clearCacheByPrefix(prefix: string): void {
-    if (typeof window === "undefined" || typeof localStorage === "undefined") {
-      return;
-    }
-
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith(prefix)) {
-        storage.removeItem(key);
-      }
-    });
-  }
-
-  private getCacheKey(provider: string, endpoint?: string): string {
-    if (!endpoint) return `${CACHE_PREFIX}${provider}`;
-    return `${CACHE_PREFIX}${provider}_${encodeURIComponent(endpoint.toLowerCase())}`;
+  async clearCache(provider?: string): Promise<void> {
+    await clearModelDiscoveryCache(provider);
   }
 
   private appendModelsPathSuffix(value: string): string {
@@ -182,10 +167,9 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
     customEndpoint?: string,
   ): Promise<ModelDiscoveryResult> {
     const endpoint = this.resolveEndpoint(provider, customEndpoint);
-    const cacheKey = this.getCacheKey(provider, endpoint || undefined);
 
     // Check cache first
-    const cached = this.getCachedModelsForKey(cacheKey);
+    const cached = await this.getCachedModelsForEntry(provider, endpoint);
     if (cached) {
       log.debug(`Using cached models for ${provider}`);
       return cached;
@@ -212,7 +196,6 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
       provider,
       apiKey.trim(),
       endpoint,
-      cacheKey,
     );
 
     if (dynamicResult.models.length > 0) {
@@ -239,7 +222,6 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
     provider: string,
     apiKey: string,
     endpoint: string,
-    cacheKey: string,
   ): Promise<ModelDiscoveryResult> {
     try {
       log.debug(`Fetching models from ${provider}...`);
@@ -287,7 +269,12 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
         cachedAt: Date.now(),
       };
 
-      storage.setItem(cacheKey, result);
+      await setModelDiscoveryCache(
+        provider,
+        endpoint,
+        result,
+        CACHE_CONSTANTS.MODEL_CACHE_TTL_MS,
+      );
       log.info(`Fetched ${models.length} models from ${provider}`);
 
       return result;

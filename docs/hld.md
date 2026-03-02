@@ -171,9 +171,9 @@ The system follows a **two-tier architecture** with a clear separation between t
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| **Storage** | File-based (JSON + YAML/Markdown) | No database installation; human-readable; easy backup/migration; Git-friendly |
+| **Storage** | SQLite + filesystem | SQLite (`.meta/app.db`) is source of truth for non-manuscript state; filesystem is used for manuscript text and export/backup artifacts |
 | **Serialization** | serde (JSON/YAML) | Rust ecosystem standard; zero-cost abstractions; type-safe |
-| **Secret Storage** | Encrypted SQLite + local master key | API keys stored as AES-GCM ciphertext in `.meta/app.db`; OAuth tokens remain in OS keychain |
+| **Secret Storage** | Encrypted SQLite + local master key | API keys and OAuth tokens stored as AES-GCM ciphertext in `.meta/app.db` (`secure_secrets`) |
 | **Document Export** | epub-builder | ePub generation (Rust); DOCX/PDF via Frontend |
 | **Search** | Full-text scan (Rust command) | Simple file-based search with deterministic backend ranking for scenes and codex |
 
@@ -242,7 +242,7 @@ graph TB
 | **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with section-aware structure controls, customizable settings, and Codex Appendix support |
 | **Data Management** | 3 | 0 | Backup Center UI, series backup import/export, novel archive conversion |
 | **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback), cloud backup |
-| **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, IndexedDB persistence |
+| **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, SQLite snapshot persistence |
 | **AI** | 1 | 0 | AI-specific UI components |
 | **Project** | 2 | 0 | Project-level settings and metadata editing |
 | **Updater** | 1 | 0 | Auto-update notifier and installer |
@@ -377,9 +377,9 @@ The `AppProvider` component creates a React Context providing singleton instance
 
 | Store | Scope | Persistence | Purpose |
 |---|---|---|---|
-| `useProjectStore` | App-wide | localStorage | Active scene, view mode, panel visibility, sidebar tabs |
+| `useProjectStore` | App-wide | SQLite `app_preferences["ui.project_store"]` | Active scene, view mode, panel visibility, sidebar tabs |
 | `useChatStore` | App-wide | None | Active chat thread, thread list |
-| `useFormatStore` | App-wide | localStorage | Font size, line height, page width, focus mode, typewriter mode |
+| `useFormatStore` | App-wide | SQLite `app_preferences["ui.format_settings"]` | Font size, line height, page width, focus mode, typewriter mode |
 
 **Data fetching** uses the `useLiveQuery` custom hook for reactive repository queries that auto-refresh when dependencies change.
 
@@ -513,17 +513,17 @@ The `useContextAssembly` hook builds AI context by:
 ```mermaid
 graph TD
     App["Application Data Dir<br/>~/BecomeAnAuthor/{dev|release}/"]
-    Meta[".meta/<br/>series.json, recent.json"]
-    Series["Series/<br/>(multiple series)"]
-    S1["Series A/"]
-    S1Codex["codex/<br/>(shared across books)"]
+    Meta[".meta/<br/>app.db, api_key_master.key"]
+    Series["Series domain rows<br/>(SQLite)"]
+    S1["Series A (SQLite row)"]
+    S1Codex["codex tables<br/>(shared across books)"]
     Projects["Projects/<br/>(multiple projects)"]
     P1["Project (Novel)/"]
-    P1Meta[".meta/<br/>project.json, structure.json"]
-    P1Scenes["manuscript/<br/>scenes/*.md"]
+    P1Meta["project/structure/scene metadata<br/>(SQLite tables)"]
+    P1Scenes["manuscript/<br/>scene text *.md"]
     P1Chat[".meta/app.db<br/>(chat threads/messages, FTS index)"]
-    P1Snippets["snippets/*.json"]
-    P1Other["scene-notes/"]
+    P1Snippets["snippets/ (optional artifact dir)"]
+    P1Other["exports/backups artifacts"]
     Trash[".trash/<br/>soft-deleted projects"]
 
     App --> Meta
@@ -541,9 +541,9 @@ graph TD
 
 | Data Type | Format | Rationale |
 |---|---|---|
-| Scene content | YAML frontmatter + Markdown | Human-readable; Git-friendly; metadata in frontmatter |
-| Structural data | JSON | Fast parsing; type-safe serialization; programmatic access |
-| Entity data | JSON (individual files) | One file per entity; atomic writes; easy backup |
+| Scene content | Plain Markdown text files | Manuscript remains filesystem-native and easy to export/version |
+| Structural/metadata data | SQLite typed tables | Strong consistency and transactional updates across domains |
+| Flexible domain payloads | SQLite JSON columns | Hybrid typed+JSON storage for codex/snippet/note payload fidelity |
 | Collaboration state | Binary (Yjs) | CRDT encoding requires binary format |
 
 ### 10.3 Entity Relationships
@@ -613,7 +613,7 @@ OAuth 2.0 Desktop Flow:
 3. Opens system browser → Google consent screen
 4. Redirect to http://127.0.0.1:{port}/oauth2/callback
 5. Backend receives code, exchanges for tokens
-6. Tokens stored in OS keychain via `google_oauth` commands
+6. Tokens stored in encrypted SQLite secure storage via `google_oauth` commands
 ```
 
 ---
@@ -662,7 +662,7 @@ AI Provider API (HTTPS)
 │                 │    Peer-to-Peer          │                 │
 │  Yjs Doc        │    (y-webrtc)            │  Yjs Doc        │
 │  TipTap Editor  │                          │  TipTap Editor  │
-│  IndexedDB      │                          │  IndexedDB      │
+│  SQLite Snapshot│                          │  SQLite Snapshot│
 │  Backend (Yjs)  │                          │  Backend (Yjs)  │
 └────────────────┘                          └────────────────┘
          │                                            │
@@ -671,7 +671,7 @@ AI Provider API (HTTPS)
 ```
 
 - **CRDT**: Yjs provides conflict-free replicated data types — no merge conflicts
-- **Persistence**: Yjs state saved to filesystem via `save_yjs_state` command + IndexedDB
+- **Persistence**: Yjs state saved via `save_yjs_state` command into SQLite `yjs_snapshots`
 - **Signaling**: Public Yjs signaling servers for WebRTC peer discovery
 - **Room ID**: Generated per scene (`becomeauthor-{projectId}-{sceneId}`)
 

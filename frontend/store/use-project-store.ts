@@ -4,7 +4,6 @@
  */
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 export type ViewMode = "plan" | "write" | "chat";
 
@@ -14,7 +13,14 @@ export type RightPanelTab = "timeline" | "notes";
 /** Left sidebar tabs */
 export type LeftSidebarTab = "manuscript" | "codex" | "snippets";
 
-export interface ProjectStore {
+export interface ProjectStorePersistenceState {
+  showSidebar: boolean;
+  showTimeline: boolean;
+  rightPanelTab: RightPanelTab;
+  leftSidebarTab: LeftSidebarTab;
+}
+
+export interface ProjectStore extends ProjectStorePersistenceState {
   activeSceneId: string | null;
   setActiveSceneId: (id: string | null) => void;
   viewMode: ViewMode;
@@ -24,75 +30,87 @@ export interface ProjectStore {
   activeCodexEntryId: string | null;
   setActiveCodexEntryId: (id: string | null) => void;
   // Panel visibility (collapsible)
-  showSidebar: boolean;
-  showTimeline: boolean;
   toggleSidebar: () => void;
   toggleTimeline: () => void;
   setShowSidebar: (show: boolean) => void;
   setShowTimeline: (show: boolean) => void;
   // Right panel tab state (Phase 0)
-  rightPanelTab: RightPanelTab;
   setRightPanelTab: (tab: RightPanelTab) => void;
   // Left sidebar tab state (Phase 0)
-  leftSidebarTab: LeftSidebarTab;
   setLeftSidebarTab: (tab: LeftSidebarTab) => void;
 }
 
-export const useProjectStore = create<ProjectStore>()(
-  persist(
-    (set) => ({
-      activeSceneId: null,
-      viewMode: "plan",
-      activeProjectId: null,
-      activeCodexEntryId: null,
-      showSidebar: true,
-      showTimeline: true,
-      rightPanelTab: "timeline",
-      leftSidebarTab: "manuscript",
+export const defaultProjectStorePersistenceState: ProjectStorePersistenceState =
+  {
+    showSidebar: true,
+    showTimeline: true,
+    rightPanelTab: "timeline",
+    leftSidebarTab: "manuscript",
+  };
 
-      setViewMode: (viewMode) => set({ viewMode }),
+export const useProjectStore = create<ProjectStore>()((set) => ({
+  activeSceneId: null,
+  viewMode: "plan",
+  activeProjectId: null,
+  activeCodexEntryId: null,
+  ...defaultProjectStorePersistenceState,
 
-      toggleSidebar: () =>
-        set((state) => ({ showSidebar: !state.showSidebar })),
-      toggleTimeline: () =>
-        set((state) => ({ showTimeline: !state.showTimeline })),
-      setShowSidebar: (show) => set({ showSidebar: show }),
-      setShowTimeline: (show) => set({ showTimeline: show }),
+  setViewMode: (viewMode) => set({ viewMode }),
 
-      setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
-      setLeftSidebarTab: (tab) => set({ leftSidebarTab: tab }),
+  toggleSidebar: () => set((state) => ({ showSidebar: !state.showSidebar })),
+  toggleTimeline: () => set((state) => ({ showTimeline: !state.showTimeline })),
+  setShowSidebar: (show) => set({ showSidebar: show }),
+  setShowTimeline: (show) => set({ showTimeline: show }),
 
-      setActiveSceneId: (id) => {
-        set({ activeSceneId: id });
-      },
+  setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
+  setLeftSidebarTab: (tab) => set({ leftSidebarTab: tab }),
 
-      setActiveProjectId: (id) => set({ activeProjectId: id }),
-      setActiveCodexEntryId: (id) => set({ activeCodexEntryId: id }),
-    }),
-    {
-      name: "project-store",
-      partialize: (state) => ({
-        showSidebar: state.showSidebar,
-        showTimeline: state.showTimeline,
-        rightPanelTab: state.rightPanelTab,
-        leftSidebarTab: state.leftSidebarTab,
-      }),
-      merge: (persistedState, currentState) => {
-        const typedPersisted = persistedState as
-          | Partial<ProjectStore>
-          | undefined;
-        const persistedRightTab = typedPersisted?.rightPanelTab;
-        const rightPanelTab: RightPanelTab =
-          persistedRightTab === "timeline" || persistedRightTab === "notes"
-            ? persistedRightTab
-            : "timeline";
+  setActiveSceneId: (id) => {
+    set({ activeSceneId: id });
+  },
 
-        return {
-          ...currentState,
-          ...(typedPersisted || {}),
-          rightPanelTab,
-        };
-      },
-    },
-  ),
-);
+  setActiveProjectId: (id) => set({ activeProjectId: id }),
+  setActiveCodexEntryId: (id) => set({ activeCodexEntryId: id }),
+}));
+
+export function normalizeProjectStorePersistenceState(
+  value: Partial<ProjectStorePersistenceState> | undefined,
+): ProjectStorePersistenceState {
+  const persistedRightTab = value?.rightPanelTab;
+  const rightPanelTab: RightPanelTab =
+    persistedRightTab === "timeline" || persistedRightTab === "notes"
+      ? persistedRightTab
+      : "timeline";
+
+  const persistedLeftTab = value?.leftSidebarTab;
+  const leftSidebarTab: LeftSidebarTab =
+    persistedLeftTab === "manuscript" ||
+    persistedLeftTab === "codex" ||
+    persistedLeftTab === "snippets"
+      ? persistedLeftTab
+      : "manuscript";
+
+  return {
+    showSidebar:
+      typeof value?.showSidebar === "boolean"
+        ? value.showSidebar
+        : defaultProjectStorePersistenceState.showSidebar,
+    showTimeline:
+      typeof value?.showTimeline === "boolean"
+        ? value.showTimeline
+        : defaultProjectStorePersistenceState.showTimeline,
+    rightPanelTab,
+    leftSidebarTab,
+  };
+}
+
+export function selectProjectStorePersistenceState(
+  state: ProjectStore,
+): ProjectStorePersistenceState {
+  return {
+    showSidebar: state.showSidebar,
+    showTimeline: state.showTimeline,
+    rightPanelTab: state.rightPanelTab,
+    leftSidebarTab: state.leftSidebarTab,
+  };
+}

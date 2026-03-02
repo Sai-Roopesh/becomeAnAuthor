@@ -3,6 +3,15 @@ use std::path::PathBuf;
 
 use crate::models::StructureNode;
 
+fn extract_scene_body(content: &str) -> &str {
+    let parts: Vec<&str> = content.splitn(3, "---").collect();
+    if parts.len() >= 3 {
+        parts[2].trim()
+    } else {
+        content.trim()
+    }
+}
+
 #[tauri::command]
 pub fn export_manuscript_text(project_path: String) -> Result<String, String> {
     let structure = crate::commands::project::get_structure(project_path.clone())?;
@@ -23,11 +32,8 @@ pub fn export_manuscript_text(project_path: String) -> Result<String, String> {
                 if let Some(file) = &node.file {
                     let file_path = PathBuf::from(project_path).join("manuscript").join(file);
                     if let Ok(content) = fs::read_to_string(&file_path) {
-                        let parts: Vec<&str> = content.splitn(3, "---").collect();
-                        if parts.len() >= 3 {
-                            output.push_str(parts[2].trim());
-                            output.push_str("\n\n");
-                        }
+                        output.push_str(extract_scene_body(&content));
+                        output.push_str("\n\n");
                     }
                 }
             }
@@ -115,23 +121,20 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
                 if let Some(file) = &node.file {
                     let file_path = PathBuf::from(project_path).join("manuscript").join(file);
                     if let Ok(content) = fs::read_to_string(&file_path) {
-                        let parts: Vec<&str> = content.splitn(3, "---").collect();
-                        if parts.len() >= 3 {
-                            let body = parts[2].trim();
+                        let body = extract_scene_body(&content);
 
-                            if let Ok(tiptap) = serde_json::from_str::<serde_json::Value>(body) {
-                                let text = extract_text_from_tiptap(&tiptap);
-                                for para in text.split("\n\n").filter(|s| !s.trim().is_empty()) {
-                                    *docx = std::mem::take(docx).add_paragraph(
-                                        Paragraph::new().add_run(Run::new().add_text(para.trim())),
-                                    );
-                                }
-                            } else {
-                                for para in body.split("\n\n").filter(|s| !s.trim().is_empty()) {
-                                    *docx = std::mem::take(docx).add_paragraph(
-                                        Paragraph::new().add_run(Run::new().add_text(para.trim())),
-                                    );
-                                }
+                        if let Ok(tiptap) = serde_json::from_str::<serde_json::Value>(body) {
+                            let text = extract_text_from_tiptap(&tiptap);
+                            for para in text.split("\n\n").filter(|s| !s.trim().is_empty()) {
+                                *docx = std::mem::take(docx).add_paragraph(
+                                    Paragraph::new().add_run(Run::new().add_text(para.trim())),
+                                );
+                            }
+                        } else {
+                            for para in body.split("\n\n").filter(|s| !s.trim().is_empty()) {
+                                *docx = std::mem::take(docx).add_paragraph(
+                                    Paragraph::new().add_run(Run::new().add_text(para.trim())),
+                                );
                             }
                         }
                     }
@@ -149,7 +152,8 @@ pub fn export_manuscript_docx(project_path: String, output_path: String) -> Resu
         add_node_to_docx(node, &mut docx, &project_path);
     }
 
-    let file = fs::File::create(&output_path).map_err(|e| format!("Failed to create file: {}", e))?;
+    let file =
+        fs::File::create(&output_path).map_err(|e| format!("Failed to create file: {}", e))?;
 
     docx.build()
         .pack(file)
@@ -240,25 +244,22 @@ pub fn export_manuscript_epub(
                                 let file_path =
                                     PathBuf::from(project_path).join("manuscript").join(file);
                                 if let Ok(file_content) = fs::read_to_string(&file_path) {
-                                    let parts: Vec<&str> = file_content.splitn(3, "---").collect();
-                                    if parts.len() >= 3 {
-                                        let body = parts[2].trim();
+                                    let body = extract_scene_body(&file_content);
 
-                                        if let Ok(tiptap) =
-                                            serde_json::from_str::<serde_json::Value>(body)
+                                    if let Ok(tiptap) =
+                                        serde_json::from_str::<serde_json::Value>(body)
+                                    {
+                                        let text = extract_text_from_tiptap(&tiptap);
+                                        for para in
+                                            text.split("\n\n").filter(|s| !s.trim().is_empty())
                                         {
-                                            let text = extract_text_from_tiptap(&tiptap);
-                                            for para in
-                                                text.split("\n\n").filter(|s| !s.trim().is_empty())
-                                            {
-                                                content.push_str(&format!("<p>{}</p>\n", para.trim()));
-                                            }
-                                        } else {
-                                            for para in
-                                                body.split("\n\n").filter(|s| !s.trim().is_empty())
-                                            {
-                                                content.push_str(&format!("<p>{}</p>\n", para.trim()));
-                                            }
+                                            content.push_str(&format!("<p>{}</p>\n", para.trim()));
+                                        }
+                                    } else {
+                                        for para in
+                                            body.split("\n\n").filter(|s| !s.trim().is_empty())
+                                        {
+                                            content.push_str(&format!("<p>{}</p>\n", para.trim()));
                                         }
                                     }
                                 }
@@ -287,8 +288,8 @@ pub fn export_manuscript_epub(
     let mut chapter_num = 0;
     add_chapters_to_epub(&mut epub, &structure, &project_path, &mut chapter_num)?;
 
-    let mut output_file =
-        fs::File::create(&output_path).map_err(|e| format!("Failed to create output file: {}", e))?;
+    let mut output_file = fs::File::create(&output_path)
+        .map_err(|e| format!("Failed to create output file: {}", e))?;
 
     epub.generate(&mut output_file)
         .map_err(|e| format!("Failed to generate ePub: {}", e))?;

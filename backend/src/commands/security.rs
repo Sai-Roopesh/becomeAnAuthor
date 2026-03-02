@@ -10,11 +10,12 @@ use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use chrono::Utc;
 use rand::RngCore;
+use rusqlite::Connection;
 use std::fs;
 use std::path::PathBuf;
 use tauri::command;
 
-const API_KEY_NAMESPACE: &str = "api_key";
+pub(crate) const API_KEY_NAMESPACE: &str = "api_key";
 const MASTER_KEY_FILE: &str = "api_key_master.key";
 const KEY_LENGTH: usize = 32;
 const NONCE_LENGTH: usize = 12;
@@ -59,7 +60,7 @@ fn load_or_create_master_key() -> Result<[u8; KEY_LENGTH], String> {
     Ok(key)
 }
 
-fn encrypt_api_key(plaintext: &str) -> Result<(Vec<u8>, Vec<u8>), String> {
+fn encrypt_secret(plaintext: &str) -> Result<(Vec<u8>, Vec<u8>), String> {
     let key = load_or_create_master_key()?;
     let cipher =
         Aes256Gcm::new_from_slice(&key).map_err(|e| format!("Failed to initialize cipher: {e}"))?;
@@ -69,14 +70,14 @@ fn encrypt_api_key(plaintext: &str) -> Result<(Vec<u8>, Vec<u8>), String> {
 
     let ciphertext = cipher
         .encrypt(Nonce::from_slice(&nonce), plaintext.as_bytes())
-        .map_err(|_| "Failed to encrypt API key".to_string())?;
+        .map_err(|_| "Failed to encrypt secret".to_string())?;
 
     Ok((nonce.to_vec(), ciphertext))
 }
 
-fn decrypt_api_key(nonce: &[u8], ciphertext: &[u8]) -> Result<String, String> {
+fn decrypt_secret(nonce: &[u8], ciphertext: &[u8]) -> Result<String, String> {
     if nonce.len() != NONCE_LENGTH {
-        return Err("Invalid API key nonce length".to_string());
+        return Err("Invalid secret nonce length".to_string());
     }
 
     let key = load_or_create_master_key()?;
@@ -85,14 +86,14 @@ fn decrypt_api_key(nonce: &[u8], ciphertext: &[u8]) -> Result<String, String> {
 
     let plaintext = cipher
         .decrypt(Nonce::from_slice(nonce), ciphertext)
-        .map_err(|_| "Failed to decrypt API key".to_string())?;
+        .map_err(|_| "Failed to decrypt secret".to_string())?;
 
-    String::from_utf8(plaintext).map_err(|e| format!("Failed to decode decrypted API key: {e}"))
+    String::from_utf8(plaintext).map_err(|e| format!("Failed to decode decrypted secret: {e}"))
 }
 
 fn validate_account_inputs(
-    provider: String,
-    connection_id: String,
+    provider: &str,
+    connection_id: &str,
 ) -> Result<(String, String), String> {
     let provider = provider.trim().to_string();
     if provider.is_empty() {
@@ -107,24 +108,30 @@ fn validate_account_inputs(
     Ok((provider, connection_id))
 }
 
-/// Store an encrypted API key in SQLite.
-#[command]
-pub fn store_api_key(provider: String, connection_id: String, key: String) -> Result<(), String> {
+pub(crate) fn store_secret_for_account(
+    conn: &Connection,
+    namespace: &str,
+    provider: &str,
+    connection_id: &str,
+    secret: &str,
+) -> Result<(), String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
-
-    let normalized_key = key.trim();
-    if normalized_key.is_empty() {
-        return Err("API key cannot be empty".to_string());
+    let normalized_namespace = namespace.trim().to_string();
+    if normalized_namespace.is_empty() {
+        return Err("Namespace cannot be empty".to_string());
+    }
+    let normalized_secret = secret.trim();
+    if normalized_secret.is_empty() {
+        return Err("Secret cannot be empty".to_string());
     }
 
-    let (nonce, ciphertext) = encrypt_api_key(normalized_key)?;
-    let conn = open_app_db()?;
+    let (nonce, ciphertext) = encrypt_secret(normalized_secret)?;
     let now = Utc::now().timestamp_millis();
 
-    upsert_secure_account(&conn, API_KEY_NAMESPACE, &provider, &connection_id, now)?;
+    upsert_secure_account(conn, &normalized_namespace, &provider, &connection_id, now)?;
     upsert_secure_secret(
-        &conn,
-        API_KEY_NAMESPACE,
+        conn,
+        &normalized_namespace,
         &provider,
         &connection_id,
         &nonce,
@@ -135,19 +142,23 @@ pub fn store_api_key(provider: String, connection_id: String, key: String) -> Re
     Ok(())
 }
 
-/// Retrieve and decrypt an API key from SQLite.
-#[command]
-pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<String>, String> {
+pub(crate) fn get_secret_for_account(
+    conn: &Connection,
+    namespace: &str,
+    provider: &str,
+    connection_id: &str,
+) -> Result<Option<String>, String> {
     let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
-
-    let conn = open_app_db()?;
-    let secret = get_secure_secret(&conn, API_KEY_NAMESPACE, &provider, &connection_id)?;
-
+    let normalized_namespace = namespace.trim().to_string();
+    if normalized_namespace.is_empty() {
+        return Err("Namespace cannot be empty".to_string());
+    }
+    let secret = get_secure_secret(conn, &normalized_namespace, &provider, &connection_id)?;
     let Some((nonce, ciphertext)) = secret else {
         return Ok(None);
     };
 
-    let plaintext = decrypt_api_key(&nonce, &ciphertext)?;
+    let plaintext = decrypt_secret(&nonce, &ciphertext)?;
     if plaintext.trim().is_empty() {
         Ok(None)
     } else {
@@ -155,24 +166,94 @@ pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<Str
     }
 }
 
+pub(crate) fn has_secret_for_account(
+    conn: &Connection,
+    namespace: &str,
+    provider: &str,
+    connection_id: &str,
+) -> Result<bool, String> {
+    Ok(
+        get_secret_for_account(conn, namespace, provider, connection_id)?
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false),
+    )
+}
+
+pub(crate) fn delete_secret_for_account(
+    conn: &Connection,
+    namespace: &str,
+    provider: &str,
+    connection_id: &str,
+) -> Result<(), String> {
+    let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
+    let normalized_namespace = namespace.trim().to_string();
+    if normalized_namespace.is_empty() {
+        return Err("Namespace cannot be empty".to_string());
+    }
+    delete_secure_secret(conn, &normalized_namespace, &provider, &connection_id)?;
+    delete_secure_account(conn, &normalized_namespace, &provider, &connection_id)?;
+    Ok(())
+}
+
+pub(crate) fn store_api_key_for_account(
+    conn: &Connection,
+    provider: &str,
+    connection_id: &str,
+    key: &str,
+) -> Result<(), String> {
+    store_secret_for_account(conn, API_KEY_NAMESPACE, provider, connection_id, key)
+}
+
+pub(crate) fn get_api_key_for_account(
+    conn: &Connection,
+    provider: &str,
+    connection_id: &str,
+) -> Result<Option<String>, String> {
+    get_secret_for_account(conn, API_KEY_NAMESPACE, provider, connection_id)
+}
+
+pub(crate) fn has_api_key_for_account(
+    conn: &Connection,
+    provider: &str,
+    connection_id: &str,
+) -> Result<bool, String> {
+    has_secret_for_account(conn, API_KEY_NAMESPACE, provider, connection_id)
+}
+
+pub(crate) fn delete_api_key_for_account(
+    conn: &Connection,
+    provider: &str,
+    connection_id: &str,
+) -> Result<(), String> {
+    delete_secret_for_account(conn, API_KEY_NAMESPACE, provider, connection_id)
+}
+
+/// Store an encrypted API key in SQLite.
+#[command]
+pub fn store_api_key(provider: String, connection_id: String, key: String) -> Result<(), String> {
+    let conn = open_app_db()?;
+    store_api_key_for_account(&conn, &provider, &connection_id, &key)
+}
+
+/// Retrieve and decrypt an API key from SQLite.
+#[command]
+pub fn get_api_key(provider: String, connection_id: String) -> Result<Option<String>, String> {
+    let conn = open_app_db()?;
+    get_api_key_for_account(&conn, &provider, &connection_id)
+}
+
 /// Check whether an API key exists for a provider/connection.
 #[command]
 pub fn has_api_key(provider: String, connection_id: String) -> Result<bool, String> {
-    Ok(get_api_key(provider, connection_id)?
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false))
+    let conn = open_app_db()?;
+    has_api_key_for_account(&conn, &provider, &connection_id)
 }
 
 /// Delete an API key from encrypted SQLite storage.
 #[command]
 pub fn delete_api_key(provider: String, connection_id: String) -> Result<(), String> {
-    let (provider, connection_id) = validate_account_inputs(provider, connection_id)?;
-
     let conn = open_app_db()?;
-    delete_secure_secret(&conn, API_KEY_NAMESPACE, &provider, &connection_id)?;
-    delete_secure_account(&conn, API_KEY_NAMESPACE, &provider, &connection_id)?;
-
-    Ok(())
+    delete_api_key_for_account(&conn, &provider, &connection_id)
 }
 
 /// List all providers that have at least one stored API key.

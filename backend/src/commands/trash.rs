@@ -1,102 +1,102 @@
-// Trash commands (Soft Delete)
-
 use std::fs;
 use std::path::PathBuf;
 
-use crate::utils::{atomic_write, validate_no_null_bytes, validate_uuid_format};
+use crate::utils::{timestamp, validate_no_null_bytes, validate_uuid_format};
 
-fn validate_trash_item_id(item_id: &str) -> Result<(), String> {
-    validate_no_null_bytes(item_id, "Trash item ID")?;
-    validate_uuid_format(item_id).map_err(|_| "Invalid trash item ID".to_string())
+fn trash_root(project_path: &str) -> Result<PathBuf, String> {
+    let root = PathBuf::from(project_path).join(".meta").join("trash");
+    fs::create_dir_all(&root).map_err(|e| format!("Failed to ensure trash directory: {e}"))?;
+    Ok(root)
 }
 
-fn normalize_codex_category(category: &str) -> &'static str {
-    match category {
-        "character" => "character",
-        "location" => "location",
-        "item" => "item",
-        "lore" => "lore",
-        "subplot" => "subplot",
-        _ => "character",
+fn validate_item_type(item_type: &str) -> Result<String, String> {
+    let normalized = item_type.trim().to_lowercase();
+    if normalized.is_empty() {
+        return Err("Trash item type cannot be empty".to_string());
+    }
+    validate_no_null_bytes(&normalized, "Trash item type")?;
+    if normalized
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+    {
+        Ok(normalized)
+    } else {
+        Err("Trash item type contains invalid characters".to_string())
     }
 }
 
-fn parse_trash_meta(path: &PathBuf) -> Result<serde_json::Value, String> {
-    let content = fs::read_to_string(path).map_err(|e| {
-        format!(
-            "Failed to read trash metadata at '{}': {}",
-            path.display(),
-            e
-        )
-    })?;
-    serde_json::from_str(&content).map_err(|e| {
-        format!(
-            "Invalid trash metadata JSON at '{}': {}",
-            path.display(),
-            e
-        )
-    })
+fn validate_item_id(item_id: &str) -> Result<String, String> {
+    let normalized = item_id.trim().to_string();
+    if normalized.is_empty() {
+        return Err("Trash item id cannot be empty".to_string());
+    }
+    validate_no_null_bytes(&normalized, "Trash item id")?;
+    if normalized.contains('/') || normalized.contains('\\') {
+        return Err("Trash item id cannot contain path separators".to_string());
+    }
+
+    match validate_uuid_format(&normalized) {
+        Ok(_) => Ok(normalized),
+        Err(_) => {
+            if normalized
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+            {
+                Ok(normalized)
+            } else {
+                Err("Trash item id must be a UUID or safe identifier".to_string())
+            }
+        }
+    }
+}
+
+fn validate_source_path(project_path: &str, source_path: &str) -> Result<PathBuf, String> {
+    let source = PathBuf::from(source_path);
+    if !source.exists() {
+        return Err("Source path does not exist".to_string());
+    }
+
+    let project_root = PathBuf::from(project_path)
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve project path: {e}"))?;
+    let canonical_source = source
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve source path: {e}"))?;
+
+    if !canonical_source.starts_with(&project_root) {
+        return Err("Source path must be inside project directory".to_string());
+    }
+
+    Ok(source)
 }
 
 #[tauri::command]
 pub fn move_to_trash(
     project_path: String,
-    item_id: String,
+    source_path: String,
     item_type: String,
-    trash_meta: String,
-) -> Result<(), String> {
-    validate_trash_item_id(&item_id)?;
-    let project_dir = PathBuf::from(&project_path);
-    let trash_dir = project_dir.join(".meta").join("trash");
-    fs::create_dir_all(&trash_dir).map_err(|e| e.to_string())?;
+) -> Result<serde_json::Value, String> {
+    let source = validate_source_path(&project_path, &source_path)?;
+    let item_type = validate_item_type(&item_type)?;
+    let item_id = uuid::Uuid::new_v4().to_string();
 
-    let meta: serde_json::Value =
-        serde_json::from_str(&trash_meta).map_err(|e| format!("Invalid trash meta: {}", e))?;
-
-    let source_path = match item_type.as_str() {
-        "scene" => project_dir
-            .join("manuscript")
-            .join(format!("{}.md", item_id)),
-        "codex" => {
-            let codex_dir = project_dir.join(".meta/codex");
-            let mut found_path = None;
-            for category in &["character", "location", "item", "lore", "subplot"] {
-                let path = codex_dir.join(category).join(format!("{}.json", item_id));
-                if path.exists() {
-                    found_path = Some(path);
-                    break;
-                }
-            }
-            found_path.ok_or("Codex entry not found")?
-        }
-        "snippet" => project_dir
-            .join("snippets")
-            .join(format!("{}.json", item_id)),
-        _ => return Err(format!("Unknown item type: {}", item_type)),
-    };
-
-    if !source_path.exists() {
-        return Err("Item not found".to_string());
-    }
-
-    let trash_item_dir = trash_dir.join(&item_id);
-    fs::create_dir_all(&trash_item_dir).map_err(|e| e.to_string())?;
-
-    let file_name = source_path
+    let file_name = source
         .file_name()
-        .ok_or_else(|| format!("Invalid source path: {:?}", source_path))?;
-    let dest_path = trash_item_dir.join(file_name);
-    fs::copy(&source_path, &dest_path).map_err(|e| e.to_string())?;
+        .and_then(|v| v.to_str())
+        .unwrap_or("item")
+        .to_string();
 
-    let meta_path = trash_item_dir.join("meta.json");
-    let meta_json = serde_json::to_string_pretty(&meta)
-        .map_err(|e| format!("Failed to serialize trash metadata: {}", e))?;
-    atomic_write(&meta_path, &meta_json)
-        .map_err(|e| format!("Failed to write trash metadata: {}", e))?;
+    let trash_dir = trash_root(&project_path)?;
+    let dest = trash_dir.join(format!("{}__{}__{}", item_type, item_id, file_name));
+    fs::rename(&source, &dest).map_err(|e| format!("Failed to move item to trash: {e}"))?;
 
-    fs::remove_file(&source_path).map_err(|e| e.to_string())?;
-
-    Ok(())
+    Ok(serde_json::json!({
+        "id": item_id,
+        "type": item_type,
+        "sourcePath": source_path,
+        "trashPath": dest.to_string_lossy(),
+        "deletedAt": timestamp::now_millis()
+    }))
 }
 
 #[tauri::command]
@@ -104,81 +104,55 @@ pub fn restore_from_trash(
     project_path: String,
     item_id: String,
     item_type: String,
+    target_path: String,
 ) -> Result<(), String> {
-    validate_trash_item_id(&item_id)?;
-    let project_dir = PathBuf::from(&project_path);
-    let trash_dir = project_dir.join(".meta").join("trash").join(&item_id);
+    let item_id = validate_item_id(&item_id)?;
+    let item_type = validate_item_type(&item_type)?;
+    let target = PathBuf::from(target_path);
 
-    if !trash_dir.exists() {
-        return Err("Trash item not found".to_string());
-    }
-
-    let entries: Vec<_> = fs::read_dir(&trash_dir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|entry| match entry {
-            Ok(dir_entry) if dir_entry.file_name() != "meta.json" => Some(Ok(dir_entry)),
-            Ok(_) => None,
-            Err(err) => Some(Err(err)),
+    let trash_dir = trash_root(&project_path)?;
+    let prefix = format!("{}__{}__", item_type, item_id);
+    let entry_path = fs::read_dir(&trash_dir)
+        .map_err(|e| format!("Failed to read trash dir: {e}"))?
+        .flatten()
+        .find(|entry| {
+            entry
+                .file_name()
+                .to_str()
+                .is_some_and(|name| name.starts_with(&prefix))
         })
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+        .map(|entry| entry.path())
+        .ok_or_else(|| "Trash item not found".to_string())?;
 
-    let trashed_file = entries.first().ok_or("No file found in trash item")?;
-
-    let restore_path = match item_type.as_str() {
-        "scene" => project_dir
-            .join("manuscript")
-            .join(trashed_file.file_name()),
-        "codex" => {
-            let meta_path = trash_dir.join("meta.json");
-            let meta = if meta_path.exists() {
-                parse_trash_meta(&meta_path)?
-            } else {
-                serde_json::Value::Null
-            };
-            let category = normalize_codex_category(
-                meta.get("category")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("character"),
-            );
-            project_dir
-                .join(".meta/codex")
-                .join(category)
-                .join(trashed_file.file_name())
-        }
-        "snippet" => project_dir.join("snippets").join(trashed_file.file_name()),
-        _ => return Err(format!("Unknown item type: {}", item_type)),
-    };
-
-    if let Some(parent) = restore_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to ensure restore parent: {e}"))?;
     }
-
-    fs::copy(trashed_file.path(), &restore_path).map_err(|e| e.to_string())?;
-    fs::remove_dir_all(&trash_dir).map_err(|e| e.to_string())?;
-
+    fs::rename(entry_path, target).map_err(|e| format!("Failed to restore trash item: {e}"))?;
     Ok(())
 }
 
 #[tauri::command]
 pub fn list_trash(project_path: String) -> Result<Vec<serde_json::Value>, String> {
-    let trash_dir = PathBuf::from(&project_path).join(".meta").join("trash");
-
-    if !trash_dir.exists() {
-        return Ok(Vec::new());
-    }
-
+    let trash_dir = trash_root(&project_path)?;
     let mut items = Vec::new();
 
-    for entry in fs::read_dir(&trash_dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
-            let meta_path = entry.path().join("meta.json");
-            if meta_path.exists() {
-                let meta = parse_trash_meta(&meta_path)?;
-                items.push(meta);
-            }
+    for entry in fs::read_dir(&trash_dir)
+        .map_err(|e| format!("Failed to read trash dir: {e}"))?
+        .flatten()
+    {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        let parts = name.splitn(3, "__").collect::<Vec<_>>();
+        if parts.len() < 3 {
+            continue;
         }
+
+        items.push(serde_json::json!({
+            "type": parts[0],
+            "id": parts[1],
+            "name": parts[2],
+            "trashPath": path.to_string_lossy(),
+        }));
     }
 
     Ok(items)
@@ -188,16 +162,28 @@ pub fn list_trash(project_path: String) -> Result<Vec<serde_json::Value>, String
 pub fn permanent_delete(
     project_path: String,
     item_id: String,
-    _item_type: String,
+    item_type: String,
 ) -> Result<(), String> {
-    validate_trash_item_id(&item_id)?;
-    let trash_dir = PathBuf::from(&project_path)
-        .join(".meta")
-        .join("trash")
-        .join(&item_id);
+    let item_id = validate_item_id(&item_id)?;
+    let item_type = validate_item_type(&item_type)?;
 
-    if trash_dir.exists() {
-        fs::remove_dir_all(&trash_dir).map_err(|e| e.to_string())?;
+    let trash_dir = trash_root(&project_path)?;
+    let prefix = format!("{}__{}__", item_type, item_id);
+
+    for entry in fs::read_dir(&trash_dir)
+        .map_err(|e| format!("Failed to read trash dir: {e}"))?
+        .flatten()
+    {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with(&prefix) {
+            let path = entry.path();
+            if path.is_dir() {
+                fs::remove_dir_all(&path)
+                    .map_err(|e| format!("Failed to delete trash directory: {e}"))?;
+            } else {
+                fs::remove_file(&path).map_err(|e| format!("Failed to delete trash file: {e}"))?;
+            }
+        }
     }
 
     Ok(())
@@ -205,11 +191,18 @@ pub fn permanent_delete(
 
 #[tauri::command]
 pub fn empty_trash(project_path: String) -> Result<(), String> {
-    let trash_dir = PathBuf::from(&project_path).join(".meta").join("trash");
+    let trash_dir = trash_root(&project_path)?;
 
-    if trash_dir.exists() {
-        fs::remove_dir_all(&trash_dir).map_err(|e| e.to_string())?;
-        fs::create_dir_all(&trash_dir).map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(&trash_dir)
+        .map_err(|e| format!("Failed to read trash dir: {e}"))?
+        .flatten()
+    {
+        let path = entry.path();
+        if path.is_dir() {
+            fs::remove_dir_all(&path).map_err(|e| format!("Failed to remove trash dir: {e}"))?;
+        } else {
+            fs::remove_file(&path).map_err(|e| format!("Failed to remove trash file: {e}"))?;
+        }
     }
 
     Ok(())

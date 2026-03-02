@@ -3,8 +3,4 @@
  * Re-exports from canonical lib/config location.
  */
 
-export {
-  AI_DEFAULTS,
-  STORAGE_KEYS,
-  DEBOUNCE_DELAYS,
-} from "@/lib/config/constants";
+export { AI_DEFAULTS, DEBOUNCE_DELAYS } from "@/lib/config/constants";

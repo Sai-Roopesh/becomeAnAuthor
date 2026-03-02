@@ -1,7 +1,7 @@
 /**
  * Tauri Codex Repository
  * Series-first architecture: all codex operations use seriesId
- * Codex is stored at series level: ~/BecomeAnAuthor/series/{seriesId}/codex/
+ * Codex is stored at series level in backend SQLite tables.
  */
 
 import type { ICodexRepository } from "@/domain/repositories/ICodexRepository";
@@ -19,7 +19,7 @@ const log = logger.scope("TauriCodexRepository");
 
 /**
  * Tauri-based Codex Repository
- * Stores codex entries as JSON files in ~/BecomeAnAuthor/series/{seriesId}/codex/{category}/
+ * Stores codex entries in SQLite and syncs via Tauri commands.
  */
 export class TauriCodexRepository implements ICodexRepository {
   async get(seriesId: string, id: string): Promise<CodexEntry | undefined> {

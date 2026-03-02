@@ -13,8 +13,8 @@ import { toAppError } from "@/shared/errors/app-error";
 const log = logger.scope("TauriSeriesRepository");
 
 /**
- * Tauri filesystem-based implementation of Series Repository
- * Stores series data in ~/.BecomeAnAuthor/.meta/series.json
+ * Tauri SQLite-backed implementation of Series Repository
+ * Persists series metadata in backend SQLite tables.
  */
 export class TauriSeriesRepository implements ISeriesRepository {
   async getAll(): Promise<Series[]> {

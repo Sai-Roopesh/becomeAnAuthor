@@ -1,285 +1,362 @@
-// Codex commands
+// Codex commands (SQLite-backed)
 
-use serde::{de::DeserializeOwned, Serialize};
-use std::fs;
-use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
+use rusqlite::{params, Connection};
 
 use crate::models::{
     CodexEntry, CodexEntryTag, CodexRelation, CodexRelationType, CodexTag, CodexTemplate,
     SceneCodexLink,
 };
-use crate::utils::atomic_write;
+use crate::storage::open_app_db;
 
-fn read_json_vec<T>(path: &Path) -> Result<Vec<T>, String>
-where
-    T: DeserializeOwned,
-{
-    if !path.exists() {
-        return Ok(Vec::new());
+fn project_series_id(conn: &Connection, project_path: &str) -> Result<String, String> {
+    conn.query_row(
+        "SELECT series_id FROM projects WHERE path = ?1",
+        params![project_path],
+        |row| row.get::<_, String>(0),
+    )
+    .map_err(|e| format!("Failed to resolve project series_id: {e}"))
+}
+
+fn parse_payload<T: for<'de> serde::Deserialize<'de>>(
+    payload: String,
+    label: &str,
+) -> Result<T, String> {
+    serde_json::from_str::<T>(&payload)
+        .map_err(|e| format!("Failed to parse {} payload: {e}", label))
+}
+
+fn list_payloads<T: for<'de> serde::Deserialize<'de>>(
+    conn: &Connection,
+    sql: &str,
+    params: &[&dyn rusqlite::ToSql],
+    label: &str,
+) -> Result<Vec<T>, String> {
+    let mut stmt = conn
+        .prepare(sql)
+        .map_err(|e| format!("Failed to prepare {} list query: {e}", label))?;
+    let rows = stmt
+        .query_map(params, |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Failed to execute {} list query: {e}", label))?;
+
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(parse_payload::<T>(
+            row.map_err(|e| format!("Failed to decode {} payload row: {e}", label))?,
+            label,
+        )?);
     }
-
-    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse JSON array at {}: {}", path.display(), e))
-}
-
-fn write_json_vec<T>(path: &Path, items: &[T]) -> Result<(), String>
-where
-    T: Serialize,
-{
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-
-    let json = serde_json::to_string_pretty(items).map_err(|e| e.to_string())?;
-    atomic_write(path, &json)
-}
-
-fn meta_json_path(project_path: &str, file_name: &str) -> PathBuf {
-    PathBuf::from(project_path).join(".meta").join(file_name)
-}
-
-#[allow(clippy::redundant_closure)]
-fn upsert_json_vec<T, F>(path: &Path, item: T, mut is_match: F) -> Result<(), String>
-where
-    T: DeserializeOwned + Serialize,
-    F: FnMut(&T) -> bool,
-{
-    let mut items: Vec<T> = read_json_vec(path)?;
-    if let Some(idx) = items.iter().position(&mut is_match) {
-        items[idx] = item;
-    } else {
-        items.push(item);
-    }
-    write_json_vec(path, &items)
-}
-
-fn retain_json_vec<T, F>(path: &Path, mut keep: F) -> Result<(), String>
-where
-    T: DeserializeOwned + Serialize,
-    F: FnMut(&T) -> bool,
-{
-    let mut items: Vec<T> = read_json_vec(path)?;
-    items.retain(|item| keep(item));
-    write_json_vec(path, &items)
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn list_codex_entries(project_path: String) -> Result<Vec<CodexEntry>, String> {
-    let codex_dir = PathBuf::from(&project_path).join(".meta/codex");
-    let mut entries = Vec::new();
-
-    if !codex_dir.exists() {
-        return Ok(entries);
-    }
-
-    for entry in WalkDir::new(&codex_dir)
-        .min_depth(2)
-        .max_depth(2)
-        .into_iter()
-        .flatten()
-    {
-        if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
-            let content = fs::read_to_string(entry.path()).map_err(|e| {
-                format!(
-                    "Failed to read codex entry {}: {}",
-                    entry.path().display(),
-                    e
-                )
-            })?;
-            let codex_entry = serde_json::from_str::<CodexEntry>(&content).map_err(|e| {
-                format!(
-                    "Failed to parse codex entry {}: {}",
-                    entry.path().display(),
-                    e
-                )
-            })?;
-            entries.push(codex_entry);
-        }
-    }
-
-    Ok(entries)
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    list_payloads::<CodexEntry>(
+        &conn,
+        "SELECT payload_json FROM codex_entries WHERE series_id = ?1 ORDER BY updated_at DESC",
+        &[&series_id],
+        "codex entry",
+    )
 }
 
 #[tauri::command]
 pub fn save_codex_entry(project_path: String, entry: CodexEntry) -> Result<(), String> {
-    let entry_path = PathBuf::from(&project_path)
-        .join(".meta")
-        .join("codex")
-        .join(&entry.category)
-        .join(format!("{}.json", entry.id));
-    let parent_dir = entry_path
-        .parent()
-        .ok_or_else(|| format!("Invalid codex entry path: {:?}", entry_path))?;
-    fs::create_dir_all(parent_dir)
-        .map_err(|e| format!("Failed to create codex directory: {}", e))?;
-    let json = serde_json::to_string_pretty(&entry).map_err(|e| e.to_string())?;
-    atomic_write(&entry_path, &json)?;
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    let payload_json = serde_json::to_string(&entry).map_err(|e| e.to_string())?;
+    let aliases_json = serde_json::to_string(&entry.aliases).map_err(|e| e.to_string())?;
 
+    conn.execute(
+        r#"
+        INSERT INTO codex_entries(id, series_id, category, name, aliases_json, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            category = excluded.category,
+            name = excluded.name,
+            aliases_json = excluded.aliases_json,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            entry.id,
+            series_id,
+            entry.category,
+            entry.name,
+            aliases_json,
+            payload_json,
+            entry.created_at,
+            entry.updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to save codex entry: {e}"))?;
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_codex_entry(
     project_path: String,
+    _category: String,
     entry_id: String,
-    category: String,
 ) -> Result<(), String> {
-    let project_root = PathBuf::from(&project_path);
-    let codex_root = project_root.join(".meta").join("codex");
-    let entry_filename = format!("{}.json", entry_id);
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
 
-    // Delete every matching codex entry file to avoid stale duplicates across categories.
-    if codex_root.exists() {
-        for entry in WalkDir::new(&codex_root)
-            .min_depth(2)
-            .max_depth(2)
-            .into_iter()
-            .flatten()
-        {
-            if entry.file_type().is_file() && entry.file_name().to_string_lossy() == entry_filename
-            {
-                fs::remove_file(entry.path()).map_err(|e| e.to_string())?;
-            }
-        }
-    }
+    conn.execute(
+        "DELETE FROM codex_entries WHERE series_id = ?1 AND id = ?2",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete codex entry: {e}"))?;
+    conn.execute(
+        "DELETE FROM codex_relations WHERE series_id = ?1 AND (parent_id = ?2 OR child_id = ?2)",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete dependent codex relations: {e}"))?;
+    conn.execute(
+        "DELETE FROM scene_codex_links WHERE series_id = ?1 AND codex_id = ?2",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete dependent scene links: {e}"))?;
+    conn.execute(
+        "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND entry_id = ?2",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete dependent codex entry tags: {e}"))?;
 
-    // Backstop the provided category path as well.
-    let entry_path = codex_root.join(&category).join(&entry_filename);
-    if entry_path.exists() {
-        fs::remove_file(entry_path).map_err(|e| e.to_string())?;
-    }
+    Ok(())
+}
 
-    // Cascade remove relationships involving this entry.
-    let relations_path = project_root.join(".meta").join("codex_relations.json");
-    let mut relations: Vec<CodexRelation> = read_json_vec(&relations_path)?;
-    relations.retain(|relation| relation.parent_id != entry_id && relation.child_id != entry_id);
-    write_json_vec(&relations_path, &relations)?;
+#[tauri::command]
+pub fn list_codex_relations(project_path: String) -> Result<Vec<CodexRelation>, String> {
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    list_payloads::<CodexRelation>(
+        &conn,
+        "SELECT payload_json FROM codex_relations WHERE series_id = ?1 ORDER BY updated_at DESC",
+        &[&series_id],
+        "codex relation",
+    )
+}
 
-    // Cascade remove scene links pointing to this entry.
-    let scene_links_path = project_root.join(".meta").join("scene_codex_links.json");
-    let mut scene_links: Vec<SceneCodexLink> = read_json_vec(&scene_links_path)?;
-    scene_links.retain(|link| link.codex_id != entry_id);
-    write_json_vec(&scene_links_path, &scene_links)?;
+#[tauri::command]
+pub fn save_codex_relation(project_path: String, relation: CodexRelation) -> Result<(), String> {
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    let payload_json = serde_json::to_string(&relation).map_err(|e| e.to_string())?;
 
-    // Cascade remove entry-tag associations for this entry.
-    let entry_tags_path = project_root.join(".meta").join("codex_entry_tags.json");
-    let mut entry_tags: Vec<CodexEntryTag> = read_json_vec(&entry_tags_path)?;
-    entry_tags.retain(|entry_tag| entry_tag.entry_id != entry_id);
-    write_json_vec(&entry_tags_path, &entry_tags)?;
+    conn.execute(
+        r#"
+        INSERT INTO codex_relations(id, series_id, parent_id, child_id, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            parent_id = excluded.parent_id,
+            child_id = excluded.child_id,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            relation.id,
+            series_id,
+            relation.parent_id,
+            relation.child_id,
+            payload_json,
+            relation.created_at,
+            relation.updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to save codex relation: {e}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_codex_relation(project_path: String, relation_id: String) -> Result<(), String> {
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+
+    conn.execute(
+        "DELETE FROM codex_relations WHERE series_id = ?1 AND id = ?2",
+        params![series_id, relation_id],
+    )
+    .map_err(|e| format!("Failed to delete codex relation: {e}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_codex_tags(project_path: String) -> Result<Vec<CodexTag>, String> {
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    list_payloads::<CodexTag>(
+        &conn,
+        "SELECT payload_json FROM codex_tags WHERE series_id = ?1 ORDER BY updated_at DESC",
+        &[&series_id],
+        "codex tag",
+    )
+}
+
+#[tauri::command]
+pub fn save_codex_tag(project_path: String, tag: CodexTag) -> Result<(), String> {
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    let payload_json = serde_json::to_string(&tag).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        r#"
+        INSERT INTO codex_tags(id, series_id, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            tag.id,
+            series_id,
+            payload_json,
+            tag.created_at,
+            tag.updated_at
+        ],
+    )
+    .map_err(|e| format!("Failed to save codex tag: {e}"))?;
 
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_codex_tag(project_path: String, tag_id: String) -> Result<(), String> {
-    let project_root = PathBuf::from(&project_path);
-    let tags_path = project_root.join(".meta").join("codex_tags.json");
-    retain_json_vec::<CodexTag, _>(&tags_path, |tag| tag.id != tag_id)?;
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
 
-    let entry_tags_path = project_root.join(".meta").join("codex_entry_tags.json");
-    retain_json_vec::<CodexEntryTag, _>(&entry_tags_path, |entry_tag| entry_tag.tag_id != tag_id)?;
-
-    Ok(())
-}
-
-#[tauri::command]
-pub fn delete_codex_relation_type(project_path: String, type_id: String) -> Result<(), String> {
-    let project_root = PathBuf::from(&project_path);
-    let relation_types_path = project_root.join(".meta").join("codex_relation_types.json");
-    retain_json_vec::<CodexRelationType, _>(&relation_types_path, |rel_type| {
-        rel_type.id != type_id
-    })?;
-
-    let relations_path = project_root.join(".meta").join("codex_relations.json");
-    retain_json_vec::<CodexRelation, _>(&relations_path, |relation| {
-        relation.type_id.as_deref() != Some(type_id.as_str())
-    })?;
+    conn.execute(
+        "DELETE FROM codex_tags WHERE series_id = ?1 AND id = ?2",
+        params![series_id, tag_id],
+    )
+    .map_err(|e| format!("Failed to delete codex tag: {e}"))?;
+    conn.execute(
+        "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND tag_id = ?2",
+        params![series_id, tag_id],
+    )
+    .map_err(|e| format!("Failed to delete dependent codex entry tags: {e}"))?;
 
     Ok(())
 }
 
-// Codex Relations
-#[tauri::command]
-pub fn list_codex_relations(project_path: String) -> Result<Vec<CodexRelation>, String> {
-    read_json_vec(&meta_json_path(&project_path, "codex_relations.json"))
-}
-
-#[tauri::command]
-pub fn save_codex_relation(project_path: String, relation: CodexRelation) -> Result<(), String> {
-    let relations_path = meta_json_path(&project_path, "codex_relations.json");
-    let relation_id = relation.id.clone();
-    upsert_json_vec(&relations_path, relation, |existing: &CodexRelation| {
-        existing.id == relation_id
-    })
-}
-
-#[tauri::command]
-pub fn delete_codex_relation(project_path: String, relation_id: String) -> Result<(), String> {
-    let relations_path = meta_json_path(&project_path, "codex_relations.json");
-    retain_json_vec::<CodexRelation, _>(&relations_path, |relation| relation.id != relation_id)
-}
-
-// Codex Tags
-#[tauri::command]
-pub fn list_codex_tags(project_path: String) -> Result<Vec<CodexTag>, String> {
-    read_json_vec(&meta_json_path(&project_path, "codex_tags.json"))
-}
-
-#[tauri::command]
-pub fn save_codex_tag(project_path: String, tag: CodexTag) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "codex_tags.json");
-    let tag_id = tag.id.clone();
-    upsert_json_vec(&path, tag, |existing: &CodexTag| existing.id == tag_id)
-}
-
-// Entry Tags
 #[tauri::command]
 pub fn list_codex_entry_tags(project_path: String) -> Result<Vec<CodexEntryTag>, String> {
-    read_json_vec(&meta_json_path(&project_path, "codex_entry_tags.json"))
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    list_payloads::<CodexEntryTag>(
+        &conn,
+        "SELECT payload_json FROM codex_entry_tags WHERE series_id = ?1 ORDER BY id ASC",
+        &[&series_id],
+        "codex entry tag",
+    )
 }
 
 #[tauri::command]
 pub fn save_codex_entry_tag(project_path: String, entry_tag: CodexEntryTag) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "codex_entry_tags.json");
-    let entry_tag_id = entry_tag.id.clone();
-    upsert_json_vec(&path, entry_tag, |existing: &CodexEntryTag| {
-        existing.id == entry_tag_id
-    })
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    let payload_json = serde_json::to_string(&entry_tag).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        r#"
+        INSERT INTO codex_entry_tags(id, series_id, entry_id, tag_id, payload_json)
+        VALUES (?1, ?2, ?3, ?4, ?5)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            entry_id = excluded.entry_id,
+            tag_id = excluded.tag_id,
+            payload_json = excluded.payload_json
+        "#,
+        params![
+            entry_tag.id,
+            series_id,
+            entry_tag.entry_id,
+            entry_tag.tag_id,
+            payload_json,
+        ],
+    )
+    .map_err(|e| format!("Failed to save codex entry tag: {e}"))?;
+
+    Ok(())
 }
 
 #[tauri::command]
 pub fn delete_codex_entry_tag(project_path: String, entry_tag_id: String) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "codex_entry_tags.json");
-    retain_json_vec::<CodexEntryTag, _>(&path, |entry_tag| entry_tag.id != entry_tag_id)
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+
+    conn.execute(
+        "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND id = ?2",
+        params![series_id, entry_tag_id],
+    )
+    .map_err(|e| format!("Failed to delete codex entry tag: {e}"))?;
+
+    Ok(())
 }
 
-// Templates
 #[tauri::command]
 pub fn list_codex_templates(project_path: String) -> Result<Vec<CodexTemplate>, String> {
-    read_json_vec(&meta_json_path(&project_path, "codex_templates.json"))
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    list_payloads::<CodexTemplate>(
+        &conn,
+        "SELECT payload_json FROM codex_templates WHERE series_id = ?1 ORDER BY created_at DESC",
+        &[&series_id],
+        "codex template",
+    )
 }
 
 #[tauri::command]
 pub fn save_codex_template(project_path: String, template: CodexTemplate) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "codex_templates.json");
-    let template_id = template.id.clone();
-    upsert_json_vec(&path, template, |existing: &CodexTemplate| {
-        existing.id == template_id
-    })
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    let payload_json = serde_json::to_string(&template).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        r#"
+        INSERT INTO codex_templates(id, series_id, payload_json, created_at)
+        VALUES (?1, ?2, ?3, ?4)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            payload_json = excluded.payload_json,
+            created_at = excluded.created_at
+        "#,
+        params![template.id, series_id, payload_json, template.created_at],
+    )
+    .map_err(|e| format!("Failed to save codex template: {e}"))?;
+
+    Ok(())
 }
 
 #[tauri::command]
 pub fn delete_codex_template(project_path: String, template_id: String) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "codex_templates.json");
-    retain_json_vec::<CodexTemplate, _>(&path, |template| template.id != template_id)
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+
+    conn.execute(
+        "DELETE FROM codex_templates WHERE series_id = ?1 AND id = ?2",
+        params![series_id, template_id],
+    )
+    .map_err(|e| format!("Failed to delete codex template: {e}"))?;
+
+    Ok(())
 }
 
-// Relation Types
 #[tauri::command]
 pub fn list_codex_relation_types(project_path: String) -> Result<Vec<CodexRelationType>, String> {
-    read_json_vec(&meta_json_path(&project_path, "codex_relation_types.json"))
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    list_payloads::<CodexRelationType>(
+        &conn,
+        "SELECT payload_json FROM codex_relation_types WHERE series_id = ?1 ORDER BY id ASC",
+        &[&series_id],
+        "codex relation type",
+    )
 }
 
 #[tauri::command]
@@ -287,43 +364,105 @@ pub fn save_codex_relation_type(
     project_path: String,
     rel_type: CodexRelationType,
 ) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "codex_relation_types.json");
-    let rel_type_id = rel_type.id.clone();
-    upsert_json_vec(&path, rel_type, |existing: &CodexRelationType| {
-        existing.id == rel_type_id
-    })
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    let payload_json = serde_json::to_string(&rel_type).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        r#"
+        INSERT INTO codex_relation_types(id, series_id, payload_json)
+        VALUES (?1, ?2, ?3)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            payload_json = excluded.payload_json
+        "#,
+        params![rel_type.id, series_id, payload_json],
+    )
+    .map_err(|e| format!("Failed to save codex relation type: {e}"))?;
+
+    Ok(())
 }
 
-// Scene Codex Links
+#[tauri::command]
+pub fn delete_codex_relation_type(project_path: String, type_id: String) -> Result<(), String> {
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+
+    conn.execute(
+        "DELETE FROM codex_relation_types WHERE series_id = ?1 AND id = ?2",
+        params![series_id, type_id],
+    )
+    .map_err(|e| format!("Failed to delete codex relation type: {e}"))?;
+
+    let relations = list_codex_relations(project_path.clone())?;
+    for relation in relations
+        .into_iter()
+        .filter(|relation| relation.type_id.as_deref() == Some(type_id.as_str()))
+    {
+        conn.execute(
+            "DELETE FROM codex_relations WHERE series_id = ?1 AND id = ?2",
+            params![series_id, relation.id],
+        )
+        .map_err(|e| format!("Failed to prune relation after relation type delete: {e}"))?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn list_scene_codex_links(project_path: String) -> Result<Vec<SceneCodexLink>, String> {
-    read_json_vec(&meta_json_path(&project_path, "scene_codex_links.json"))
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    list_payloads::<SceneCodexLink>(
+        &conn,
+        "SELECT payload_json FROM scene_codex_links WHERE series_id = ?1 ORDER BY updated_at DESC",
+        &[&series_id],
+        "scene codex link",
+    )
 }
 
 #[tauri::command]
 pub fn save_scene_codex_link(project_path: String, link: SceneCodexLink) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "scene_codex_links.json");
-    let mut links: Vec<SceneCodexLink> = read_json_vec(&path)?;
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+    let payload_json = serde_json::to_string(&link).map_err(|e| e.to_string())?;
 
-    if let Some(idx) = links
-        .iter()
-        .position(|l| l.scene_id == link.scene_id && l.codex_id == link.codex_id)
-    {
-        let mut merged = link.clone();
-        // Keep stable identity and original creation time for existing scene+codex pair.
-        merged.id = links[idx].id.clone();
-        merged.created_at = links[idx].created_at;
-        links[idx] = merged;
-    } else if let Some(idx) = links.iter().position(|l| l.id == link.id) {
-        links[idx] = link;
-    } else {
-        links.push(link);
-    }
-    write_json_vec(&path, &links)
+    conn.execute(
+        r#"
+        INSERT INTO scene_codex_links(id, series_id, scene_id, codex_id, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            scene_id = excluded.scene_id,
+            codex_id = excluded.codex_id,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            link.id,
+            series_id,
+            link.scene_id,
+            link.codex_id,
+            payload_json,
+            link.created_at,
+            link.updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to save scene codex link: {e}"))?;
+
+    Ok(())
 }
 
 #[tauri::command]
 pub fn delete_scene_codex_link(project_path: String, link_id: String) -> Result<(), String> {
-    let path = meta_json_path(&project_path, "scene_codex_links.json");
-    retain_json_vec::<SceneCodexLink, _>(&path, |link| link.id != link_id)
+    let conn = open_app_db()?;
+    let series_id = project_series_id(&conn, &project_path)?;
+
+    conn.execute(
+        "DELETE FROM scene_codex_links WHERE series_id = ?1 AND id = ?2",
+        params![series_id, link_id],
+    )
+    .map_err(|e| format!("Failed to delete scene codex link: {e}"))?;
+
+    Ok(())
 }

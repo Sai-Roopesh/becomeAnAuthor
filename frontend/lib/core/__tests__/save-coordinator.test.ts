@@ -30,13 +30,6 @@ vi.mock("@/shared/utils/toast-service", () => ({
   },
 }));
 
-vi.mock("@/core/storage/safe-storage", () => ({
-  storage: {
-    setItem: vi.fn(),
-    getItem: vi.fn(),
-  },
-}));
-
 vi.mock("@/hooks/use-live-query", () => ({
   invalidateQueries: vi.fn(),
 }));

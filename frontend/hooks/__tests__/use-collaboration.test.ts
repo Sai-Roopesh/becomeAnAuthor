@@ -3,10 +3,10 @@
  *
  * SPECIFICATIONS (from user requirements - "like Google Docs"):
  * 1. MUST create a Yjs document for real-time collaboration
- * 2. MUST persist collaboration state to IndexedDB for offline support
+ * 2. MUST persist collaboration state to SQLite for offline recovery
  * 3. MUST track connection status (disconnected -> connecting -> synced)
  * 4. MUST track connected peers with names and colors
- * 5. MUST save state to Tauri backend periodically (every 30 seconds)
+ * 5. MUST save state to Tauri backend with debounced writes and lifecycle flushes
  * 6. MUST cleanup all resources on unmount
  * 7. MUST generate unique room ID per project+scene combination
  *
@@ -21,33 +21,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock Dependencies
 // ============================================
 
-const {
-  mockYDoc,
-  mockPersistence,
-  mockWebrtcProvider,
-  mockLoadState,
-  mockSaveState,
-} = vi.hoisted(() => ({
-  mockYDoc: {
-    clientID: 12345,
-    destroy: vi.fn(),
-  },
-  mockPersistence: {
-    on: vi.fn(),
-    destroy: vi.fn(),
-  },
-  mockWebrtcProvider: {
-    awareness: {
-      setLocalStateField: vi.fn(),
-      getStates: vi.fn(() => new Map()),
+const { mockYDoc, mockWebrtcProvider, mockLoadState, mockSaveState } =
+  vi.hoisted(() => ({
+    mockYDoc: {
+      clientID: 12345,
+      destroy: vi.fn(),
       on: vi.fn(),
+      off: vi.fn(),
     },
-    on: vi.fn(),
-    destroy: vi.fn(),
-  },
-  mockLoadState: vi.fn(),
-  mockSaveState: vi.fn(),
-}));
+    mockWebrtcProvider: {
+      awareness: {
+        setLocalStateField: vi.fn(),
+        getStates: vi.fn(() => new Map()),
+        on: vi.fn(),
+      },
+      on: vi.fn(),
+      destroy: vi.fn(),
+    },
+    mockLoadState: vi.fn(),
+    mockSaveState: vi.fn(),
+  }));
 
 vi.mock("yjs", () => ({
   Doc: vi.fn(function MockDoc() {
@@ -55,12 +48,6 @@ vi.mock("yjs", () => ({
   }),
   applyUpdate: vi.fn(),
   encodeStateAsUpdate: vi.fn(() => new Uint8Array([1, 2, 3])),
-}));
-
-vi.mock("y-indexeddb", () => ({
-  IndexeddbPersistence: vi.fn(function MockIndexeddbPersistence() {
-    return mockPersistence;
-  }),
 }));
 
 vi.mock("y-webrtc", () => ({
@@ -291,8 +278,9 @@ describe("useCollaboration Hook Specifications", () => {
     it.todo("MUST transition status to connecting then synced");
   });
 
-  describe.todo("SPEC: Periodic Save", () => {
-    it.todo("MUST save state every 30 seconds");
+  describe.todo("SPEC: Persistence", () => {
+    it.todo("MUST save state using debounce");
+    it.todo("MUST flush state on lifecycle boundaries");
     it.todo("MUST encode state using Y.encodeStateAsUpdate");
   });
 
@@ -304,7 +292,6 @@ describe("useCollaboration Hook Specifications", () => {
 
   describe.todo("SPEC: Cleanup on Unmount", () => {
     it.todo("MUST destroy Yjs document");
-    it.todo("MUST destroy IndexedDB persistence");
     it.todo("MUST destroy WebRTC provider if P2P enabled");
     it.todo("MUST save final state before cleanup");
   });

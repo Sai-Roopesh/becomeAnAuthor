@@ -18,14 +18,6 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
-vi.mock("@/core/storage/safe-storage", () => ({
-  storage: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-  },
-}));
-
 vi.mock("@/core/toast", () => ({
   toast: {
     success: vi.fn(),
@@ -44,7 +36,6 @@ vi.mock("@/shared/utils/logger", () => ({
   },
 }));
 
-import { storage } from "@/core/storage/safe-storage";
 import { toast } from "@/core/toast";
 
 // Import after mocks
@@ -106,13 +97,16 @@ describe("API Key Security Contract", () => {
       });
     });
 
-    it("MUST NOT store API key in localStorage", async () => {
+    it("MUST persist API keys only via backend secure-storage commands", async () => {
       mockInvoke.mockResolvedValue(undefined);
 
       await storeAPIKey("openrouter", "conn-openrouter", "sk-or-secret");
 
-      // storage.setItem should NEVER be called with an API key
-      expect(storage.setItem).not.toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledWith("store_api_key", {
+        provider: "openrouter",
+        connectionId: "conn-openrouter",
+        key: "sk-or-secret",
+      });
     });
   });
 

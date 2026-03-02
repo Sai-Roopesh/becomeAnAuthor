@@ -1,12 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AIConnection } from "@/lib/config/ai-vendors";
+import type { AIConnection, AIProvider } from "@/lib/config/ai-vendors";
 
-const mockGetItem = vi.fn();
+const mockListAIConnections = vi.fn();
 const mockGetAPIKey = vi.fn();
 
-vi.mock("@/core/storage/safe-storage", () => ({
-  storage: {
-    getItem: (...args: unknown[]) => mockGetItem(...args),
+vi.mock("@/core/state/app-state", () => ({
+  listAIConnections: (...args: unknown[]) => mockListAIConnections(...args),
+  toAIConnection: (connection: {
+    id: string;
+    name: string;
+    provider: string;
+    customEndpoint?: string;
+    enabled: boolean;
+    models?: string[];
+    createdAt: number;
+    updatedAt: number;
+  }): AIConnection => {
+    const aiConnection: AIConnection = {
+      id: connection.id,
+      name: connection.name,
+      provider: connection.provider as AIProvider,
+      enabled: connection.enabled,
+      models: connection.models ?? [],
+      createdAt: connection.createdAt,
+      updatedAt: connection.updatedAt,
+      apiKey: "",
+    };
+    if (connection.customEndpoint) {
+      aiConnection.customEndpoint = connection.customEndpoint;
+    }
+    return aiConnection;
+  },
+  APP_PREF_KEYS: {
+    LAST_USED_MODEL: "ai.last_used_model",
   },
 }));
 
@@ -17,60 +43,60 @@ vi.mock("@/core/storage/api-keys", () => ({
 describe("ai/client connection usability", () => {
   beforeEach(() => {
     vi.resetModules();
-    mockGetItem.mockReset();
+    mockListAIConnections.mockReset();
     mockGetAPIKey.mockReset();
   });
 
   it("returns enabled connections for runtime secure-key checks", async () => {
-    mockGetItem.mockReturnValue([
+    mockListAIConnections.mockResolvedValue([
       {
         id: "google-1",
         name: "Google AI Studio",
         provider: "google",
-        apiKey: "",
         enabled: true,
         models: ["gemini-2.5-flash"],
         createdAt: 1,
         updatedAt: 1,
-      } satisfies AIConnection,
+        hasStoredApiKey: true,
+      },
     ]);
 
     const { getEnabledConnections } = await import("@/lib/ai/client");
 
-    expect(getEnabledConnections()).toHaveLength(1);
+    await expect(getEnabledConnections()).resolves.toHaveLength(1);
   });
 
   it("keeps enabled providers available for runtime key resolution", async () => {
-    mockGetItem.mockReturnValue([
+    mockListAIConnections.mockResolvedValue([
       {
         id: "google-enabled",
         name: "Google Enabled",
         provider: "google",
-        apiKey: "",
         enabled: true,
         models: ["gemini-2.5-flash"],
         createdAt: 1,
         updatedAt: 1,
-      } satisfies AIConnection,
+        hasStoredApiKey: true,
+      },
     ]);
 
     const { getEnabledConnections } = await import("@/lib/ai/client");
 
-    expect(getEnabledConnections()).toHaveLength(1);
+    await expect(getEnabledConnections()).resolves.toHaveLength(1);
   });
 
   it("detects usable key-required connection from secure storage", async () => {
-    mockGetItem.mockReturnValue([
+    mockListAIConnections.mockResolvedValue([
       {
         id: "google-2",
         name: "Google",
         provider: "google",
-        apiKey: "",
         enabled: true,
         models: ["gemini-2.5-flash"],
         createdAt: 1,
         updatedAt: 1,
-      } satisfies AIConnection,
+        hasStoredApiKey: true,
+      },
     ]);
     mockGetAPIKey.mockResolvedValue("AIza-valid-key");
 
@@ -80,17 +106,17 @@ describe("ai/client connection usability", () => {
   });
 
   it("returns false when all enabled key-required connections are missing keys", async () => {
-    mockGetItem.mockReturnValue([
+    mockListAIConnections.mockResolvedValue([
       {
         id: "google-3",
         name: "Google",
         provider: "google",
-        apiKey: "",
         enabled: true,
         models: ["gemini-2.5-flash"],
         createdAt: 1,
         updatedAt: 1,
-      } satisfies AIConnection,
+        hasStoredApiKey: false,
+      },
     ]);
     mockGetAPIKey.mockResolvedValue(null);
 
@@ -100,18 +126,18 @@ describe("ai/client connection usability", () => {
   });
 
   it("returns true for enabled local OpenAI endpoint without key", async () => {
-    mockGetItem.mockReturnValue([
+    mockListAIConnections.mockResolvedValue([
       {
         id: "openai-local",
         name: "Local OpenAI",
         provider: "openai",
-        apiKey: "",
         customEndpoint: "http://localhost:11434/v1",
         enabled: true,
         models: ["gpt-4.1-mini"],
         createdAt: 1,
         updatedAt: 1,
-      } satisfies AIConnection,
+        hasStoredApiKey: false,
+      },
     ]);
 
     const { hasUsableAIConnection } = await import("@/lib/ai/client");

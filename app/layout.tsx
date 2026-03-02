@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/features/shared/components/ThemeProvider";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
+import { AppStateHydrator } from "@/features/shared/components/AppStateHydrator";
 import { AppProvider } from "@/infrastructure/di/AppContext";
 import { ToastProvider } from "@/components/toast-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,14 +27,16 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider delayDuration={300}>
-            <AppProvider>
-              <ErrorBoundary>
-                {children}
-                <UpdateNotifier />
-              </ErrorBoundary>
-            </AppProvider>
-          </TooltipProvider>
+          <AppStateHydrator>
+            <TooltipProvider delayDuration={300}>
+              <AppProvider>
+                <ErrorBoundary>
+                  {children}
+                  <UpdateNotifier />
+                </ErrorBoundary>
+              </AppProvider>
+            </TooltipProvider>
+          </AppStateHydrator>
         </ThemeProvider>
         <ToastProvider />
       </body>

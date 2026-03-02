@@ -1,7 +1,7 @@
 // I/O utilities
 
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -42,7 +42,13 @@ pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
         .create_new(true)
         .write(true)
         .open(&temp_path)
-        .map_err(|e| format!("Failed to create temp file '{}': {}", temp_path.display(), e))?;
+        .map_err(|e| {
+            format!(
+                "Failed to create temp file '{}': {}",
+                temp_path.display(),
+                e
+            )
+        })?;
     file.write_all(content.as_bytes())
         .map_err(|e| format!("Failed to write temp file '{}': {}", temp_path.display(), e))?;
     file.sync_all()
@@ -69,14 +75,8 @@ pub fn read_json_file<T>(path: &Path, label: &str) -> Result<T, String>
 where
     T: DeserializeOwned,
 {
-    let content = fs::read_to_string(path).map_err(|e| {
-        format!(
-            "Failed to read {} at '{}': {}",
-            label,
-            path.display(),
-            e
-        )
-    })?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {} at '{}': {}", label, path.display(), e))?;
     serde_json::from_str::<T>(&content).map_err(|e| {
         format!(
             "Failed to parse {} JSON at '{}': {}",

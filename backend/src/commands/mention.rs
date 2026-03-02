@@ -1,13 +1,12 @@
-// Mention Tracking commands
-
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::models::ProjectMeta;
-use crate::utils::get_series_codex_path;
+use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
-/// A single mention of a codex entry in the manuscript
+use crate::storage::open_app_db;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Mention {
@@ -21,164 +20,286 @@ pub struct Mention {
     pub created_at: i64,
 }
 
-/// Find all mentions of a codex entry name/aliases in a project
-#[tauri::command]
-pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec<Mention>, String> {
-    let project_path_buf = PathBuf::from(&project_path);
+fn normalize_terms(entry_name: String, aliases: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut terms = Vec::new();
+    for candidate in std::iter::once(entry_name).chain(aliases) {
+        let trimmed = candidate.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let lowered = trimmed.to_lowercase();
+        if seen.insert(lowered.clone()) {
+            terms.push(lowered);
+        }
+    }
+    terms
+}
 
-    let project_meta_path = project_path_buf.join(".meta/project.json");
-    let meta_content = fs::read_to_string(&project_meta_path)
-        .map_err(|e| format!("Failed to read project metadata: {}", e))?;
-    let project_meta: ProjectMeta = serde_json::from_str(&meta_content)
-        .map_err(|e| format!("Failed to parse project metadata: {}", e))?;
-    let meta_codex_dir = get_series_codex_path(&project_meta.series_id)?;
+fn find_first_mention(content: &str, terms: &[String]) -> Option<(usize, String)> {
+    let lowered = content.to_lowercase();
+    let mut best: Option<(usize, usize)> = None;
 
-    // Find the codex entry file
-    let mut entry_name = String::new();
-    let mut aliases: Vec<String> = Vec::new();
-
-    // Search in .meta/codex for the entry
-    for category in &["character", "location", "item", "lore", "subplot"] {
-        let entry_path = meta_codex_dir
-            .join(category)
-            .join(format!("{}.json", codex_entry_id));
-        if entry_path.exists() {
-            if let Ok(content) = fs::read_to_string(&entry_path) {
-                if let Ok(entry) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(name) = entry.get("name").and_then(|v| v.as_str()) {
-                        entry_name = name.to_string();
-                    }
-                    if let Some(alias_arr) = entry.get("aliases").and_then(|v| v.as_array()) {
-                        aliases = alias_arr
-                            .iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect();
-                    }
-                }
+    for term in terms {
+        if let Some(pos) = lowered.find(term) {
+            let term_len = term.len();
+            match best {
+                Some((best_pos, _)) if pos >= best_pos => {}
+                _ => best = Some((pos, term_len)),
             }
-            break;
         }
     }
 
-    if entry_name.is_empty() {
+    let (position, term_len) = best?;
+    let start = position.saturating_sub(50);
+    let end = (position + term_len + 50).min(lowered.len());
+    let context = lowered[start..end].trim().to_string();
+    Some((position, format!("...{}...", context)))
+}
+
+fn find_all_mentions_in_text(
+    codex_entry_id: &str,
+    source_type: &str,
+    source_id: &str,
+    source_title: &str,
+    text: &str,
+    terms: &[String],
+    mentions: &mut Vec<Mention>,
+) {
+    let lowered = text.to_lowercase();
+    for term in terms {
+        let mut cursor = 0usize;
+        while let Some(pos) = lowered[cursor..].find(term) {
+            let actual = cursor + pos;
+            let start = actual.saturating_sub(50);
+            let end = (actual + term.len() + 50).min(lowered.len());
+            let context = lowered[start..end].trim().to_string();
+            mentions.push(Mention {
+                id: uuid::Uuid::new_v4().to_string(),
+                codex_entry_id: codex_entry_id.to_string(),
+                source_type: source_type.to_string(),
+                source_id: source_id.to_string(),
+                source_title: source_title.to_string(),
+                position: actual,
+                context: format!("...{}...", context),
+                created_at: chrono::Utc::now().timestamp_millis(),
+            });
+            cursor = actual.saturating_add(term.len());
+            if cursor >= lowered.len() {
+                break;
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec<Mention>, String> {
+    let conn = open_app_db()?;
+
+    let (project_id, series_id): (String, String) = conn
+        .query_row(
+            "SELECT id, series_id FROM projects WHERE path = ?1",
+            params![project_path],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to resolve project for mention scan: {e}"))?;
+
+    let codex_payload: Option<String> = conn
+        .query_row(
+            "SELECT payload_json FROM codex_entries WHERE series_id = ?1 AND id = ?2",
+            params![series_id, codex_entry_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("Failed to load codex entry for mention scan: {e}"))?;
+
+    let Some(codex_payload) = codex_payload else {
+        return Ok(Vec::new());
+    };
+
+    let codex_value: serde_json::Value = serde_json::from_str(&codex_payload)
+        .map_err(|e| format!("Failed to parse codex entry payload for mention scan: {e}"))?;
+    let entry_name = codex_value
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let aliases = codex_value
+        .get("aliases")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(ToString::to_string))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let terms = normalize_terms(entry_name, aliases);
+    if terms.is_empty() {
         return Ok(Vec::new());
     }
 
     let mut mentions = Vec::new();
-    let search_terms: Vec<String> = std::iter::once(entry_name.clone()).chain(aliases).collect();
 
-    // Search in scenes (manuscript directory)
-    let manuscript_dir = project_path_buf.join("manuscript");
-    if manuscript_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&manuscript_dir) {
-            for entry in entries.flatten() {
-                if entry.path().extension().is_some_and(|e| e == "md") {
-                    if let Ok(content) = fs::read_to_string(entry.path()) {
-                        // Extract scene ID and title from frontmatter
-                        let parts: Vec<&str> = content.splitn(3, "---").collect();
-                        let (scene_id, scene_title) = if parts.len() >= 2 {
-                            let yaml = parts[1];
-                            let id = yaml
-                                .lines()
-                                .find(|l| l.starts_with("id:"))
-                                .map(|l| l.replace("id:", "").trim().trim_matches('"').to_string())
-                                .unwrap_or_default();
-                            let title = yaml
-                                .lines()
-                                .find(|l| l.starts_with("title:"))
-                                .map(|l| {
-                                    l.replace("title:", "").trim().trim_matches('"').to_string()
-                                })
-                                .unwrap_or_default();
-                            (id, title)
-                        } else {
-                            continue;
-                        };
+    let mut scene_stmt = conn
+        .prepare(
+            r#"
+            SELECT scene_id, title, scene_file
+            FROM scene_metadata
+            WHERE project_id = ?1
+            ORDER BY order_index ASC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare scene metadata query for mention scan: {e}"))?;
+    let scene_rows = scene_stmt
+        .query_map(params![project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| format!("Failed to query scene metadata for mention scan: {e}"))?;
 
-                        let body = if parts.len() >= 3 { parts[2] } else { "" };
+    for row in scene_rows {
+        let (scene_id, title, scene_file) =
+            row.map_err(|e| format!("Failed to decode scene metadata row: {e}"))?;
+        let scene_path = PathBuf::from(&project_path)
+            .join("manuscript")
+            .join(scene_file);
+        let content = fs::read_to_string(&scene_path).unwrap_or_default();
+        if content.is_empty() {
+            continue;
+        }
+        find_all_mentions_in_text(
+            &codex_entry_id,
+            "scene",
+            &scene_id,
+            &title,
+            &content,
+            &terms,
+            &mut mentions,
+        );
+    }
 
-                        // Find mentions in body
-                        for term in &search_terms {
-                            let term_lower = term.to_lowercase();
-                            let body_lower = body.to_lowercase();
-                            let mut start = 0;
+    let mut snippet_stmt = conn
+        .prepare(
+            r#"
+            SELECT id, title, content_json
+            FROM snippets
+            WHERE project_id = ?1
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare snippet mention query: {e}"))?;
+    let snippet_rows = snippet_stmt
+        .query_map(params![project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| format!("Failed to query snippets for mention scan: {e}"))?;
 
-                            while let Some(pos) = body_lower[start..].find(&term_lower) {
-                                let actual_pos = start + pos;
-
-                                // Get surrounding context (50 chars before and after)
-                                let context_start = actual_pos.saturating_sub(50);
-                                let context_end = (actual_pos + term.len() + 50).min(body.len());
-                                let context = body[context_start..context_end].to_string();
-
-                                mentions.push(Mention {
-                                    id: uuid::Uuid::new_v4().to_string(),
-                                    codex_entry_id: codex_entry_id.clone(),
-                                    source_type: "scene".to_string(),
-                                    source_id: scene_id.clone(),
-                                    source_title: scene_title.clone(),
-                                    position: actual_pos,
-                                    context: format!("...{}...", context.trim()),
-                                    created_at: chrono::Utc::now().timestamp_millis(),
-                                });
-
-                                start = actual_pos + term.len();
-                            }
-                        }
-                    }
-                }
-            }
+    for row in snippet_rows {
+        let (snippet_id, snippet_title, content_json) =
+            row.map_err(|e| format!("Failed to decode snippet row: {e}"))?;
+        if let Some((position, context)) = find_first_mention(&content_json, &terms) {
+            mentions.push(Mention {
+                id: uuid::Uuid::new_v4().to_string(),
+                codex_entry_id: codex_entry_id.clone(),
+                source_type: "snippet".to_string(),
+                source_id: snippet_id,
+                source_title: snippet_title,
+                position,
+                context,
+                created_at: chrono::Utc::now().timestamp_millis(),
+            });
         }
     }
 
-    // Search in snippet files (project/snippets/*.json)
-    let snippets_dir = project_path_buf.join("snippets");
-    if snippets_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&snippets_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if !path.extension().is_some_and(|e| e == "json") {
-                    continue;
-                }
-                if let Ok(content) = fs::read_to_string(&path) {
-                    if let Ok(snippet) = serde_json::from_str::<serde_json::Value>(&content) {
-                        let snippet_id = snippet.get("id").and_then(|v| v.as_str()).unwrap_or("");
-                        let snippet_title = snippet
-                            .get("title")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("Untitled");
+    let mut codex_stmt = conn
+        .prepare(
+            r#"
+            SELECT id, name, payload_json
+            FROM codex_entries
+            WHERE series_id = ?1 AND id != ?2
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare codex mention query: {e}"))?;
+    let codex_rows = codex_stmt
+        .query_map(params![series_id, codex_entry_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| format!("Failed to query codex entries for mention scan: {e}"))?;
 
-                        if let Some(content_obj) = snippet.get("content") {
-                            let content_str =
-                                serde_json::to_string(content_obj).unwrap_or_default();
-                            for term in &search_terms {
-                                if content_str.to_lowercase().contains(&term.to_lowercase()) {
-                                    mentions.push(Mention {
-                                        id: uuid::Uuid::new_v4().to_string(),
-                                        codex_entry_id: codex_entry_id.clone(),
-                                        source_type: "snippet".to_string(),
-                                        source_id: snippet_id.to_string(),
-                                        source_title: snippet_title.to_string(),
-                                        position: 0,
-                                        context: format!("Found in snippet: {}", snippet_title),
-                                        created_at: chrono::Utc::now().timestamp_millis(),
-                                    });
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    for row in codex_rows {
+        let (entry_id, entry_name, payload_json) =
+            row.map_err(|e| format!("Failed to decode codex entry row: {e}"))?;
+        if let Some((position, context)) = find_first_mention(&payload_json, &terms) {
+            mentions.push(Mention {
+                id: uuid::Uuid::new_v4().to_string(),
+                codex_entry_id: codex_entry_id.clone(),
+                source_type: "codex".to_string(),
+                source_id: entry_id,
+                source_title: entry_name,
+                position,
+                context,
+                created_at: chrono::Utc::now().timestamp_millis(),
+            });
+        }
+    }
+
+    let mut chat_stmt = conn
+        .prepare(
+            r#"
+            SELECT m.id, COALESCE(t.name, 'Chat'), m.content
+            FROM chat_messages m
+            LEFT JOIN chat_threads t
+              ON t.project_path = m.project_path
+             AND t.id = m.thread_id
+            WHERE m.project_path = ?1
+            ORDER BY m.timestamp ASC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare chat mention query: {e}"))?;
+    let chat_rows = chat_stmt
+        .query_map(params![project_path], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| format!("Failed to query chat messages for mention scan: {e}"))?;
+
+    for row in chat_rows {
+        let (message_id, thread_name, content) =
+            row.map_err(|e| format!("Failed to decode chat message row: {e}"))?;
+        if let Some((position, context)) = find_first_mention(&content, &terms) {
+            mentions.push(Mention {
+                id: uuid::Uuid::new_v4().to_string(),
+                codex_entry_id: codex_entry_id.clone(),
+                source_type: "chat".to_string(),
+                source_id: message_id,
+                source_title: thread_name,
+                position,
+                context,
+                created_at: chrono::Utc::now().timestamp_millis(),
+            });
         }
     }
 
     Ok(mentions)
 }
 
-/// Count mentions of a codex entry
 #[tauri::command]
 pub fn count_mentions(project_path: String, codex_entry_id: String) -> Result<usize, String> {
-    let mentions = find_mentions(project_path, codex_entry_id)?;
-    Ok(mentions.len())
+    Ok(find_mentions(project_path, codex_entry_id)?.len())
 }

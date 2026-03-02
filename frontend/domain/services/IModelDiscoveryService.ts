@@ -8,18 +8,18 @@
  */
 
 export interface AIModel {
-    id: string;
-    name: string;
-    provider: string;
-    contextWindow?: number;
-    maxOutputTokens?: number;
-    deprecated?: boolean;
+  id: string;
+  name: string;
+  provider: string;
+  contextWindow?: number;
+  maxOutputTokens?: number;
+  deprecated?: boolean;
 }
 
 export interface ModelDiscoveryResult {
-    models: AIModel[];
-    error?: string;
-    cachedAt?: number;
+  models: AIModel[];
+  error?: string;
+  cachedAt?: number;
 }
 
 /**
@@ -27,36 +27,36 @@ export interface ModelDiscoveryResult {
  * Responsible for fetching available models from AI providers
  */
 export interface IModelDiscoveryService {
-    /**
-     * Fetch available models from a provider
-     * @param provider - Provider ID (e.g., 'openai', 'anthropic', 'google')
-     * @param apiKey - API key for authentication
-     * @param customEndpoint - Optional custom API endpoint
-     * @returns Promise<ModelDiscoveryResult>
-     */
-    fetchModels(
-        provider: string,
-        apiKey: string,
-        customEndpoint?: string
-    ): Promise<ModelDiscoveryResult>;
+  /**
+   * Fetch available models from a provider
+   * @param provider - Provider ID (e.g., 'openai', 'anthropic', 'google')
+   * @param apiKey - API key for authentication
+   * @param customEndpoint - Optional custom API endpoint
+   * @returns Promise<ModelDiscoveryResult>
+   */
+  fetchModels(
+    provider: string,
+    apiKey: string,
+    customEndpoint?: string,
+  ): Promise<ModelDiscoveryResult>;
 
-    /**
-     * Get cached models for a provider (if available)
-     * @param provider - Provider ID
-     * @returns Cached models or null if not cached/expired
-     */
-    getCachedModels(provider: string): ModelDiscoveryResult | null;
+  /**
+   * Get cached models for a provider (if available)
+   * @param provider - Provider ID
+   * @returns Cached models or null if not cached/expired
+   */
+  getCachedModels(provider: string): Promise<ModelDiscoveryResult | null>;
 
-    /**
-     * Clear cache for a specific provider or all providers
-     * @param provider - Optional provider ID (clears all if not specified)
-     */
-    clearCache(provider?: string): void;
+  /**
+   * Clear cache for a specific provider or all providers
+   * @param provider - Optional provider ID (clears all if not specified)
+   */
+  clearCache(provider?: string): Promise<void>;
 
-    /**
-     * Check if provider supports model listing API
-     * @param provider - Provider ID
-     * @returns boolean
-     */
-    supportsModelListing(provider: string): boolean;
+  /**
+   * Check if provider supports model listing API
+   * @param provider - Provider ID
+   * @returns boolean
+   */
+  supportsModelListing(provider: string): boolean;
 }
