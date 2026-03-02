@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 27, 2026
-> **Codebase Stats:** 342 frontend source files (49,400+ lines) · 36 backend source files (6,800 lines) · 8 app route files
+> **Last Updated:** March 2, 2026
+> **Codebase Stats:** 344 frontend source files (50,100+ lines) · 36 backend source files (8,900+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -78,7 +78,7 @@ becomeAnAuthor/
 │   │   ├── layout.tsx            # Project workspace layout
 │   │   └── page.tsx              # Project workspace (editor/plan/chat)
 │   └── series/page.tsx           # Series management
-├── frontend/                     # Frontend source (297 files, 41.6K lines)
+├── frontend/                     # Frontend source (344 files, 50.1K lines)
 │   ├── core/                     # Tauri bridge & low-level utilities
 │   ├── domain/                   # Domain entities, repositories, services (interfaces)
 │   ├── features/                 # Feature modules (editor, codex, plan, chat, etc.)
@@ -88,7 +88,7 @@ becomeAnAuthor/
 │   ├── shared/                   # Cross-cutting utilities, prompts, types
 │   ├── store/                    # Zustand state stores
 │   └── components/               # Shared UI component library
-├── backend/                      # Rust/Tauri backend (36 files, 6.8K lines)
+├── backend/                      # Rust/Tauri backend (36 files, 8.9K lines)
 │   └── src/
 │       ├── lib.rs                # Entry point, command registration (188 lines)
 │       ├── commands/             # 18 command modules
@@ -600,7 +600,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 ## 13. Security Architecture
 
-- **API Keys**: Secrets stored encrypted in SQLite via `security.rs`; no browser storage fallback.
+- **API Keys**: Secrets stored encrypted in SQLite via `security.rs`; hard cutover completed, no browser fallback exists.
 - **OAuth 2.0**:
   - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in encrypted SQLite (`secure_secrets`) via `google_oauth.rs`.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
@@ -724,7 +724,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 ## 19. Appendix: Complete File Inventory
 
-### 19.1 Frontend — `frontend/` (311 source files)
+### 19.1 Frontend — `frontend/` (344 source files)
 
 | Directory | Key Files |
 |---|---|

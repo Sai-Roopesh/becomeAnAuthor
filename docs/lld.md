@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 27, 2026
+> **Last Updated:** March 2, 2026
 > **Status:** Living Document
 
 ---
@@ -37,7 +37,7 @@
 | Principle | Implementation |
 |---|---|
 | **Local-first** | All data stored on local filesystem; no cloud dependency |
-| **Privacy-focused** | API keys encrypted in local SQLite; AI calls made directly from client |
+| **Privacy-focused** | API keys encrypted in local SQLite (filesystem-only runtime persistence); AI calls made directly from client |
 | **Clean Architecture** | Domain-driven design with repository pattern and dependency injection |
 | **Feature-modular** | Each feature encapsulated with its own components, hooks, and exports |
 
