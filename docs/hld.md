@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 27, 2026
+> **Last Updated:** March 02, 2026
 > **Status:** Living Document
 
 ---
@@ -43,7 +43,7 @@
 - Integration with 14 AI providers for intelligent writing assistance
 - Google Drive cloud backup
 
-The application prioritizes **data privacy** (all data stays local, credentials stored locally in encrypted form), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
+The application prioritizes **data privacy** (all data stays local, credentials in OS keychain), **offline capability** (full functionality without internet), and **creative focus** (distraction-free writing modes, typewriter scrolling).
 
 ---
 
@@ -58,7 +58,7 @@ Authors need a dedicated writing environment that combines the organizational po
 | Goal | Description |
 |---|---|
 | **Local-First** | All data persisted on the user's filesystem; zero cloud dependency for core features |
-| **Privacy-First** | API keys encrypted locally; no telemetry; AI calls made directly from client |
+| **Privacy-First** | Credentials stored in OS keychain; no telemetry; AI calls made directly from client |
 | **Offline-Capable** | Full editing, organizing, and exporting without internet; AI features degrade gracefully |
 | **AI-Integrated** | Deep integration with 14 AI providers for writing, rewriting, summarizing, and brainstorming |
 | **Professional Authoring** | Support full novel lifecycle: ideation → drafting → revision → export/publish |
@@ -173,7 +173,7 @@ The system follows a **two-tier architecture** with a clear separation between t
 |---|---|---|
 | **Storage** | File-based (JSON + YAML/Markdown) | No database installation; human-readable; easy backup/migration; Git-friendly |
 | **Serialization** | serde (JSON/YAML) | Rust ecosystem standard; zero-cost abstractions; type-safe |
-| **Secret Storage** | Encrypted SQLite + local master key | API keys stored as AES-GCM ciphertext in `.meta/app.db`; OAuth tokens remain in OS keychain |
+| **Secret Storage** | Local App Storage (JSON) | API keys and tokens stored in `.meta/` JSON files (local app scope) |
 | **Document Export** | epub-builder | ePub generation (Rust); DOCX/PDF via Frontend |
 | **Search** | Full-text scan (Rust command) | Simple file-based search with deterministic backend ranking for scenes and codex |
 
@@ -417,7 +417,7 @@ The Rust backend is organized into three top-level module groups:
 | **Chat** | `chat.rs` | 8 | Thread CRUD, message persistence, thread listing |
 | **Backup** | `backup.rs` + `backup_emergency.rs` + `backup_manuscript.rs` | 15 | Backup/import orchestration + emergency backup lifecycle + manuscript export commands |
 | **Search** | `search.rs` | 1 | Full-text search across scenes + codex using SQLite FTS5 index |
-| **Security** | `security.rs` | 5 | Encrypted API-key CRUD in SQLite with presence checks |
+| **Security** | `security.rs` | 4 | OS keychain CRUD for API keys |
 | **Trash** | `trash.rs` | 5 | Soft delete, restore, permanent delete, list, empty |
 | **Mention** | `mention.rs` | 2 | Cross-content @mention tracking |
 | **Collaboration** | `collaboration.rs` | 4 | Yjs binary state persistence |
@@ -624,7 +624,7 @@ OAuth 2.0 Desktop Flow:
 
 | Threat | Mitigation |
 |---|---|
-| API key exposure | Stored encrypted in SQLite (`secure_secrets`); provider/account metadata indexed separately in `secure_accounts` |
+| API key exposure | Stored in OS keychain; SQLite stores non-secret provider/account metadata only |
 | Path traversal | `validate_path_within_app_dir()` + `sanitize_path_component()` in every file operation |
 | Malicious input | Input validation (null bytes, size limits, format checks) on all Tauri commands |
 | XSS in editor | DOMPurify sanitization; Tauri CSP headers |
@@ -634,14 +634,14 @@ OAuth 2.0 Desktop Flow:
 ### 12.2 API Key Flow
 
 ```
-Settings UI → store_api_key(provider, connection_id, key)
-              → Encrypt (AES-256-GCM) with local master key
-              → SQLite secure_secrets (ciphertext) + secure_accounts (non-secret index)
-              → UI refresh event after command completion
+Settings UI → Optimistic update `ai_connections.hasApiKey` in localStorage
+              → store_api_key(provider, connection_id, key)
+              → OS keychain (secret) + SQLite secure_accounts (shadow metadata)
+              → Revert on failure / Confirm success
                                               ↓
-AI readiness UI (`useHasAIConnection`) resolves enabled connections + secure-store key presence checks
+AI readiness UI (`useHasAIConnection`) uses enabled + `hasApiKey` metadata from localStorage
                                               ↓
-AI Request execution resolves key via get_api_key(provider, connection_id)
+AI Request execution resolves key via get_api_key(provider, connection_id) from Keychain
                                               ↓
 AI Provider API (HTTPS)
 ```
@@ -800,7 +800,7 @@ All magic numbers and configuration values are centralized in `lib/config/consta
 
 | Layer | Strategy | Implementation |
 |---|---|---|
-| **Global** | ErrorBoundary | Catches unhandled React errors; displays recovery UI |
+| **Global** | ErrorBoundary | Catches unhandled React errors; displays fallback UI |
 | **Feature** | withErrorBoundary HOC | Wraps each feature with named boundary + retry logic |
 | **Hook** | try/catch + toast | User-facing errors shown as toast notifications with progress feedback |
 | **AI** | AbortController + retry | Streaming cancellation; 3 retry attempts with backoff |
@@ -824,7 +824,7 @@ Save failure → Emergency Backup Service
 Accidental delete → Trash System
                     ├── Move to .trash/ with metadata
                     ├── 30-day retention
-                    ├── Restore to original series (recreates series if missing to avoid forced reassignment)
+                    ├── Restore to original series (recreates series if missing to prevent "Recovery Series" fallback)
                     └── Permanent delete requires confirmation
 ```
 

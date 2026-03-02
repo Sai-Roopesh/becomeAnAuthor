@@ -27,6 +27,7 @@ fn master_key_path() -> Result<PathBuf, String> {
     Ok(meta_dir.join(MASTER_KEY_FILE))
 }
 
+#[allow(unused_variables)]
 fn apply_master_key_permissions(path: &PathBuf) -> Result<(), String> {
     #[cfg(unix)]
     {
