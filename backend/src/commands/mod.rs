@@ -1,5 +1,6 @@
 // Commands module - All Tauri commands organized by domain
 
+pub mod app_state;
 pub mod backup;
 pub mod backup_emergency;
 pub mod backup_manuscript;
@@ -18,6 +19,7 @@ pub mod snippet;
 pub mod trash;
 
 // Re-export all commands for easy access in lib.rs
+pub use app_state::*;
 pub use backup::*;
 pub use backup_emergency::*;
 pub use backup_manuscript::*;

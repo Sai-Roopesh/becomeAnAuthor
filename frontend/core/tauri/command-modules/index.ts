@@ -10,3 +10,4 @@ export * from "./snippets";
 export * from "./search";
 export * from "./export";
 export * from "./dialogs";
+export * from "./app-state";

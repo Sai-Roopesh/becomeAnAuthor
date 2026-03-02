@@ -9,14 +9,6 @@ vi.mock("@/core/tauri/commands", () => ({
   isTauri: vi.fn(() => false),
 }));
 
-vi.mock("@/core/storage/safe-storage", () => ({
-  storage: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-  },
-}));
-
 vi.mock("@/lib/config/constants", () => ({
   GOOGLE_CONFIG: {
     CLIENT_ID: "test-client-id",
@@ -27,17 +19,10 @@ vi.mock("@/lib/config/constants", () => ({
     TOKEN_ENDPOINT: "https://oauth2.googleapis.com/token",
     REVOKE_ENDPOINT: "https://oauth2.googleapis.com/revoke",
   },
-  STORAGE_KEYS: {
-    GOOGLE_TOKENS: "google_oauth_tokens",
-    GOOGLE_USER: "google_user_info",
-    GOOGLE_PKCE_VERIFIER: "google_pkce_verifier",
-  },
 }));
 
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/core/tauri/commands";
-import { storage } from "@/core/storage/safe-storage";
-import { STORAGE_KEYS } from "@/lib/config/constants";
 
 describe("GoogleAuthService Contract", () => {
   beforeEach(() => {
@@ -59,7 +44,7 @@ describe("GoogleAuthService Contract", () => {
     await expect(googleAuthService.signIn()).rejects.toThrow(/desktop app/i);
   });
 
-  it("signs in on desktop and stores user", async () => {
+  it("signs in on desktop runtime", async () => {
     vi.mocked(isTauri).mockReturnValue(true);
     vi.mocked(invoke).mockResolvedValue({
       id: "u1",
@@ -74,12 +59,6 @@ describe("GoogleAuthService Contract", () => {
       clientId: "test-client-id",
       clientSecret: "test-client-secret",
       scopes: ["https://www.googleapis.com/auth/drive.file"],
-    });
-    expect(storage.setItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_USER, {
-      id: "u1",
-      email: "user@example.com",
-      name: "User Name",
-      picture: "https://example.com/p.png",
     });
   });
 
@@ -96,17 +75,12 @@ describe("GoogleAuthService Contract", () => {
     await expect(googleAuthService.getUserInfo()).resolves.toBeNull();
   });
 
-  it("signOut clears stored auth data", async () => {
+  it("signOut revokes desktop auth state", async () => {
     vi.mocked(isTauri).mockReturnValue(true);
     vi.mocked(invoke).mockResolvedValue(undefined);
 
     await googleAuthService.signOut();
 
     expect(invoke).toHaveBeenCalledWith("google_oauth_sign_out");
-    expect(storage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_TOKENS);
-    expect(storage.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.GOOGLE_USER);
-    expect(storage.removeItem).toHaveBeenCalledWith(
-      STORAGE_KEYS.GOOGLE_PKCE_VERIFIER,
-    );
   });
 });

@@ -30,7 +30,7 @@ pub const MAX_PROJECT_SIZE: u64 = 1024 * 1024 * 1024;
 // ============================================================================
 
 /// Validate that a project title is safe and within limits
-/// 
+///
 /// # Rules
 /// - Not empty
 /// - No path separators (/, \)
@@ -105,7 +105,7 @@ pub fn validate_codex_name(name: &str) -> Result<(), String> {
 }
 
 /// Sanitize a path component by removing/replacing dangerous characters
-/// 
+///
 /// This is used for creating safe filenames from user input.
 /// Converts to lowercase, replaces spaces with hyphens, removes special chars.
 pub fn sanitize_path_component(input: &str) -> String {
@@ -182,7 +182,7 @@ pub fn validate_uuid_format(uuid_str: &str) -> Result<(), String> {
 }
 
 /// Validate that a path is within the allowed app directory
-/// 
+///
 /// This prevents path traversal attacks where malicious input could access
 /// files outside the application's data directory.
 pub fn validate_path_within_app_dir(path: &Path, app_dir: &Path) -> Result<(), String> {
@@ -190,7 +190,7 @@ pub fn validate_path_within_app_dir(path: &Path, app_dir: &Path) -> Result<(), S
     let canonical_path = path
         .canonicalize()
         .map_err(|e| format!("Failed to resolve path: {}", e))?;
-    
+
     let canonical_app_dir = app_dir
         .canonicalize()
         .map_err(|e| format!("Failed to resolve app directory: {}", e))?;
@@ -208,10 +208,7 @@ pub fn validate_path_within_app_dir(path: &Path, app_dir: &Path) -> Result<(), S
 // ============================================================================
 
 /// Validate a project creation request
-pub fn validate_project_creation(
-    title: &str,
-    author: Option<&str>,
-) -> Result<(), String> {
+pub fn validate_project_creation(title: &str, author: Option<&str>) -> Result<(), String> {
     validate_project_title(title)?;
     validate_no_null_bytes(title, "Project title")?;
 
@@ -226,10 +223,7 @@ pub fn validate_project_creation(
 }
 
 /// Validate a scene save request
-pub fn validate_scene_save(
-    title: &str,
-    content: &str,
-) -> Result<(), String> {
+pub fn validate_scene_save(title: &str, content: &str) -> Result<(), String> {
     validate_scene_title(title)?;
     validate_scene_content(content)?;
     validate_no_null_bytes(title, "Scene title")?;
@@ -288,7 +282,10 @@ mod tests {
     #[test]
     fn test_sanitize_path_component() {
         assert_eq!(sanitize_path_component("My Novel"), "my-novel");
-        assert_eq!(sanitize_path_component("The Great Adventure!"), "the-great-adventure");
+        assert_eq!(
+            sanitize_path_component("The Great Adventure!"),
+            "the-great-adventure"
+        );
         assert_eq!(sanitize_path_component("  Spaces  "), "spaces");
         assert_eq!(sanitize_path_component("../../../etc/passwd"), "etc_passwd");
     }

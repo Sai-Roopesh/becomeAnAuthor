@@ -6,9 +6,8 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { GOOGLE_CONFIG, STORAGE_KEYS } from "@/lib/config/constants";
+import { GOOGLE_CONFIG } from "@/lib/config/constants";
 import { GoogleUser } from "@/domain/entities/types";
-import { storage } from "@/core/storage/safe-storage";
 import { logger } from "@/shared/utils/logger";
 import { isTauri } from "@/core/tauri/commands";
 import { toAppError } from "@/shared/errors/app-error";
@@ -52,12 +51,11 @@ class GoogleAuthService {
     assertDesktopOAuth();
 
     try {
-      const user = await invoke<GoogleUser>("google_oauth_connect", {
+      await invoke<GoogleUser>("google_oauth_connect", {
         clientId: GOOGLE_CONFIG.CLIENT_ID,
         clientSecret: getConfiguredClientSecret(),
         scopes: GOOGLE_CONFIG.SCOPES,
       });
-      storage.setItem(STORAGE_KEYS.GOOGLE_USER, user);
       notifyAuthStateChanged();
     } catch (error) {
       log.error("OAuth sign-in error:", error);
@@ -77,9 +75,6 @@ class GoogleAuthService {
     } catch (error) {
       log.error("Sign-out error:", error);
     } finally {
-      storage.removeItem(STORAGE_KEYS.GOOGLE_TOKENS);
-      storage.removeItem(STORAGE_KEYS.GOOGLE_USER);
-      storage.removeItem(STORAGE_KEYS.GOOGLE_PKCE_VERIFIER);
       notifyAuthStateChanged();
     }
   }
@@ -114,11 +109,7 @@ class GoogleAuthService {
       return null;
     }
     try {
-      const user = await invoke<GoogleUser | null>("google_oauth_get_user");
-      if (user) {
-        storage.setItem(STORAGE_KEYS.GOOGLE_USER, user);
-      }
-      return user;
+      return await invoke<GoogleUser | null>("google_oauth_get_user");
     } catch (error) {
       const appError = toAppError(
         error,

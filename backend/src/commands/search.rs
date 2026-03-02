@@ -1,39 +1,15 @@
-// Search commands
-
 use rusqlite::params;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
-use walkdir::WalkDir;
 
-use crate::models::{ProjectMeta, StructureNode};
 use crate::storage::{
     clear_search_index, get_search_signature, open_app_db, set_search_signature,
     upsert_search_document,
 };
-use crate::utils::{get_series_codex_path, timestamp};
-
-fn strip_frontmatter(content: &str) -> String {
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() >= 3 {
-        parts[2].trim().to_string()
-    } else {
-        content.to_string()
-    }
-}
-
-fn collect_scene_nodes(nodes: &[StructureNode], out: &mut Vec<(String, String, String)>) {
-    for node in nodes {
-        if node.node_type == "scene" {
-            if let Some(file) = &node.file {
-                out.push((node.id.clone(), node.title.clone(), file.clone()));
-            }
-        }
-        collect_scene_nodes(&node.children, out);
-    }
-}
+use crate::utils::timestamp;
 
 fn add_path_metadata_fingerprint(path: &Path, hasher: &mut DefaultHasher) -> Result<(), String> {
     path.to_string_lossy().hash(hasher);
@@ -50,47 +26,65 @@ fn add_path_metadata_fingerprint(path: &Path, hasher: &mut DefaultHasher) -> Res
     Ok(())
 }
 
-fn collect_files_by_extension(root: &Path, extension: &str) -> Vec<PathBuf> {
-    if !root.exists() {
-        return Vec::new();
-    }
-    let mut files = WalkDir::new(root)
-        .into_iter()
-        .flatten()
-        .filter(|entry| entry.file_type().is_file())
-        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == extension))
-        .map(|entry| entry.path().to_path_buf())
-        .collect::<Vec<_>>();
-    files.sort();
-    files
-}
-
-fn compute_search_signature(project_path: &str, series_id: &str) -> Result<String, String> {
+fn compute_search_signature(
+    project_path: &str,
+    project_id: &str,
+    series_id: &str,
+) -> Result<String, String> {
+    let conn = open_app_db()?;
     let mut hasher = DefaultHasher::new();
     project_path.hash(&mut hasher);
+    project_id.hash(&mut hasher);
     series_id.hash(&mut hasher);
 
-    let project_root = PathBuf::from(project_path);
-    let structure_path = project_root.join(".meta/structure.json");
-    if structure_path.exists() {
-        add_path_metadata_fingerprint(&structure_path, &mut hasher)?;
-    }
-    let project_meta_path = project_root.join(".meta/project.json");
-    if project_meta_path.exists() {
-        add_path_metadata_fingerprint(&project_meta_path, &mut hasher)?;
-    }
+    let scene_agg: (i64, i64) = conn
+        .query_row(
+            r#"
+            SELECT COUNT(1), COALESCE(MAX(updated_at), 0)
+            FROM scene_metadata
+            WHERE project_id = ?1
+            "#,
+            params![project_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to compute scene metadata fingerprint: {e}"))?;
+    scene_agg.hash(&mut hasher);
 
-    let manuscript_files = collect_files_by_extension(&project_root.join("manuscript"), "md");
-    manuscript_files.len().hash(&mut hasher);
-    for file in manuscript_files {
-        add_path_metadata_fingerprint(&file, &mut hasher)?;
-    }
+    let codex_agg: (i64, i64) = conn
+        .query_row(
+            r#"
+            SELECT COUNT(1), COALESCE(MAX(updated_at), 0)
+            FROM codex_entries
+            WHERE series_id = ?1
+            "#,
+            params![series_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to compute codex metadata fingerprint: {e}"))?;
+    codex_agg.hash(&mut hasher);
 
-    let codex_root = get_series_codex_path(series_id)?;
-    let codex_files = collect_files_by_extension(&codex_root, "json");
-    codex_files.len().hash(&mut hasher);
-    for file in codex_files {
-        add_path_metadata_fingerprint(&file, &mut hasher)?;
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT scene_file
+            FROM scene_metadata
+            WHERE project_id = ?1
+            ORDER BY scene_file ASC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare scene file fingerprint query: {e}"))?;
+    let rows = stmt
+        .query_map(params![project_id], |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Failed to query scene files for fingerprinting: {e}"))?;
+
+    for row in rows {
+        let scene_file = row.map_err(|e| format!("Failed to decode scene file row: {e}"))?;
+        let scene_path = PathBuf::from(project_path)
+            .join("manuscript")
+            .join(scene_file);
+        if scene_path.exists() {
+            add_path_metadata_fingerprint(&scene_path, &mut hasher)?;
+        }
     }
 
     Ok(format!("{:x}", hasher.finish()))
@@ -98,25 +92,40 @@ fn compute_search_signature(project_path: &str, series_id: &str) -> Result<Strin
 
 fn rebuild_search_index_for_project(
     project_path: &str,
+    project_id: &str,
     series_id: &str,
     signature: &str,
 ) -> Result<(), String> {
     let conn = open_app_db()?;
     clear_search_index(&conn, project_path)?;
 
-    let structure = crate::commands::project::get_structure(project_path.to_string())?;
-    let mut scene_nodes = Vec::new();
-    collect_scene_nodes(&structure, &mut scene_nodes);
-    for (scene_id, scene_title, scene_file) in scene_nodes {
-        let scene_path = PathBuf::from(project_path).join("manuscript").join(&scene_file);
-        let raw = fs::read_to_string(&scene_path).map_err(|e| {
-            format!(
-                "Failed to read scene '{}' for search indexing: {}",
-                scene_path.display(),
-                e
-            )
-        })?;
-        let body = strip_frontmatter(&raw);
+    let mut scene_stmt = conn
+        .prepare(
+            r#"
+            SELECT scene_id, title, scene_file
+            FROM scene_metadata
+            WHERE project_id = ?1
+            ORDER BY order_index ASC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare scene indexing query: {e}"))?;
+    let scene_rows = scene_stmt
+        .query_map(params![project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| format!("Failed to query scenes for indexing: {e}"))?;
+
+    for row in scene_rows {
+        let (scene_id, scene_title, scene_file) =
+            row.map_err(|e| format!("Failed to decode scene indexing row: {e}"))?;
+        let scene_path = PathBuf::from(project_path)
+            .join("manuscript")
+            .join(&scene_file);
+        let body = fs::read_to_string(&scene_path).unwrap_or_default();
         upsert_search_document(
             &conn,
             project_path,
@@ -129,73 +138,51 @@ fn rebuild_search_index_for_project(
         )?;
     }
 
-    let codex_dir = get_series_codex_path(series_id)?;
-    if codex_dir.exists() {
-        for entry in WalkDir::new(&codex_dir)
-            .min_depth(2)
-            .max_depth(2)
-            .into_iter()
-            .flatten()
-        {
-            let path = entry.path();
-            if !entry.file_type().is_file() || !path.extension().is_some_and(|e| e == "json") {
-                continue;
-            }
+    let mut codex_stmt = conn
+        .prepare(
+            r#"
+            SELECT id, name, category, payload_json
+            FROM codex_entries
+            WHERE series_id = ?1
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare codex indexing query: {e}"))?;
+    let codex_rows = codex_stmt
+        .query_map(params![series_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(|e| format!("Failed to query codex entries for indexing: {e}"))?;
 
-            let raw = fs::read_to_string(path).map_err(|e| {
-                format!(
-                    "Failed to read codex entry '{}' for search indexing: {}",
-                    path.display(),
-                    e
-                )
-            })?;
-            let parsed: serde_json::Value = serde_json::from_str(&raw).map_err(|e| {
-                format!(
-                    "Failed to parse codex entry '{}' for search indexing: {}",
-                    path.display(),
-                    e
-                )
-            })?;
-            let entry_id = parsed
-                .get("id")
-                .and_then(|value| value.as_str())
-                .map(ToString::to_string)
-                .or_else(|| {
-                    path.file_stem()
-                        .and_then(|value| value.to_str())
-                        .map(ToString::to_string)
-                })
-                .ok_or_else(|| {
-                    format!("Codex entry '{}' is missing an id and a valid filename", path.display())
-                })?;
-            let entry_title = parsed
-                .get("name")
-                .and_then(|value| value.as_str())
-                .unwrap_or("Untitled Codex Entry");
-            let category = parsed
-                .get("category")
-                .and_then(|value| value.as_str())
-                .unwrap_or("unknown");
-            let description = parsed
-                .get("description")
-                .and_then(|value| value.as_str())
-                .unwrap_or("");
-            let body = if description.trim().is_empty() {
-                raw.as_str()
-            } else {
-                description
-            };
-            upsert_search_document(
-                &conn,
-                project_path,
-                "codex",
-                &entry_id,
-                entry_title,
-                body,
-                Some(category),
-                &path.to_string_lossy(),
-            )?;
-        }
+    for row in codex_rows {
+        let (entry_id, entry_title, category, payload_json) =
+            row.map_err(|e| format!("Failed to decode codex indexing row: {e}"))?;
+        let parsed: serde_json::Value = serde_json::from_str(&payload_json)
+            .map_err(|e| format!("Failed to parse codex payload for indexing: {e}"))?;
+        let description = parsed
+            .get("description")
+            .and_then(|value| value.as_str())
+            .unwrap_or("");
+        let body = if description.trim().is_empty() {
+            payload_json.as_str()
+        } else {
+            description
+        };
+        upsert_search_document(
+            &conn,
+            project_path,
+            "codex",
+            &entry_id,
+            &entry_title,
+            body,
+            Some(&category),
+            &format!("sqlite://codex_entries/{}", entry_id),
+        )?;
     }
 
     set_search_signature(&conn, project_path, signature, timestamp::now_millis())?;
@@ -203,17 +190,19 @@ fn rebuild_search_index_for_project(
 }
 
 fn ensure_search_index(project_path: &str) -> Result<(), String> {
-    let meta_path = PathBuf::from(project_path).join(".meta/project.json");
-    let meta_content = fs::read_to_string(&meta_path)
-        .map_err(|e| format!("Failed to read project metadata '{}': {}", meta_path.display(), e))?;
-    let project_meta: ProjectMeta = serde_json::from_str(&meta_content)
-        .map_err(|e| format!("Failed to parse project metadata '{}': {}", meta_path.display(), e))?;
-
-    let signature = compute_search_signature(project_path, &project_meta.series_id)?;
     let conn = open_app_db()?;
+    let (project_id, series_id): (String, String) = conn
+        .query_row(
+            "SELECT id, series_id FROM projects WHERE path = ?1",
+            params![project_path],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to resolve project for search indexing: {e}"))?;
+
+    let signature = compute_search_signature(project_path, &project_id, &series_id)?;
     let existing_signature = get_search_signature(&conn, project_path)?;
     if existing_signature.as_deref() != Some(signature.as_str()) {
-        rebuild_search_index_for_project(project_path, &project_meta.series_id, &signature)?;
+        rebuild_search_index_for_project(project_path, &project_id, &series_id, &signature)?;
     }
 
     Ok(())
@@ -297,8 +286,12 @@ pub fn search_project(
         .next()
         .map_err(|e| format!("Failed iterating indexed search rows: {}", e))?
     {
-        let id: String = row.get(0).map_err(|e| format!("Invalid search row id: {}", e))?;
-        let title: String = row.get(1).map_err(|e| format!("Invalid search row title: {}", e))?;
+        let id: String = row
+            .get(0)
+            .map_err(|e| format!("Invalid search row id: {}", e))?;
+        let title: String = row
+            .get(1)
+            .map_err(|e| format!("Invalid search row title: {}", e))?;
         let doc_type: String = row
             .get(2)
             .map_err(|e| format!("Invalid search row doc_type: {}", e))?;
@@ -315,7 +308,11 @@ pub fn search_project(
             .get(6)
             .map_err(|e| format!("Invalid search row score: {}", e))?;
 
-        let content_type = if doc_type == "scene" { "scene" } else { "codex" };
+        let content_type = if doc_type == "scene" {
+            "scene"
+        } else {
+            "codex"
+        };
         let mut value = serde_json::json!({
             "id": id,
             "title": title,

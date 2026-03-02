@@ -47,8 +47,8 @@ mod tests {
         let _guard = TestChannelGuard::new("restore-series-test");
 
         let series_title = format!("Series {}", uuid::Uuid::new_v4());
-        let created_series = create_series(series_title.clone(), None, None, None, None)
-            .expect("create series");
+        let created_series =
+            create_series(series_title.clone(), None, None, None, None).expect("create series");
 
         let projects_path = get_projects_path().expect("get projects path");
         let created_project = create_project(
@@ -72,7 +72,11 @@ mod tests {
         );
 
         let trashed_projects = list_project_trash().expect("list project trash");
-        assert_eq!(trashed_projects.len(), 1, "exactly one project should be trashed");
+        assert_eq!(
+            trashed_projects.len(),
+            1,
+            "exactly one project should be trashed"
+        );
 
         let restored_project = restore_trashed_project(trashed_projects[0].trash_path.clone())
             .expect("restore trashed project");

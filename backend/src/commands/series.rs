@@ -1,15 +1,11 @@
-// Series commands
+// Series commands (SQLite-backed)
 
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
-use walkdir::WalkDir;
 
 use crate::models::{CodexEntry, CodexRelation, Series};
-use crate::utils::{
-    atomic_write, get_app_dir, get_series_codex_path, get_series_dir, get_series_path,
-    read_json_file_if_exists, validate_project_title, write_json_file,
-};
+use crate::storage::open_app_db;
+use crate::utils::validate_project_title;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -37,156 +33,266 @@ pub struct DeletedSeries {
     pub deleted_at: i64,
 }
 
-fn deleted_series_registry_path() -> Result<PathBuf, String> {
-    let app_dir = get_app_dir()?;
-    let meta_dir = app_dir.join(".meta");
-    fs::create_dir_all(&meta_dir).map_err(|e| e.to_string())?;
-    Ok(meta_dir.join("deleted_series.json"))
+fn now() -> i64 {
+    chrono::Utc::now().timestamp_millis()
 }
 
-fn read_deleted_series_registry() -> Result<Vec<DeletedSeriesRecord>, String> {
-    let path = deleted_series_registry_path()?;
-    read_json_file_if_exists(&path, "deleted series registry")
+fn row_to_series(row: &rusqlite::Row<'_>) -> Result<Series, rusqlite::Error> {
+    Ok(Series {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        description: row.get(2)?,
+        author: row.get(3)?,
+        genre: row.get(4)?,
+        status: row.get(5)?,
+        created_at: row.get(6)?,
+        updated_at: row.get(7)?,
+    })
 }
 
-fn write_deleted_series_registry(records: &[DeletedSeriesRecord]) -> Result<(), String> {
-    let path = deleted_series_registry_path()?;
-    write_json_file(&path, records, "deleted series registry")
+fn get_series(conn: &Connection, series_id: &str) -> Result<Option<Series>, String> {
+    conn.query_row(
+        r#"
+        SELECT id, title, description, author, genre, status, created_at, updated_at
+        FROM series
+        WHERE id = ?1
+        "#,
+        params![series_id],
+        row_to_series,
+    )
+    .optional()
+    .map_err(|e| format!("Failed to load series: {e}"))
 }
 
-pub(crate) fn mark_series_deleted(series: &Series) -> Result<(), String> {
-    let mut records = read_deleted_series_registry()?;
-    records.retain(|record| record.old_series_id != series.id);
-    records.insert(
-        0,
-        DeletedSeriesRecord {
-            old_series_id: series.id.clone(),
-            title: series.title.clone(),
-            description: series.description.clone(),
-            author: series.author.clone(),
-            genre: series.genre.clone(),
-            status: series.status.clone(),
-            deleted_at: chrono::Utc::now().timestamp_millis(),
-            restored_series_id: None,
-        },
-    );
-    write_deleted_series_registry(&records)
+fn upsert_series(conn: &Connection, series: &Series) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO series(id, title, description, author, genre, status, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            description = excluded.description,
+            author = excluded.author,
+            genre = excluded.genre,
+            status = excluded.status,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            series.id,
+            series.title,
+            series.description,
+            series.author,
+            series.genre,
+            series.status,
+            series.created_at,
+            series.updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to upsert series: {e}"))?;
+    Ok(())
+}
+
+fn insert_deleted_series_record(conn: &Connection, series: &Series) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO deleted_series_registry(
+            old_series_id, title, description, author, genre, status, deleted_at, restored_series_id
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)
+        ON CONFLICT(old_series_id) DO UPDATE SET
+            title = excluded.title,
+            description = excluded.description,
+            author = excluded.author,
+            genre = excluded.genre,
+            status = excluded.status,
+            deleted_at = excluded.deleted_at,
+            restored_series_id = NULL
+        "#,
+        params![
+            series.id,
+            series.title,
+            series.description,
+            series.author,
+            series.genre,
+            series.status,
+            now(),
+        ],
+    )
+    .map_err(|e| format!("Failed to insert deleted series record: {e}"))?;
+    Ok(())
 }
 
 pub(crate) fn restore_or_recreate_deleted_series(
     old_series_id: &str,
 ) -> Result<Option<String>, String> {
-    let mut records = read_deleted_series_registry()?;
-    let Some(record_index) = records
-        .iter()
-        .position(|record| record.old_series_id == old_series_id)
-    else {
+    let conn = open_app_db()?;
+    let record = conn
+        .query_row(
+            r#"
+            SELECT old_series_id, title, description, author, genre, status, deleted_at, restored_series_id
+            FROM deleted_series_registry
+            WHERE old_series_id = ?1
+            "#,
+            params![old_series_id],
+            |row| {
+                Ok(DeletedSeriesRecord {
+                    old_series_id: row.get(0)?,
+                    title: row.get(1)?,
+                    description: row.get(2)?,
+                    author: row.get(3)?,
+                    genre: row.get(4)?,
+                    status: row.get(5)?,
+                    deleted_at: row.get(6)?,
+                    restored_series_id: row.get(7)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|e| format!("Failed to read deleted series record: {e}"))?;
+
+    let Some(record) = record else {
         return Ok(None);
     };
 
-    let existing_series = list_series()?;
-    let record = &records[record_index];
-
     if let Some(restored_id) = &record.restored_series_id {
-        if existing_series
-            .iter()
-            .any(|series| &series.id == restored_id)
-        {
+        if get_series(&conn, restored_id)?.is_some() {
             return Ok(Some(restored_id.clone()));
         }
     }
 
-    let recreated_series_id = if let Some(existing) = existing_series
-        .iter()
-        .find(|series| series.title == record.title)
-    {
-        existing.id.clone()
+    let existing_by_title = conn
+        .query_row(
+            "SELECT id FROM series WHERE title = ?1 ORDER BY updated_at DESC LIMIT 1",
+            params![record.title],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| format!("Failed to lookup series by title: {e}"))?;
+
+    let restored_id = if let Some(existing_id) = existing_by_title {
+        existing_id
     } else {
         let created = create_series(
-            record.title.clone(),
-            record.description.clone(),
-            record.author.clone(),
-            record.genre.clone(),
-            record.status.clone(),
+            record.title,
+            record.description,
+            record.author,
+            record.genre,
+            record.status,
         )?;
         created.id
     };
 
-    records[record_index].restored_series_id = Some(recreated_series_id.clone());
-    write_deleted_series_registry(&records)?;
+    conn.execute(
+        "UPDATE deleted_series_registry SET restored_series_id = ?1 WHERE old_series_id = ?2",
+        params![restored_id, old_series_id],
+    )
+    .map_err(|e| format!("Failed to update deleted series restore pointer: {e}"))?;
 
-    Ok(Some(recreated_series_id))
+    Ok(Some(restored_id))
 }
 
 #[tauri::command]
 pub fn list_deleted_series() -> Result<Vec<DeletedSeries>, String> {
-    let existing_series_ids: std::collections::HashSet<String> =
-        list_series()?.into_iter().map(|series| series.id).collect();
-    let mut records = read_deleted_series_registry()?;
-    records.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
+    let conn = open_app_db()?;
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT old_series_id, title, deleted_at, restored_series_id
+            FROM deleted_series_registry
+            ORDER BY deleted_at DESC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare deleted series query: {e}"))?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, Option<String>>(3)?,
+            ))
+        })
+        .map_err(|e| format!("Failed to execute deleted series query: {e}"))?;
 
     let mut deleted = Vec::new();
-    let mut seen_titles: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for record in records {
-        if !seen_titles.insert(record.title.clone()) {
-            continue;
-        }
+    for row in rows {
+        let (old_series_id, title, deleted_at, restored_series_id) =
+            row.map_err(|e| format!("Failed to decode deleted series row: {e}"))?;
 
-        if let Some(restored_series_id) = &record.restored_series_id {
-            if existing_series_ids.contains(restored_series_id) {
+        if let Some(restored) = restored_series_id {
+            if get_series(&conn, &restored)?.is_some() {
                 continue;
             }
         }
 
         deleted.push(DeletedSeries {
-            old_series_id: record.old_series_id,
-            title: record.title,
-            deleted_at: record.deleted_at,
+            old_series_id,
+            title,
+            deleted_at,
         });
     }
 
-    deleted.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
     Ok(deleted)
 }
 
 #[tauri::command]
 pub fn permanently_delete_deleted_series(old_series_id: String) -> Result<(), String> {
-    let mut records = read_deleted_series_registry()?;
-    let target_title = records
-        .iter()
-        .find(|record| record.old_series_id == old_series_id)
-        .map(|record| record.title.clone())
-        .ok_or("Deleted series record not found".to_string())?;
+    let conn = open_app_db()?;
+    let target_title: Option<String> = conn
+        .query_row(
+            "SELECT title FROM deleted_series_registry WHERE old_series_id = ?1",
+            params![old_series_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("Failed to load deleted series title: {e}"))?;
 
-    records.retain(|record| record.title != target_title);
-    write_deleted_series_registry(&records)
+    let Some(title) = target_title else {
+        return Ok(());
+    };
+
+    conn.execute(
+        "DELETE FROM deleted_series_registry WHERE title = ?1",
+        params![title],
+    )
+    .map_err(|e| format!("Failed to permanently delete deleted series records: {e}"))?;
+    Ok(())
 }
 
 #[tauri::command]
 pub fn restore_deleted_series(old_series_id: String) -> Result<Series, String> {
     let restored_series_id = restore_or_recreate_deleted_series(&old_series_id)?
-        .ok_or("Deleted series record not found".to_string())?;
+        .ok_or_else(|| "Deleted series record not found".to_string())?;
 
-    let series = list_series()?
-        .into_iter()
-        .find(|entry| entry.id == restored_series_id)
-        .ok_or("Restored series could not be loaded".to_string())?;
-
-    Ok(series)
+    let conn = open_app_db()?;
+    get_series(&conn, &restored_series_id)?
+        .ok_or_else(|| "Restored series could not be loaded".to_string())
 }
-
-// ============== Series CRUD ==============
 
 #[tauri::command]
 pub fn list_series() -> Result<Vec<Series>, String> {
-    let series_path = get_series_path()?;
+    let conn = open_app_db()?;
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT id, title, description, author, genre, status, created_at, updated_at
+            FROM series
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare series query: {e}"))?;
 
-    if !series_path.exists() {
-        return Ok(Vec::new());
+    let rows = stmt
+        .query_map([], row_to_series)
+        .map_err(|e| format!("Failed to execute series query: {e}"))?;
+
+    let mut all_series = Vec::new();
+    for row in rows {
+        all_series.push(row.map_err(|e| format!("Failed to decode series row: {e}"))?);
     }
 
-    let content = fs::read_to_string(&series_path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    Ok(all_series)
 }
 
 #[tauri::command]
@@ -197,12 +303,10 @@ pub fn create_series(
     genre: Option<String>,
     status: Option<String>,
 ) -> Result<Series, String> {
-    // Validate title (same rules as project titles)
     validate_project_title(&title)?;
 
-    let now = chrono::Utc::now().timestamp_millis();
-
-    let new_series = Series {
+    let now = now();
+    let series = Series {
         id: uuid::Uuid::new_v4().to_string(),
         title,
         description,
@@ -213,75 +317,57 @@ pub fn create_series(
         updated_at: now,
     };
 
-    // Create series codex directory structure
-    let codex_dir = get_series_codex_path(&new_series.id)?;
-    fs::create_dir_all(codex_dir.join("character")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(codex_dir.join("location")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(codex_dir.join("item")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(codex_dir.join("lore")).map_err(|e| e.to_string())?;
-    fs::create_dir_all(codex_dir.join("subplot")).map_err(|e| e.to_string())?;
-
-    let mut all_series = list_series()?;
-    let result = new_series.clone();
-    all_series.push(new_series);
-
-    let series_path = get_series_path()?;
-    write_json_file(&series_path, &all_series, "series list")?;
-
-    Ok(result)
+    let conn = open_app_db()?;
+    upsert_series(&conn, &series)?;
+    Ok(series)
 }
 
 #[tauri::command]
 pub fn update_series(series_id: String, updates: serde_json::Value) -> Result<(), String> {
-    let mut all_series = list_series()?;
-    let now = chrono::Utc::now().timestamp_millis();
+    let conn = open_app_db()?;
+    let mut series =
+        get_series(&conn, &series_id)?.ok_or_else(|| "Series not found".to_string())?;
 
-    // Validate title if being updated
     if let Some(title) = updates.get("title").and_then(|v| v.as_str()) {
         validate_project_title(title)?;
+        series.title = title.to_string();
+    }
+    if let Some(description) = updates.get("description").and_then(|v| v.as_str()) {
+        series.description = Some(description.to_string());
+    } else if updates.get("description").is_some_and(|v| v.is_null()) {
+        series.description = None;
+    }
+    if let Some(author) = updates.get("author").and_then(|v| v.as_str()) {
+        series.author = Some(author.to_string());
+    } else if updates.get("author").is_some_and(|v| v.is_null()) {
+        series.author = None;
+    }
+    if let Some(genre) = updates.get("genre").and_then(|v| v.as_str()) {
+        series.genre = Some(genre.to_string());
+    } else if updates.get("genre").is_some_and(|v| v.is_null()) {
+        series.genre = None;
+    }
+    if let Some(status) = updates.get("status").and_then(|v| v.as_str()) {
+        series.status = Some(status.to_string());
+    } else if updates.get("status").is_some_and(|v| v.is_null()) {
+        series.status = None;
     }
 
-    if let Some(series) = all_series.iter_mut().find(|s| s.id == series_id) {
-        if let Some(title) = updates.get("title").and_then(|v| v.as_str()) {
-            series.title = title.to_string();
-        }
-        if let Some(description) = updates.get("description").and_then(|v| v.as_str()) {
-            series.description = Some(description.to_string());
-        } else if updates.get("description").is_some_and(|v| v.is_null()) {
-            series.description = None;
-        }
-        if let Some(author) = updates.get("author").and_then(|v| v.as_str()) {
-            series.author = Some(author.to_string());
-        } else if updates.get("author").is_some_and(|v| v.is_null()) {
-            series.author = None;
-        }
-        if let Some(genre) = updates.get("genre").and_then(|v| v.as_str()) {
-            series.genre = Some(genre.to_string());
-        } else if updates.get("genre").is_some_and(|v| v.is_null()) {
-            series.genre = None;
-        }
-        if let Some(status) = updates.get("status").and_then(|v| v.as_str()) {
-            series.status = Some(status.to_string());
-        } else if updates.get("status").is_some_and(|v| v.is_null()) {
-            series.status = None;
-        }
-        series.updated_at = now;
-    } else {
-        return Err("Series not found".to_string());
-    }
-
-    let series_path = get_series_path()?;
-    write_json_file(&series_path, &all_series, "series list")?;
-
-    Ok(())
+    series.updated_at = now();
+    upsert_series(&conn, &series)
 }
 
 #[tauri::command]
 pub fn delete_series(series_id: String) -> Result<(), String> {
-    let linked_projects = crate::commands::project::list_projects()?
-        .into_iter()
-        .filter(|project| project.series_id == series_id)
-        .count();
+    let conn = open_app_db()?;
+
+    let linked_projects: i64 = conn
+        .query_row(
+            "SELECT COUNT(1) FROM projects WHERE series_id = ?1",
+            params![series_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to count linked projects: {e}"))?;
     if linked_projects > 0 {
         return Err(format!(
             "Cannot delete series with {} linked novel(s). Use delete_series_cascade instead.",
@@ -289,231 +375,264 @@ pub fn delete_series(series_id: String) -> Result<(), String> {
         ));
     }
 
-    let mut all_series = list_series()?;
-    if let Some(series_to_delete) = all_series.iter().find(|s| s.id == series_id) {
-        mark_series_deleted(series_to_delete)?;
+    if let Some(series_to_delete) = get_series(&conn, &series_id)? {
+        insert_deleted_series_record(&conn, &series_to_delete)?;
     }
-    all_series.retain(|s| s.id != series_id);
 
-    let series_path = get_series_path()?;
-    write_json_file(&series_path, &all_series, "series list")?;
-
-    // Also delete the series codex directory
-    let series_dir = get_series_dir(&series_id)?;
-    if series_dir.exists() {
-        fs::remove_dir_all(&series_dir).map_err(|e| {
-            format!(
-                "Failed to remove series directory '{}' during delete: {}",
-                series_dir.display(),
-                e
-            )
-        })?;
-    }
+    conn.execute("DELETE FROM series WHERE id = ?1", params![series_id])
+        .map_err(|e| format!("Failed to delete series row: {e}"))?;
 
     Ok(())
 }
 
-/// Delete a series and cascade delete all projects belonging to it
-/// Returns the number of projects deleted
 #[tauri::command]
 pub fn delete_series_cascade(series_id: String) -> Result<u32, String> {
     use crate::commands::project::{delete_project, list_projects};
 
-    // 1. Find all projects belonging to this series
     let all_projects = list_projects()?;
     let projects_to_delete: Vec<_> = all_projects
         .iter()
-        .filter(|p| p.series_id == series_id)
+        .filter(|project| project.series_id == series_id)
         .collect();
 
     let delete_count = projects_to_delete.len() as u32;
-
-    // 2. Delete each project (moves to Trash)
     for project in projects_to_delete {
         delete_project(project.path.clone())?;
     }
 
-    // 3. Delete the series itself (removes from list + codex directory)
     delete_series(series_id)?;
 
     Ok(delete_count)
 }
 
-// ============== Series Codex CRUD ==============
+fn parse_json_payload<T: for<'de> serde::Deserialize<'de>>(
+    payload: &str,
+    label: &str,
+) -> Result<T, String> {
+    serde_json::from_str(payload).map_err(|e| format!("Failed to parse {} payload: {e}", label))
+}
 
-/// List all codex entries for a series
 #[tauri::command]
 pub fn list_series_codex_entries(
     series_id: String,
     category: Option<String>,
 ) -> Result<Vec<CodexEntry>, String> {
-    let codex_dir = get_series_codex_path(&series_id)?;
+    let conn = open_app_db()?;
     let mut entries = Vec::new();
 
-    if !codex_dir.exists() {
-        return Ok(entries);
-    }
+    if let Some(category_filter) = category {
+        let mut stmt = conn
+            .prepare(
+                r#"
+                SELECT payload_json
+                FROM codex_entries
+                WHERE series_id = ?1 AND category = ?2
+                ORDER BY updated_at DESC
+                "#,
+            )
+            .map_err(|e| format!("Failed to prepare codex entry query: {e}"))?;
 
-    // If category specified, only search that folder
-    let search_path = match &category {
-        Some(cat) => codex_dir.join(cat),
-        None => codex_dir,
-    };
+        let rows = stmt
+            .query_map(params![series_id, category_filter], |row| {
+                row.get::<_, String>(0)
+            })
+            .map_err(|e| format!("Failed to execute codex entry query: {e}"))?;
 
-    if !search_path.exists() {
-        return Ok(entries);
-    }
-
-    for entry in WalkDir::new(&search_path)
-        .min_depth(if category.is_some() { 1 } else { 2 })
-        .max_depth(if category.is_some() { 1 } else { 2 })
-        .into_iter()
-        .flatten()
-    {
-        if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
-            let content = fs::read_to_string(entry.path()).map_err(|e| {
-                format!(
-                    "Failed to read series codex entry '{}': {}",
-                    entry.path().display(),
-                    e
-                )
-            })?;
-            let codex_entry = serde_json::from_str::<CodexEntry>(&content).map_err(|e| {
-                format!(
-                    "Failed to parse series codex entry '{}': {}",
-                    entry.path().display(),
-                    e
-                )
-            })?;
-            entries.push(codex_entry);
+        for row in rows {
+            let payload = row.map_err(|e| format!("Failed to decode codex entry row: {e}"))?;
+            entries.push(parse_json_payload::<CodexEntry>(&payload, "codex entry")?);
         }
+        return Ok(entries);
+    }
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT payload_json
+            FROM codex_entries
+            WHERE series_id = ?1
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare codex entry query: {e}"))?;
+
+    let rows = stmt
+        .query_map(params![series_id], |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Failed to execute codex entry query: {e}"))?;
+
+    for row in rows {
+        let payload = row.map_err(|e| format!("Failed to decode codex entry row: {e}"))?;
+        entries.push(parse_json_payload::<CodexEntry>(&payload, "codex entry")?);
     }
 
     Ok(entries)
 }
 
-/// Get a single codex entry by ID
 #[tauri::command]
 pub fn get_series_codex_entry(
     series_id: String,
     entry_id: String,
 ) -> Result<Option<CodexEntry>, String> {
-    let entries = list_series_codex_entries(series_id, None)?;
-    Ok(entries.into_iter().find(|e| e.id == entry_id))
+    let conn = open_app_db()?;
+    let payload: Option<String> = conn
+        .query_row(
+            "SELECT payload_json FROM codex_entries WHERE series_id = ?1 AND id = ?2",
+            params![series_id, entry_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("Failed to load codex entry payload: {e}"))?;
+
+    let Some(payload) = payload else {
+        return Ok(None);
+    };
+
+    Ok(Some(parse_json_payload::<CodexEntry>(
+        &payload,
+        "codex entry",
+    )?))
 }
 
-/// Save a codex entry to series storage
 #[tauri::command]
 pub fn save_series_codex_entry(series_id: String, entry: CodexEntry) -> Result<(), String> {
-    let codex_dir = get_series_codex_path(&series_id)?;
-    let category_dir = codex_dir.join(&entry.category);
-    fs::create_dir_all(&category_dir).map_err(|e| e.to_string())?;
+    let conn = open_app_db()?;
+    let payload_json = serde_json::to_string(&entry).map_err(|e| e.to_string())?;
+    let aliases_json = serde_json::to_string(&entry.aliases).map_err(|e| e.to_string())?;
 
-    // Remove stale copies of this entry from other category folders.
-    let entry_filename = format!("{}.json", entry.id);
-    if codex_dir.exists() {
-        for candidate in WalkDir::new(&codex_dir)
-            .min_depth(2)
-            .max_depth(2)
-            .into_iter()
-            .flatten()
-        {
-            if candidate.file_type().is_file()
-                && candidate.file_name().to_string_lossy() == entry_filename
-            {
-                fs::remove_file(candidate.path()).map_err(|e| e.to_string())?;
-            }
-        }
-    }
-
-    let entry_path = category_dir.join(format!("{}.json", entry.id));
-    let json = serde_json::to_string_pretty(&entry).map_err(|e| e.to_string())?;
-    atomic_write(&entry_path, &json)?;
+    conn.execute(
+        r#"
+        INSERT INTO codex_entries(id, series_id, category, name, aliases_json, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            category = excluded.category,
+            name = excluded.name,
+            aliases_json = excluded.aliases_json,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            entry.id,
+            series_id,
+            entry.category,
+            entry.name,
+            aliases_json,
+            payload_json,
+            entry.created_at,
+            entry.updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to save series codex entry: {e}"))?;
 
     Ok(())
 }
 
-/// Delete a codex entry from series storage
 #[tauri::command]
 pub fn delete_series_codex_entry(
     series_id: String,
     entry_id: String,
-    category: String,
+    _category: String,
 ) -> Result<(), String> {
-    let codex_dir = get_series_codex_path(&series_id)?;
-    let entry_filename = format!("{}.json", entry_id);
+    let conn = open_app_db()?;
 
-    // Delete all copies of this entry across categories.
-    if codex_dir.exists() {
-        for candidate in WalkDir::new(&codex_dir)
-            .min_depth(2)
-            .max_depth(2)
-            .into_iter()
-            .flatten()
-        {
-            if candidate.file_type().is_file()
-                && candidate.file_name().to_string_lossy() == entry_filename
-            {
-                fs::remove_file(candidate.path()).map_err(|e| e.to_string())?;
-            }
-        }
-    }
+    conn.execute(
+        "DELETE FROM codex_entries WHERE series_id = ?1 AND id = ?2",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete codex entry row: {e}"))?;
 
-    // Backstop the provided category path.
-    let entry_path = codex_dir.join(&category).join(&entry_filename);
-    if entry_path.exists() {
-        fs::remove_file(&entry_path).map_err(|e| e.to_string())?;
-    }
+    conn.execute(
+        "DELETE FROM codex_relations WHERE series_id = ?1 AND (parent_id = ?2 OR child_id = ?2)",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete dependent codex relations: {e}"))?;
 
-    // Cascade remove relations that reference the deleted entry.
-    let relations_path = get_relations_path(&series_id)?;
-    let mut relations = list_series_codex_relations(series_id)?;
-    relations.retain(|r| r.parent_id != entry_id && r.child_id != entry_id);
-    write_json_file(&relations_path, &relations, "series codex relations")?;
+    conn.execute(
+        "DELETE FROM scene_codex_links WHERE series_id = ?1 AND codex_id = ?2",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete dependent scene codex links: {e}"))?;
+
+    conn.execute(
+        "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND entry_id = ?2",
+        params![series_id, entry_id],
+    )
+    .map_err(|e| format!("Failed to delete dependent codex entry tag rows: {e}"))?;
 
     Ok(())
 }
 
-// ============== Series Codex Relations ==============
-
-fn get_relations_path(series_id: &str) -> Result<PathBuf, String> {
-    let series_dir = get_series_dir(series_id)?;
-    Ok(series_dir.join("codex_relations.json"))
-}
-
-/// List all codex relations for a series
 #[tauri::command]
 pub fn list_series_codex_relations(series_id: String) -> Result<Vec<CodexRelation>, String> {
-    let relations_path = get_relations_path(&series_id)?;
-    read_json_file_if_exists(&relations_path, "series codex relations")
+    let conn = open_app_db()?;
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT payload_json
+            FROM codex_relations
+            WHERE series_id = ?1
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .map_err(|e| format!("Failed to prepare codex relation query: {e}"))?;
+
+    let rows = stmt
+        .query_map(params![series_id], |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Failed to execute codex relation query: {e}"))?;
+
+    let mut relations = Vec::new();
+    for row in rows {
+        let payload = row.map_err(|e| format!("Failed to decode codex relation row: {e}"))?;
+        relations.push(parse_json_payload::<CodexRelation>(
+            &payload,
+            "codex relation",
+        )?);
+    }
+
+    Ok(relations)
 }
 
-/// Save a codex relation to series storage
 #[tauri::command]
 pub fn save_series_codex_relation(
     series_id: String,
     relation: CodexRelation,
 ) -> Result<(), String> {
-    let relations_path = get_relations_path(&series_id)?;
-    let mut relations = list_series_codex_relations(series_id)?;
+    let conn = open_app_db()?;
+    let payload_json = serde_json::to_string(&relation).map_err(|e| e.to_string())?;
 
-    // Update existing or add new
-    if let Some(idx) = relations.iter().position(|r| r.id == relation.id) {
-        relations[idx] = relation;
-    } else {
-        relations.push(relation);
-    }
+    conn.execute(
+        r#"
+        INSERT INTO codex_relations(id, series_id, parent_id, child_id, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            parent_id = excluded.parent_id,
+            child_id = excluded.child_id,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            relation.id,
+            series_id,
+            relation.parent_id,
+            relation.child_id,
+            payload_json,
+            relation.created_at,
+            relation.updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to save series codex relation: {e}"))?;
 
-    write_json_file(&relations_path, &relations, "series codex relations")
+    Ok(())
 }
 
-/// Delete a codex relation from series storage
 #[tauri::command]
 pub fn delete_series_codex_relation(series_id: String, relation_id: String) -> Result<(), String> {
-    let relations_path = get_relations_path(&series_id)?;
-    let mut relations = list_series_codex_relations(series_id)?;
-
-    relations.retain(|r| r.id != relation_id);
-
-    write_json_file(&relations_path, &relations, "series codex relations")
+    let conn = open_app_db()?;
+    conn.execute(
+        "DELETE FROM codex_relations WHERE series_id = ?1 AND id = ?2",
+        params![series_id, relation_id],
+    )
+    .map_err(|e| format!("Failed to delete series codex relation: {e}"))?;
+    Ok(())
 }

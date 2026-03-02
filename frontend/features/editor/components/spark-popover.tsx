@@ -38,7 +38,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generate, object, getEnabledConnections } from "@/lib/ai";
-import { storage } from "@/core/storage/safe-storage";
+import {
+  APP_PREF_KEYS,
+  getAppPreference,
+  setAppPreference,
+} from "@/core/state/app-state";
 import type { AIConnection } from "@/lib/config/ai-vendors";
 
 interface SparkPopoverProps {
@@ -133,28 +137,40 @@ export const SparkPopover = memo(function SparkPopover({
 
   // Load connections and saved model on mount
   useEffect(() => {
-    const enabledConnections = getEnabledConnections();
-    setConnections(enabledConnections);
+    let cancelled = false;
 
-    // Load saved model preference
-    const savedModel = storage.getItem<string>("spark_last_model", "");
-    if (
-      savedModel &&
-      enabledConnections.some((c) => c.models?.includes(savedModel))
-    ) {
-      setSelectedModel(savedModel);
-    } else if (
-      enabledConnections.length > 0 &&
-      enabledConnections[0]?.models?.[0]
-    ) {
-      setSelectedModel(enabledConnections[0]?.models?.[0] ?? "");
-    }
+    const load = async () => {
+      const enabledConnections = await getEnabledConnections();
+      if (cancelled) return;
+      setConnections(enabledConnections);
+
+      const savedModel = await getAppPreference<string>(
+        APP_PREF_KEYS.SPARK_LAST_MODEL,
+        "",
+      );
+      if (
+        savedModel &&
+        enabledConnections.some((c) => c.models?.includes(savedModel))
+      ) {
+        setSelectedModel(savedModel);
+      } else if (
+        enabledConnections.length > 0 &&
+        enabledConnections[0]?.models?.[0]
+      ) {
+        setSelectedModel(enabledConnections[0]?.models?.[0] ?? "");
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Save model preference when changed
   useEffect(() => {
     if (selectedModel) {
-      storage.setItem("spark_last_model", selectedModel);
+      void setAppPreference(APP_PREF_KEYS.SPARK_LAST_MODEL, selectedModel);
     }
   }, [selectedModel]);
 

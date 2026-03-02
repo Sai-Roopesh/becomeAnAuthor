@@ -2,9 +2,12 @@
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Moon, Sun, Zap } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  useTheme,
+  type ThemeMode,
+} from "@/features/shared/components/ThemeProvider";
 import {
   Dialog,
   DialogContent,
@@ -25,8 +28,8 @@ function ThemeControls({
   theme,
   setTheme,
 }: {
-  theme: string | undefined;
-  setTheme: (theme: string) => void;
+  theme: ThemeMode | undefined;
+  setTheme: (theme: ThemeMode) => void;
 }) {
   return (
     <div className="flex gap-2">

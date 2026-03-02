@@ -61,7 +61,7 @@ export function AIConnectionsTab() {
         return;
       }
 
-      saveConnection(selectedId, {
+      await saveConnection(selectedId, {
         models: result.models.map((model) => model.id),
       });
     } catch (err) {
@@ -88,7 +88,7 @@ export function AIConnectionsTab() {
     });
 
     if (confirmed) {
-      deleteConnection(selectedId);
+      await deleteConnection(selectedId);
     }
   };
 

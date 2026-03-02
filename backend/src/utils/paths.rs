@@ -46,14 +46,6 @@ pub fn get_projects_dir() -> Result<PathBuf, String> {
     Ok(projects_dir)
 }
 
-/// Get the series storage path (series.json metadata file)
-pub fn get_series_path() -> Result<PathBuf, String> {
-    let app_dir = get_app_dir()?;
-    let series_path = app_dir.join(".meta").join("series.json");
-    fs::create_dir_all(app_dir.join(".meta")).map_err(|e| e.to_string())?;
-    Ok(series_path)
-}
-
 /// Resolve a project directory path from a project path string
 /// This is a helper that combines get_projects_dir with the project path
 pub fn project_dir(project_path: &str) -> Result<PathBuf, String> {

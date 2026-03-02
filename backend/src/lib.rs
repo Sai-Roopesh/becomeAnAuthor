@@ -119,12 +119,6 @@ pub fn run() {
             cleanup_emergency_backups,
             // Search
             search_project,
-            // Trash commands (soft delete)
-            move_to_trash,
-            restore_from_trash,
-            list_trash,
-            permanent_delete,
-            empty_trash,
             // Export commands
             export_manuscript_text,
             export_manuscript_docx,
@@ -159,6 +153,17 @@ pub fn run() {
             security::has_api_key,
             security::delete_api_key,
             security::list_api_key_providers,
+            // App state commands (SQLite-only persistence)
+            app_pref_get,
+            app_pref_get_many,
+            app_pref_set,
+            app_pref_delete,
+            list_ai_connections,
+            save_ai_connection,
+            delete_ai_connection,
+            get_model_discovery_cache,
+            set_model_discovery_cache,
+            clear_model_discovery_cache,
             google_oauth_connect,
             google_oauth_get_access_token,
             google_oauth_get_user,

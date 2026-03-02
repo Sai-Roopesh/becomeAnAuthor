@@ -3,11 +3,12 @@ import { renderHook, act } from "@testing-library/react";
 import { useAI } from "./use-ai";
 import { stream } from "@/lib/ai";
 
-vi.mock("@/core/storage/safe-storage", () => ({
-  storage: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
+vi.mock("@/core/state/app-state", () => ({
+  APP_PREF_KEYS: {
+    LAST_USED_MODEL: "ai.last_used_model",
   },
+  getAppPreference: vi.fn(),
+  setAppPreference: vi.fn(),
 }));
 
 vi.mock("@/lib/ai", () => ({
@@ -25,8 +26,8 @@ vi.mock("@/shared/utils/toast-service", () => ({
 describe("useAI", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { storage } = await import("@/core/storage/safe-storage");
-    vi.mocked(storage.getItem).mockReturnValue("");
+    const { getAppPreference } = await import("@/core/state/app-state");
+    vi.mocked(getAppPreference).mockResolvedValue("");
   });
 
   it("initializes with no model when storage is empty", () => {

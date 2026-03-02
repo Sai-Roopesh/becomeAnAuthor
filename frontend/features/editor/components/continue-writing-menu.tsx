@@ -13,7 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Sparkles, Wand2, BookOpen, Settings2, Brain } from "lucide-react";
 import { TweakGenerateDialog, GenerateOptions } from "./tweak-generate-dialog";
 import { ModelSelector } from "@/features/ai/components/model-selector";
-import { storage } from "@/core/storage/safe-storage";
+import {
+  APP_PREF_KEYS,
+  getAppPreference,
+  listAIConnections,
+} from "@/core/state/app-state";
 import {
   useDialogState,
   continueWritingReducer,
@@ -53,25 +57,32 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({
   );
 
   useEffect(() => {
-    // Load default model from AI connections with safe parsing
-    interface AIConnection {
-      enabled: boolean;
-      models?: string[];
-    }
-    const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-    const allModels = connections
-      .filter((c) => c.enabled)
-      .flatMap((c) => c.models || []);
+    let cancelled = false;
+    const loadDefaultModel = async () => {
+      const connections = await listAIConnections();
+      const allModels = connections
+        .filter((connection) => connection.enabled)
+        .flatMap((connection) => connection.models || []);
 
-    if (allModels.length > 0 && !state.model && allModels[0]) {
-      dispatch({ type: "SET_MODEL", payload: allModels[0] });
-    } else if (!state.model && allModels.length === 0) {
-      // No AI connections configured - try last used
-      const lastUsed = storage.getItem<string>("last_used_model", "");
-      if (lastUsed) {
-        dispatch({ type: "SET_MODEL", payload: lastUsed });
+      if (!cancelled && allModels.length > 0 && !state.model && allModels[0]) {
+        dispatch({ type: "SET_MODEL", payload: allModels[0] });
+        return;
       }
-    }
+
+      if (!cancelled && !state.model && allModels.length === 0) {
+        const lastUsed = await getAppPreference<string>(
+          APP_PREF_KEYS.LAST_USED_MODEL,
+          "",
+        );
+        if (lastUsed) {
+          dispatch({ type: "SET_MODEL", payload: lastUsed });
+        }
+      }
+    };
+    void loadDefaultModel();
+    return () => {
+      cancelled = true;
+    };
   }, [state.model, dispatch]);
 
   useEffect(() => {
@@ -84,13 +95,15 @@ export const ContinueWritingMenu = memo(function ContinueWritingMenu({
     dispatch({ type: "SET_MODE", payload: mode });
   };
 
-  const handleQuickGenerate = () => {
+  const handleQuickGenerate = async () => {
+    const fallbackModel = await getAppPreference<string>(
+      APP_PREF_KEYS.LAST_USED_MODEL,
+      "gpt-4.1-mini",
+    );
     onGenerate({
       wordCount: parseInt(state.wordCount),
       instructions: getModeInstructions(state.selectedMode),
-      model:
-        state.model ||
-        storage.getItem<string>("last_used_model", "gpt-4.1-mini"),
+      model: state.model || fallbackModel,
       mode: state.selectedMode,
       reasoning: state.reasoning,
     });

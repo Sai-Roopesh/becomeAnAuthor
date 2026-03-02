@@ -5,7 +5,11 @@ import {
 } from "ai";
 import type { ZodType } from "zod";
 import { getModel } from "./providers";
-import { storage } from "@/core/storage/safe-storage";
+import {
+  listAIConnections,
+  toAIConnection,
+  type PersistedAIConnection,
+} from "@/core/state/app-state";
 import {
   AI_VENDORS,
   connectionRequiresApiKey,
@@ -55,16 +59,22 @@ async function resolveConnectionApiKey(
   return (await getAPIKey(connection.provider, connection.id)) || "";
 }
 
+async function getEnabledPersistedConnections(): Promise<
+  PersistedAIConnection[]
+> {
+  const connections = await listAIConnections();
+  return connections.filter((connection) => connection.enabled);
+}
+
 async function getConnection(modelId: string): Promise<AIConnection> {
   const normalizedModel = modelId.trim();
   if (!normalizedModel) {
     throw new Error("A model must be selected before using AI features.");
   }
 
-  const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  const candidates = connections.filter(
-    (connection) =>
-      connection.enabled && connection.models?.includes(normalizedModel),
+  const persisted = await getEnabledPersistedConnections();
+  const candidates = persisted.filter((connection) =>
+    connection.models?.includes(normalizedModel),
   );
 
   if (candidates.length === 0) {
@@ -73,9 +83,14 @@ async function getConnection(modelId: string): Promise<AIConnection> {
     );
   }
 
-  for (const connection of candidates) {
+  for (const candidate of candidates) {
+    const connection = toAIConnection(candidate);
     if (!connectionRequiresApiKey(connection)) {
-      return { ...connection, apiKey: "" };
+      return connection;
+    }
+
+    if (!candidate.hasStoredApiKey) {
+      continue;
     }
 
     const apiKey = await resolveConnectionApiKey(connection);
@@ -174,11 +189,11 @@ export async function object<T>(opts: GenerateObjectOptions<T>) {
 }
 
 /**
- * Get all enabled AI connections from storage.
+ * Get all enabled AI connections from SQLite app state.
  */
-export function getEnabledConnections(): AIConnection[] {
-  const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  return connections.filter((c) => c.enabled);
+export async function getEnabledConnections(): Promise<AIConnection[]> {
+  const persisted = await getEnabledPersistedConnections();
+  return persisted.map(toAIConnection);
 }
 
 /**
@@ -186,13 +201,18 @@ export function getEnabledConnections(): AIConnection[] {
  * Resolves secure local credentials for providers that require API keys.
  */
 export async function hasUsableAIConnection(): Promise<boolean> {
-  const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  const enabled = connections.filter((connection) => connection.enabled);
+  const enabled = await getEnabledPersistedConnections();
   if (enabled.length === 0) return false;
 
-  for (const connection of enabled) {
+  for (const persistedConnection of enabled) {
+    const connection = toAIConnection(persistedConnection);
+
     if (!connectionRequiresApiKey(connection)) {
       return true;
+    }
+
+    if (!persistedConnection.hasStoredApiKey) {
+      continue;
     }
 
     const key = await resolveConnectionApiKey(connection);
@@ -207,9 +227,9 @@ export async function hasUsableAIConnection(): Promise<boolean> {
 /**
  * Get connection for a specific model.
  */
-export function getConnectionForModel(
+export async function getConnectionForModel(
   modelId: string,
-): AIConnection | undefined {
-  const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-  return connections.find((c) => c.enabled && c.models?.includes(modelId));
+): Promise<AIConnection | undefined> {
+  const connections = await getEnabledConnections();
+  return connections.find((connection) => connection.models?.includes(modelId));
 }

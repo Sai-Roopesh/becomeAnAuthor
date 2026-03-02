@@ -109,9 +109,9 @@ becomeAnAuthor/
 | **UI Library** | React 19 | Component model, hooks, context |
 | **Rich Text Editor** | TipTap (ProseMirror) | Manuscript editing, extensions, @mentions |
 | **AI SDK** | Vercel AI SDK 4.x | Multi-provider text generation, streaming, structured output |
-| **State Management** | Zustand + persist middleware | Client-side reactive state with localStorage persistence |
+| **State Management** | Zustand + SQLite app-state hydration | Client-side reactive state synced to backend SQLite preferences |
 | **Styling** | Tailwind CSS 4 + shadcn/ui | Utility-first CSS, accessible component primitives |
-| **Collaboration** | Yjs + y-webrtc + y-indexeddb | CRDT-based P2P real-time editing |
+| **Collaboration** | Yjs + y-webrtc + SQLite snapshots | CRDT-based P2P real-time editing with backend snapshot persistence |
 | **Document Export** | docx (npm), @react-pdf/renderer | PDF, DOCX generation (frontend); ePub via Rust backend |
 | **Serialization** | serde, serde_json, serde_yaml | Rust data serialization for all storage formats |
 | **Search** | walkdir + regex (Rust) | Full-text project-wide search |
@@ -196,17 +196,17 @@ Command modules are re-exported via `pub use` for centralized Tauri registration
 | `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
 | `chat` | `chat.rs` | ~300 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message`, `find_chat_thread_for_message` | Thread/message persistence in SQLite (WAL) |
 | `snippet` | `snippet.rs` | ~80 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
-| `backup` | `backup.rs` | ~300 | `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup`, `import_project_backup` | Backup/import orchestration and restore validation |
+| `backup` | `backup.rs` | ~300 | `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup` | Backup/import orchestration and restore validation |
 | `backup_manuscript` | `backup_manuscript.rs` | ~300 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub` | Manuscript export commands and scene-file collection |
 | `backup_emergency` | `backup_emergency.rs` | ~80 | `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Emergency backup lifecycle |
 | `search` | `search.rs` | ~300 | `search_project` | Full-text search backed by SQLite FTS5 index with incremental rebuild by signature |
 | `trash` | `trash.rs` | ~120 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` | Soft-delete with restore |
-| `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands, `migrate_codex_to_series` | Series lifecycle + codex migration |
+| `series` | `series.rs` | ~300 | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands | Series lifecycle + codex management |
 | `security` | `security.rs` | ~170 | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers` | Encrypted API-key storage in SQLite |
 | `mention` | `mention.rs` | ~80 | `find_mentions`, `count_mentions` | @mention scanning across scenes |
 | `collaboration` | `collaboration.rs` | ~60 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` | Yjs CRDT state persistence |
 | `scene_note` | `scene_note.rs` | ~60 | `get_scene_note`, `save_scene_note`, `delete_scene_note` | Per-scene note CRUD |
-| `google_oauth` | `google_oauth.rs` | ~430 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + OS keychain integration |
+| `google_oauth` | `google_oauth.rs` | ~430 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` | Desktop OAuth 2.0 via loopback + encrypted SQLite secure storage |
 
 ### 5.3 Models — `models/mod.rs`
 
@@ -303,7 +303,7 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
 |---|---|---|
 | `core/tauri/commands.ts` + `core/tauri/command-modules/*` | ~400 | Type-safe `invoke()` wrappers split by domain (project/scene/codex/chat/series/search/export/dialogs) |
 | `core/tauri/index.ts` | ~30 | Barrel exports |
-| `core/storage/safe-storage.ts` | ~80 | Typed localStorage abstraction with JSON parse/stringify |
+| `core/state/app-state.ts` | ~300 | SQLite-backed app preference, AI connection, cache, and legacy purge helpers |
 | `lib/core/save-coordinator.ts` | 175 | Singleton preventing race conditions — per-scene mutex, debounce, retry |
 | `lib/core/editor-state-manager.ts` | 236 | VS Code-style dirty tracking, debounced saves, emergency backups, status notifications |
 
@@ -520,7 +520,7 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 |---|---|---|
 | `SettingsDialog` | 131 | 4-tab dialog orchestrator with theme toggle |
 | `AIConnectionsTab` | 171 | AI vendor connection CRUD with model refresh, API key status checks, responsive list view |
-| `useAIConnections` | 158 | Hook: CRUD, localStorage persistence (metadata only), encrypted secure-store checks, model discovery |
+| `useAIConnections` | 260 | Hook: CRUD via SQLite commands, secure key-status checks, model discovery |
 
 ### 10.7 Dashboard — `features/dashboard/`
 
@@ -576,32 +576,33 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 ```
 ~/BecomeAnAuthor/
 ├── Projects/{series}/{project}/
-│   ├── project.json, structure.json
-│   ├── scenes/{file}.md (YAML frontmatter + TipTap JSON)
-│   └── .meta/ (snippets.json, scene-notes/,
-│         codex/{category}/, codex-relations.json,
-│         codex-tags.json, emergency_backups/, yjs-states/)
-├── .meta/app.db (SQLite WAL for chat + search index + secure account metadata)
-├── Series/ (series-list.json, {id}/codex/)
-└── .recent.json
+│   ├── scenes/{file}.md (body text only; non-text metadata is SQLite-backed)
+│   └── .meta/ (runtime artifacts, emergency backups)
+└── .meta/app.db (single SQLite source for non-text state)
 ```
 
-### 12.2 Client-Side Storage (localStorage)
+### 12.2 SQLite App State
 
-| Key | Data |
+| Table/Key | Data |
 |---|---|
-| `ai_connections` | AIConnection[] (provider config only; no key state metadata, no plaintext secrets) |
-| `project-store` | Zustand: sidebar/timeline visibility, tab selections |
-| `format-settings` | Zustand: typography and editor mode preferences |
-| `google_tokens` | OAuth connection metadata (non-secret) |
+| `app_preferences["ui.project_store"]` | Sidebar/timeline visibility and editor panel tabs |
+| `app_preferences["ui.format_settings"]` | Typography and editor preference state |
+| `app_preferences["ai.last_used_model"]` | Last selected model for AI generation |
+| `app_preferences["ai.spark_last_model"]` | Spark popover model preference |
+| `app_preferences["backup.last_status"]` | Last backup timestamp/source |
+| `app_preferences["ui.theme"]` | Theme selection (`light`/`dark`/`system`) |
+| `app_preferences["ui.sidebar_open"]` | Sidebar open/closed preference |
+| `ai_connections` + `ai_connection_models` | AI connection metadata and model mapping |
+| `model_discovery_cache` | Provider model discovery cache payloads + TTL |
+| `yjs_snapshots` | Latest Yjs update blob per scene |
 
 ---
 
 ## 13. Security Architecture
 
-- **API Keys**: Secrets stored encrypted in SQLite via `security.rs`. UI keeps provider config in `localStorage` (no plaintext keys) and checks secure-store presence with `has_api_key`.
+- **API Keys**: Secrets stored encrypted in SQLite via `security.rs`; no browser storage fallback.
 - **OAuth 2.0**:
-  - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in OS keychain via `google_oauth.rs`.
+  - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in encrypted SQLite (`secure_secrets`) via `google_oauth.rs`.
 - **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.
@@ -632,7 +633,7 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 
 The `BackupCenterPanel` unifies backup management:
 - **Local/Cloud Tabs**: Switch between local file export/import and Google Drive operations.
-- **Status Tracking**: Persists last backup timestamp and source in `localStorage`.
+- **Status Tracking**: Persists last backup timestamp and source in SQLite preferences.
 - **Import Rollback**: Atomic series import with rollback strategy. If any project or file fails to import, the entire operation is reverted (directories cleaned up, registry entries removed) to prevent data corruption.
 
 ---
@@ -642,7 +643,7 @@ The `BackupCenterPanel` unifies backup management:
 ### 15.1 P2P Stack
 
 ```
-CollaborationProvider → Yjs Doc (CRDT) + y-webrtc (P2P Signaling) + y-indexeddb (Local Persistence)
+CollaborationProvider → Yjs Doc (CRDT) + y-webrtc (P2P Signaling) + SQLite snapshot persistence
                             │
                             ▼
                    TipTap y-prosemirror binding
@@ -658,7 +659,7 @@ CollaborationProvider → Yjs Doc (CRDT) + y-webrtc (P2P Signaling) + y-indexedd
 
 ### 15.3 State Persistence
 
-Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`. Stored in `.meta/yjs-states/`.
+Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`. Stored in SQLite `yjs_snapshots`.
 
 ---
 
@@ -687,7 +688,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 | File | Lines | Purpose |
 |---|---|---|
-| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG` (Client ID), `STORAGE_KEYS`, `INFRASTRUCTURE`, `APP_NAME`, limits |
+| `lib/config/constants.ts` | ~200 | `GOOGLE_CONFIG` (Client ID), `INFRASTRUCTURE`, `APP_NAME`, limits |
 | `lib/config/ai-vendors.ts` | ~300 | 14 provider registry with name, icon, color, default models, endpoints |
 | `lib/config/model-specs.ts` | ~150 | Token limits and capabilities per model (context windows) |
 | `lib/config/timing.ts` | ~40 | `SAVE_DEBOUNCE`, `SEARCH_DEBOUNCE`, `AUTOSAVE_INTERVAL` |
@@ -728,7 +729,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 | Directory | Key Files |
 |---|---|
 | `core/tauri/` | `commands.ts`, `command-modules/*`, `index.ts` |
-| `core/storage/` | `safe-storage.ts` |
+| `core/state/` | `app-state.ts` |
 | `domain/entities/` | `types.ts` (529 lines, 30+ interfaces) |
 | `domain/repositories/` | 12 interface files (`I*Repository.ts`) |
 | `domain/services/` | `IChatService.ts`, `IExportService.ts` |

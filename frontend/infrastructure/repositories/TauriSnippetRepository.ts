@@ -1,6 +1,6 @@
 /**
  * Tauri Snippet Repository
- * Implements ISnippetRepository using file system through Tauri commands
+ * Implements ISnippetRepository using backend SQLite through Tauri commands.
  */
 
 import type { ISnippetRepository } from "@/domain/repositories/ISnippetRepository";
@@ -14,7 +14,7 @@ const log = logger.scope("TauriSnippetRepository");
 
 /**
  * Tauri-based Snippet Repository
- * Stores snippets as JSON files in ~/BecomeAnAuthor/Projects/{project}/snippets/
+ * Stores snippets in SQLite keyed by project.
  */
 export class TauriSnippetRepository implements ISnippetRepository {
   private requireProjectPath(): string {

@@ -7,9 +7,9 @@ use std::collections::HashMap;
 pub struct CodexEntry {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none", rename = "projectId")]
-    pub project_id: Option<String>,  // Optional - series-first architecture uses seriesId
+    pub project_id: Option<String>, // Optional - series-first architecture uses seriesId
     pub name: String,
-    pub category: String,  // "character", "location", "item", "lore", "subplot"
+    pub category: String, // "character", "location", "item", "lore", "subplot"
     #[serde(default)]
     pub aliases: Vec<String>,
     #[serde(default)]
@@ -57,7 +57,7 @@ pub struct CodexSettings {
     pub show_in_mentions: Option<bool>,
     #[serde(default)]
     pub fields: Vec<CodexField>,
-    
+
     // Frontend fields - merged
     #[serde(skip_serializing_if = "Option::is_none", rename = "isGlobal")]
     pub is_global: Option<bool>,
@@ -79,7 +79,7 @@ pub struct CodexRelation {
     #[serde(rename = "childId")]
     pub child_id: String,
     #[serde(skip_serializing_if = "Option::is_none", rename = "projectId")]
-    pub project_id: Option<String>,  // Optional - series-first architecture
+    pub project_id: Option<String>, // Optional - series-first architecture
     #[serde(skip_serializing_if = "Option::is_none", rename = "typeId")]
     pub type_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -98,7 +98,7 @@ pub struct CodexTag {
     pub name: String,
     pub color: String,
     #[serde(skip_serializing_if = "Option::is_none", rename = "projectId")]
-    pub project_id: Option<String>,  // Optional - series-first architecture
+    pub project_id: Option<String>, // Optional - series-first architecture
     #[serde(rename = "createdAt")]
     pub created_at: i64,
     #[serde(rename = "updatedAt")]

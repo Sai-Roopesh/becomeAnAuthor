@@ -14,7 +14,7 @@ import { type ContextItem } from "@/features/shared/components";
 import type { ChatContext } from "@/domain/entities/types";
 import { toast } from "@/shared/utils/toast-service";
 import { useConfirmation } from "@/hooks/use-confirmation";
-import { storage } from "@/core/storage/safe-storage";
+import { APP_PREF_KEYS, getAppPreference } from "@/core/state/app-state";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { getPromptTemplate } from "@/shared/prompts/templates";
 import { buildRollingMemory } from "@/features/chat/utils/chat-memory";
@@ -111,15 +111,28 @@ export function ChatThread({ threadId, projectId }: ChatThreadProps) {
 
   // Load saved model
   useEffect(() => {
-    if (thread) {
+    let cancelled = false;
+
+    const loadModel = async () => {
+      if (!thread) {
+        return;
+      }
+
       const savedModel =
-        thread.defaultModel || storage.getItem<string>("last_used_model", "");
-      if (savedModel) {
+        thread.defaultModel ||
+        (await getAppPreference<string>(APP_PREF_KEYS.LAST_USED_MODEL, ""));
+
+      if (!cancelled && savedModel) {
         setSelectedModel(savedModel);
         setModel(savedModel);
         setSettings((prev) => ({ ...prev, model: savedModel }));
       }
-    }
+    };
+
+    void loadModel();
+    return () => {
+      cancelled = true;
+    };
   }, [thread, setModel]);
 
   useEffect(() => {

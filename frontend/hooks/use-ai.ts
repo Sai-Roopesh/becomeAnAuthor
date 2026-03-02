@@ -5,9 +5,13 @@
  * Uses Vercel AI SDK's streamText for all providers
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { stream, generate } from "@/lib/ai";
-import { storage } from "@/core/storage/safe-storage";
+import {
+  APP_PREF_KEYS,
+  getAppPreference,
+  setAppPreference,
+} from "@/core/state/app-state";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
 import type { AIModelMessage } from "@/lib/ai/client";
@@ -64,16 +68,6 @@ function withSystemMessage(
 }
 
 /**
- * Get initial model from storage or default
- */
-function getDefaultModel(preferred?: string): string {
-  if (preferred) return preferred;
-  const lastUsed = storage.getItem<string>("last_used_model", "");
-  if (lastUsed) return lastUsed;
-  return "";
-}
-
-/**
  * Unified AI hook for all generation needs
  *
  * @example
@@ -91,12 +85,29 @@ function getDefaultModel(preferred?: string): string {
  */
 export function useAI(options: UseAIOptions = {}) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [model, setModel] = useState(() =>
-    getDefaultModel(options.defaultModel),
-  );
+  const [model, setModel] = useState(() => options.defaultModel ?? "");
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (options.defaultModel) {
+      return;
+    }
+
+    let cancelled = false;
+    void getAppPreference<string>(APP_PREF_KEYS.LAST_USED_MODEL, "").then(
+      (savedModel) => {
+        if (!cancelled && savedModel.trim().length > 0) {
+          setModel(savedModel);
+        }
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [options.defaultModel]);
 
   /**
    * Non-streaming generation
@@ -142,7 +153,7 @@ export function useAI(options: UseAIOptions = {}) {
         });
 
         if (options.persistModel) {
-          storage.setItem("last_used_model", modelToUse);
+          await setAppPreference(APP_PREF_KEYS.LAST_USED_MODEL, modelToUse);
         }
 
         return result.text;
@@ -216,7 +227,7 @@ export function useAI(options: UseAIOptions = {}) {
         }
 
         if (options.persistModel) {
-          storage.setItem("last_used_model", modelToUse);
+          await setAppPreference(APP_PREF_KEYS.LAST_USED_MODEL, modelToUse);
         }
 
         callbacks.onComplete?.(fullText);

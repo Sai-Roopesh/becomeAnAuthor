@@ -24,9 +24,13 @@ import { DriveBackupBrowser } from "@/features/google-drive/components/DriveBack
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
 import { showSaveDialog, type ImportSeriesResult } from "@/core/tauri/commands";
+import {
+  APP_PREF_KEYS,
+  getAppPreference,
+  setAppPreference,
+} from "@/core/state/app-state";
 
 const log = logger.scope("BackupCenterPanel");
-const LAST_BACKUP_KEY = "baa.lastBackup";
 
 function slugifyTitle(input: string): string {
   return input
@@ -83,19 +87,27 @@ export function BackupCenterPanel({
   }, [allSeries, selectedSeriesId]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LAST_BACKUP_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { at: number; source: BackupSource };
+    let cancelled = false;
+
+    const loadLastBackup = async () => {
+      const parsed = await getAppPreference<{
+        at?: number;
+        source?: BackupSource;
+      }>(APP_PREF_KEYS.BACKUP_LAST_STATUS, {});
+      if (cancelled) return;
+
       if (typeof parsed.at === "number") {
         setLastBackupAt(parsed.at);
       }
       if (parsed.source === "local" || parsed.source === "cloud") {
         setLastBackupSource(parsed.source);
       }
-    } catch {
-      // Ignore bad persisted values
-    }
+    };
+
+    void loadLastBackup();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const selectedSeries = useMemo(
@@ -103,11 +115,14 @@ export function BackupCenterPanel({
     [allSeries, selectedSeriesId],
   );
 
-  const persistBackupStatus = (source: BackupSource) => {
+  const persistBackupStatus = async (source: BackupSource) => {
     const now = Date.now();
     setLastBackupAt(now);
     setLastBackupSource(source);
-    localStorage.setItem(LAST_BACKUP_KEY, JSON.stringify({ at: now, source }));
+    await setAppPreference(APP_PREF_KEYS.BACKUP_LAST_STATUS, {
+      at: now,
+      source,
+    });
   };
 
   const handleLocalExport = async () => {
@@ -119,7 +134,7 @@ export function BackupCenterPanel({
     try {
       setIsExporting(true);
       await exportSeries(selectedSeriesId);
-      persistBackupStatus("local");
+      await persistBackupStatus("local");
     } catch (error) {
       log.error("Local backup export failed", error);
     } finally {
@@ -151,7 +166,7 @@ export function BackupCenterPanel({
     try {
       setIsExporting(true);
       await exportSeries(selectedSeriesId, outputPath);
-      persistBackupStatus("local");
+      await persistBackupStatus("local");
     } catch (error) {
       log.error("Local backup export (custom destination) failed", error);
     } finally {
@@ -169,7 +184,7 @@ export function BackupCenterPanel({
       setIsCloudBackupRunning(true);
       const result = await backupToGoogleDrive(selectedSeriesId);
       if (result) {
-        persistBackupStatus("cloud");
+        await persistBackupStatus("cloud");
       }
     } catch (error) {
       log.error("Cloud backup failed", error);

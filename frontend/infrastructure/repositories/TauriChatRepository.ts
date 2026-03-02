@@ -1,6 +1,6 @@
 /**
  * Tauri Chat Repository
- * Implements IChatRepository using file system through Tauri commands
+ * Implements IChatRepository using backend SQLite through Tauri commands.
  */
 
 import type { IChatRepository } from "@/domain/repositories/IChatRepository";
@@ -31,7 +31,7 @@ async function refreshQueries(): Promise<void> {
 
 /**
  * Tauri-based Chat Repository
- * Stores chat threads with embedded messages as JSON files in ~/BecomeAnAuthor/Projects/{project}/.meta/chat/threads/
+ * Stores chat threads and messages in SQLite (`chat_threads`, `chat_messages`).
  */
 export class TauriChatRepository implements IChatRepository {
   private requireProjectPath(): string {

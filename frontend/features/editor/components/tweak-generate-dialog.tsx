@@ -15,7 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 // ScrollArea, Checkbox imports removed - unused
 import { Expand, Copy } from "lucide-react";
 import { ModelSelector } from "@/features/ai/components/model-selector";
-import { storage } from "@/core/storage/safe-storage";
+import {
+  APP_PREF_KEYS,
+  getAppPreference,
+  listAIConnections,
+} from "@/core/state/app-state";
 import {
   useDialogState,
   tweakGenerateReducer,
@@ -62,28 +66,33 @@ export function TweakGenerateDialog({
   );
 
   useEffect(() => {
-    // Load default model from AI connections with safe parsing
-    interface AIConnection {
-      enabled: boolean;
-      models?: string[];
-    }
-    const connections = storage.getItem<AIConnection[]>("ai_connections", []);
-    const allModels = connections
-      .filter((c) => c.enabled)
-      .flatMap((c) => c.models || []);
+    let cancelled = false;
+    const loadDefaultModel = async () => {
+      const connections = await listAIConnections();
+      const allModels = connections
+        .filter((connection) => connection.enabled)
+        .flatMap((connection) => connection.models || []);
 
-    if (allModels.length > 0 && !state.model && allModels[0]) {
-      dispatch({ type: "SET_MODEL", payload: allModels[0] });
-    }
+      if (!cancelled && allModels.length > 0 && !state.model && allModels[0]) {
+        dispatch({ type: "SET_MODEL", payload: allModels[0] });
+      }
+    };
+
+    void loadDefaultModel();
+    return () => {
+      cancelled = true;
+    };
   }, [state.model, dispatch]);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    const fallbackModel = await getAppPreference<string>(
+      APP_PREF_KEYS.LAST_USED_MODEL,
+      "gpt-4.1-mini",
+    );
     onGenerate({
       wordCount: parseInt(state.wordCount) || 400,
       instructions: state.instructions,
-      model:
-        state.model ||
-        storage.getItem<string>("last_used_model", "gpt-4.1-mini"),
+      model: state.model || fallbackModel,
       selectedContexts: state.selectedContexts,
     });
     onOpenChange(false);

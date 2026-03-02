@@ -1,7 +1,7 @@
 // Scene-related models
 
-use serde::{Deserialize, Serialize};
 use crate::utils::timestamp;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SceneMeta {
@@ -55,13 +55,23 @@ pub struct YamlSceneMeta {
     pub status: String,
     #[serde(default)]
     pub word_count: i32,
-    #[serde(default, alias = "pov", alias = "povCharacter", alias = "pov_character")]
+    #[serde(
+        default,
+        alias = "pov",
+        alias = "povCharacter",
+        alias = "pov_character"
+    )]
     pub pov_character: Option<String>,
     #[serde(default)]
     pub subtitle: Option<String>,
     #[serde(default)]
     pub labels: Vec<String>,
-    #[serde(default, alias = "excludeFromAI", alias = "excludeFromAi", alias = "exclude_from_ai")]
+    #[serde(
+        default,
+        alias = "excludeFromAI",
+        alias = "excludeFromAi",
+        alias = "exclude_from_ai"
+    )]
     pub exclude_from_ai: bool,
     #[serde(default)]
     pub summary: String,

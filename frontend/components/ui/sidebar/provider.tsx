@@ -7,9 +7,8 @@ import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UI_CONSTANTS } from "@/lib/config/constants";
 import { isModKey } from "@/shared/utils/platform";
+import { APP_PREF_KEYS, setAppPreference } from "@/core/state/app-state";
 
-const SIDEBAR_COOKIE_NAME = UI_CONSTANTS.SIDEBAR_COOKIE_NAME;
-const SIDEBAR_COOKIE_MAX_AGE = UI_CONSTANTS.SIDEBAR_COOKIE_MAX_AGE;
 const SIDEBAR_WIDTH = UI_CONSTANTS.SIDEBAR_WIDTH;
 const SIDEBAR_WIDTH_ICON = UI_CONSTANTS.SIDEBAR_WIDTH_ICON;
 const SIDEBAR_KEYBOARD_SHORTCUT = UI_CONSTANTS.SIDEBAR_KEYBOARD_SHORTCUT;
@@ -64,8 +63,7 @@ function SidebarProvider({
         _setOpen(openState);
       }
 
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax`;
+      void setAppPreference(APP_PREF_KEYS.SIDEBAR_OPEN, openState);
     },
     [setOpenProp, open],
   );
