@@ -35,19 +35,8 @@ fn validate_item_id(item_id: &str) -> Result<String, String> {
         return Err("Trash item id cannot contain path separators".to_string());
     }
 
-    match validate_uuid_format(&normalized) {
-        Ok(_) => Ok(normalized),
-        Err(_) => {
-            if normalized
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
-            {
-                Ok(normalized)
-            } else {
-                Err("Trash item id must be a UUID or safe identifier".to_string())
-            }
-        }
-    }
+    validate_uuid_format(&normalized)?;
+    Ok(normalized)
 }
 
 fn validate_source_path(project_path: &str, source_path: &str) -> Result<PathBuf, String> {

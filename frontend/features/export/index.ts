@@ -5,5 +5,4 @@ import { ExportDialog as ExportDialogBase } from "./components/export-dialog";
 
 export const ExportDialog = withErrorBoundary(ExportDialogBase, {
   name: "Export Dialog",
-  maxRetries: 3,
 });

@@ -151,7 +151,6 @@ backend/src/
 │   ├── search.rs        # Full-text search across project (7.3KB)
 │   ├── backup.rs        # Backup/import orchestration (SQL-native .baa engine)
 │   ├── backup_emergency.rs  # Emergency backup lifecycle
-│   ├── backup_manuscript.rs # Manuscript export commands
 │   ├── trash.rs         # Soft delete with restore (5.4KB)
 │   ├── security.rs      # Encrypted SQLite API key management + secure account metadata
 │   ├── mention.rs       # Cross-content mention tracking (8.6KB)
@@ -688,23 +687,23 @@ export async function loadScene(
 
 ### 12.2 Command Categories
 
-| Category          | Commands | Examples                                                                                                                                              |
-| ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Project**       | 18       | `list_projects`, `create_project`, `delete_project`, `get_structure`, `save_structure`, `create_node`                                                 |
-| **Scene**         | 5        | `load_scene`, `save_scene`, `update_scene_metadata`, `delete_scene`                                                                                   |
-| **Codex**         | 18       | `list_codex_entries`, `save_codex_entry`, relations, tags, templates, relation types, scene links                                                     |
-| **Chat**          | 8        | `list_chat_threads`, `create_chat_thread`, `get_chat_messages`, `create_chat_message`                                                                 |
-| **Series**        | 15       | `list_series`, `create_series`, `update_series`, series codex, deleted-series lifecycle                                                               |
-| **Search**        | 1        | `search_project`                                                                                                                                      |
-| **Trash**         | 5        | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash`                                                                |
-| **Export**        | 11       | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_full_snapshot`, `export_series_package`, `export_novel_package` |
-| **Import**        | 2        | `inspect_backup_package`, `import_backup_package`                                                                                                     |
-| **Security**      | 5        | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers`                                                             |
-| **Backup**        | 8        | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file`        |
-| **Mention**       | 2        | `find_mentions`, `count_mentions`                                                                                                                     |
-| **Collaboration** | 4        | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`                                                                               |
-| **Google OAuth**  | 4        | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out`                                                                                    |
-| **Other**         | ~10      | Scene notes, app info                                                                                                                                 |
+| Category          | Commands | Examples                                                                                                                                                                                     |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Project**       | 18       | `list_projects`, `create_project`, `delete_project`, `get_structure`, `save_structure`, `create_node`                                                                                        |
+| **Scene**         | 5        | `load_scene`, `save_scene`, `update_scene_metadata`, `delete_scene`                                                                                                                          |
+| **Codex**         | 18       | `list_codex_entries`, `save_codex_entry`, relations, tags, templates, relation types, scene links                                                                                            |
+| **Chat**          | 8        | `list_chat_threads`, `create_chat_thread`, `get_chat_messages`, `create_chat_message`                                                                                                        |
+| **Series**        | 15       | `list_series`, `create_series`, `update_series`, series codex, deleted-series lifecycle                                                                                                      |
+| **Search**        | 1        | `search_project`                                                                                                                                                                             |
+| **Trash**         | 5        | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash`                                                                                                       |
+| **Export**        | 8        | `export_full_snapshot`, `export_series_package`, `export_novel_package`, `inspect_backup_package`, `import_backup_package`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file` |
+| **Import**        | 2        | `inspect_backup_package`, `import_backup_package`                                                                                                                                            |
+| **Security**      | 5        | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers`                                                                                                    |
+| **Backup**        | 8        | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file`                                               |
+| **Mention**       | 2        | `find_mentions`, `count_mentions`                                                                                                                                                            |
+| **Collaboration** | 4        | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`                                                                                                                      |
+| **Google OAuth**  | 4        | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out`                                                                                                                           |
+| **Other**         | ~10      | Scene notes, app info                                                                                                                                                                        |
 
 ### 12.3 Environment Detection
 
@@ -856,7 +855,6 @@ Frontend: update runtime key-presence map from secure store result
   ```typescript
   export const ChatInterface = withErrorBoundary(ChatInterfaceBase, {
     name: "Chat Interface",
-    maxRetries: 3,
   });
   ```
 - Toast notifications via Sonner for user-facing errors
@@ -880,13 +878,13 @@ All Rust commands return `Result<T, String>`:
 - Cleanup of old backups on successful save
 - Retrieval on app restart
 
-### 16.4 Import Rollback
+### 16.4 Import Replacement
 
-The backend `ImportRollbackContext` ensures data consistency during series import:
+Full snapshot import now uses direct replacement semantics:
 
-- Tracks all created directories, files, and registry entries during the import process.
-- If any step fails (e.g., JSON parsing, file write, validation), `rollback()` is triggered.
-- **Action**: Deletes all created project folders, removes series registry entry, and cleans up partial data to prevent "zombie" projects.
+- Removes existing app DB/project directories before copying imported snapshot data.
+- Preserves a checkpoint package before replacement.
+- Cleans checkpoint artifacts after successful replacement.
 
 ---
 

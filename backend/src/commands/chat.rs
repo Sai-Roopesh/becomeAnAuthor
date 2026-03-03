@@ -18,7 +18,7 @@ fn sql_to_bool(value: i64) -> bool {
     value != 0
 }
 
-fn with_chat_db<F, T>(_project_path: &str, mut f: F) -> Result<T, String>
+fn with_chat_db<F, T>(mut f: F) -> Result<T, String>
 where
     F: FnMut(&Connection) -> Result<T, String>,
 {
@@ -28,7 +28,7 @@ where
 
 #[tauri::command]
 pub fn list_chat_threads(project_path: String) -> Result<Vec<ChatThread>, String> {
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         let mut statement = conn
             .prepare(
                 r#"
@@ -88,7 +88,7 @@ pub fn get_chat_thread(
     project_path: String,
     thread_id: String,
 ) -> Result<Option<ChatThread>, String> {
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         conn.query_row(
             r#"
             SELECT id, project_id, name, pinned, archived, deleted_at, default_model, created_at, updated_at
@@ -118,7 +118,7 @@ pub fn get_chat_thread(
 #[tauri::command]
 pub fn create_chat_thread(project_path: String, thread: ChatThread) -> Result<ChatThread, String> {
     validate_no_null_bytes(&thread.name, "Thread name")?;
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         conn.execute(
             r#"
             INSERT INTO chat_threads (
@@ -147,7 +147,7 @@ pub fn create_chat_thread(project_path: String, thread: ChatThread) -> Result<Ch
 #[tauri::command]
 pub fn update_chat_thread(project_path: String, thread: ChatThread) -> Result<(), String> {
     validate_no_null_bytes(&thread.name, "Thread name")?;
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         let changed = conn
             .execute(
                 r#"
@@ -185,7 +185,7 @@ pub fn update_chat_thread(project_path: String, thread: ChatThread) -> Result<()
 
 #[tauri::command]
 pub fn delete_chat_thread(project_path: String, thread_id: String) -> Result<(), String> {
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         conn.execute(
             "DELETE FROM chat_threads WHERE project_path = ?1 AND id = ?2",
             params![project_path, thread_id],
@@ -200,7 +200,7 @@ pub fn get_chat_messages(
     project_path: String,
     thread_id: String,
 ) -> Result<Vec<ChatMessage>, String> {
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         let mut statement = conn
             .prepare(
                 r#"
@@ -249,7 +249,7 @@ pub fn find_chat_thread_for_message(
     project_path: String,
     message_id: String,
 ) -> Result<Option<String>, String> {
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         conn.query_row(
             "SELECT thread_id FROM chat_messages WHERE project_path = ?1 AND id = ?2",
             params![project_path, message_id],
@@ -268,7 +268,7 @@ pub fn create_chat_message(
     validate_no_null_bytes(&message.content, "Message content")?;
     validate_json_size(&message.content)?;
 
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         conn.execute(
             r#"
             INSERT INTO chat_messages (
@@ -303,7 +303,7 @@ pub fn update_chat_message(
         return Err("Message threadId does not match target thread".to_string());
     }
 
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         let changed = conn
             .execute(
                 r#"
@@ -335,7 +335,7 @@ pub fn delete_chat_message(
     thread_id: String,
     message_id: String,
 ) -> Result<(), String> {
-    with_chat_db(&project_path, |conn| {
+    with_chat_db(|conn| {
         conn.execute(
             "DELETE FROM chat_messages WHERE project_path = ?1 AND thread_id = ?2 AND id = ?3",
             params![project_path, thread_id, message_id],

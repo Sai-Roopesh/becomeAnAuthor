@@ -167,7 +167,8 @@ pub fn find_mentions(project_path: String, codex_entry_id: String) -> Result<Vec
         let scene_path = PathBuf::from(&project_path)
             .join("manuscript")
             .join(scene_file);
-        let content = fs::read_to_string(&scene_path).unwrap_or_default();
+        let content = fs::read_to_string(&scene_path)
+            .map_err(|e| format!("Failed to read scene '{}': {e}", scene_path.display()))?;
         if content.is_empty() {
             continue;
         }

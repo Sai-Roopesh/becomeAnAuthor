@@ -14,10 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useLiveQuery } from "@/hooks/use-live-query";
-import { useRepository } from "@/hooks/use-repository";
+import { useProjectRepository } from "@/hooks/use-project-repository";
+import { useSeriesRepository } from "@/hooks/use-series-repository";
 import { useConfirmation } from "@/hooks/use-confirmation";
-import type { IProjectRepository } from "@/domain/repositories/IProjectRepository";
-import type { ISeriesRepository } from "@/domain/repositories/ISeriesRepository";
 import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
 import { CreateProjectDialog } from "@/features/project";
 import { ExportDialog } from "@/features/export";
@@ -29,8 +28,8 @@ function SeriesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const seriesId = searchParams.get("id") || "";
-  const projectRepo = useRepository<IProjectRepository>("projectRepository");
-  const seriesRepo = useRepository<ISeriesRepository>("seriesRepository");
+  const projectRepo = useProjectRepository();
+  const seriesRepo = useSeriesRepository();
   const { confirm, ConfirmationDialog } = useConfirmation();
   const { exportSeriesArchive } = useImportExport();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);

@@ -107,7 +107,7 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Test error");
 
       render(
-        <ErrorBoundary maxRetries={0}>
+        <ErrorBoundary>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -120,7 +120,7 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Specific error message");
 
       render(
-        <ErrorBoundary maxRetries={0}>
+        <ErrorBoundary>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -141,7 +141,7 @@ describe("ErrorBoundary Component", () => {
       );
 
       render(
-        <ErrorBoundary fallback={customFallback} maxRetries={0}>
+        <ErrorBoundary fallback={customFallback}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -154,7 +154,7 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Test error");
 
       render(
-        <ErrorBoundary maxRetries={0}>
+        <ErrorBoundary>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -167,7 +167,7 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Test error");
 
       render(
-        <ErrorBoundary maxRetries={0}>
+        <ErrorBoundary>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -186,7 +186,7 @@ describe("ErrorBoundary Component", () => {
       const onError = vi.fn();
 
       render(
-        <ErrorBoundary maxRetries={0} onError={onError}>
+        <ErrorBoundary onError={onError}>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );
@@ -198,7 +198,7 @@ describe("ErrorBoundary Component", () => {
       const error = new Error("Toast error");
 
       render(
-        <ErrorBoundary maxRetries={0}>
+        <ErrorBoundary>
           <ThrowError error={error} />
         </ErrorBoundary>,
       );

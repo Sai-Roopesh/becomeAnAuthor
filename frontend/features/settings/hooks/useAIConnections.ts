@@ -5,7 +5,6 @@ import {
   AI_CONNECTIONS_UPDATED_EVENT,
   deleteAIConnection,
   listAIConnections,
-  notifyAIConnectionsUpdated,
   saveAIConnection,
   toAIConnection,
   type SaveAIConnectionInput,
@@ -130,7 +129,6 @@ export function useAIConnections() {
           ...prev,
           [id]: saved.hasStoredApiKey,
         }));
-        notifyAIConnectionsUpdated();
       } catch (saveError) {
         log.error("Failed to save AI connection:", saveError);
         setError("Failed to persist AI connection in SQLite");
@@ -169,7 +167,6 @@ export function useAIConnections() {
           [saved.id]: saved.hasStoredApiKey,
         }));
         setSelectedId(saved.id);
-        notifyAIConnectionsUpdated();
       } catch (addError) {
         log.error("Failed to add AI connection:", addError);
         setError("Failed to create AI connection");
@@ -201,7 +198,6 @@ export function useAIConnections() {
       const { [id]: _removed, ...rest } = prev;
       return rest;
     });
-    notifyAIConnectionsUpdated();
   }, []);
 
   const toggleEnabled = useCallback(
@@ -231,7 +227,6 @@ export function useAIConnections() {
           ...prev,
           [id]: saved.hasStoredApiKey,
         }));
-        notifyAIConnectionsUpdated();
       } catch (toggleError) {
         log.error("Failed to toggle AI connection:", toggleError);
         setError("Failed to update AI connection status");

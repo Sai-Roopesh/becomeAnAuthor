@@ -59,7 +59,19 @@ export interface SceneMeta {
 }
 
 export interface Scene {
-  meta: SceneMeta;
+  id: string;
+  title: string;
+  order: number;
+  status: string;
+  word_count: number;
+  pov_character?: string;
+  subtitle?: string;
+  labels?: string[];
+  exclude_from_ai?: boolean;
+  summary?: string;
+  archived?: boolean;
+  created_at: string;
+  updated_at: string;
   content: string;
 }
 

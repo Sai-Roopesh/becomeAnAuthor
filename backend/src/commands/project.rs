@@ -172,15 +172,6 @@ fn ensure_series_exists(conn: &Connection, series_id: &str) -> Result<(), String
     Ok(())
 }
 
-fn series_exists(conn: &Connection, series_id: &str) -> Result<bool, String> {
-    conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM series WHERE id = ?1)",
-        params![series_id],
-        |row| row.get::<_, bool>(0),
-    )
-    .map_err(|e| format!("Failed to check series existence: {e}"))
-}
-
 fn ensure_recovery_series(conn: &Connection) -> Result<String, String> {
     let existing: Option<String> = conn
         .query_row(
@@ -208,16 +199,16 @@ fn resolve_series_for_restored_project(
     conn: &Connection,
     original_series_id: &str,
 ) -> Result<String, String> {
-    if series_exists(conn, original_series_id)? {
+    let exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM series WHERE id = ?1)",
+            params![original_series_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to check series existence: {e}"))?;
+    if exists {
         return Ok(original_series_id.to_string());
     }
-
-    if let Some(restored_series_id) =
-        crate::commands::series::restore_or_recreate_deleted_series(original_series_id)?
-    {
-        return Ok(restored_series_id);
-    }
-
     ensure_recovery_series(conn)
 }
 
@@ -467,18 +458,6 @@ fn normalize_series_index(series_index: &str) -> Result<String, String> {
         return Err("Series index cannot be empty".to_string());
     }
     Ok(normalized)
-}
-
-fn parse_optional_string(
-    updates: &serde_json::Value,
-    snake_case: &str,
-    camel_case: &str,
-) -> Option<String> {
-    updates
-        .get(snake_case)
-        .or_else(|| updates.get(camel_case))
-        .and_then(|v| v.as_str())
-        .map(|v| v.to_string())
 }
 
 #[tauri::command]
@@ -886,26 +865,38 @@ pub fn update_project(
     let conn = open_app_db()?;
     let mut project = get_project_by_path(&conn, &project_path)?;
 
-    if let Some(title) = parse_optional_string(&updates, "title", "title") {
+    if let Some(title) = updates
+        .get("title")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+    {
         validate_project_title(&title)?;
         project.title = title;
     }
-    if let Some(author) = parse_optional_string(&updates, "author", "author") {
+    if let Some(author) = updates
+        .get("author")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+    {
         project.author = author;
     }
-    if let Some(description) = parse_optional_string(&updates, "description", "description") {
+    if let Some(description) = updates
+        .get("description")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+    {
         project.description = description;
     }
 
-    if let Some(archived) = updates
-        .get("archived")
-        .or_else(|| updates.get("archived"))
-        .and_then(|v| v.as_bool())
-    {
+    if let Some(archived) = updates.get("archived").and_then(|v| v.as_bool()) {
         project.archived = archived;
     }
 
-    if let Some(language) = parse_optional_string(&updates, "language", "language") {
+    if let Some(language) = updates
+        .get("language")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+    {
         project.language = if language.trim().is_empty() {
             None
         } else {
@@ -916,23 +907,29 @@ pub fn update_project(
         project.language = None;
     }
 
-    if let Some(cover) = parse_optional_string(&updates, "cover_image", "coverImage") {
+    if let Some(cover) = updates
+        .get("cover_image")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+    {
         project.cover_image = if cover.trim().is_empty() {
             None
         } else {
             Some(cover)
         };
     }
-    if updates
-        .get("cover_image")
-        .or_else(|| updates.get("coverImage"))
-        .is_some_and(|v| v.is_null())
-    {
+    if updates.get("cover_image").is_some_and(|v| v.is_null()) {
         project.cover_image = None;
     }
 
-    let next_series_id = parse_optional_string(&updates, "series_id", "seriesId");
-    let next_series_index = parse_optional_string(&updates, "series_index", "seriesIndex");
+    let next_series_id = updates
+        .get("series_id")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    let next_series_index = updates
+        .get("series_index")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
 
     if let Some(series_id) = next_series_id {
         ensure_series_exists(&conn, &series_id)?;

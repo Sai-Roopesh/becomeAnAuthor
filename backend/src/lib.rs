@@ -120,9 +120,6 @@ pub fn run() {
             // Search
             search_project,
             // Export commands
-            export_manuscript_text,
-            export_manuscript_docx,
-            export_manuscript_epub,
             export_full_snapshot,
             export_series_package,
             export_novel_package,

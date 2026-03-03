@@ -5,7 +5,6 @@ import { withErrorBoundary } from "@/features/shared/components";
 import { EntityEditor as EntityEditorBase } from "./components/entity-editor";
 export const EntityEditor = withErrorBoundary(EntityEditorBase, {
   name: "Codex Entity Editor",
-  maxRetries: 3,
 });
 
 export { CodexList } from "./components/codex-list";

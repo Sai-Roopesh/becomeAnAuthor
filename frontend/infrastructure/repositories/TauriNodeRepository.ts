@@ -86,53 +86,54 @@ function flattenStructure(
   return result;
 }
 
-function extractSceneMetadata(data: Record<string, unknown>) {
-  const labelsValue = data["labels"];
-  const labels = Array.isArray(labelsValue)
-    ? labelsValue.map((l) => String(l)).filter((l) => l.length > 0)
-    : [];
+type SceneMetaPayload = {
+  status?: string;
+  word_count?: number;
+  pov_character?: string | null;
+  subtitle?: string | null;
+  labels?: string[];
+  exclude_from_ai?: boolean;
+  summary?: string;
+  archived?: boolean;
+  created_at?: number | string;
+  updated_at?: number | string;
+};
 
-  const pov =
-    (data["pov"] as string | undefined) ??
-    (data["pov_character"] as string | undefined) ??
-    (data["povCharacter"] as string | undefined);
+type LoadedScenePayload = SceneMetaPayload & {
+  content: unknown;
+};
 
-  const subtitle = (data["subtitle"] as string | undefined) ?? undefined;
+function toTimestamp(value: number | string | undefined): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return Date.now();
+}
 
-  const summary = (data["summary"] as string | undefined) ?? "";
-
-  const status = (data["status"] as string | undefined) ?? "draft";
-
-  const wordCount = Number(data["word_count"] ?? data["wordCount"] ?? 0);
-
-  const excludeFromAI = Boolean(
-    data["exclude_from_ai"] ?? data["excludeFromAI"] ?? false,
-  );
-
-  const archived = Boolean(data["archived"] ?? false);
-
-  const createdAtStr = data["created_at"] as string | undefined;
-  const updatedAtStr = data["updated_at"] as string | undefined;
-
-  // Fallback to now if missing (e.g. legacy files)
-  const createdAt = createdAtStr
-    ? new Date(createdAtStr).getTime()
-    : Date.now();
-  const updatedAt = updatedAtStr
-    ? new Date(updatedAtStr).getTime()
-    : Date.now();
-
+function extractSceneMetadata(meta: SceneMetaPayload) {
   return {
-    wordCount,
-    status: status as "draft" | "revised" | "final",
-    pov,
-    subtitle,
-    labels,
-    excludeFromAI,
-    summary,
-    archived,
-    createdAt,
-    updatedAt,
+    wordCount: Number(meta.word_count ?? 0),
+    status: (meta.status ?? "draft") as "draft" | "revised" | "final",
+    pov: meta.pov_character ?? undefined,
+    subtitle: meta.subtitle ?? undefined,
+    labels: Array.isArray(meta.labels)
+      ? meta.labels.filter((label) => label.trim().length > 0)
+      : [],
+    excludeFromAI: Boolean(meta.exclude_from_ai),
+    summary: meta.summary ?? "",
+    archived: Boolean(meta.archived),
+    createdAt: toTimestamp(meta.created_at),
+    updatedAt: toTimestamp(meta.updated_at),
   };
 }
 
@@ -252,10 +253,12 @@ export class TauriNodeRepository implements INodeRepository {
     if (node && node.type === "scene") {
       const tauriNode = node as Scene & { _tauriFile?: string };
       if (tauriNode._tauriFile) {
-        const scene = await loadScene(projectPath, tauriNode._tauriFile);
-        const data = scene as unknown as Record<string, unknown>;
-        const metadata = extractSceneMetadata(data);
-        const parsedContent = parseSceneContent(data["content"]);
+        const scene = (await loadScene(
+          projectPath,
+          tauriNode._tauriFile,
+        )) as unknown as LoadedScenePayload;
+        const metadata = extractSceneMetadata(scene);
+        const parsedContent = parseSceneContent(scene.content);
 
         return {
           ...node,
@@ -274,12 +277,6 @@ export class TauriNodeRepository implements INodeRepository {
     const structure = await getStructure(projectPath);
     const nodes = flattenStructure(structure, projectId);
 
-    // Load word counts for scenes from their individual files
-    // Structure.json doesn't store word counts - they're in scene file frontmatter
-    log.debug(
-      `getByProject: Loading word counts for ${nodes.filter((n) => n.type === "scene").length} scenes`,
-    );
-
     const enrichedNodes = await Promise.all(
       nodes.map(async (node) => {
         if (node.type === "scene") {
@@ -290,14 +287,10 @@ export class TauriNodeRepository implements INodeRepository {
                 projectPath,
                 sceneNode._tauriFile,
               );
-              const data = sceneData as unknown as Record<string, unknown>;
-              const metadata = extractSceneMetadata(data);
-              const parsedContent = parseSceneContent(data["content"]);
+              const loaded = sceneData as unknown as LoadedScenePayload;
+              const metadata = extractSceneMetadata(loaded);
+              const parsedContent = parseSceneContent(loaded.content);
 
-              log.debug("Loaded scene metadata", {
-                title: node.title,
-                wordCount: metadata.wordCount,
-              });
               return {
                 ...node,
                 content: parsedContent,

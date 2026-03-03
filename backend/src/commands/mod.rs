@@ -3,7 +3,6 @@
 pub mod app_state;
 pub mod backup;
 pub mod backup_emergency;
-pub mod backup_manuscript;
 pub mod chat;
 pub mod codex;
 pub mod collaboration;
@@ -22,7 +21,6 @@ pub mod trash;
 pub use app_state::*;
 pub use backup::*;
 pub use backup_emergency::*;
-pub use backup_manuscript::*;
 pub use chat::*;
 pub use codex::*;
 pub use collaboration::*;

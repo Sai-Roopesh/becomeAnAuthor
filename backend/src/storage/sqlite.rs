@@ -15,43 +15,6 @@ fn app_database_path() -> Result<PathBuf, String> {
     Ok(meta_dir.join("app.db"))
 }
 
-fn hard_reset_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        r#"
-        DROP TABLE IF EXISTS search_index;
-        DROP TABLE IF EXISTS search_sync_state;
-        DROP TABLE IF EXISTS chat_messages;
-        DROP TABLE IF EXISTS chat_threads;
-        DROP TABLE IF EXISTS secure_secrets;
-        DROP TABLE IF EXISTS secure_accounts;
-        DROP TABLE IF EXISTS app_preferences;
-        DROP TABLE IF EXISTS ai_connection_models;
-        DROP TABLE IF EXISTS ai_connections;
-        DROP TABLE IF EXISTS model_discovery_cache;
-        DROP TABLE IF EXISTS yjs_update_log;
-        DROP TABLE IF EXISTS yjs_snapshots;
-        DROP TABLE IF EXISTS scene_codex_links;
-        DROP TABLE IF EXISTS codex_relation_types;
-        DROP TABLE IF EXISTS codex_templates;
-        DROP TABLE IF EXISTS codex_entry_tags;
-        DROP TABLE IF EXISTS codex_tags;
-        DROP TABLE IF EXISTS codex_relations;
-        DROP TABLE IF EXISTS codex_entries;
-        DROP TABLE IF EXISTS scene_notes;
-        DROP TABLE IF EXISTS snippets;
-        DROP TABLE IF EXISTS scene_metadata;
-        DROP TABLE IF EXISTS structure_nodes;
-        DROP TABLE IF EXISTS deleted_series_registry;
-        DROP TABLE IF EXISTS series;
-        DROP TABLE IF EXISTS deleted_projects;
-        DROP TABLE IF EXISTS recent_projects;
-        DROP TABLE IF EXISTS projects;
-        "#,
-    )
-    .map_err(|e| format!("Failed to hard reset SQLite schema: {e}"))?;
-    Ok(())
-}
-
 fn initialize_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         r#"
@@ -66,8 +29,10 @@ fn initialize_schema(conn: &Connection) -> Result<(), String> {
     let user_version: i64 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .map_err(|e| format!("Failed to read SQLite user_version: {e}"))?;
-    if user_version != SCHEMA_VERSION {
-        hard_reset_schema(conn)?;
+    if user_version > SCHEMA_VERSION {
+        return Err(format!(
+            "Unsupported DB schema version {user_version} (max supported: {SCHEMA_VERSION})"
+        ));
     }
 
     conn.execute_batch(

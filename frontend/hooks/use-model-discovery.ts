@@ -66,16 +66,15 @@ export function useModelDiscovery(
     [],
   );
 
-  /**
-   * Fetch models for a single connection
-   */
-  const fetchModelsForConnection = useCallback(
-    async (connection: AIConnection): Promise<ModelDiscoveryResult> => {
+  const fetchModelsForConnectionWithKey = useCallback(
+    async (
+      connection: AIConnection,
+      resolvedKey: string,
+    ): Promise<ModelDiscoveryResult> => {
       if (!connection.enabled) {
         return { models: [], error: "Connection is disabled" };
       }
 
-      const resolvedKey = await resolveConnectionApiKey(connection);
       if (!resolvedKey && connectionRequiresApiKey(connection)) {
         return { models: [], error: "Connection is missing an API key" };
       }
@@ -109,7 +108,18 @@ export function useModelDiscovery(
 
       return result;
     },
-    [resolveConnectionApiKey],
+    [],
+  );
+
+  /**
+   * Fetch models for a single connection
+   */
+  const fetchModelsForConnection = useCallback(
+    async (connection: AIConnection): Promise<ModelDiscoveryResult> => {
+      const resolvedKey = await resolveConnectionApiKey(connection);
+      return fetchModelsForConnectionWithKey(connection, resolvedKey);
+    },
+    [fetchModelsForConnectionWithKey, resolveConnectionApiKey],
   );
 
   /**
@@ -132,12 +142,12 @@ export function useModelDiscovery(
 
       const resolvedConnections = await Promise.all(
         enabledConnections.map(async (connection) => ({
-          ...connection,
+          connection,
           apiKey: await resolveConnectionApiKey(connection),
         })),
       );
       const usableConnections = resolvedConnections.filter((connection) => {
-        if (!connectionRequiresApiKey(connection)) {
+        if (!connectionRequiresApiKey(connection.connection)) {
           return true;
         }
         return connection.apiKey.trim().length > 0;
@@ -150,7 +160,9 @@ export function useModelDiscovery(
 
       // Fetch models from all connections in parallel
       const results = await Promise.allSettled(
-        usableConnections.map((conn) => fetchModelsForConnection(conn)),
+        usableConnections.map((entry) =>
+          fetchModelsForConnectionWithKey(entry.connection, entry.apiKey),
+        ),
       );
 
       // Combine all models
@@ -158,7 +170,7 @@ export function useModelDiscovery(
       const errors: string[] = [];
 
       results.forEach((result, index) => {
-        const connection = usableConnections[index];
+        const connection = usableConnections[index]?.connection;
         if (!connection) return;
 
         if (result.status === "fulfilled") {
@@ -189,7 +201,7 @@ export function useModelDiscovery(
     } finally {
       setIsLoading(false);
     }
-  }, [fetchModelsForConnection, resolveConnectionApiKey]);
+  }, [fetchModelsForConnectionWithKey, resolveConnectionApiKey]);
 
   /**
    * Clear cache and re-fetch all models

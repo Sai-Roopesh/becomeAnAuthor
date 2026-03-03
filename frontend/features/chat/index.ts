@@ -9,7 +9,6 @@ export { ChatMessage } from "./components/chat-message";
 import { ChatInterface as ChatInterfaceBase } from "./components/chat-interface";
 export const ChatInterface = withErrorBoundary(ChatInterfaceBase, {
   name: "Chat Interface",
-  maxRetries: 3,
 });
 
 // Hooks

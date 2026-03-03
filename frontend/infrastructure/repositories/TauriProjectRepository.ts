@@ -18,6 +18,7 @@ import {
   type ProjectMeta,
 } from "@/core/tauri";
 import { setCurrentProjectPath } from "@/core/project-path";
+import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
 import { toAppError } from "@/shared/errors/app-error";
 
@@ -131,8 +132,6 @@ export class TauriProjectRepository implements IProjectRepository {
         }),
       });
 
-      // Invalidate cache so UI updates
-      const { invalidateQueries } = await import("@/hooks/use-live-query");
       invalidateQueries();
     }
   }
@@ -155,8 +154,6 @@ export class TauriProjectRepository implements IProjectRepository {
       // Delete via Tauri
       await deleteProjectCommand(project.path);
 
-      // Invalidate cache so UI updates
-      const { invalidateQueries } = await import("@/hooks/use-live-query");
       invalidateQueries();
     }
   }
@@ -176,14 +173,12 @@ export class TauriProjectRepository implements IProjectRepository {
 
   async restoreFromTrash(trashPath: string): Promise<string> {
     const restored = await restoreTrashedProject(trashPath);
-    const { invalidateQueries } = await import("@/hooks/use-live-query");
     invalidateQueries(["projects", "series"]);
     return restored.id;
   }
 
   async permanentlyDeleteFromTrash(trashPath: string): Promise<void> {
     await permanentlyDeleteTrashedProject(trashPath);
-    const { invalidateQueries } = await import("@/hooks/use-live-query");
     invalidateQueries("projects");
   }
 

@@ -7,12 +7,6 @@ import type {
   BackupPackageSummary,
 } from "./types";
 
-export async function exportManuscriptText(
-  projectPath: string,
-): Promise<string> {
-  return invoke<string>("export_manuscript_text", { projectPath });
-}
-
 export async function exportFullSnapshot(
   outputPath?: string | null,
 ): Promise<BackupPackageSummary> {
@@ -66,29 +60,6 @@ export async function writeTempBackupFile(
   data: number[],
 ): Promise<string> {
   return invoke<string>("write_temp_backup_file", { fileName, data });
-}
-
-export async function exportManuscriptDocx(
-  projectPath: string,
-  outputPath: string,
-): Promise<string> {
-  return invoke<string>("export_manuscript_docx", { projectPath, outputPath });
-}
-
-export async function exportManuscriptEpub(
-  projectPath: string,
-  outputPath: string,
-  title?: string,
-  author?: string,
-  language?: string,
-): Promise<string> {
-  return invoke<string>("export_manuscript_epub", {
-    projectPath,
-    outputPath,
-    title,
-    author,
-    language,
-  });
 }
 
 export async function getAppInfo(): Promise<AppInfo> {
