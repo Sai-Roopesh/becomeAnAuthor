@@ -115,7 +115,6 @@ export function TiptapEditor({
 
   // Save state management with EditorStateManager
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
-  const [lastSaved, setLastSaved] = useState<number | undefined>();
   const editorStateManagerRef = useRef<EditorStateManager | null>(null);
 
   // Collaboration state
@@ -421,9 +420,8 @@ export function TiptapEditor({
     });
 
     // Subscribe to status changes
-    const unsubscribe = manager.onStatusChange((status, lastSavedAt) => {
+    const unsubscribe = manager.onStatusChange((status) => {
       setSaveStatus(status);
-      setLastSaved(lastSavedAt);
     });
 
     editorStateManagerRef.current = manager;
@@ -798,13 +796,10 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex items-center justify-between border-b">
+      <div className="flex items-center justify-between border-b px-4 py-3">
         <EditorToolbar editor={editor} onInsertSection={handleInsertSection} />
-        <div className="flex items-center gap-4 pr-32">
-          <SaveStatusIndicator
-            status={saveStatus}
-            {...(lastSaved !== undefined && { lastSaved })}
-          />
+        <div className="flex items-center gap-6">
+          <SaveStatusIndicator status={saveStatus} />
           <CollaborationPanel
             status={collabStatus}
             peers={peers}
