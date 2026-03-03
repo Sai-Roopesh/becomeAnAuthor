@@ -52,9 +52,9 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 3. Editor autosave survives restart.
 4. Trash delete requires confirmation before deletion.
 5. Restore/delete flows for deleted series records (verify deleted series are recreated when restoring a project).
-6. Full snapshot backup/import (`full_snapshot` `.baa`) restores valid data and triggers app relaunch.
-7. Series package export/import (`series_package` `.baa`) clones one series with all novels and codex graph.
-8. Novel package export/import (`novel_package` `.baa`) imports into selected existing/new target series.
+6. Full snapshot backup/import (`full_snapshot` `.baa` SQL-native) restores valid data and triggers app relaunch.
+7. Series package export/import (`series_package` `.baa` SQL-native) clones one series with all novels and codex graph.
+8. Novel package export/import (`novel_package` `.baa` SQL-native) imports into selected existing/new target series.
 9. Restored project chats still show archive/delete actions.
 10. Chat lifecycle: archive -> restore -> move to deleted -> permanent delete.
 11. DOCX export (basic + advanced options) produces valid file.
@@ -77,9 +77,11 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 ## 4. Prepare a Release
 
 1. Update app version in:
+
 - `package.json`
 - `backend/tauri.conf.json`
 - `backend/Cargo.toml`
+
 2. Merge to `main` via PR.
 3. Create and push a tag that matches the version (`vX.Y.Z` or `X.Y.Z`).
 
