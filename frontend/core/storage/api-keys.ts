@@ -150,28 +150,27 @@ export function validateAPIKey(
     return "API key cannot be empty";
   }
 
-  switch (provider) {
-    case "openai":
-      if (!normalizedKey.startsWith("sk-")) {
-        return 'OpenAI API keys should start with "sk-"';
-      }
-      if (normalizedKey.length < 40) {
-        return "OpenAI API key seems too short";
-      }
-      return null;
-    case "anthropic":
-      return validateApiKey(provider, normalizedKey)
-        ? null
-        : 'Anthropic API keys should start with "sk-ant-"';
-    case "openrouter":
-      return validateApiKey(provider, normalizedKey)
-        ? null
-        : 'OpenRouter API keys should start with "sk-or-"';
-    default:
-      return validateApiKey(provider, normalizedKey)
-        ? null
-        : `Invalid ${provider} API key format`;
+  if (provider === "openai") {
+    if (!normalizedKey.startsWith("sk-")) {
+      return 'OpenAI API keys should start with "sk-"';
+    }
+    if (normalizedKey.length < 40) {
+      return "OpenAI API key seems too short";
+    }
+    return null;
   }
+
+  if (validateApiKey(provider, normalizedKey)) {
+    return null;
+  }
+
+  if (provider === "anthropic") {
+    return 'Anthropic API keys should start with "sk-ant-"';
+  }
+  if (provider === "openrouter") {
+    return 'OpenRouter API keys should start with "sk-or-"';
+  }
+  return `Invalid ${provider} API key format`;
 }
 
 /**

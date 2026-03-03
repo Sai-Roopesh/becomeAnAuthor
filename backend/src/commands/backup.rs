@@ -1417,30 +1417,12 @@ fn create_project_with_unique_series_index(
     series_id: String,
     requested_series_index: String,
 ) -> Result<ProjectMeta, String> {
-    let base = requested_series_index.trim().to_string();
-    let mut candidate = if base.is_empty() {
-        "Book 1".to_string()
-    } else {
-        base.clone()
-    };
-
-    for attempt in 0..100 {
-        match crate::commands::project::create_project(
-            title.clone(),
-            author.clone(),
-            String::new(),
-            series_id.clone(),
-            candidate.clone(),
-        ) {
-            Ok(project) => return Ok(project),
-            Err(error) if error.contains("Series index") && error.contains("already exists") => {
-                candidate = format!("{} ({})", base, attempt + 2);
-            }
-            Err(error) => return Err(error),
-        }
+    let series_index = requested_series_index.trim().to_string();
+    if series_index.is_empty() {
+        return Err("Imported project is missing a series index".to_string());
     }
 
-    Err("Failed to allocate unique series index for imported project".to_string())
+    crate::commands::project::create_project(title, author, String::new(), series_id, series_index)
 }
 
 fn clone_project_from_seed(
@@ -1458,7 +1440,7 @@ fn clone_project_from_seed(
         "description": seed.description,
         "archived": seed.archived,
         "language": seed.language,
-        "coverImage": seed.cover_image
+        "cover_image": seed.cover_image
     });
     project = crate::commands::project::update_project(project.path.clone(), updates)?;
 
@@ -2609,35 +2591,6 @@ fn remove_path_if_exists(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn move_path_if_exists(src: &Path, dest: &Path) -> Result<(), String> {
-    if !src.exists() {
-        return Ok(());
-    }
-
-    remove_path_if_exists(dest)?;
-    if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-
-    fs::rename(src, dest).map_err(|e| {
-        format!(
-            "Failed moving '{}' to '{}': {e}",
-            src.display(),
-            dest.display()
-        )
-    })
-}
-
-fn swap_with_rollback(target: &Path, incoming: &Path, rollback_path: &Path) -> Result<(), String> {
-    move_path_if_exists(target, rollback_path)?;
-    move_path_if_exists(incoming, target)
-}
-
-fn restore_from_rollback(target: &Path, rollback_path: &Path) -> Result<(), String> {
-    remove_path_if_exists(target)?;
-    move_path_if_exists(rollback_path, target)
-}
-
 fn enforce_secrets_excluded_after_restore(db_path: &Path) -> Result<(), String> {
     let conn = Connection::open(db_path)
         .map_err(|e| format!("Failed opening restored DB to enforce secret exclusion: {e}"))?;
@@ -2671,62 +2624,36 @@ fn import_full_snapshot_payload(prepared: &PreparedPackage) -> Result<BackupImpo
         .as_ref()
         .ok_or("Full snapshot extraction did not provide filesystem payload")?;
 
-    let stage_dir = create_temp_dir("full-restore-stage")?;
-    let staged_db_path = stage_dir.join(".meta").join("app.db");
-    if let Some(parent) = staged_db_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    fs::copy(&prepared.payload_db_path, &staged_db_path).map_err(|e| {
-        format!(
-            "Failed staging snapshot DB '{}' for restore: {e}",
-            prepared.payload_db_path.display()
-        )
-    })?;
-
-    let staged_projects = stage_dir.join("Projects");
-    let staged_trash = stage_dir.join("Trash");
-    copy_directory_recursive(&incoming_fs_root.join("Projects"), &staged_projects)?;
-    copy_directory_recursive(&incoming_fs_root.join("Trash"), &staged_trash)?;
-
-    let rollback_dir = create_temp_dir("full-restore-rollback")?;
-    let rollback_db_path = rollback_dir.join(".meta").join("app.db");
-    let rollback_projects = rollback_dir.join("Projects");
-    let rollback_trash = rollback_dir.join("Trash");
-
     let target_db_path = app_db_path()?;
     if let Some(parent) = target_db_path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let projects_path = app_dir.join("Projects");
     let trash_path = app_dir.join("Trash");
+    remove_path_if_exists(&target_db_path)?;
+    fs::copy(&prepared.payload_db_path, &target_db_path).map_err(|e| {
+        format!(
+            "Full snapshot restore failed while replacing DB '{}': {e}. Checkpoint package: {}",
+            target_db_path.display(),
+            checkpoint_summary.path
+        )
+    })?;
 
-    let swap_result: Result<(), String> = (|| {
-        swap_with_rollback(&target_db_path, &staged_db_path, &rollback_db_path)?;
-
-        if std::env::var("BAA_SIMULATE_FULL_RESTORE_FAILURE")
-            .ok()
-            .as_deref()
-            == Some("1")
-        {
-            return Err("Simulated full snapshot restore failure".to_string());
-        }
-
-        swap_with_rollback(&projects_path, &staged_projects, &rollback_projects)?;
-        swap_with_rollback(&trash_path, &staged_trash, &rollback_trash)?;
-        enforce_secrets_excluded_after_restore(&target_db_path)?;
-        Ok(())
-    })();
-
-    if let Err(error) = swap_result {
-        let _ = restore_from_rollback(&target_db_path, &rollback_db_path);
-        let _ = restore_from_rollback(&projects_path, &rollback_projects);
-        let _ = restore_from_rollback(&trash_path, &rollback_trash);
-
-        return Err(format!(
-            "Full snapshot restore failed and was rolled back: {}. Checkpoint package: {}",
-            error, checkpoint_summary.path
-        ));
-    }
+    remove_path_if_exists(&projects_path)?;
+    remove_path_if_exists(&trash_path)?;
+    copy_directory_recursive(&incoming_fs_root.join("Projects"), &projects_path).map_err(|e| {
+        format!(
+            "Full snapshot restore failed while replacing Projects: {e}. Checkpoint package: {}",
+            checkpoint_summary.path
+        )
+    })?;
+    copy_directory_recursive(&incoming_fs_root.join("Trash"), &trash_path).map_err(|e| {
+        format!(
+            "Full snapshot restore failed while replacing Trash: {e}. Checkpoint package: {}",
+            checkpoint_summary.path
+        )
+    })?;
+    enforce_secrets_excluded_after_restore(&target_db_path)?;
 
     let emergency_dir = app_dir.join(".emergency_backups");
     if emergency_dir.exists() {

@@ -44,17 +44,6 @@ const MODEL_ENDPOINTS: Partial<Record<AIProvider, string>> = {
  * Uses dynamic provider APIs where available.
  */
 export class ModelDiscoveryService implements IModelDiscoveryService {
-  private static instance: ModelDiscoveryService;
-
-  private constructor() {}
-
-  static getInstance(): ModelDiscoveryService {
-    if (!ModelDiscoveryService.instance) {
-      ModelDiscoveryService.instance = new ModelDiscoveryService();
-    }
-    return ModelDiscoveryService.instance;
-  }
-
   supportsModelListing(provider: string): boolean {
     return provider in MODEL_ENDPOINTS;
   }
@@ -63,13 +52,6 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
     provider: string,
   ): Promise<ModelDiscoveryResult | null> {
     const endpoint = this.resolveEndpoint(provider);
-    return this.getCachedModelsForEntry(provider, endpoint);
-  }
-
-  private async getCachedModelsForEntry(
-    provider: string,
-    endpoint: string,
-  ): Promise<ModelDiscoveryResult | null> {
     const cached = await getModelDiscoveryCache(provider, endpoint);
 
     if (!cached || !cached.cachedAt) return null;
@@ -169,10 +151,15 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
     const endpoint = this.resolveEndpoint(provider, customEndpoint);
 
     // Check cache first
-    const cached = await this.getCachedModelsForEntry(provider, endpoint);
+    const cached = await getModelDiscoveryCache(provider, endpoint);
     if (cached) {
-      log.debug(`Using cached models for ${provider}`);
-      return cached;
+      if (
+        cached.cachedAt &&
+        Date.now() - cached.cachedAt <= CACHE_CONSTANTS.MODEL_CACHE_TTL_MS
+      ) {
+        log.debug(`Using cached models for ${provider}`);
+        return cached;
+      }
     }
 
     // Providers without a model-list API require manual model IDs.
@@ -325,30 +312,20 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
   }
 
   private parseResponse(provider: string, data: unknown): AIModel[] {
-    const parser = this.getResponseParser(provider);
-    if (!parser) {
-      return [];
-    }
-    return parser(data);
-  }
-
-  private getResponseParser(
-    provider: string,
-  ): ((data: unknown) => AIModel[]) | null {
     switch (provider) {
       case "openai":
       case "groq":
       case "mistral":
       case "deepseek":
-        return (data) => this.parseOpenAIFormat(data, provider);
+        return this.parseOpenAIFormat(data, provider);
       case "anthropic":
-        return (data) => this.parseAnthropicFormat(data, provider);
+        return this.parseAnthropicFormat(data, provider);
       case "google":
-        return (data) => this.parseGoogleFormat(data, provider);
+        return this.parseGoogleFormat(data, provider);
       case "openrouter":
-        return (data) => this.parseOpenRouterFormat(data, provider);
+        return this.parseOpenRouterFormat(data, provider);
       default:
-        return null;
+        return [];
     }
   }
 
@@ -466,5 +443,4 @@ export class ModelDiscoveryService implements IModelDiscoveryService {
   }
 }
 
-// Export singleton instance
-export const modelDiscoveryService = ModelDiscoveryService.getInstance();
+export const modelDiscoveryService = new ModelDiscoveryService();

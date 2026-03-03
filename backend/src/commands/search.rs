@@ -125,7 +125,8 @@ fn rebuild_search_index_for_project(
         let scene_path = PathBuf::from(project_path)
             .join("manuscript")
             .join(&scene_file);
-        let body = fs::read_to_string(&scene_path).unwrap_or_default();
+        let body = fs::read_to_string(&scene_path)
+            .map_err(|e| format!("Failed to read scene '{}': {e}", scene_path.display()))?;
         upsert_search_document(
             &conn,
             project_path,

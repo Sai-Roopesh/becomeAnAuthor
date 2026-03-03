@@ -351,7 +351,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <ErrorBoundary name="Series List" maxRetries={3}>
+      <ErrorBoundary name="Series List">
         <SeriesList
           onSeriesCreated={(seriesId) => router.push(`/series?id=${seriesId}`)}
         />

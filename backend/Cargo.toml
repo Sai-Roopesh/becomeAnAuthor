@@ -50,7 +50,3 @@ rand = "0.8"
 # Markdown parsing
 gray_matter = "0.2"
 serde_yaml = "0.9"
-
-# Document generation
-docx-rs = "0.4"
-epub-builder = "0.7"

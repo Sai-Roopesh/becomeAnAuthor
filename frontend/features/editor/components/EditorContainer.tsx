@@ -153,7 +153,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
   // Focus Mode Overlay - Full Screen Distraction-Free Writing
   if (focusMode && activeScene && activeScene.type === "scene") {
     return (
-      <ErrorBoundary name="Focus Mode" maxRetries={3}>
+      <ErrorBoundary name="Focus Mode">
         <FocusModeLayout
           activeScene={activeScene}
           projectId={projectId}
@@ -169,7 +169,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
   // Mobile Layout using Sheets
   if (isMobile) {
     return (
-      <ErrorBoundary name="Mobile Editor" maxRetries={3}>
+      <ErrorBoundary name="Mobile Editor">
         <MobileLayout
           projectId={projectId}
           seriesId={project.seriesId}
@@ -192,7 +192,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
 
   // Desktop Layout (Existing ResizablePanels)
   return (
-    <ErrorBoundary name="Desktop Editor" maxRetries={3}>
+    <ErrorBoundary name="Desktop Editor">
       <DesktopLayout
         projectId={projectId}
         seriesId={project.seriesId}

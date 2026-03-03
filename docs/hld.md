@@ -408,20 +408,20 @@ The Rust backend is organized into three top-level module groups:
 
 ### 8.2 Command Categories
 
-| Category          | Module                                                       | Commands | Key Responsibilities                                                                  |
-| ----------------- | ------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------- |
-| **Project**       | `project.rs` (976 lines)                                     | 18       | CRUD, structure tree, recent projects, registry, trash, recovery series               |
-| **Scene**         | `scene.rs`                                                   | 5        | Load/save scenes with YAML frontmatter parsing, metadata updates                      |
-| **Codex**         | `codex.rs`                                                   | 18       | Entries, relations, tags, templates, relation types, scene links (all series-scoped)  |
-| **Series**        | `series.rs`                                                  | 15       | Series lifecycle, series codex, codex migration between projects/series               |
-| **Chat**          | `chat.rs`                                                    | 8        | Thread CRUD, message persistence, thread listing                                      |
-| **Backup**        | `backup.rs` + `backup_emergency.rs` + `backup_manuscript.rs` | 15       | Backup/import orchestration + emergency backup lifecycle + manuscript export commands |
-| **Search**        | `search.rs`                                                  | 1        | Full-text search across scenes + codex using SQLite FTS5 index                        |
-| **Security**      | `security.rs`                                                | 5        | Encrypted API-key CRUD in SQLite with presence checks                                 |
-| **Trash**         | `trash.rs`                                                   | 5        | Soft delete, restore, permanent delete, list, empty                                   |
-| **Mention**       | `mention.rs`                                                 | 2        | Cross-content @mention tracking                                                       |
-| **Collaboration** | `collaboration.rs`                                           | 4        | Yjs binary state persistence                                                          |
-| **Other**         | 3 modules                                                    | ~7       | Snippets, scene notes, Google OAuth                                                   |
+| Category          | Module                              | Commands | Key Responsibilities                                                                 |
+| ----------------- | ----------------------------------- | -------- | ------------------------------------------------------------------------------------ |
+| **Project**       | `project.rs` (976 lines)            | 18       | CRUD, structure tree, recent projects, registry, trash, recovery series              |
+| **Scene**         | `scene.rs`                          | 5        | Load/save scenes with YAML frontmatter parsing, metadata updates                     |
+| **Codex**         | `codex.rs`                          | 18       | Entries, relations, tags, templates, relation types, scene links (all series-scoped) |
+| **Series**        | `series.rs`                         | 15       | Series lifecycle, series codex, codex migration between projects/series              |
+| **Chat**          | `chat.rs`                           | 8        | Thread CRUD, message persistence, thread listing                                     |
+| **Backup**        | `backup.rs` + `backup_emergency.rs` | 12       | Backup/import orchestration + emergency backup lifecycle                             |
+| **Search**        | `search.rs`                         | 1        | Full-text search across scenes + codex using SQLite FTS5 index                       |
+| **Security**      | `security.rs`                       | 5        | Encrypted API-key CRUD in SQLite with presence checks                                |
+| **Trash**         | `trash.rs`                          | 5        | Soft delete, restore, permanent delete, list, empty                                  |
+| **Mention**       | `mention.rs`                        | 2        | Cross-content @mention tracking                                                      |
+| **Collaboration** | `collaboration.rs`                  | 4        | Yjs binary state persistence                                                         |
+| **Other**         | 3 modules                           | ~7       | Snippets, scene notes, Google OAuth                                                  |
 
 ### 8.3 Backend Design Patterns
 

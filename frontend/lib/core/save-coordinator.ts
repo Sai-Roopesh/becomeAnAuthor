@@ -9,6 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentProjectPath } from "@/core/project-path";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
+import { emergencyBackupService } from "@/infrastructure/services/emergency-backup-service";
 
 const log = logger.scope("SaveCoordinator");
 
@@ -105,25 +106,20 @@ class SaveCoordinator {
 
         log.error(`Save failed for scene ${sceneId}:`, error);
 
-        // Primary: Emergency backup via Tauri (filesystem)
+        // Save one emergency snapshot through the shared backup service.
         try {
           const content = getContent();
           const cleanContent = JSON.parse(JSON.stringify(content));
-
-          // save_emergency_backup takes a struct with camelCase fields (serde rename)
-          await invoke("save_emergency_backup", {
-            backup: {
-              id: `backup_${sceneId}_${Date.now()}`,
-              sceneId,
-              content: JSON.stringify(cleanContent),
-              timestamp: Date.now(),
-              expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-            },
-          });
-
-          toast.error("Save failed. Emergency backup created.");
-        } catch (backupError) {
-          log.error("Emergency backup failed:", backupError);
+          const backupCreated = await emergencyBackupService.saveBackup(
+            sceneId,
+            cleanContent,
+          );
+          toast.error(
+            backupCreated
+              ? "Save failed. Emergency backup created."
+              : "Save failed. Could not create backup.",
+          );
+        } catch {
           toast.error("Save failed. Could not create backup.");
         }
 
