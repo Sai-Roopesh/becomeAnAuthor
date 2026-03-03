@@ -34,12 +34,12 @@
 
 ### Core Principles
 
-| Principle | Implementation |
-|---|---|
-| **Local-first** | All data stored on local filesystem; no cloud dependency |
-| **Privacy-focused** | API keys encrypted in local SQLite; AI calls made directly from client |
-| **Clean Architecture** | Domain-driven design with repository pattern and dependency injection |
-| **Feature-modular** | Each feature encapsulated with its own components, hooks, and exports |
+| Principle              | Implementation                                                         |
+| ---------------------- | ---------------------------------------------------------------------- |
+| **Local-first**        | All data stored on local filesystem; no cloud dependency               |
+| **Privacy-focused**    | API keys encrypted in local SQLite; AI calls made directly from client |
+| **Clean Architecture** | Domain-driven design with repository pattern and dependency injection  |
+| **Feature-modular**    | Each feature encapsulated with its own components, hooks, and exports  |
 
 ### High-Level Architecture
 
@@ -75,39 +75,39 @@
 
 ### Frontend
 
-| Category | Technology | Version |
-|---|---|---|
-| Framework | Next.js | 16.0.3 |
-| UI Library | React | 19.2.0 |
-| Language | TypeScript | 5.x |
-| Styling | TailwindCSS | 4.x |
-| State | Zustand | 5.0.9 |
-| Rich Editor | TipTap | 3.11+ |
-| Collaboration | Yjs + y-webrtc + SQLite snapshot persistence | 13.6.28 |
-| Forms | React Hook Form + Zod | 7.68 / 4.1 |
-| UI Primitives | Radix UI | Various |
-| AI SDK | Vercel AI SDK (`ai`) | 6.0.3 |
-| Search | Backend `search_project` command | Rust std/walkdir |
-| Charts | Recharts | 3.6.0 |
-| Drag & Drop | @dnd-kit | 6.3+ |
-| Markdown | react-markdown + marked | 10.1 / 17.0 |
-| Export | docx (npm), JSZip, @react-pdf/renderer | Various |
-| Package Manager | pnpm | 10.29.2 |
+| Category        | Technology                                   | Version          |
+| --------------- | -------------------------------------------- | ---------------- |
+| Framework       | Next.js                                      | 16.0.3           |
+| UI Library      | React                                        | 19.2.0           |
+| Language        | TypeScript                                   | 5.x              |
+| Styling         | TailwindCSS                                  | 4.x              |
+| State           | Zustand                                      | 5.0.9            |
+| Rich Editor     | TipTap                                       | 3.11+            |
+| Collaboration   | Yjs + y-webrtc + SQLite snapshot persistence | 13.6.28          |
+| Forms           | React Hook Form + Zod                        | 7.68 / 4.1       |
+| UI Primitives   | Radix UI                                     | Various          |
+| AI SDK          | Vercel AI SDK (`ai`)                         | 6.0.3            |
+| Search          | Backend `search_project` command             | Rust std/walkdir |
+| Charts          | Recharts                                     | 3.6.0            |
+| Drag & Drop     | @dnd-kit                                     | 6.3+             |
+| Markdown        | react-markdown + marked                      | 10.1 / 17.0      |
+| Export          | docx (npm), JSZip, @react-pdf/renderer       | Various          |
+| Package Manager | pnpm                                         | 10.29.2          |
 
 ### Backend
 
-| Category | Technology | Version |
-|---|---|---|
-| Runtime | Tauri | 2.1 |
-| Language | Rust | Edition 2021 (1.77.2+) |
-| Serialization | serde + serde_json + serde_yaml | 1.x |
-| IDs | uuid v4 | 1.x |
-| Time | chrono | 0.4 |
-| File Ops | walkdir | 2.x |
-| Markdown | gray_matter | 0.2 |
-| Doc Gen | docx-rs (legacy), epub-builder | 0.4 / 0.7 |
-| Secret Store | SQLite (`secure_secrets`) + AES-GCM + local master key file | N/A |
-| Logging | tauri-plugin-log | 2.1 |
+| Category      | Technology                                                  | Version                |
+| ------------- | ----------------------------------------------------------- | ---------------------- |
+| Runtime       | Tauri                                                       | 2.1                    |
+| Language      | Rust                                                        | Edition 2021 (1.77.2+) |
+| Serialization | serde + serde_json + serde_yaml                             | 1.x                    |
+| IDs           | uuid v4                                                     | 1.x                    |
+| Time          | chrono                                                      | 0.4                    |
+| File Ops      | walkdir                                                     | 2.x                    |
+| Markdown      | gray_matter                                                 | 0.2                    |
+| Doc Gen       | docx-rs (legacy), epub-builder                              | 0.4 / 0.7              |
+| Secret Store  | SQLite (`secure_secrets`) + AES-GCM + local master key file | N/A                    |
+| Logging       | tauri-plugin-log                                            | 2.1                    |
 
 ---
 
@@ -149,7 +149,7 @@ backend/src/
 │   ├── series.rs        # Series management + series codex (16.5KB)
 │   ├── chat.rs          # Chat threads and messages CRUD (6.8KB)
 │   ├── search.rs        # Full-text search across project (7.3KB)
-│   ├── backup.rs        # Backup/import orchestration
+│   ├── backup.rs        # Backup/import orchestration (SQL-native .baa engine)
 │   ├── backup_emergency.rs  # Emergency backup lifecycle
 │   ├── backup_manuscript.rs # Manuscript export commands
 │   ├── trash.rs         # Soft delete with restore (5.4KB)
@@ -254,16 +254,24 @@ app/
 ```tsx
 <html>
   <body>
-    <ThemeProvider>           {/* SQLite-backed dark/light/system */}
-      <TooltipProvider>       {/* Radix UI tooltip context */}
-        <AppProvider>         {/* DI container — all repos + services */}
-          <ErrorBoundary>     {/* Global error catch */}
+    <ThemeProvider>
+      {" "}
+      {/* SQLite-backed dark/light/system */}
+      <TooltipProvider>
+        {" "}
+        {/* Radix UI tooltip context */}
+        <AppProvider>
+          {" "}
+          {/* DI container — all repos + services */}
+          <ErrorBoundary>
+            {" "}
+            {/* Global error catch */}
             {children}
           </ErrorBoundary>
         </AppProvider>
       </TooltipProvider>
     </ThemeProvider>
-    <ToastProvider />         {/* Sonner toast notifications */}
+    <ToastProvider /> {/* Sonner toast notifications */}
   </body>
 </html>
 ```
@@ -299,6 +307,7 @@ interface AppServices {
 ```
 
 Custom services can be injected in tests:
+
 ```tsx
 <AppProvider services={{ nodeRepository: mockNodeRepo }}>
   <ComponentUnderTest />
@@ -336,18 +345,18 @@ DocumentNode = Act | Chapter | Scene
 
 ### 6.2 Key Entity Types
 
-| Entity | Key Fields | Storage |
-|---|---|---|
-| `Project` | id, title, author, seriesId, seriesIndex, language, coverImage | SQLite `projects` |
-| `Series` | id, title, description, author, genre, status | SQLite `series` |
-| `Scene` | BaseNode + content (TipTap JSON), status (draft/revised/final), wordCount, beats, pov, labels | `{id}.md` |
-| `CodexEntry` | id, name, category (character/location/item/lore/subplot), aliases, attributes, tags, aiContext, templateId, customFields | SQLite `codex_entries` |
-| `CodexRelation` | id, parentId, childId, typeId, label, strength | SQLite `codex_relations` |
-| `ChatThread` | id, projectId, name, pinned, archived, defaultModel | SQLite `chat_threads` |
-| `ChatMessage` | id, threadId, role (user/assistant), content, model, context | SQLite `chat_messages` |
-| `Snippet` | id, projectId, title, content (TipTap), pinned | SQLite `snippets` |
-| `SceneNote` | id, sceneId, content (TipTap) | SQLite `scene_notes` |
-| `Mention` | id, codexEntryId, sourceType, sourceId, position, context | Runtime |
+| Entity          | Key Fields                                                                                                                | Storage                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `Project`       | id, title, author, seriesId, seriesIndex, language, coverImage                                                            | SQLite `projects`        |
+| `Series`        | id, title, description, author, genre, status                                                                             | SQLite `series`          |
+| `Scene`         | BaseNode + content (TipTap JSON), status (draft/revised/final), wordCount, beats, pov, labels                             | `{id}.md`                |
+| `CodexEntry`    | id, name, category (character/location/item/lore/subplot), aliases, attributes, tags, aiContext, templateId, customFields | SQLite `codex_entries`   |
+| `CodexRelation` | id, parentId, childId, typeId, label, strength                                                                            | SQLite `codex_relations` |
+| `ChatThread`    | id, projectId, name, pinned, archived, defaultModel                                                                       | SQLite `chat_threads`    |
+| `ChatMessage`   | id, threadId, role (user/assistant), content, model, context                                                              | SQLite `chat_messages`   |
+| `Snippet`       | id, projectId, title, content (TipTap), pinned                                                                            | SQLite `snippets`        |
+| `SceneNote`     | id, sceneId, content (TipTap)                                                                                             | SQLite `scene_notes`     |
+| `Mention`       | id, codexEntryId, sourceType, sourceId, position, context                                                                 | Runtime                  |
 
 ### 6.3 Supporting Types
 
@@ -376,7 +385,10 @@ Each interface defines a contract for data access:
 interface INodeRepository {
   getStructure(projectId: string): Promise<DocumentNode[]>;
   saveStructure(projectId: string, nodes: DocumentNode[]): Promise<void>;
-  createNode(projectId: string, node: Partial<DocumentNode>): Promise<DocumentNode>;
+  createNode(
+    projectId: string,
+    node: Partial<DocumentNode>,
+  ): Promise<DocumentNode>;
   renameNode(projectId: string, nodeId: string, title: string): Promise<void>;
   deleteNode(projectId: string, nodeId: string): Promise<void>;
   loadScene(projectId: string, sceneId: string): Promise<Scene>;
@@ -386,22 +398,22 @@ interface INodeRepository {
 
 **Complete list:**
 
-| Interface | Responsibility |
-|---|---|
-| `INodeRepository` | Manuscript tree structure + scene CRUD |
-| `IProjectRepository` | Project metadata CRUD |
-| `ISeriesRepository` | Series management |
-| `ICodexRepository` | Codex entry CRUD |
-| `ICodexRelationRepository` | Codex entity relationships |
-| `ICodexRelationTypeRepository` | Relationship type definitions |
-| `ICodexTagRepository` | Tag + entry-tag management |
-| `ICodexTemplateRepository` | Codex templates |
-| `ISceneCodexLinkRepository` | Scene ↔ codex entry links |
-| `IChatRepository` | Chat threads + messages |
-| `ISnippetRepository` | Text snippets |
-| `ISceneNoteRepository` | Per-scene notes |
-| `ICollaborationRepository` | Yjs CRDT state persistence |
-| `IMentionRepository` | Cross-content mention tracking |
+| Interface                      | Responsibility                         |
+| ------------------------------ | -------------------------------------- |
+| `INodeRepository`              | Manuscript tree structure + scene CRUD |
+| `IProjectRepository`           | Project metadata CRUD                  |
+| `ISeriesRepository`            | Series management                      |
+| `ICodexRepository`             | Codex entry CRUD                       |
+| `ICodexRelationRepository`     | Codex entity relationships             |
+| `ICodexRelationTypeRepository` | Relationship type definitions          |
+| `ICodexTagRepository`          | Tag + entry-tag management             |
+| `ICodexTemplateRepository`     | Codex templates                        |
+| `ISceneCodexLinkRepository`    | Scene ↔ codex entry links              |
+| `IChatRepository`              | Chat threads + messages                |
+| `ISnippetRepository`           | Text snippets                          |
+| `ISceneNoteRepository`         | Per-scene notes                        |
+| `ICollaborationRepository`     | Yjs CRDT state persistence             |
+| `IMentionRepository`           | Cross-content mention tracking         |
 
 ### 7.2 Tauri Repository Implementations (Infrastructure)
 
@@ -443,24 +455,24 @@ These hooks are the **only** way components access data—ensuring DI and testab
 
 **Directory:** `frontend/domain/services/`
 
-| Interface | Responsibility |
-|---|---|
-| `IChatService` | Chat thread management with AI message generation |
-| `IExportService` | Document export to DOCX, EPUB, PDF, Markdown, text |
-| `IModelDiscoveryService` | AI model enumeration per provider |
+| Interface                | Responsibility                                     |
+| ------------------------ | -------------------------------------------------- |
+| `IChatService`           | Chat thread management with AI message generation  |
+| `IExportService`         | Document export to DOCX, EPUB, PDF, Markdown, text |
+| `IModelDiscoveryService` | AI model enumeration per provider                  |
 
 ### 8.2 Service Implementations (Infrastructure)
 
 **Directory:** `frontend/infrastructure/services/`
 
-| Service | File | Size | Description |
-|---|---|---|---|
-| `ChatService` | `ChatService.ts` | 3.8KB | Thread CRUD + AI message streaming |
-| `DocumentExportService` | `DocumentExportService.ts` | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Uses `extractSceneSectionSegments` to parse section blocks from TipTap JSON. Includes robust PDF text sanitization, clean mention extraction, optional Codex Appendix generation, and section-aware structure controls (section headings, TOC inclusion, per-type page breaks, excluded-section filtering). |
-| `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
-| `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
-| `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend) with optional `client_secret` support. Web flow removed. |
-| `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive `.baa` full snapshot upload/download/delete |
+| Service                  | File                          | Size        | Description                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ChatService`            | `ChatService.ts`              | 3.8KB       | Thread CRUD + AI message streaming                                                                                                                                                                                                                                                                                                                                                                            |
+| `DocumentExportService`  | `DocumentExportService.ts`    | ~1260 lines | Full manuscript export (DOCX, PDF via @react-pdf/renderer, Markdown) with ExportConfigV2 support. Uses `extractSceneSectionSegments` to parse section blocks from TipTap JSON. Includes robust PDF text sanitization, clean mention extraction, optional Codex Appendix generation, and section-aware structure controls (section headings, TOC inclusion, per-type page breaks, excluded-section filtering). |
+| `ModelDiscoveryService`  | `ModelDiscoveryService.ts`    | ~300 lines  | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable.                                                                                                                                                                                                                                                                                         |
+| `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB         | Auto-save crash recovery                                                                                                                                                                                                                                                                                                                                                                                      |
+| `GoogleAuthService`      | `google-auth-service.ts`      | 9.0KB       | Google OAuth 2.0 (Desktop: invoke backend) with optional `client_secret` support. Web flow removed.                                                                                                                                                                                                                                                                                                           |
+| `GoogleDriveService`     | `google-drive-service.ts`     | 8.9KB       | Google Drive `.baa` full snapshot upload/download/delete                                                                                                                                                                                                                                                                                                                                                      |
 
 ---
 
@@ -480,26 +492,26 @@ features/{feature-name}/
 
 ### 9.1 Feature Module Inventory
 
-| Feature | Components | Hooks | Description |
-|---|---|---|---|
-| **editor** | 22 | 2 | TipTap rich text editor, toolbars, AI menus, focus mode, formatting |
-| **chat** | 11 | 1 | AI chat interface with sidebar navigation, active/archived/deleted views, thread management, context assembly, mobile-responsive sidebar (w-full on small screens) |
-| **codex** | 14 | 0 | World-building encyclopedia (entities, relations, tags, templates) |
-| **plan** | 11 | 2 | Outline view, grid view, timeline, scene link panel, structure-preserving filtering |
-| **settings** | 10 | 2 | AI connection management with status reporting (Active/Missing Key/Disabled), editor preferences, appearance settings |
-| **dashboard** | 6 | 0 | Project grid, cards, empty state, header, trash management with action locks, responsive actions |
-| **search** | 6 | 1 | Full-text search across scenes + codex |
-| **series** | 5 | 0 | Series management, project ordering |
-| **snippets** | 3 | 0 | Reusable text snippets |
-| **export** | 1 | 2 | Export dialog with customization support (DOCX/PDF) |
-| **navigation** | 3 | 1 | Sidebar, breadcrumbs, navigation state |
-| **data-management** | 3 | 0 | `.baa` inspect/import/export flows, BackupCenterPanel, DriveBackupBrowser |
-| **google-drive** | 2 | 2 | Google Drive full snapshot (`.baa`) integration |
-| **collaboration** | 1 | 0 | Real-time collaboration via Yjs |
-| **ai** | 1 | 0 | AI-specific UI components |
-| **project** | 2 | 0 | Project-level settings and metadata |
-| **updater** | 1 | 0 | UpdateNotifier component |
-| **shared** | 5 | 0 | ErrorBoundary, ThemeProvider, LoadingSpinner, withErrorBoundary HOC, toast-service |
+| Feature             | Components | Hooks | Description                                                                                                                                                        |
+| ------------------- | ---------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **editor**          | 22         | 2     | TipTap rich text editor, toolbars, AI menus, focus mode, formatting                                                                                                |
+| **chat**            | 11         | 1     | AI chat interface with sidebar navigation, active/archived/deleted views, thread management, context assembly, mobile-responsive sidebar (w-full on small screens) |
+| **codex**           | 14         | 0     | World-building encyclopedia (entities, relations, tags, templates)                                                                                                 |
+| **plan**            | 11         | 2     | Outline view, grid view, timeline, scene link panel, structure-preserving filtering                                                                                |
+| **settings**        | 10         | 2     | AI connection management with status reporting (Active/Missing Key/Disabled), editor preferences, appearance settings                                              |
+| **dashboard**       | 6          | 0     | Project grid, cards, empty state, header, trash management with action locks, responsive actions                                                                   |
+| **search**          | 6          | 1     | Full-text search across scenes + codex                                                                                                                             |
+| **series**          | 5          | 0     | Series management, project ordering                                                                                                                                |
+| **snippets**        | 3          | 0     | Reusable text snippets                                                                                                                                             |
+| **export**          | 1          | 2     | Export dialog with customization support (DOCX/PDF)                                                                                                                |
+| **navigation**      | 3          | 1     | Sidebar, breadcrumbs, navigation state                                                                                                                             |
+| **data-management** | 3          | 0     | `.baa` inspect/import/export flows, BackupCenterPanel (Legacy `novel-zip-converter.ts` removed)                                                                    |
+| **google-drive**    | 2          | 2     | Google Drive full snapshot (`.baa`) integration                                                                                                                    |
+| **collaboration**   | 1          | 0     | Real-time collaboration via Yjs                                                                                                                                    |
+| **ai**              | 1          | 0     | AI-specific UI components                                                                                                                                          |
+| **project**         | 2          | 0     | Project-level settings and metadata                                                                                                                                |
+| **updater**         | 1          | 0     | UpdateNotifier component                                                                                                                                           |
+| **shared**          | 5          | 0     | ErrorBoundary, ThemeProvider, LoadingSpinner, withErrorBoundary HOC, toast-service                                                                                 |
 
 ### 9.2 Editor Feature (Deep Dive)
 
@@ -534,6 +546,7 @@ features/editor/
 ```
 
 **TipTap Extensions Used:**
+
 - StarterKit (bold, italic, lists, etc.)
 - CharacterCount
 - Placeholder
@@ -576,22 +589,22 @@ The `tiptap-editor.tsx` component utilizes **static imports** for core editor de
 
 ### 10.2 Supported Providers (14)
 
-| Provider | SDK Package | Custom Endpoint |
-|---|---|---|
-| OpenAI | `@ai-sdk/openai` | ✅ |
-| Anthropic | `@ai-sdk/anthropic` | ❌ |
-| Google | `@ai-sdk/google` | ❌ |
-| Mistral | `@ai-sdk/mistral` | ❌ |
-| DeepSeek | `@ai-sdk/deepseek` | ❌ |
-| Groq | `@ai-sdk/groq` | ❌ |
-| Cohere | `@ai-sdk/cohere` | ❌ |
-| xAI (Grok) | `@ai-sdk/xai` | ❌ |
-| Azure OpenAI | `@ai-sdk/azure` | ✅ |
-| Together AI | `@ai-sdk/togetherai` | ❌ |
-| Fireworks | `@ai-sdk/fireworks` | ❌ |
-| Perplexity | `@ai-sdk/perplexity` | ❌ |
-| OpenRouter | `@openrouter/ai-sdk-provider` | ❌ |
-| Kimi (Moonshot) | `@ai-sdk/openai` (compatible) | Hardcoded |
+| Provider        | SDK Package                   | Custom Endpoint |
+| --------------- | ----------------------------- | --------------- |
+| OpenAI          | `@ai-sdk/openai`              | ✅              |
+| Anthropic       | `@ai-sdk/anthropic`           | ❌              |
+| Google          | `@ai-sdk/google`              | ❌              |
+| Mistral         | `@ai-sdk/mistral`             | ❌              |
+| DeepSeek        | `@ai-sdk/deepseek`            | ❌              |
+| Groq            | `@ai-sdk/groq`                | ❌              |
+| Cohere          | `@ai-sdk/cohere`              | ❌              |
+| xAI (Grok)      | `@ai-sdk/xai`                 | ❌              |
+| Azure OpenAI    | `@ai-sdk/azure`               | ✅              |
+| Together AI     | `@ai-sdk/togetherai`          | ❌              |
+| Fireworks       | `@ai-sdk/fireworks`           | ❌              |
+| Perplexity      | `@ai-sdk/perplexity`          | ❌              |
+| OpenRouter      | `@openrouter/ai-sdk-provider` | ❌              |
+| Kimi (Moonshot) | `@ai-sdk/openai` (compatible) | Hardcoded       |
 
 ### 10.3 AI Client API
 
@@ -614,6 +627,7 @@ hasUsableAIConnection(): Promise<boolean>
 **File:** `frontend/hooks/use-context-assembly.ts` (9.6KB)
 
 Assembles contextual information for AI prompts:
+
 - Full novel text or outline
 - Selected acts, chapters, scenes
 - Codex entries (always/detected/never based on aiContext setting)
@@ -628,11 +642,11 @@ Assembles contextual information for AI prompts:
 
 **Directory:** `frontend/store/`
 
-| Store | File | Persistence | Purpose |
-|---|---|---|---|
-| `useProjectStore` | `use-project-store.ts` | SQLite `app_preferences["ui.project_store"]` | Active scene, view mode (plan/write/chat), panel visibility, active tabs |
-| `useChatStore` | `use-chat-store.ts` | None | Active chat thread state |
-| `useFormatStore` | `use-format-store.ts` | SQLite `app_preferences["ui.format_settings"]` | Editor formatting preferences |
+| Store             | File                   | Persistence                                    | Purpose                                                                  |
+| ----------------- | ---------------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
+| `useProjectStore` | `use-project-store.ts` | SQLite `app_preferences["ui.project_store"]`   | Active scene, view mode (plan/write/chat), panel visibility, active tabs |
+| `useChatStore`    | `use-chat-store.ts`    | None                                           | Active chat thread state                                                 |
+| `useFormatStore`  | `use-format-store.ts`  | SQLite `app_preferences["ui.format_settings"]` | Editor formatting preferences                                            |
 
 ### 11.2 ProjectStore State Shape
 
@@ -674,23 +688,23 @@ export async function loadScene(
 
 ### 12.2 Command Categories
 
-| Category | Commands | Examples |
-|---|---|---|
-| **Project** | 18 | `list_projects`, `create_project`, `delete_project`, `get_structure`, `save_structure`, `create_node` |
-| **Scene** | 5 | `load_scene`, `save_scene`, `update_scene_metadata`, `delete_scene` |
-| **Codex** | 18 | `list_codex_entries`, `save_codex_entry`, relations, tags, templates, relation types, scene links |
-| **Chat** | 8 | `list_chat_threads`, `create_chat_thread`, `get_chat_messages`, `create_chat_message` |
-| **Series** | 15 | `list_series`, `create_series`, `update_series`, series codex, deleted-series lifecycle |
-| **Search** | 1 | `search_project` |
-| **Trash** | 5 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` |
-| **Export** | 11 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_full_snapshot`, `export_series_package`, `export_novel_package` |
-| **Import** | 2 | `inspect_backup_package`, `import_backup_package` |
-| **Security** | 5 | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers` |
-| **Backup** | 8 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file` |
-| **Mention** | 2 | `find_mentions`, `count_mentions` |
-| **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
-| **Google OAuth** | 4 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` |
-| **Other** | ~10 | Scene notes, app info |
+| Category          | Commands | Examples                                                                                                                                              |
+| ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Project**       | 18       | `list_projects`, `create_project`, `delete_project`, `get_structure`, `save_structure`, `create_node`                                                 |
+| **Scene**         | 5        | `load_scene`, `save_scene`, `update_scene_metadata`, `delete_scene`                                                                                   |
+| **Codex**         | 18       | `list_codex_entries`, `save_codex_entry`, relations, tags, templates, relation types, scene links                                                     |
+| **Chat**          | 8        | `list_chat_threads`, `create_chat_thread`, `get_chat_messages`, `create_chat_message`                                                                 |
+| **Series**        | 15       | `list_series`, `create_series`, `update_series`, series codex, deleted-series lifecycle                                                               |
+| **Search**        | 1        | `search_project`                                                                                                                                      |
+| **Trash**         | 5        | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash`                                                                |
+| **Export**        | 11       | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_full_snapshot`, `export_series_package`, `export_novel_package` |
+| **Import**        | 2        | `inspect_backup_package`, `import_backup_package`                                                                                                     |
+| **Security**      | 5        | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers`                                                             |
+| **Backup**        | 8        | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file`        |
+| **Mention**       | 2        | `find_mentions`, `count_mentions`                                                                                                                     |
+| **Collaboration** | 4        | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`                                                                               |
+| **Google OAuth**  | 4        | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out`                                                                                    |
+| **Other**         | ~10      | Scene notes, app info                                                                                                                                 |
 
 ### 12.3 Environment Detection
 
@@ -768,30 +782,30 @@ Rust: commands::chat::create_chat_message()
 
 ### 14.1 Storage Strategy
 
-| Data Type | Format | Location |
-|---|---|---|
-| Project metadata | SQLite | `.meta/app.db` (`projects`) |
-| Manuscript structure | SQLite | `.meta/app.db` (`structure_nodes`) |
-| Scenes | Markdown text | `manuscript/{scene-file}.md` |
-| Codex entries | SQLite (typed + JSON payload) | `.meta/app.db` (`codex_entries`) |
-| Chat threads | SQLite tables (`chat_threads`, `chat_messages`) | `.meta/app.db` |
-| Snippets | SQLite | `.meta/app.db` (`snippets`) |
-| Scene notes | SQLite | `.meta/app.db` (`scene_notes`) |
-| Series metadata | SQLite | `.meta/app.db` (`series`) |
-| Recent projects | SQLite | `.meta/app.db` (`recent_projects`) |
-| API Keys | AES-GCM ciphertext + SQLite metadata | `.meta/app.db` (`secure_secrets`, `secure_accounts`) + `.meta/api_key_master.key` |
-| OAuth Tokens | AES-GCM ciphertext in SQLite secure store | `.meta/app.db` (`secure_secrets`, namespace `oauth`) |
-| Yjs docs | SQLite `yjs_snapshots` | CRDT document state for offline recovery |
-| Emergency backups | JSON | `.backups/{timestamp}.json` |
+| Data Type            | Format                                          | Location                                                                          |
+| -------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------- |
+| Project metadata     | SQLite                                          | `.meta/app.db` (`projects`)                                                       |
+| Manuscript structure | SQLite                                          | `.meta/app.db` (`structure_nodes`)                                                |
+| Scenes               | Markdown text                                   | `manuscript/{scene-file}.md`                                                      |
+| Codex entries        | SQLite (typed + JSON payload)                   | `.meta/app.db` (`codex_entries`)                                                  |
+| Chat threads         | SQLite tables (`chat_threads`, `chat_messages`) | `.meta/app.db`                                                                    |
+| Snippets             | SQLite                                          | `.meta/app.db` (`snippets`)                                                       |
+| Scene notes          | SQLite                                          | `.meta/app.db` (`scene_notes`)                                                    |
+| Series metadata      | SQLite                                          | `.meta/app.db` (`series`)                                                         |
+| Recent projects      | SQLite                                          | `.meta/app.db` (`recent_projects`)                                                |
+| API Keys             | AES-GCM ciphertext + SQLite metadata            | `.meta/app.db` (`secure_secrets`, `secure_accounts`) + `.meta/api_key_master.key` |
+| OAuth Tokens         | AES-GCM ciphertext in SQLite secure store       | `.meta/app.db` (`secure_secrets`, namespace `oauth`)                              |
+| Yjs docs             | SQLite `yjs_snapshots`                          | CRDT document state for offline recovery                                          |
+| Emergency backups    | JSON                                            | `.backups/{timestamp}.json`                                                       |
 
 ### 14.2 Client-Side Storage
 
-| Store | Technology | Purpose |
-|---|---|---|
-| AI connections | SQLite tables (`ai_connections`, `ai_connection_models`) | Provider configs + model mapping |
-| UI preferences | SQLite `app_preferences` | Panel states, view modes, theme/sidebar preferences |
-| Editor format | SQLite `app_preferences["ui.format_settings"]` | Font, spacing, width preferences |
-| Yjs docs | SQLite `yjs_snapshots` | CRDT document state for offline recovery |
+| Store          | Technology                                               | Purpose                                             |
+| -------------- | -------------------------------------------------------- | --------------------------------------------------- |
+| AI connections | SQLite tables (`ai_connections`, `ai_connection_models`) | Provider configs + model mapping                    |
+| UI preferences | SQLite `app_preferences`                                 | Panel states, view modes, theme/sidebar preferences |
+| Editor format  | SQLite `app_preferences["ui.format_settings"]`           | Font, spacing, width preferences                    |
+| Yjs docs       | SQLite `yjs_snapshots`                                   | CRDT document state for offline recovery            |
 
 ---
 
@@ -852,6 +866,7 @@ Frontend: update runtime key-presence map from secure store result
 ### 16.2 Backend Error Pattern
 
 All Rust commands return `Result<T, String>`:
+
 - Validation errors include descriptive messages
 - File I/O errors are mapped to user-friendly strings
 - Path resolution failures include the attempted path
@@ -859,6 +874,7 @@ All Rust commands return `Result<T, String>`:
 ### 16.3 Emergency Backup System
 
 `EmergencyBackupService` provides crash recovery:
+
 - Auto-saves content on write failures
 - Stored in `.backups/` with timestamps
 - Cleanup of old backups on successful save
@@ -867,6 +883,7 @@ All Rust commands return `Result<T, String>`:
 ### 16.4 Import Rollback
 
 The backend `ImportRollbackContext` ensures data consistency during series import:
+
 - Tracks all created directories, files, and registry entries during the import process.
 - If any step fails (e.g., JSON parsing, file write, validation), `rollback()` is triggered.
 - **Action**: Deletes all created project folders, removes series registry entry, and cleans up partial data to prevent "zombie" projects.
@@ -877,13 +894,13 @@ The backend `ImportRollbackContext` ensures data consistency during series impor
 
 ### 17.1 Test Setup
 
-| Tool | Purpose |
-|---|---|
-| Vitest | Test runner (4.0.15) |
-| Testing Library | React component testing |
-| happy-dom / jsdom | DOM environment |
-| MSW | API mocking |
-| release:gate | Release validation script (lint, build, cargo test) |
+| Tool              | Purpose                                             |
+| ----------------- | --------------------------------------------------- |
+| Vitest            | Test runner (4.0.15)                                |
+| Testing Library   | React component testing                             |
+| happy-dom / jsdom | DOM environment                                     |
+| MSW               | API mocking                                         |
+| release:gate      | Release validation script (lint, build, cargo test) |
 
 ### 17.2 Test Organization
 
@@ -907,6 +924,7 @@ frontend/
 ### 17.3 DI-Based Testing
 
 The `AppProvider` accepts custom services for test injection:
+
 ```tsx
 const mockNodeRepo = { getStructure: vi.fn(), ... };
 render(
@@ -922,24 +940,24 @@ render(
 
 **Directory:** `frontend/components/ui/` (37 components + 2 subdirectories)
 
-| Component | Description |
-|---|---|
-| `button`, `input`, `textarea`, `label` | Form primitives |
-| `dialog`, `alert-dialog`, `sheet` | Modal/overlay components |
-| `select`, `checkbox`, `switch`, `radio-group`, `slider` | Form controls |
-| `dropdown-menu`, `popover`, `tooltip`, `command` | Interaction patterns |
-| `tabs`, `collapsible`, `collapsible-section` | Layout components |
-| `card`, `badge`, `separator`, `skeleton` | Display components |
-| `scroll-area`, `progress`, `resizable` | Utility components |
-| `tag-input`, `time-wheel-picker` | Specialized inputs |
-| `save-status-indicator` | Save state display |
-| `quick-capture-modal` | Quick capture modal |
-| `empty-state`, `decorative-grid`, `async-content` | Container patterns |
-| `tippy-popover` | Tippy.js wrapper |
-| `sidebar/` | 5-part sidebar component system |
+| Component                                               | Description                     |
+| ------------------------------------------------------- | ------------------------------- |
+| `button`, `input`, `textarea`, `label`                  | Form primitives                 |
+| `dialog`, `alert-dialog`, `sheet`                       | Modal/overlay components        |
+| `select`, `checkbox`, `switch`, `radio-group`, `slider` | Form controls                   |
+| `dropdown-menu`, `popover`, `tooltip`, `command`        | Interaction patterns            |
+| `tabs`, `collapsible`, `collapsible-section`            | Layout components               |
+| `card`, `badge`, `separator`, `skeleton`                | Display components              |
+| `scroll-area`, `progress`, `resizable`                  | Utility components              |
+| `tag-input`, `time-wheel-picker`                        | Specialized inputs              |
+| `save-status-indicator`                                 | Save state display              |
+| `quick-capture-modal`                                   | Quick capture modal             |
+| `empty-state`, `decorative-grid`, `async-content`       | Container patterns              |
+| `tippy-popover`                                         | Tippy.js wrapper                |
+| `sidebar/`                                              | 5-part sidebar component system |
 
 All components built on **Radix UI** primitives with **class-variance-authority** for variant styling and **tailwind-merge** for class composition.
 
 ---
 
-*End of Low Level Design Document*
+_End of Low Level Design Document_
