@@ -2,11 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Trash2, Clock, HardDrive } from "lucide-react";
+import {
+  FileText,
+  Trash2,
+  Clock,
+  HardDrive,
+  AlertTriangle,
+} from "lucide-react";
 import { useGoogleDrive } from "@/features/google-drive/hooks/use-google-drive";
 import { useGoogleAuth } from "@/features/google-drive/hooks/use-google-auth";
 import { useImportExport } from "@/hooks/use-import-export";
-import { ImportSeriesResult } from "@/core/tauri/commands";
+import type { BackupImportResult } from "@/core/tauri/commands";
 import { DriveFile } from "@/domain/entities/types";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
@@ -24,7 +30,7 @@ import {
 const log = logger.scope("DriveBackupBrowser");
 
 interface DriveBackupBrowserProps {
-  onRestore: (result: ImportSeriesResult) => void;
+  onRestore: (result: BackupImportResult) => void | Promise<void>;
 }
 
 export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
@@ -35,6 +41,10 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRestoring, setIsRestoring] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [restoreConfirm, setRestoreConfirm] = useState<{
     id: string;
     name: string;
   } | null>(null);
@@ -53,9 +63,8 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
   }, [listBackups]);
 
   useEffect(() => {
-    // Only load backups if authenticated
     if (isAuthenticated) {
-      loadBackups();
+      void loadBackups();
     } else {
       setIsLoading(false);
     }
@@ -65,7 +74,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
     try {
       setIsRestoring(fileId);
       const result = await restoreFromGoogleDrive(fileId);
-      onRestore(result);
+      await onRestore(result);
     } catch (error) {
       log.error("Restore failed:", error);
       toast.error(
@@ -73,6 +82,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
       );
     } finally {
       setIsRestoring(null);
+      setRestoreConfirm(null);
     }
   };
 
@@ -86,7 +96,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
     try {
       await deleteBackup(deleteConfirm.id);
       toast.success("Backup deleted");
-      loadBackups(); // Refresh list
+      await loadBackups();
     } catch (error) {
       log.error("Delete failed:", error);
       toast.error("Failed to delete backup");
@@ -121,9 +131,10 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
           <HardDrive className="h-6 w-6 text-muted-foreground" />
         </div>
         <div className="space-y-1">
-          <h3 className="font-medium">No Backups Found</h3>
+          <h3 className="font-medium">No Backup Packages Found</h3>
           <p className="text-sm text-muted-foreground">
-            You haven't created any Google Drive backups yet.
+            No `.baa` full snapshots are available in your Google Drive app
+            folder.
           </p>
         </div>
       </div>
@@ -134,9 +145,9 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {backups.length} backup{backups.length !== 1 ? "s" : ""} found
+          {backups.length} snapshot{backups.length !== 1 ? "s" : ""} found
         </p>
-        <Button variant="ghost" size="sm" onClick={loadBackups}>
+        <Button variant="ghost" size="sm" onClick={() => void loadBackups()}>
           Refresh
         </Button>
       </div>
@@ -164,7 +175,9 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  onClick={() => handleRestore(backup.id)}
+                  onClick={() =>
+                    setRestoreConfirm({ id: backup.id, name: backup.name })
+                  }
                   disabled={isRestoring === backup.id}
                 >
                   {isRestoring === backup.id ? "Restoring..." : "Restore"}
@@ -182,7 +195,36 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
         ))}
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!restoreConfirm}
+        onOpenChange={(open) => !open && setRestoreConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Restore Full Snapshot
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Restoring &quot;{restoreConfirm?.name}&quot; replaces current app
+              data. A pre-restore checkpoint is created first, then the app
+              relaunches.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                restoreConfirm && void handleRestore(restoreConfirm.id)
+              }
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Restore Snapshot
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog
         open={!!deleteConfirm}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}

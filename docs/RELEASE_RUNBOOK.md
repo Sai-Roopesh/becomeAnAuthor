@@ -52,26 +52,27 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 3. Editor autosave survives restart.
 4. Trash delete requires confirmation before deletion.
 5. Restore/delete flows for deleted series records (verify deleted series are recreated when restoring a project).
-6. Backup export/import (`.json`) restores valid data.
-7. Backup restore from `.zip` path works.
-8. Restored project chats still show archive/delete actions.
-9. Chat lifecycle: archive -> restore -> move to deleted -> permanent delete.
-10. DOCX export (basic + advanced options) produces valid file.
-11. PDF export (advanced options) completes without hang/toast lock.
-12. Primary codex link flow: select text in editor -> `Link to Codex` from selection bubble -> choose entry/role -> save/reload and verify link persists.
-13. Context menu link flow: right-click selected text -> `Link to Codex` -> choose entry.
-14. Slash flow: run `/link codex`, choose entry, and verify link + inline label insertion.
-15. Export default prose integrity: DOCX/PDF/Markdown show clean linked text (for example `Kola`, not forced `@Kola`).
-16. Export optional codex appendix: when enabled, output includes "Codex Link Appendix" section.
-17. Section-aware export defaults: section headings appear as export headings (not raw editor markup).
-18. Section TOC option: when enabled, TOC includes scene-section entries.
-19. Section page-break option: page break rules apply per section type (`standard`, `chapter`, `part`, `appendix`).
-20. Section filtering option: disabling "Include AI-excluded sections" removes `excludeFromAI` sections from export output.
-21. Scene intelligence panel shows section warnings for untitled/empty/misordered sections.
-22. Responsive checks across dashboard/project/chat/settings at narrow widths.
-23. Google Drive connect, backup, restore, sign out.
-24. In-app updater prompt/install/restart path from an older build.
-25. Verify accessibility (aria-labels, keyboard nav) for key flows.
+6. Full snapshot backup/import (`full_snapshot` `.baa`) restores valid data and triggers app relaunch.
+7. Series package export/import (`series_package` `.baa`) clones one series with all novels and codex graph.
+8. Novel package export/import (`novel_package` `.baa`) imports into selected existing/new target series.
+9. Restored project chats still show archive/delete actions.
+10. Chat lifecycle: archive -> restore -> move to deleted -> permanent delete.
+11. DOCX export (basic + advanced options) produces valid file.
+12. PDF export (advanced options) completes without hang/toast lock.
+13. Primary codex link flow: select text in editor -> `Link to Codex` from selection bubble -> choose entry/role -> save/reload and verify link persists.
+14. Context menu link flow: right-click selected text -> `Link to Codex` -> choose entry.
+15. Slash flow: run `/link codex`, choose entry, and verify link + inline label insertion.
+16. Export default prose integrity: DOCX/PDF/Markdown show clean linked text (for example `Kola`, not forced `@Kola`).
+17. Export optional codex appendix: when enabled, output includes "Codex Link Appendix" section.
+18. Section-aware export defaults: section headings appear as export headings (not raw editor markup).
+19. Section TOC option: when enabled, TOC includes scene-section entries.
+20. Section page-break option: page break rules apply per section type (`standard`, `chapter`, `part`, `appendix`).
+21. Section filtering option: disabling "Include AI-excluded sections" removes `excludeFromAI` sections from export output.
+22. Scene intelligence panel shows section warnings for untitled/empty/misordered sections.
+23. Responsive checks across dashboard/project/chat/settings at narrow widths.
+24. Google Drive connect, full snapshot backup, full snapshot restore, sign out.
+25. In-app updater prompt/install/restart path from an older build.
+26. Verify accessibility (aria-labels, keyboard nav) for key flows.
 
 ## 4. Prepare a Release
 

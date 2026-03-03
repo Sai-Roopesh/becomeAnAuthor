@@ -1,18 +1,300 @@
-// Backup and export commands (SQLite-backed metadata; filesystem scene text/artifacts only)
+// SQL-native backup/import commands (.baa package format)
+//
+// Package kinds:
+// - full_snapshot: full app recovery (replace restore)
+// - series_package: one series + all projects + full codex graph (clone import)
+// - novel_package: one project + referenced codex subset (clone import)
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 
-use rusqlite::{params, Connection, OptionalExtension};
+use chrono::Utc;
+use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use walkdir::WalkDir;
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-use crate::commands::backup_manuscript::collect_scene_files;
 use crate::models::{
-    ChatMessage, ChatThread, CodexEntry, CodexRelation, ProjectMeta, SceneNote, Series, Snippet,
-    StructureNode,
+    ChatMessage, ChatThread, CodexEntry, CodexEntryTag, CodexRelation, CodexRelationType, CodexTag,
+    CodexTemplate, ProjectMeta, SceneCodexLink, SceneNote, Series, Snippet, StructureNode,
 };
 use crate::storage::open_app_db;
-use crate::utils::{atomic_write, get_series_dir, slugify, validate_no_null_bytes};
+use crate::utils::{get_app_dir, slugify, validate_no_null_bytes};
+
+const PACKAGE_EXTENSION: &str = "baa";
+const MANIFEST_VERSION: i32 = 1;
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupPackageKind {
+    FullSnapshot,
+    SeriesPackage,
+    NovelPackage,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupCounts {
+    pub series: i64,
+    pub projects: i64,
+    pub scenes: i64,
+    pub codex_entries: i64,
+    pub codex_relations: i64,
+    pub codex_tags: i64,
+    pub codex_entry_tags: i64,
+    pub codex_templates: i64,
+    pub codex_relation_types: i64,
+    pub scene_codex_links: i64,
+    pub snippets: i64,
+    pub scene_notes: i64,
+    pub chat_threads: i64,
+    pub chat_messages: i64,
+    pub yjs_snapshots: i64,
+    pub yjs_update_log: i64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSourceHints {
+    pub series_id: Option<String>,
+    pub series_title: Option<String>,
+    pub project_id: Option<String>,
+    pub project_title: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupManifest {
+    pub version: i32,
+    pub kind: BackupPackageKind,
+    pub created_at: String,
+    pub app_version: String,
+    pub schema_version: i64,
+    pub secrets_included: bool,
+    pub artifacts_included: bool,
+    pub counts: BackupCounts,
+    pub source_hints: BackupSourceHints,
+    pub checksum: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupPackageSummary {
+    pub kind: BackupPackageKind,
+    pub path: String,
+    pub file_name: String,
+    pub size_bytes: u64,
+    pub created_at: String,
+    pub sha256: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupPackageInfo {
+    pub kind: BackupPackageKind,
+    pub app_version: String,
+    pub schema_version: i64,
+    pub created_at: String,
+    pub counts: BackupCounts,
+    pub source_hints: BackupSourceHints,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupImportOptions {
+    pub target_series_id: Option<String>,
+    pub create_series_title: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupImportResult {
+    pub kind: BackupPackageKind,
+    pub imported_series_id: Option<String>,
+    pub imported_project_ids: Vec<String>,
+    pub replaced_app_data: bool,
+    pub checkpoint_path: Option<String>,
+    pub requires_relaunch: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ProjectSeed {
+    id: String,
+    title: String,
+    author: String,
+    description: String,
+    path: String,
+    archived: bool,
+    language: Option<String>,
+    cover_image: Option<String>,
+    series_id: String,
+    series_index: String,
+}
+
+#[derive(Debug, Clone)]
+struct StructureNodeRow {
+    id: String,
+    parent_id: Option<String>,
+    node_type: String,
+    title: String,
+    order_index: i32,
+    scene_file: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct PreparedPackage {
+    manifest: BackupManifest,
+    payload_db_path: PathBuf,
+    fs_root: Option<PathBuf>,
+    _temp_dir: PathBuf,
+}
+
+fn bool_to_sql(value: bool) -> i64 {
+    if value {
+        1
+    } else {
+        0
+    }
+}
+
+fn now_rfc3339() -> String {
+    Utc::now().to_rfc3339()
+}
+
+fn now_slug_timestamp() -> String {
+    Utc::now().format("%Y%m%d_%H%M%S").to_string()
+}
+
+fn app_db_path() -> Result<PathBuf, String> {
+    Ok(get_app_dir()?.join(".meta").join("app.db"))
+}
+
+fn get_local_schema_version() -> Result<i64, String> {
+    let conn = open_app_db()?;
+    conn.query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|e| format!("Failed to read local schema version: {e}"))
+}
+
+fn ensure_archive_path_safe(path: &str) -> Result<(), String> {
+    if path.trim().is_empty() {
+        return Err("Archive path cannot be empty".to_string());
+    }
+    if path.starts_with('/') || path.starts_with('\\') {
+        return Err(format!("Archive path '{}' must be relative", path));
+    }
+    if path.contains('\\') {
+        return Err(format!("Archive path '{}' must use forward slashes", path));
+    }
+
+    let p = Path::new(path);
+    for component in p.components() {
+        match component {
+            Component::CurDir | Component::Normal(_) => {}
+            _ => {
+                return Err(format!(
+                    "Archive path '{}' contains invalid component",
+                    path
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn normalize_archive_rel(path: &Path) -> String {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(seg) => Some(seg.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn to_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect::<String>()
+}
+
+fn compute_file_digest(path: &Path) -> Result<String, String> {
+    let mut file = fs::File::open(path)
+        .map_err(|e| format!("Failed to open '{}' for hashing: {e}", path.display()))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|e| format!("Failed to read '{}' for hashing: {e}", path.display()))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(to_hex(&hasher.finalize()))
+}
+
+fn compute_package_checksum_from_files(
+    db_path: &Path,
+    fs_entries: &[(String, PathBuf)],
+) -> Result<String, String> {
+    let mut records = Vec::with_capacity(fs_entries.len() + 1);
+    records.push(("db/payload.db".to_string(), compute_file_digest(db_path)?));
+
+    for (archive_path, source_path) in fs_entries {
+        ensure_archive_path_safe(archive_path)?;
+        records.push((archive_path.clone(), compute_file_digest(source_path)?));
+    }
+
+    records.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut hasher = Sha256::new();
+    for (path, digest) in records {
+        hasher.update(path.as_bytes());
+        hasher.update([0u8]);
+        hasher.update(digest.as_bytes());
+        hasher.update([0u8]);
+    }
+
+    Ok(to_hex(&hasher.finalize()))
+}
+
+fn compute_package_checksum_from_digests(
+    db_digest: String,
+    mut fs_digests: Vec<(String, String)>,
+) -> Result<String, String> {
+    let mut records = Vec::with_capacity(fs_digests.len() + 1);
+    records.push(("db/payload.db".to_string(), db_digest));
+    records.append(&mut fs_digests);
+
+    for (path, _) in &records {
+        ensure_archive_path_safe(path)?;
+    }
+
+    records.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut hasher = Sha256::new();
+    for (path, digest) in records {
+        hasher.update(path.as_bytes());
+        hasher.update([0u8]);
+        hasher.update(digest.as_bytes());
+        hasher.update([0u8]);
+    }
+
+    Ok(to_hex(&hasher.finalize()))
+}
+
+fn package_kind_slug(kind: BackupPackageKind) -> &'static str {
+    match kind {
+        BackupPackageKind::FullSnapshot => "full_snapshot",
+        BackupPackageKind::SeriesPackage => "series_package",
+        BackupPackageKind::NovelPackage => "novel_package",
+    }
+}
 
 fn project_from_row(row: &rusqlite::Row<'_>) -> Result<ProjectMeta, rusqlite::Error> {
     Ok(ProjectMeta {
@@ -31,16 +313,16 @@ fn project_from_row(row: &rusqlite::Row<'_>) -> Result<ProjectMeta, rusqlite::Er
     })
 }
 
-fn load_project(project_path: &str) -> Result<ProjectMeta, String> {
+fn load_project_by_id(project_id: &str) -> Result<ProjectMeta, String> {
     let conn = open_app_db()?;
     conn.query_row(
         r#"
         SELECT id, title, author, description, path, archived, language, cover_image,
                series_id, series_index, created_at, updated_at
         FROM projects
-        WHERE path = ?1
+        WHERE id = ?1
         "#,
-        params![project_path],
+        params![project_id],
         project_from_row,
     )
     .optional()
@@ -48,446 +330,1085 @@ fn load_project(project_path: &str) -> Result<ProjectMeta, String> {
     .ok_or_else(|| "Project not found".to_string())
 }
 
-fn build_project_backup_payload(project: &ProjectMeta) -> Result<serde_json::Value, String> {
+fn series_by_id(series_id: &str) -> Result<Series, String> {
+    let all = crate::commands::series::list_series()?;
+    all.into_iter()
+        .find(|series| series.id == series_id)
+        .ok_or_else(|| "Series not found".to_string())
+}
+
+fn create_temp_dir(label: &str) -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let root = app_dir.join(".meta").join("tmp");
+    fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+    let dir = root.join(format!("{}_{}", label, uuid::Uuid::new_v4()));
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn escape_single_quotes(input: &str) -> String {
+    input.replace('\'', "''")
+}
+
+fn snapshot_live_db(dest: &Path) -> Result<(), String> {
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    if dest.exists() {
+        fs::remove_file(dest).map_err(|e| e.to_string())?;
+    }
+
     let conn = open_app_db()?;
-    let structure = crate::commands::project::get_structure(project.path.clone())?;
-    let snippets = crate::commands::snippet::list_snippets(project.path.clone())?;
-    let scene_notes = list_scene_notes_for_project(&conn, &project.id)?;
-    let scene_files = collect_scene_files(&project.path, &structure);
-    let chats = crate::commands::chat::list_chat_threads(project.path.clone())?;
-    let mut messages = Vec::new();
-    for thread in &chats {
-        let mut thread_messages =
-            crate::commands::chat::get_chat_messages(project.path.clone(), thread.id.clone())
-                .map_err(|e| format!("Failed to collect chat messages for backup: {e}"))?;
-        messages.append(&mut thread_messages);
-    }
-
-    Ok(serde_json::json!({
-        "project": project,
-        "nodes": structure,
-        "sceneFiles": scene_files,
-        "snippets": snippets,
-        "sceneNotes": scene_notes,
-        "chats": chats,
-        "messages": messages
-    }))
+    let sql = format!(
+        "VACUUM INTO '{}'",
+        escape_single_quotes(&dest.to_string_lossy())
+    );
+    conn.execute_batch(&sql)
+        .map_err(|e| format!("Failed to snapshot application database: {e}"))?;
+    Ok(())
 }
 
-fn build_project_export_payload(project: &ProjectMeta) -> Result<serde_json::Value, String> {
-    let conn = open_app_db()?;
-    let structure = crate::commands::project::get_structure(project.path.clone())?;
-    let scene_files = collect_scene_files(&project.path, &structure);
-    let codex =
-        crate::commands::series::list_series_codex_entries(project.series_id.clone(), None)?;
-    let snippets = crate::commands::snippet::list_snippets(project.path.clone())?;
-    let scene_notes = list_scene_notes_for_project(&conn, &project.id)?;
+fn apply_common_db_prune(conn: &Connection) -> Result<(), String> {
+    conn.execute("DELETE FROM secure_secrets", [])
+        .map_err(|e| format!("Failed to prune secure secrets: {e}"))?;
+    conn.execute("DELETE FROM secure_accounts", [])
+        .map_err(|e| format!("Failed to prune secure accounts: {e}"))?;
 
-    Ok(serde_json::json!({
-        "version": 2,
-        "backupType": "project",
-        "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "project": project,
-        "nodes": structure,
-        "sceneFiles": scene_files,
-        "codex": codex,
-        "snippets": snippets,
-        "sceneNotes": scene_notes
-    }))
-}
-
-fn build_series_export_payload(series_id: &str) -> Result<(Series, serde_json::Value), String> {
-    let all_series = crate::commands::series::list_series()?;
-    let series = all_series
-        .into_iter()
-        .find(|s| s.id == series_id)
-        .ok_or_else(|| "Series not found".to_string())?;
-
-    let projects = crate::commands::project::list_projects()?
-        .into_iter()
-        .filter(|p| p.series_id == series.id)
-        .collect::<Vec<_>>();
-
-    let mut project_payloads = Vec::with_capacity(projects.len());
-    for project in &projects {
-        project_payloads.push(build_project_backup_payload(project)?);
-    }
-
-    let codex = crate::commands::series::list_series_codex_entries(series.id.clone(), None)?;
-    let codex_relations = crate::commands::series::list_series_codex_relations(series.id.clone())?;
-
-    let payload = serde_json::json!({
-        "version": 2,
-        "backupType": "series",
-        "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "series": series,
-        "projects": project_payloads,
-        "codex": codex,
-        "codexRelations": codex_relations
-    });
-
-    Ok((series, payload))
-}
-
-fn write_backup_payload(
-    payload: &serde_json::Value,
-    output_path: Option<String>,
-    default_dir: PathBuf,
-    default_filename: String,
-) -> Result<String, String> {
-    fs::create_dir_all(&default_dir).map_err(|e| e.to_string())?;
-    let final_path = output_path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| default_dir.join(default_filename));
-
-    let json = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
-    atomic_write(&final_path, &json)?;
-    Ok(final_path.to_string_lossy().to_string())
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ImportSeriesResult {
-    pub series_id: String,
-    pub series_title: String,
-    pub project_ids: Vec<String>,
-    pub imported_project_count: usize,
-}
-
-#[tauri::command]
-pub fn export_series_backup(
-    series_id: String,
-    output_path: Option<String>,
-) -> Result<String, String> {
-    let (series, backup) = build_series_export_payload(&series_id)?;
-    let exports_dir = get_series_dir(&series_id)?.join("exports");
-    let ts = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("{}_series_backup_{}.json", slugify(&series.title), ts);
-    write_backup_payload(&backup, output_path, exports_dir, filename)
-}
-
-#[tauri::command]
-pub fn export_series_as_json(series_id: String) -> Result<String, String> {
-    let (_, backup) = build_series_export_payload(&series_id)?;
-    serde_json::to_string(&backup).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn export_project_backup(
-    project_path: String,
-    output_path: Option<String>,
-) -> Result<String, String> {
-    let project = load_project(&project_path)?;
-    let backup = build_project_export_payload(&project)?;
-    let exports_dir = PathBuf::from(&project.path).join("exports");
-    let ts = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("{}_backup_{}.json", slugify(&project.title), ts);
-    write_backup_payload(&backup, output_path, exports_dir, filename)
-}
-
-#[tauri::command]
-pub fn export_project_as_json(project_path: String) -> Result<String, String> {
-    let project = load_project(&project_path)?;
-    let backup = build_project_export_payload(&project)?;
-    serde_json::to_string(&backup).map_err(|e| e.to_string())
-}
-
-fn get_project_field_string(project_value: &serde_json::Value, key: &str) -> Option<String> {
-    project_value
-        .get(key)
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-}
-
-fn get_project_field_string_alias(
-    project_value: &serde_json::Value,
-    snake_key: &str,
-    camel_key: &str,
-) -> Option<String> {
-    get_project_field_string(project_value, snake_key)
-        .or_else(|| get_project_field_string(project_value, camel_key))
-}
-
-fn require_project_title(
-    project_value: &serde_json::Value,
-    index: usize,
-) -> Result<String, String> {
-    let title = get_project_field_string(project_value, "title")
-        .map(|v| v.trim().to_string())
-        .unwrap_or_default();
-    if title.is_empty() {
-        return Err(format!(
-            "Project payload at index {} is missing title",
-            index
-        ));
-    }
-    Ok(title)
-}
-
-fn validate_scene_file_name(file_name: &str) -> Result<(), String> {
-    let trimmed = file_name.trim();
-    if trimmed.is_empty() {
-        return Err("Scene file name cannot be empty".to_string());
-    }
-    validate_no_null_bytes(trimmed, "Scene file name")?;
-
-    let path = Path::new(trimmed);
-    if path.is_absolute() {
-        return Err("Scene file name must be relative".to_string());
-    }
-
-    let mut components = path.components();
-    let Some(first) = components.next() else {
-        return Err("Scene file name cannot be empty".to_string());
-    };
-    if components.next().is_some() {
-        return Err("Scene file name cannot contain path separators".to_string());
-    }
-    if !matches!(first, Component::Normal(_)) {
-        return Err("Scene file name is invalid".to_string());
-    }
-    if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
-        return Err("Scene file name must end with .md".to_string());
-    }
+    conn.execute("DELETE FROM search_index", [])
+        .map_err(|e| format!("Failed to prune search index: {e}"))?;
+    conn.execute("DELETE FROM search_sync_state", [])
+        .map_err(|e| format!("Failed to prune search sync state: {e}"))?;
+    conn.execute("DELETE FROM model_discovery_cache", [])
+        .map_err(|e| format!("Failed to prune model discovery cache: {e}"))?;
 
     Ok(())
 }
 
-fn restore_scene_files(
-    project_path: &str,
-    scene_files: Option<&serde_json::Map<String, serde_json::Value>>,
-) -> Result<(), String> {
-    let Some(scene_files) = scene_files else {
-        return Ok(());
-    };
-
-    let manuscript_dir = PathBuf::from(project_path).join("manuscript");
-    fs::create_dir_all(&manuscript_dir).map_err(|e| e.to_string())?;
-
-    for (file_name, value) in scene_files {
-        validate_scene_file_name(file_name)?;
-        let content = value
-            .as_str()
-            .ok_or_else(|| format!("Scene file '{}' must be a string", file_name))?;
-        let path = manuscript_dir.join(file_name);
-        atomic_write(&path, content)?;
-    }
-
-    Ok(())
+fn prune_full_snapshot_db(db_path: &Path) -> Result<(), String> {
+    let conn = Connection::open(db_path)
+        .map_err(|e| format!("Failed to open full snapshot payload DB: {e}"))?;
+    apply_common_db_prune(&conn)
 }
 
-fn generate_nodes_from_scene_files(
-    scene_files: Option<&serde_json::Map<String, serde_json::Value>>,
-) -> Result<Vec<StructureNode>, String> {
-    let Some(scene_files) = scene_files else {
-        return Ok(Vec::new());
-    };
-
-    let mut file_names = scene_files.keys().cloned().collect::<Vec<_>>();
-    file_names.sort();
-
-    let mut nodes = Vec::new();
-    for (index, file_name) in file_names.into_iter().enumerate() {
-        validate_scene_file_name(&file_name)?;
-        let id = file_name.trim_end_matches(".md").to_string();
-        let title = file_name
-            .trim_end_matches(".md")
-            .replace(['_', '-'], " ")
-            .trim()
-            .to_string();
-        nodes.push(StructureNode {
-            id: if id.is_empty() {
-                uuid::Uuid::new_v4().to_string()
-            } else {
-                id
-            },
-            node_type: "scene".to_string(),
-            title: if title.is_empty() {
-                format!("Scene {}", index + 1)
-            } else {
-                title
-            },
-            order: index as i32,
-            children: Vec::new(),
-            file: Some(file_name),
-        });
-    }
-
-    Ok(nodes)
-}
-
-fn parse_snippets(
-    project_path: &str,
-    new_project_id: &str,
-    snippets_value: Option<&Vec<serde_json::Value>>,
-) -> Result<(), String> {
-    let Some(snippets_value) = snippets_value else {
-        return Ok(());
-    };
-
-    for (index, value) in snippets_value.iter().enumerate() {
-        let mut snippet: Snippet = serde_json::from_value(value.clone())
-            .map_err(|e| format!("Invalid snippet payload at index {}: {}", index, e))?;
-        snippet.project_id = new_project_id.to_string();
-        crate::commands::snippet::save_snippet(project_path.to_string(), snippet)?;
-    }
-
-    Ok(())
-}
-
-fn list_scene_notes_for_project(
+fn delete_not_in_column(
     conn: &Connection,
-    project_id: &str,
-) -> Result<Vec<SceneNote>, String> {
+    table: &str,
+    column: &str,
+    values: &[String],
+) -> Result<(), String> {
+    if values.is_empty() {
+        conn.execute(&format!("DELETE FROM {table}"), [])
+            .map_err(|e| format!("Failed to clear table '{table}': {e}"))?;
+        return Ok(());
+    }
+
+    let placeholders = vec!["?"; values.len()].join(",");
+    let sql = format!("DELETE FROM {table} WHERE {column} NOT IN ({placeholders})");
+    let params = values
+        .iter()
+        .map(|value| value as &dyn rusqlite::ToSql)
+        .collect::<Vec<_>>();
+    conn.execute(&sql, params.as_slice())
+        .map_err(|e| format!("Failed to prune table '{table}': {e}"))?;
+    Ok(())
+}
+
+fn delete_where_not_equal(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    value: &str,
+) -> Result<(), String> {
+    conn.execute(
+        &format!("DELETE FROM {table} WHERE {column} != ?1"),
+        params![value],
+    )
+    .map_err(|e| format!("Failed to prune table '{table}' by value: {e}"))?;
+    Ok(())
+}
+
+fn series_project_ids_and_paths(
+    conn: &Connection,
+    series_id: &str,
+) -> Result<Vec<ProjectSeed>, String> {
     let mut stmt = conn
         .prepare(
             r#"
-            SELECT id, scene_id, project_id, content_json, created_at, updated_at
-            FROM scene_notes
-            WHERE project_id = ?1
+            SELECT id, title, author, description, path, archived, language, cover_image, series_id, series_index
+            FROM projects
+            WHERE series_id = ?1
             ORDER BY updated_at DESC
             "#,
         )
-        .map_err(|e| format!("Failed to prepare scene note query for backup: {e}"))?;
+        .map_err(|e| format!("Failed to prepare series project query: {e}"))?;
+
     let rows = stmt
-        .query_map(params![project_id], |row| {
-            let content_json: String = row.get(3)?;
-            let content = serde_json::from_str(&content_json).map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    content_json.len(),
-                    rusqlite::types::Type::Text,
-                    Box::new(e),
-                )
-            })?;
-            Ok(SceneNote {
+        .query_map(params![series_id], |row| {
+            Ok(ProjectSeed {
                 id: row.get(0)?,
-                scene_id: row.get(1)?,
-                project_id: row.get(2)?,
-                content,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                title: row.get(1)?,
+                author: row.get(2)?,
+                description: row.get(3)?,
+                path: row.get(4)?,
+                archived: row.get::<_, i64>(5)? != 0,
+                language: row.get(6)?,
+                cover_image: row.get(7)?,
+                series_id: row.get(8)?,
+                series_index: row.get(9)?,
             })
         })
-        .map_err(|e| format!("Failed to execute scene note query for backup: {e}"))?;
+        .map_err(|e| format!("Failed to execute series project query: {e}"))?;
 
-    let mut notes = Vec::new();
+    let mut result = Vec::new();
     for row in rows {
-        notes.push(row.map_err(|e| format!("Failed to decode scene note row for backup: {e}"))?);
+        result.push(row.map_err(|e| format!("Failed to decode series project row: {e}"))?);
     }
-    Ok(notes)
+
+    Ok(result)
 }
 
-fn parse_scene_notes(
-    project_path: &str,
-    new_project_id: &str,
-    scene_notes_value: Option<&Vec<serde_json::Value>>,
-) -> Result<(), String> {
-    let Some(scene_notes_value) = scene_notes_value else {
-        return Ok(());
-    };
+fn project_seed_by_id(conn: &Connection, project_id: &str) -> Result<ProjectSeed, String> {
+    conn.query_row(
+        r#"
+        SELECT id, title, author, description, path, archived, language, cover_image, series_id, series_index
+        FROM projects
+        WHERE id = ?1
+        "#,
+        params![project_id],
+        |row| {
+            Ok(ProjectSeed {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                author: row.get(2)?,
+                description: row.get(3)?,
+                path: row.get(4)?,
+                archived: row.get::<_, i64>(5)? != 0,
+                language: row.get(6)?,
+                cover_image: row.get(7)?,
+                series_id: row.get(8)?,
+                series_index: row.get(9)?,
+            })
+        },
+    )
+    .optional()
+    .map_err(|e| format!("Failed to query project seed: {e}"))?
+    .ok_or_else(|| "Project not found in payload database".to_string())
+}
 
-    for (index, value) in scene_notes_value.iter().enumerate() {
-        let mut note: SceneNote = serde_json::from_value(value.clone())
-            .map_err(|e| format!("Invalid scene note payload at index {}: {}", index, e))?;
-        note.project_id = new_project_id.to_string();
-        crate::commands::scene_note::save_scene_note(project_path.to_string(), note)?;
+fn scene_ids_for_projects(
+    conn: &Connection,
+    project_ids: &[String],
+) -> Result<Vec<String>, String> {
+    if project_ids.is_empty() {
+        return Ok(Vec::new());
     }
+
+    let placeholders = vec!["?"; project_ids.len()].join(",");
+    let sql = format!(
+        "SELECT scene_id FROM scene_metadata WHERE project_id IN ({})",
+        placeholders
+    );
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|e| format!("Failed to prepare scene-id query: {e}"))?;
+
+    let params = project_ids
+        .iter()
+        .map(|id| id as &dyn rusqlite::ToSql)
+        .collect::<Vec<_>>();
+    let rows = stmt
+        .query_map(params.as_slice(), |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Failed to execute scene-id query: {e}"))?;
+
+    let mut scene_ids = Vec::new();
+    for row in rows {
+        scene_ids.push(row.map_err(|e| format!("Failed to decode scene-id row: {e}"))?);
+    }
+    Ok(scene_ids)
+}
+
+fn prune_series_package_db(db_path: &Path, series_id: &str) -> Result<(), String> {
+    let conn =
+        Connection::open(db_path).map_err(|e| format!("Failed to open series payload DB: {e}"))?;
+    apply_common_db_prune(&conn)?;
+
+    delete_where_not_equal(&conn, "series", "id", series_id)?;
+    delete_where_not_equal(&conn, "projects", "series_id", series_id)?;
+
+    let projects = series_project_ids_and_paths(&conn, series_id)?;
+    let project_ids = projects.iter().map(|p| p.id.clone()).collect::<Vec<_>>();
+    let project_paths = projects.iter().map(|p| p.path.clone()).collect::<Vec<_>>();
+
+    delete_not_in_column(&conn, "structure_nodes", "project_id", &project_ids)?;
+    delete_not_in_column(&conn, "scene_metadata", "project_id", &project_ids)?;
+    delete_not_in_column(&conn, "snippets", "project_id", &project_ids)?;
+    delete_not_in_column(&conn, "scene_notes", "project_id", &project_ids)?;
+    delete_not_in_column(&conn, "chat_threads", "project_path", &project_paths)?;
+    delete_not_in_column(&conn, "chat_messages", "project_path", &project_paths)?;
+    delete_not_in_column(&conn, "yjs_snapshots", "project_path", &project_paths)?;
+    delete_not_in_column(&conn, "yjs_update_log", "project_path", &project_paths)?;
+
+    let scene_ids = scene_ids_for_projects(&conn, &project_ids)?;
+    if scene_ids.is_empty() {
+        conn.execute(
+            "DELETE FROM scene_codex_links WHERE series_id = ?1",
+            params![series_id],
+        )
+        .map_err(|e| format!("Failed pruning scene codex links: {e}"))?;
+    } else {
+        let placeholders = vec!["?"; scene_ids.len()].join(",");
+        let sql = format!(
+            "DELETE FROM scene_codex_links WHERE series_id = ?1 AND scene_id NOT IN ({})",
+            placeholders
+        );
+        let mut values: Vec<rusqlite::types::Value> = Vec::with_capacity(scene_ids.len() + 1);
+        values.push(series_id.to_string().into());
+        for scene_id in scene_ids {
+            values.push(scene_id.into());
+        }
+        conn.execute(&sql, params_from_iter(values))
+            .map_err(|e| format!("Failed pruning scene codex links by scene set: {e}"))?;
+    }
+    conn.execute(
+        "DELETE FROM scene_codex_links WHERE series_id != ?1",
+        params![series_id],
+    )
+    .map_err(|e| format!("Failed pruning foreign scene codex links: {e}"))?;
+
+    delete_where_not_equal(&conn, "codex_entries", "series_id", series_id)?;
+    delete_where_not_equal(&conn, "codex_relations", "series_id", series_id)?;
+    delete_where_not_equal(&conn, "codex_tags", "series_id", series_id)?;
+    delete_where_not_equal(&conn, "codex_entry_tags", "series_id", series_id)?;
+    delete_where_not_equal(&conn, "codex_templates", "series_id", series_id)?;
+    delete_where_not_equal(&conn, "codex_relation_types", "series_id", series_id)?;
+
+    conn.execute("DELETE FROM deleted_projects", [])
+        .map_err(|e| format!("Failed clearing deleted projects: {e}"))?;
+    conn.execute("DELETE FROM recent_projects", [])
+        .map_err(|e| format!("Failed clearing recent projects: {e}"))?;
+    conn.execute("DELETE FROM deleted_series_registry", [])
+        .map_err(|e| format!("Failed clearing deleted series registry: {e}"))?;
+    conn.execute("DELETE FROM app_preferences", [])
+        .map_err(|e| format!("Failed clearing app preferences: {e}"))?;
+    conn.execute("DELETE FROM ai_connection_models", [])
+        .map_err(|e| format!("Failed clearing ai connection models: {e}"))?;
+    conn.execute("DELETE FROM ai_connections", [])
+        .map_err(|e| format!("Failed clearing ai connections: {e}"))?;
 
     Ok(())
 }
 
-fn parse_chats(
-    project_path: &str,
-    new_project_id: &str,
-    chats_value: Option<&Vec<serde_json::Value>>,
-    messages_value: Option<&Vec<serde_json::Value>>,
-) -> Result<(), String> {
-    let mut thread_ids = HashMap::new();
+fn prune_novel_package_db(db_path: &Path, project_id: &str) -> Result<(), String> {
+    let conn =
+        Connection::open(db_path).map_err(|e| format!("Failed to open novel payload DB: {e}"))?;
+    apply_common_db_prune(&conn)?;
 
-    if let Some(chats_value) = chats_value {
-        for (index, value) in chats_value.iter().enumerate() {
-            let mut thread: ChatThread = serde_json::from_value(value.clone())
-                .map_err(|e| format!("Invalid chat thread payload at index {}: {}", index, e))?;
-            thread.project_id = new_project_id.to_string();
-            let created =
-                crate::commands::chat::create_chat_thread(project_path.to_string(), thread)?;
-            thread_ids.insert(created.id.clone(), true);
+    let project = project_seed_by_id(&conn, project_id)?;
+
+    conn.execute("DELETE FROM projects WHERE id != ?1", params![project_id])
+        .map_err(|e| format!("Failed pruning projects for novel package: {e}"))?;
+
+    delete_not_in_column(
+        &conn,
+        "structure_nodes",
+        "project_id",
+        &[project_id.to_string()],
+    )?;
+    delete_not_in_column(
+        &conn,
+        "scene_metadata",
+        "project_id",
+        &[project_id.to_string()],
+    )?;
+    delete_not_in_column(&conn, "snippets", "project_id", &[project_id.to_string()])?;
+    delete_not_in_column(
+        &conn,
+        "scene_notes",
+        "project_id",
+        &[project_id.to_string()],
+    )?;
+    delete_not_in_column(
+        &conn,
+        "chat_threads",
+        "project_path",
+        &[project.path.clone()],
+    )?;
+    delete_not_in_column(
+        &conn,
+        "chat_messages",
+        "project_path",
+        &[project.path.clone()],
+    )?;
+    delete_not_in_column(
+        &conn,
+        "yjs_snapshots",
+        "project_path",
+        &[project.path.clone()],
+    )?;
+    delete_not_in_column(
+        &conn,
+        "yjs_update_log",
+        "project_path",
+        &[project.path.clone()],
+    )?;
+
+    conn.execute(
+        "DELETE FROM series WHERE id != ?1",
+        params![project.series_id],
+    )
+    .map_err(|e| format!("Failed pruning series rows for novel package: {e}"))?;
+
+    let scene_ids = scene_ids_for_projects(&conn, &[project_id.to_string()])?;
+
+    let mut retained_entry_ids = HashSet::new();
+
+    if !scene_ids.is_empty() {
+        let placeholders = vec!["?"; scene_ids.len()].join(",");
+        let sql = format!(
+            "SELECT codex_id FROM scene_codex_links WHERE series_id = ?1 AND scene_id IN ({})",
+            placeholders
+        );
+        let mut stmt = conn
+            .prepare(&sql)
+            .map_err(|e| format!("Failed preparing linked codex query: {e}"))?;
+        let mut values: Vec<rusqlite::types::Value> = Vec::with_capacity(scene_ids.len() + 1);
+        values.push(project.series_id.clone().into());
+        for scene_id in &scene_ids {
+            values.push(scene_id.clone().into());
+        }
+        let rows = stmt
+            .query_map(params_from_iter(values), |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying scene-linked codex: {e}"))?;
+        for row in rows {
+            retained_entry_ids
+                .insert(row.map_err(|e| format!("Failed decoding linked codex row: {e}"))?);
         }
     }
 
-    if let Some(messages_value) = messages_value {
-        let mut messages = Vec::new();
-        for (index, value) in messages_value.iter().enumerate() {
-            let message: ChatMessage = serde_json::from_value(value.clone())
-                .map_err(|e| format!("Invalid chat message payload at index {}: {}", index, e))?;
-            messages.push(message);
-        }
-        messages.sort_by_key(|message| message.timestamp);
+    {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, payload_json FROM codex_entries WHERE series_id = ?1 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| format!("Failed preparing codex entry payload query: {e}"))?;
+        let rows = stmt
+            .query_map(params![project.series_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| format!("Failed querying codex entry payloads: {e}"))?;
 
-        for message in messages {
-            if !thread_ids.contains_key(&message.thread_id) {
+        for row in rows {
+            let (entry_id, payload) =
+                row.map_err(|e| format!("Failed decoding codex entry payload row: {e}"))?;
+            let value: serde_json::Value = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid codex payload in novel pruning: {e}"))?;
+            if value
+                .get("projectId")
+                .and_then(|v| v.as_str())
+                .is_some_and(|pid| pid == project_id)
+            {
+                retained_entry_ids.insert(entry_id);
+            }
+        }
+    }
+
+    if retained_entry_ids.is_empty() {
+        conn.execute(
+            "DELETE FROM codex_entries WHERE series_id = ?1",
+            params![project.series_id],
+        )
+        .map_err(|e| format!("Failed clearing codex entries for novel package: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_relations WHERE series_id = ?1",
+            params![project.series_id],
+        )
+        .map_err(|e| format!("Failed clearing codex relations for novel package: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_entry_tags WHERE series_id = ?1",
+            params![project.series_id],
+        )
+        .map_err(|e| format!("Failed clearing codex entry tags for novel package: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_tags WHERE series_id = ?1",
+            params![project.series_id],
+        )
+        .map_err(|e| format!("Failed clearing codex tags for novel package: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_templates WHERE series_id = ?1",
+            params![project.series_id],
+        )
+        .map_err(|e| format!("Failed clearing codex templates for novel package: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_relation_types WHERE series_id = ?1",
+            params![project.series_id],
+        )
+        .map_err(|e| format!("Failed clearing codex relation types for novel package: {e}"))?;
+        conn.execute(
+            "DELETE FROM scene_codex_links WHERE series_id = ?1",
+            params![project.series_id],
+        )
+        .map_err(|e| format!("Failed clearing scene codex links for novel package: {e}"))?;
+    } else {
+        let retained = retained_entry_ids.into_iter().collect::<Vec<_>>();
+
+        let placeholders = vec!["?"; retained.len()].join(",");
+        let sql_entries = format!(
+            "DELETE FROM codex_entries WHERE series_id = ?1 AND id NOT IN ({})",
+            placeholders
+        );
+        let mut values: Vec<rusqlite::types::Value> = Vec::with_capacity(retained.len() + 1);
+        values.push(project.series_id.clone().into());
+        for id in &retained {
+            values.push(id.clone().into());
+        }
+        conn.execute(&sql_entries, params_from_iter(values))
+            .map_err(|e| format!("Failed pruning codex entries by retained set: {e}"))?;
+
+        let placeholders = vec!["?"; retained.len()].join(",");
+        let sql_relations = format!(
+            "DELETE FROM codex_relations WHERE series_id = ?1 AND (parent_id NOT IN ({0}) OR child_id NOT IN ({0}))",
+            placeholders
+        );
+        let mut relation_values: Vec<rusqlite::types::Value> =
+            Vec::with_capacity(retained.len() * 2 + 1);
+        relation_values.push(project.series_id.clone().into());
+        for id in &retained {
+            relation_values.push(id.clone().into());
+        }
+        for id in &retained {
+            relation_values.push(id.clone().into());
+        }
+        conn.execute(&sql_relations, params_from_iter(relation_values))
+            .map_err(|e| format!("Failed pruning codex relations by retained set: {e}"))?;
+
+        let placeholders = vec!["?"; retained.len()].join(",");
+        let sql_entry_tags = format!(
+            "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND entry_id NOT IN ({})",
+            placeholders
+        );
+        let mut entry_tag_values: Vec<rusqlite::types::Value> =
+            Vec::with_capacity(retained.len() + 1);
+        entry_tag_values.push(project.series_id.clone().into());
+        for id in &retained {
+            entry_tag_values.push(id.clone().into());
+        }
+        conn.execute(&sql_entry_tags, params_from_iter(entry_tag_values))
+            .map_err(|e| format!("Failed pruning codex entry tags by retained set: {e}"))?;
+
+        let mut tag_stmt = conn
+            .prepare("SELECT DISTINCT tag_id FROM codex_entry_tags WHERE series_id = ?1")
+            .map_err(|e| format!("Failed preparing retained tag-id query: {e}"))?;
+        let tag_rows = tag_stmt
+            .query_map(params![project.series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying retained tag ids: {e}"))?;
+        let mut retained_tag_ids = Vec::new();
+        for row in tag_rows {
+            retained_tag_ids
+                .push(row.map_err(|e| format!("Failed decoding retained tag id: {e}"))?);
+        }
+        delete_not_in_column(&conn, "codex_tags", "id", &retained_tag_ids)?;
+        delete_where_not_equal(&conn, "codex_tags", "series_id", &project.series_id)?;
+
+        let mut template_ids = Vec::new();
+        let mut template_stmt = conn
+            .prepare("SELECT payload_json FROM codex_entries WHERE series_id = ?1")
+            .map_err(|e| format!("Failed preparing retained template query: {e}"))?;
+        let template_rows = template_stmt
+            .query_map(params![project.series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying retained templates: {e}"))?;
+        for row in template_rows {
+            let payload = row.map_err(|e| format!("Failed decoding retained template row: {e}"))?;
+            let value: serde_json::Value = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid codex entry payload while pruning templates: {e}"))?;
+            if let Some(template_id) = value.get("templateId").and_then(|v| v.as_str()) {
+                template_ids.push(template_id.to_string());
+            }
+        }
+        delete_not_in_column(&conn, "codex_templates", "id", &template_ids)?;
+        delete_where_not_equal(&conn, "codex_templates", "series_id", &project.series_id)?;
+
+        let mut relation_type_ids = Vec::new();
+        let mut rel_type_stmt = conn
+            .prepare("SELECT payload_json FROM codex_relations WHERE series_id = ?1")
+            .map_err(|e| format!("Failed preparing retained relation type query: {e}"))?;
+        let rel_type_rows = rel_type_stmt
+            .query_map(params![project.series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying retained relation type payloads: {e}"))?;
+        for row in rel_type_rows {
+            let payload =
+                row.map_err(|e| format!("Failed decoding retained relation payload: {e}"))?;
+            let value: serde_json::Value = serde_json::from_str(&payload).map_err(|e| {
+                format!("Invalid codex relation payload while pruning relation types: {e}")
+            })?;
+            if let Some(type_id) = value.get("typeId").and_then(|v| v.as_str()) {
+                relation_type_ids.push(type_id.to_string());
+            }
+        }
+        delete_not_in_column(&conn, "codex_relation_types", "id", &relation_type_ids)?;
+        delete_where_not_equal(
+            &conn,
+            "codex_relation_types",
+            "series_id",
+            &project.series_id,
+        )?;
+
+        if scene_ids.is_empty() {
+            conn.execute(
+                "DELETE FROM scene_codex_links WHERE series_id = ?1",
+                params![project.series_id],
+            )
+            .map_err(|e| format!("Failed clearing scene codex links for novel package: {e}"))?;
+        } else {
+            let scene_placeholders = vec!["?"; scene_ids.len()].join(",");
+            let entry_placeholders = vec!["?"; retained.len()].join(",");
+            let sql = format!(
+                "DELETE FROM scene_codex_links WHERE series_id = ?1 AND (scene_id NOT IN ({}) OR codex_id NOT IN ({}))",
+                scene_placeholders, entry_placeholders
+            );
+            let mut values: Vec<rusqlite::types::Value> =
+                Vec::with_capacity(1 + scene_ids.len() + retained.len());
+            values.push(project.series_id.clone().into());
+            for scene_id in &scene_ids {
+                values.push(scene_id.clone().into());
+            }
+            for entry_id in &retained {
+                values.push(entry_id.clone().into());
+            }
+            conn.execute(&sql, params_from_iter(values))
+                .map_err(|e| format!("Failed pruning scene codex links by retained sets: {e}"))?;
+        }
+        delete_where_not_equal(&conn, "scene_codex_links", "series_id", &project.series_id)?;
+    }
+
+    conn.execute("DELETE FROM deleted_projects", [])
+        .map_err(|e| format!("Failed clearing deleted projects: {e}"))?;
+    conn.execute("DELETE FROM recent_projects", [])
+        .map_err(|e| format!("Failed clearing recent projects: {e}"))?;
+    conn.execute("DELETE FROM deleted_series_registry", [])
+        .map_err(|e| format!("Failed clearing deleted series registry: {e}"))?;
+    conn.execute("DELETE FROM app_preferences", [])
+        .map_err(|e| format!("Failed clearing app preferences: {e}"))?;
+    conn.execute("DELETE FROM ai_connection_models", [])
+        .map_err(|e| format!("Failed clearing ai connection models: {e}"))?;
+    conn.execute("DELETE FROM ai_connections", [])
+        .map_err(|e| format!("Failed clearing ai connections: {e}"))?;
+
+    Ok(())
+}
+
+fn count_rows(conn: &Connection, table: &str) -> Result<i64, String> {
+    conn.query_row(&format!("SELECT COUNT(1) FROM {table}"), [], |row| {
+        row.get(0)
+    })
+    .map_err(|e| format!("Failed to count rows for table '{table}': {e}"))
+}
+
+fn compute_counts(conn: &Connection) -> Result<BackupCounts, String> {
+    Ok(BackupCounts {
+        series: count_rows(conn, "series")?,
+        projects: count_rows(conn, "projects")?,
+        scenes: count_rows(conn, "scene_metadata")?,
+        codex_entries: count_rows(conn, "codex_entries")?,
+        codex_relations: count_rows(conn, "codex_relations")?,
+        codex_tags: count_rows(conn, "codex_tags")?,
+        codex_entry_tags: count_rows(conn, "codex_entry_tags")?,
+        codex_templates: count_rows(conn, "codex_templates")?,
+        codex_relation_types: count_rows(conn, "codex_relation_types")?,
+        scene_codex_links: count_rows(conn, "scene_codex_links")?,
+        snippets: count_rows(conn, "snippets")?,
+        scene_notes: count_rows(conn, "scene_notes")?,
+        chat_threads: count_rows(conn, "chat_threads")?,
+        chat_messages: count_rows(conn, "chat_messages")?,
+        yjs_snapshots: count_rows(conn, "yjs_snapshots")?,
+        yjs_update_log: count_rows(conn, "yjs_update_log")?,
+    })
+}
+
+fn collect_directory_files(root: &Path) -> Result<Vec<PathBuf>, String> {
+    if !root.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut files = Vec::new();
+    for entry in WalkDir::new(root) {
+        let entry = entry.map_err(|e| format!("Failed walking '{}': {e}", root.display()))?;
+        if entry.file_type().is_file() {
+            files.push(entry.path().to_path_buf());
+        }
+    }
+    Ok(files)
+}
+
+fn collect_full_snapshot_fs_entries(app_dir: &Path) -> Result<Vec<(String, PathBuf)>, String> {
+    let mut entries = Vec::new();
+
+    let projects_root = app_dir.join("Projects");
+    for file in collect_directory_files(&projects_root)? {
+        let rel = file
+            .strip_prefix(&projects_root)
+            .map_err(|e| format!("Failed deriving project relative path: {e}"))?;
+
+        if rel.components().any(|component| {
+            component
+                .as_os_str()
+                .to_string_lossy()
+                .eq_ignore_ascii_case("exports")
+        }) {
+            continue;
+        }
+
+        let archive_path = format!("fs/Projects/{}", normalize_archive_rel(rel));
+        entries.push((archive_path, file));
+    }
+
+    let trash_root = app_dir.join("Trash");
+    for file in collect_directory_files(&trash_root)? {
+        let rel = file
+            .strip_prefix(&trash_root)
+            .map_err(|e| format!("Failed deriving trash relative path: {e}"))?;
+        let archive_path = format!("fs/Trash/{}", normalize_archive_rel(rel));
+        entries.push((archive_path, file));
+    }
+
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(entries)
+}
+
+fn collect_project_manuscript_entries(
+    projects: &[ProjectSeed],
+) -> Result<Vec<(String, PathBuf)>, String> {
+    let mut entries = Vec::new();
+
+    for project in projects {
+        let manuscript_root = PathBuf::from(&project.path).join("manuscript");
+        if !manuscript_root.exists() {
+            continue;
+        }
+
+        for file in collect_directory_files(&manuscript_root)? {
+            let rel = file
+                .strip_prefix(&manuscript_root)
+                .map_err(|e| format!("Failed deriving manuscript relative path: {e}"))?;
+            let archive_path = format!(
+                "fs/projects/{}/manuscript/{}",
+                project.id,
+                normalize_archive_rel(rel)
+            );
+            entries.push((archive_path, file));
+        }
+    }
+
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(entries)
+}
+
+fn default_output_path(kind: BackupPackageKind, hint: Option<&str>) -> Result<PathBuf, String> {
+    let app_dir = get_app_dir()?;
+    let backups_dir = app_dir.join("backups");
+    fs::create_dir_all(&backups_dir).map_err(|e| e.to_string())?;
+
+    let ts = now_slug_timestamp();
+    let file_stem = match kind {
+        BackupPackageKind::FullSnapshot => format!("baa_full_snapshot_{ts}"),
+        BackupPackageKind::SeriesPackage => {
+            let label = hint.unwrap_or("series");
+            format!("{}_{}_{}", package_kind_slug(kind), slugify(label), ts)
+        }
+        BackupPackageKind::NovelPackage => {
+            let label = hint.unwrap_or("novel");
+            format!("{}_{}_{}", package_kind_slug(kind), slugify(label), ts)
+        }
+    };
+
+    Ok(backups_dir.join(format!("{}.{}", file_stem, PACKAGE_EXTENSION)))
+}
+
+fn write_package_zip(
+    output_path: &Path,
+    manifest: &BackupManifest,
+    payload_db_path: &Path,
+    fs_entries: &[(String, PathBuf)],
+) -> Result<u64, String> {
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    let file = fs::File::create(output_path)
+        .map_err(|e| format!("Failed creating package '{}': {e}", output_path.display()))?;
+    let mut zip = ZipWriter::new(file);
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+
+    let manifest_json = serde_json::to_vec_pretty(manifest)
+        .map_err(|e| format!("Failed to serialize package manifest: {e}"))?;
+    zip.start_file("manifest.json", options)
+        .map_err(|e| format!("Failed adding manifest to package: {e}"))?;
+    zip.write_all(&manifest_json)
+        .map_err(|e| format!("Failed writing manifest to package: {e}"))?;
+
+    zip.start_file("db/payload.db", options)
+        .map_err(|e| format!("Failed adding DB payload to package: {e}"))?;
+    {
+        let mut file = fs::File::open(payload_db_path)
+            .map_err(|e| format!("Failed opening payload DB for package write: {e}"))?;
+        let mut buffer = [0u8; 8192];
+        loop {
+            let read = file
+                .read(&mut buffer)
+                .map_err(|e| format!("Failed reading payload DB during package write: {e}"))?;
+            if read == 0 {
+                break;
+            }
+            zip.write_all(&buffer[..read])
+                .map_err(|e| format!("Failed writing payload DB to package: {e}"))?;
+        }
+    }
+
+    let mut sorted_entries = fs_entries.to_vec();
+    sorted_entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+    for (archive_path, source_path) in sorted_entries {
+        ensure_archive_path_safe(&archive_path)?;
+        zip.start_file(&archive_path, options)
+            .map_err(|e| format!("Failed adding '{}' to package: {e}", archive_path))?;
+
+        let mut file = fs::File::open(&source_path).map_err(|e| {
+            format!(
+                "Failed opening source file '{}' for package write: {e}",
+                source_path.display()
+            )
+        })?;
+        let mut buffer = [0u8; 8192];
+        loop {
+            let read = file
+                .read(&mut buffer)
+                .map_err(|e| format!("Failed reading source file for package write: {e}"))?;
+            if read == 0 {
+                break;
+            }
+            zip.write_all(&buffer[..read])
+                .map_err(|e| format!("Failed writing '{}' to package: {e}", archive_path))?;
+        }
+    }
+
+    zip.finish()
+        .map_err(|e| format!("Failed finalizing package archive: {e}"))?;
+
+    let metadata = fs::metadata(output_path)
+        .map_err(|e| format!("Failed stat-ing package '{}': {e}", output_path.display()))?;
+    Ok(metadata.len())
+}
+
+fn build_package(
+    kind: BackupPackageKind,
+    output_path: Option<String>,
+    series_id: Option<String>,
+    project_id: Option<String>,
+) -> Result<BackupPackageSummary, String> {
+    let temp_dir = create_temp_dir("backup-package")?;
+    let payload_db_path = temp_dir.join("payload.db");
+    snapshot_live_db(&payload_db_path)?;
+
+    let (source_hint, fs_entries) = match kind {
+        BackupPackageKind::FullSnapshot => {
+            prune_full_snapshot_db(&payload_db_path)?;
+            let app_dir = get_app_dir()?;
+            let fs_entries = collect_full_snapshot_fs_entries(&app_dir)?;
+            (BackupSourceHints::default(), fs_entries)
+        }
+        BackupPackageKind::SeriesPackage => {
+            let sid = series_id.ok_or("Series package export requires series_id")?;
+            let series = series_by_id(&sid)?;
+            prune_series_package_db(&payload_db_path, &sid)?;
+
+            let conn = Connection::open(&payload_db_path)
+                .map_err(|e| format!("Failed opening pruned series payload DB: {e}"))?;
+            let projects = series_project_ids_and_paths(&conn, &sid)?;
+            let fs_entries = collect_project_manuscript_entries(&projects)?;
+
+            (
+                BackupSourceHints {
+                    series_id: Some(sid),
+                    series_title: Some(series.title),
+                    project_id: None,
+                    project_title: None,
+                },
+                fs_entries,
+            )
+        }
+        BackupPackageKind::NovelPackage => {
+            let pid = project_id.ok_or("Novel package export requires project_id")?;
+            let project = load_project_by_id(&pid)?;
+            prune_novel_package_db(&payload_db_path, &pid)?;
+
+            let seed = ProjectSeed {
+                id: project.id.clone(),
+                title: project.title.clone(),
+                author: project.author,
+                description: project.description,
+                path: project.path,
+                archived: project.archived,
+                language: project.language,
+                cover_image: project.cover_image,
+                series_id: project.series_id,
+                series_index: project.series_index,
+            };
+            let fs_entries = collect_project_manuscript_entries(&[seed])?;
+
+            (
+                BackupSourceHints {
+                    series_id: None,
+                    series_title: None,
+                    project_id: Some(project.id),
+                    project_title: Some(project.title),
+                },
+                fs_entries,
+            )
+        }
+    };
+
+    let payload_conn = Connection::open(&payload_db_path)
+        .map_err(|e| format!("Failed opening payload DB for manifest counts: {e}"))?;
+    let schema_version: i64 = payload_conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|e| format!("Failed reading payload schema version: {e}"))?;
+    let counts = compute_counts(&payload_conn)?;
+
+    let checksum = compute_package_checksum_from_files(&payload_db_path, &fs_entries)?;
+    let created_at = now_rfc3339();
+
+    let manifest = BackupManifest {
+        version: MANIFEST_VERSION,
+        kind,
+        created_at: created_at.clone(),
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        schema_version,
+        secrets_included: false,
+        artifacts_included: false,
+        counts,
+        source_hints: source_hint,
+        checksum: checksum.clone(),
+    };
+
+    let output_path = match output_path {
+        Some(path) => PathBuf::from(path),
+        None => {
+            let hint = manifest
+                .source_hints
+                .series_title
+                .as_deref()
+                .or(manifest.source_hints.project_title.as_deref());
+            default_output_path(kind, hint)?
+        }
+    };
+
+    let size_bytes = write_package_zip(&output_path, &manifest, &payload_db_path, &fs_entries)?;
+
+    let summary = BackupPackageSummary {
+        kind,
+        path: output_path.to_string_lossy().to_string(),
+        file_name: output_path
+            .file_name()
+            .and_then(OsStr::to_str)
+            .unwrap_or("backup.baa")
+            .to_string(),
+        size_bytes,
+        created_at,
+        sha256: checksum,
+    };
+
+    let _ = fs::remove_dir_all(&temp_dir);
+
+    Ok(summary)
+}
+
+fn is_supported_package_path(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|ext| ext.eq_ignore_ascii_case(PACKAGE_EXTENSION))
+}
+
+fn write_zip_entry_with_digest<R: Read>(
+    mut reader: R,
+    output_path: &Path,
+) -> Result<String, String> {
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    let mut file = fs::File::create(output_path).map_err(|e| {
+        format!(
+            "Failed creating extracted file '{}': {e}",
+            output_path.display()
+        )
+    })?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+
+    loop {
+        let read = reader
+            .read(&mut buffer)
+            .map_err(|e| format!("Failed reading zip entry: {e}"))?;
+        if read == 0 {
+            break;
+        }
+
+        file.write_all(&buffer[..read]).map_err(|e| {
+            format!(
+                "Failed writing extracted file '{}': {e}",
+                output_path.display()
+            )
+        })?;
+        hasher.update(&buffer[..read]);
+    }
+
+    Ok(to_hex(&hasher.finalize()))
+}
+
+fn digest_zip_entry<R: Read>(mut reader: R) -> Result<String, String> {
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+
+    loop {
+        let read = reader
+            .read(&mut buffer)
+            .map_err(|e| format!("Failed reading zip entry: {e}"))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+
+    Ok(to_hex(&hasher.finalize()))
+}
+
+fn read_manifest_file(path: &Path) -> Result<BackupManifest, String> {
+    let manifest_json = fs::read_to_string(path)
+        .map_err(|e| format!("Failed reading manifest '{}': {e}", path.display()))?;
+    serde_json::from_str::<BackupManifest>(&manifest_json)
+        .map_err(|e| format!("Failed parsing backup manifest: {e}"))
+}
+
+fn prepare_package(path: &str, extract_fs: bool) -> Result<PreparedPackage, String> {
+    if !is_supported_package_path(path) {
+        return Err("Unsupported backup package extension. Expected .baa".to_string());
+    }
+
+    let package_path = PathBuf::from(path);
+    if !package_path.exists() {
+        return Err("Backup package not found".to_string());
+    }
+
+    let file = fs::File::open(&package_path)
+        .map_err(|e| format!("Failed opening package '{}': {e}", package_path.display()))?;
+    let mut archive =
+        ZipArchive::new(file).map_err(|e| format!("Failed reading package archive: {e}"))?;
+
+    let temp_dir = create_temp_dir("backup-import")?;
+    let manifest_path = temp_dir.join("manifest.json");
+    let payload_db_path = temp_dir.join("payload.db");
+    let fs_root = temp_dir.join("fs");
+
+    let mut db_digest: Option<String> = None;
+    let mut fs_digests: Vec<(String, String)> = Vec::new();
+    let mut saw_manifest = false;
+    let mut saw_db = false;
+
+    for i in 0..archive.len() {
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| format!("Failed reading zip entry: {e}"))?;
+
+        let entry_name = entry.name().to_string();
+        if entry_name.ends_with('/') {
+            continue;
+        }
+
+        ensure_archive_path_safe(&entry_name)?;
+
+        match entry_name.as_str() {
+            "manifest.json" => {
+                let digest = write_zip_entry_with_digest(&mut entry, &manifest_path)?;
+                saw_manifest = true;
+                let _ = digest;
+            }
+            "db/payload.db" => {
+                let digest = write_zip_entry_with_digest(&mut entry, &payload_db_path)?;
+                db_digest = Some(digest);
+                saw_db = true;
+            }
+            _ if entry_name.starts_with("fs/") => {
+                let relative = Path::new(&entry_name)
+                    .strip_prefix("fs")
+                    .map_err(|e| format!("Invalid fs entry path '{}': {e}", entry_name))?;
+                let target = fs_root.join(relative);
+                if extract_fs {
+                    let digest = write_zip_entry_with_digest(&mut entry, &target)?;
+                    fs_digests.push((entry_name, digest));
+                } else {
+                    let digest = digest_zip_entry(&mut entry)?;
+                    fs_digests.push((entry_name, digest));
+                }
+            }
+            _ => {
                 return Err(format!(
-                    "Chat message '{}' references missing thread '{}'",
-                    message.id, message.thread_id
+                    "Unsupported package entry '{}'. Only manifest/db/fs entries are allowed",
+                    entry_name
                 ));
             }
-            crate::commands::chat::create_chat_message(project_path.to_string(), message)?;
         }
     }
 
-    Ok(())
-}
-
-fn parse_codex_entries(
-    imported_series_id: &str,
-    project_id_map: &HashMap<String, String>,
-    codex_values: Option<&Vec<serde_json::Value>>,
-) -> Result<(), String> {
-    let Some(codex_values) = codex_values else {
-        return Ok(());
-    };
-
-    for (index, value) in codex_values.iter().enumerate() {
-        let mut entry: CodexEntry = serde_json::from_value(value.clone())
-            .map_err(|e| format!("Invalid codex entry payload at index {}: {}", index, e))?;
-        if let Some(old_project_id) = entry.project_id.clone() {
-            entry.project_id = project_id_map.get(&old_project_id).cloned();
-        }
-        crate::commands::series::save_series_codex_entry(imported_series_id.to_string(), entry)?;
+    if !saw_manifest {
+        return Err("Invalid package: missing manifest.json".to_string());
+    }
+    if !saw_db {
+        return Err("Invalid package: missing db/payload.db".to_string());
     }
 
-    Ok(())
-}
-
-fn parse_codex_relations(
-    imported_series_id: &str,
-    project_id_map: &HashMap<String, String>,
-    relation_values: Option<&Vec<serde_json::Value>>,
-) -> Result<(), String> {
-    let Some(relation_values) = relation_values else {
-        return Ok(());
-    };
-
-    for (index, value) in relation_values.iter().enumerate() {
-        let mut relation: CodexRelation = serde_json::from_value(value.clone())
-            .map_err(|e| format!("Invalid codex relation payload at index {}: {}", index, e))?;
-        if let Some(old_project_id) = relation.project_id.clone() {
-            relation.project_id = project_id_map.get(&old_project_id).cloned();
-        }
-        crate::commands::series::save_series_codex_relation(
-            imported_series_id.to_string(),
-            relation,
-        )?;
+    let manifest = read_manifest_file(&manifest_path)?;
+    if manifest.version != MANIFEST_VERSION {
+        return Err(format!(
+            "Unsupported package manifest version {}",
+            manifest.version
+        ));
     }
 
-    Ok(())
-}
+    let expected_checksum = compute_package_checksum_from_digests(
+        db_digest.ok_or("Failed computing db digest from package")?,
+        fs_digests,
+    )?;
+    if manifest.checksum != expected_checksum {
+        return Err("Package checksum mismatch".to_string());
+    }
 
-fn read_project_payload_id(project_payload: &serde_json::Value) -> Option<String> {
-    project_payload
-        .get("id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
+    let payload_conn = Connection::open(&payload_db_path)
+        .map_err(|e| format!("Failed opening payload DB from package: {e}"))?;
+    let payload_schema_version: i64 = payload_conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|e| format!("Failed reading payload schema version: {e}"))?;
+
+    if payload_schema_version != manifest.schema_version {
+        return Err(format!(
+            "Package schema mismatch: manifest={} payload={}.",
+            manifest.schema_version, payload_schema_version
+        ));
+    }
+
+    let local_schema_version = get_local_schema_version()?;
+    if payload_schema_version != local_schema_version {
+        return Err(format!(
+            "Incompatible package schema {} (local app schema is {}).",
+            payload_schema_version, local_schema_version
+        ));
+    }
+
+    Ok(PreparedPackage {
+        manifest,
+        payload_db_path,
+        fs_root: if extract_fs { Some(fs_root) } else { None },
+        _temp_dir: temp_dir,
+    })
 }
 
 fn create_project_with_unique_series_index(
@@ -503,7 +1424,7 @@ fn create_project_with_unique_series_index(
         base.clone()
     };
 
-    for attempt in 0..50 {
+    for attempt in 0..100 {
         match crate::commands::project::create_project(
             title.clone(),
             author.clone(),
@@ -522,316 +1443,1421 @@ fn create_project_with_unique_series_index(
     Err("Failed to allocate unique series index for imported project".to_string())
 }
 
-#[derive(Default)]
-struct ImportRollbackContext {
-    created_series_id: Option<String>,
-    created_project_paths: Vec<String>,
+fn clone_project_from_seed(
+    seed: &ProjectSeed,
+    target_series_id: &str,
+) -> Result<ProjectMeta, String> {
+    let mut project = create_project_with_unique_series_index(
+        seed.title.clone(),
+        seed.author.clone(),
+        target_series_id.to_string(),
+        seed.series_index.clone(),
+    )?;
+
+    let updates = serde_json::json!({
+        "description": seed.description,
+        "archived": seed.archived,
+        "language": seed.language,
+        "coverImage": seed.cover_image
+    });
+    project = crate::commands::project::update_project(project.path.clone(), updates)?;
+
+    Ok(project)
 }
 
-fn hard_delete_project_rows(conn: &Connection, project_path: &str) -> Result<(), String> {
-    let project_id: Option<String> = conn
-        .query_row(
-            "SELECT id FROM projects WHERE path = ?1",
-            params![project_path],
-            |row| row.get(0),
+fn read_structure_rows(
+    conn: &Connection,
+    project_id: &str,
+) -> Result<Vec<StructureNodeRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT id, parent_id, node_type, title, order_index, scene_file
+            FROM structure_nodes
+            WHERE project_id = ?1
+            ORDER BY order_index ASC
+            "#,
         )
-        .optional()
-        .map_err(|e| format!("Failed to resolve project id for rollback: {e}"))?;
+        .map_err(|e| format!("Failed preparing structure row query: {e}"))?;
 
-    conn.execute(
-        "DELETE FROM recent_projects WHERE project_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback recent project row: {e}"))?;
-    conn.execute(
-        "DELETE FROM deleted_projects WHERE original_path = ?1 OR trash_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback deleted project row: {e}"))?;
-    conn.execute(
-        "DELETE FROM chat_messages WHERE project_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback chat messages: {e}"))?;
-    conn.execute(
-        "DELETE FROM chat_threads WHERE project_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback chat threads: {e}"))?;
-    conn.execute(
-        "DELETE FROM yjs_snapshots WHERE project_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback yjs snapshots: {e}"))?;
-    conn.execute(
-        "DELETE FROM yjs_update_log WHERE project_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback yjs update log: {e}"))?;
-    conn.execute(
-        "DELETE FROM search_index WHERE project_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback search index rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM search_sync_state WHERE project_path = ?1",
-        params![project_path],
-    )
-    .map_err(|e| format!("Failed to rollback search sync rows: {e}"))?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok(StructureNodeRow {
+                id: row.get(0)?,
+                parent_id: row.get(1)?,
+                node_type: row.get(2)?,
+                title: row.get(3)?,
+                order_index: row.get(4)?,
+                scene_file: row.get(5)?,
+            })
+        })
+        .map_err(|e| format!("Failed querying structure rows: {e}"))?;
 
-    if let Some(project_id) = project_id {
-        conn.execute(
-            "DELETE FROM structure_nodes WHERE project_id = ?1",
-            params![project_id],
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(row.map_err(|e| format!("Failed decoding structure row: {e}"))?);
+    }
+    Ok(result)
+}
+
+fn build_structure_tree_with_remapped_ids(
+    rows: Vec<StructureNodeRow>,
+) -> (Vec<StructureNode>, HashMap<String, String>) {
+    let mut grouped: HashMap<Option<String>, Vec<StructureNodeRow>> = HashMap::new();
+    for row in rows {
+        grouped.entry(row.parent_id.clone()).or_default().push(row);
+    }
+
+    for list in grouped.values_mut() {
+        list.sort_by(|a, b| a.order_index.cmp(&b.order_index));
+    }
+
+    let mut id_map: HashMap<String, String> = HashMap::new();
+
+    fn build_nodes(
+        grouped: &mut HashMap<Option<String>, Vec<StructureNodeRow>>,
+        parent_id: Option<String>,
+        id_map: &mut HashMap<String, String>,
+    ) -> Vec<StructureNode> {
+        let rows = grouped.remove(&parent_id).unwrap_or_default();
+
+        rows.into_iter()
+            .map(|row| {
+                let new_id = uuid::Uuid::new_v4().to_string();
+                id_map.insert(row.id.clone(), new_id.clone());
+                let children = build_nodes(grouped, Some(row.id), id_map);
+                StructureNode {
+                    id: new_id,
+                    node_type: row.node_type,
+                    title: row.title,
+                    order: row.order_index,
+                    children,
+                    file: row.scene_file,
+                }
+            })
+            .collect()
+    }
+
+    let tree = build_nodes(&mut grouped, None, &mut id_map);
+    (tree, id_map)
+}
+
+fn upsert_scene_metadata_row(
+    conn: &Connection,
+    project_id: &str,
+    scene_id: &str,
+    scene_file: &str,
+    title: &str,
+    order_index: i32,
+    status: &str,
+    word_count: i32,
+    pov_character: Option<String>,
+    subtitle: Option<String>,
+    labels_json: &str,
+    exclude_from_ai: bool,
+    summary: &str,
+    archived: bool,
+    created_at: i64,
+    updated_at: i64,
+) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO scene_metadata(
+            scene_id, project_id, scene_file, title, order_index, status, word_count,
+            pov_character, subtitle, labels_json, exclude_from_ai, summary, archived,
+            created_at, updated_at
         )
-        .map_err(|e| format!("Failed to rollback structure rows: {e}"))?;
-        conn.execute(
-            "DELETE FROM scene_metadata WHERE project_id = ?1",
-            params![project_id],
-        )
-        .map_err(|e| format!("Failed to rollback scene metadata rows: {e}"))?;
-        conn.execute(
-            "DELETE FROM snippets WHERE project_id = ?1",
-            params![project_id],
-        )
-        .map_err(|e| format!("Failed to rollback snippets: {e}"))?;
-        conn.execute(
-            "DELETE FROM scene_notes WHERE project_id = ?1",
-            params![project_id],
-        )
-        .map_err(|e| format!("Failed to rollback scene notes: {e}"))?;
-        conn.execute("DELETE FROM projects WHERE id = ?1", params![project_id])
-            .map_err(|e| format!("Failed to rollback project row: {e}"))?;
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+        ON CONFLICT(scene_id) DO UPDATE SET
+            project_id = excluded.project_id,
+            scene_file = excluded.scene_file,
+            title = excluded.title,
+            order_index = excluded.order_index,
+            status = excluded.status,
+            word_count = excluded.word_count,
+            pov_character = excluded.pov_character,
+            subtitle = excluded.subtitle,
+            labels_json = excluded.labels_json,
+            exclude_from_ai = excluded.exclude_from_ai,
+            summary = excluded.summary,
+            archived = excluded.archived,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            scene_id,
+            project_id,
+            scene_file,
+            title,
+            order_index,
+            status,
+            word_count,
+            pov_character,
+            subtitle,
+            labels_json,
+            bool_to_sql(exclude_from_ai),
+            summary,
+            bool_to_sql(archived),
+            created_at,
+            updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to upsert cloned scene metadata row: {e}"))?;
+
+    Ok(())
+}
+
+fn copy_directory_recursive(src: &Path, dest: &Path) -> Result<(), String> {
+    if !src.exists() {
+        return Ok(());
+    }
+
+    for entry in WalkDir::new(src) {
+        let entry = entry.map_err(|e| format!("Failed walking '{}': {e}", src.display()))?;
+        let relative = entry
+            .path()
+            .strip_prefix(src)
+            .map_err(|e| format!("Failed deriving relative path while copying directory: {e}"))?;
+        let target_path = dest.join(relative);
+
+        if entry.file_type().is_dir() {
+            fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
+        } else if entry.file_type().is_file() {
+            if let Some(parent) = target_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            fs::copy(entry.path(), &target_path).map_err(|e| {
+                format!(
+                    "Failed copying '{}' to '{}': {e}",
+                    entry.path().display(),
+                    target_path.display()
+                )
+            })?;
+        }
     }
 
     Ok(())
 }
 
-impl ImportRollbackContext {
-    fn track_series(&mut self, series_id: String) {
-        self.created_series_id = Some(series_id);
+fn restore_project_artifacts(
+    fs_root: &Path,
+    old_project_id: &str,
+    new_project_path: &str,
+) -> Result<(), String> {
+    let source = fs_root
+        .join("projects")
+        .join(old_project_id)
+        .join("manuscript");
+    let target = PathBuf::from(new_project_path).join("manuscript");
+    copy_directory_recursive(&source, &target)
+}
+
+fn import_project_payload(
+    payload_conn: &Connection,
+    app_conn: &Connection,
+    fs_root: &Path,
+    seed: &ProjectSeed,
+    target_series_id: &str,
+) -> Result<(ProjectMeta, HashMap<String, String>), String> {
+    let cloned_project = clone_project_from_seed(seed, target_series_id)?;
+
+    let structure_rows = read_structure_rows(payload_conn, &seed.id)?;
+    let (structure, mut scene_id_map) = build_structure_tree_with_remapped_ids(structure_rows);
+    if !structure.is_empty() {
+        crate::commands::project::save_structure(cloned_project.path.clone(), structure)?;
     }
 
-    fn track_project_path(&mut self, project_path: String) {
-        self.created_project_paths.push(project_path);
+    restore_project_artifacts(fs_root, &seed.id, &cloned_project.path)?;
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                r#"
+                SELECT scene_id, scene_file, title, order_index, status, word_count,
+                       pov_character, subtitle, labels_json, exclude_from_ai,
+                       summary, archived, created_at, updated_at
+                FROM scene_metadata
+                WHERE project_id = ?1
+                ORDER BY order_index ASC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing scene metadata import query: {e}"))?;
+
+        let rows = stmt
+            .query_map(params![seed.id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i32>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, i32>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, i64>(9)? != 0,
+                    row.get::<_, String>(10)?,
+                    row.get::<_, i64>(11)? != 0,
+                    row.get::<_, i64>(12)?,
+                    row.get::<_, i64>(13)?,
+                ))
+            })
+            .map_err(|e| format!("Failed querying scene metadata for import: {e}"))?;
+
+        for row in rows {
+            let (
+                old_scene_id,
+                scene_file,
+                title,
+                order_index,
+                status,
+                word_count,
+                pov_character,
+                subtitle,
+                labels_json,
+                exclude_from_ai,
+                summary,
+                archived,
+                created_at,
+                updated_at,
+            ) = row.map_err(|e| format!("Failed decoding scene metadata import row: {e}"))?;
+
+            validate_no_null_bytes(&scene_file, "Scene file")?;
+            let remapped_scene_id = scene_id_map
+                .entry(old_scene_id)
+                .or_insert_with(|| uuid::Uuid::new_v4().to_string())
+                .clone();
+
+            upsert_scene_metadata_row(
+                app_conn,
+                &cloned_project.id,
+                &remapped_scene_id,
+                &scene_file,
+                &title,
+                order_index,
+                &status,
+                word_count,
+                pov_character,
+                subtitle,
+                &labels_json,
+                exclude_from_ai,
+                &summary,
+                archived,
+                created_at,
+                updated_at,
+            )?;
+        }
     }
 
-    fn rollback(self) {
-        let Ok(conn) = open_app_db() else {
-            return;
-        };
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                r#"
+                SELECT id, title, content_json, pinned, created_at, updated_at
+                FROM snippets
+                WHERE project_id = ?1
+                ORDER BY updated_at DESC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing snippets import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![seed.id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)? != 0,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)?,
+                ))
+            })
+            .map_err(|e| format!("Failed querying snippets for import: {e}"))?;
 
-        for project_path in self.created_project_paths.iter().rev() {
-            let _ = hard_delete_project_rows(&conn, project_path);
-            let project_dir = PathBuf::from(project_path);
-            if project_dir.exists() {
-                let _ = fs::remove_dir_all(project_dir);
+        for row in rows {
+            let (_, title, content_json, pinned, created_at, updated_at) =
+                row.map_err(|e| format!("Failed decoding snippet import row: {e}"))?;
+            let content = serde_json::from_str::<serde_json::Value>(&content_json)
+                .map_err(|e| format!("Invalid snippet payload during import: {e}"))?;
+            let snippet = Snippet {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: cloned_project.id.clone(),
+                title,
+                content,
+                pinned,
+                created_at,
+                updated_at,
+            };
+            crate::commands::snippet::save_snippet(cloned_project.path.clone(), snippet)?;
+        }
+    }
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                r#"
+                SELECT id, scene_id, content_json, created_at, updated_at
+                FROM scene_notes
+                WHERE project_id = ?1
+                ORDER BY updated_at DESC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing scene-note import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![seed.id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                ))
+            })
+            .map_err(|e| format!("Failed querying scene notes for import: {e}"))?;
+
+        for row in rows {
+            let (_, old_scene_id, content_json, created_at, updated_at) =
+                row.map_err(|e| format!("Failed decoding scene note import row: {e}"))?;
+            let content = serde_json::from_str::<serde_json::Value>(&content_json)
+                .map_err(|e| format!("Invalid scene note payload during import: {e}"))?;
+            let remapped_scene_id = scene_id_map
+                .entry(old_scene_id)
+                .or_insert_with(|| uuid::Uuid::new_v4().to_string())
+                .clone();
+            let note = SceneNote {
+                id: uuid::Uuid::new_v4().to_string(),
+                scene_id: remapped_scene_id,
+                project_id: cloned_project.id.clone(),
+                content,
+                created_at,
+                updated_at,
+            };
+            crate::commands::scene_note::save_scene_note(cloned_project.path.clone(), note)?;
+        }
+    }
+
+    {
+        let mut thread_id_map: HashMap<String, String> = HashMap::new();
+
+        let mut thread_stmt = payload_conn
+            .prepare(
+                r#"
+                SELECT id, name, pinned, archived, deleted_at, default_model, created_at, updated_at
+                FROM chat_threads
+                WHERE project_path = ?1
+                ORDER BY updated_at DESC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing chat-thread import query: {e}"))?;
+        let thread_rows = thread_stmt
+            .query_map(params![seed.path.clone()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)? != 0,
+                    row.get::<_, i64>(3)? != 0,
+                    row.get::<_, Option<i64>>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, i64>(7)?,
+                ))
+            })
+            .map_err(|e| format!("Failed querying chat threads for import: {e}"))?;
+
+        for row in thread_rows {
+            let (
+                old_thread_id,
+                name,
+                pinned,
+                archived,
+                deleted_at,
+                default_model,
+                created_at,
+                updated_at,
+            ) = row.map_err(|e| format!("Failed decoding chat-thread import row: {e}"))?;
+
+            let thread = ChatThread {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: cloned_project.id.clone(),
+                name,
+                pinned,
+                archived,
+                deleted_at,
+                default_model,
+                created_at,
+                updated_at,
+            };
+            let created =
+                crate::commands::chat::create_chat_thread(cloned_project.path.clone(), thread)?;
+            thread_id_map.insert(old_thread_id, created.id);
+        }
+
+        let mut message_stmt = payload_conn
+            .prepare(
+                r#"
+                SELECT id, thread_id, role, content, model, timestamp
+                FROM chat_messages
+                WHERE project_path = ?1
+                ORDER BY timestamp ASC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing chat-message import query: {e}"))?;
+        let message_rows = message_stmt
+            .query_map(params![seed.path.clone()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, i64>(5)?,
+                ))
+            })
+            .map_err(|e| format!("Failed querying chat messages for import: {e}"))?;
+
+        for row in message_rows {
+            let (_old_message_id, old_thread_id, role, content, model, timestamp) =
+                row.map_err(|e| format!("Failed decoding chat-message import row: {e}"))?;
+            let Some(new_thread_id) = thread_id_map.get(&old_thread_id).cloned() else {
+                continue;
+            };
+            let message = ChatMessage {
+                id: uuid::Uuid::new_v4().to_string(),
+                thread_id: new_thread_id,
+                role,
+                content,
+                model,
+                timestamp,
+            };
+            crate::commands::chat::create_chat_message(cloned_project.path.clone(), message)?;
+        }
+    }
+
+    {
+        let mut snap_stmt = payload_conn
+            .prepare(
+                r#"
+                SELECT scene_id, update_blob, saved_at
+                FROM yjs_snapshots
+                WHERE project_path = ?1
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing yjs snapshot import query: {e}"))?;
+        let snap_rows = snap_stmt
+            .query_map(params![seed.path.clone()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })
+            .map_err(|e| format!("Failed querying yjs snapshots for import: {e}"))?;
+
+        for row in snap_rows {
+            let (old_scene_id, update_blob, saved_at) =
+                row.map_err(|e| format!("Failed decoding yjs snapshot import row: {e}"))?;
+            let remapped_scene_id = scene_id_map
+                .entry(old_scene_id)
+                .or_insert_with(|| uuid::Uuid::new_v4().to_string())
+                .clone();
+            app_conn
+                .execute(
+                    r#"
+                    INSERT OR REPLACE INTO yjs_snapshots(project_path, scene_id, update_blob, saved_at)
+                    VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                    params![
+                        cloned_project.path,
+                        remapped_scene_id,
+                        update_blob,
+                        saved_at
+                    ],
+                )
+                .map_err(|e| format!("Failed importing yjs snapshot row: {e}"))?;
+        }
+
+        let mut log_stmt = payload_conn
+            .prepare(
+                r#"
+                SELECT scene_id, update_blob, saved_at
+                FROM yjs_update_log
+                WHERE project_path = ?1
+                ORDER BY seq ASC
+                "#,
+            )
+            .map_err(|e| format!("Failed preparing yjs update-log import query: {e}"))?;
+        let log_rows = log_stmt
+            .query_map(params![seed.path.clone()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })
+            .map_err(|e| format!("Failed querying yjs update logs for import: {e}"))?;
+
+        for row in log_rows {
+            let (old_scene_id, update_blob, saved_at) =
+                row.map_err(|e| format!("Failed decoding yjs update-log import row: {e}"))?;
+            let remapped_scene_id = scene_id_map
+                .entry(old_scene_id)
+                .or_insert_with(|| uuid::Uuid::new_v4().to_string())
+                .clone();
+            app_conn
+                .execute(
+                    r#"
+                    INSERT INTO yjs_update_log(project_path, scene_id, update_blob, saved_at)
+                    VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                    params![
+                        cloned_project.path,
+                        remapped_scene_id,
+                        update_blob,
+                        saved_at
+                    ],
+                )
+                .map_err(|e| format!("Failed importing yjs update-log row: {e}"))?;
+        }
+    }
+
+    Ok((cloned_project, scene_id_map))
+}
+
+fn upsert_codex_tag(conn: &Connection, series_id: &str, tag: &CodexTag) -> Result<(), String> {
+    let payload_json = serde_json::to_string(tag).map_err(|e| e.to_string())?;
+    conn.execute(
+        r#"
+        INSERT INTO codex_tags(id, series_id, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            tag.id,
+            series_id,
+            payload_json,
+            tag.created_at,
+            tag.updated_at
+        ],
+    )
+    .map_err(|e| format!("Failed upserting imported codex tag: {e}"))?;
+    Ok(())
+}
+
+fn upsert_codex_entry_tag(
+    conn: &Connection,
+    series_id: &str,
+    entry_tag: &CodexEntryTag,
+) -> Result<(), String> {
+    let payload_json = serde_json::to_string(entry_tag).map_err(|e| e.to_string())?;
+    conn.execute(
+        r#"
+        INSERT INTO codex_entry_tags(id, series_id, entry_id, tag_id, payload_json)
+        VALUES (?1, ?2, ?3, ?4, ?5)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            entry_id = excluded.entry_id,
+            tag_id = excluded.tag_id,
+            payload_json = excluded.payload_json
+        "#,
+        params![
+            entry_tag.id,
+            series_id,
+            entry_tag.entry_id,
+            entry_tag.tag_id,
+            payload_json
+        ],
+    )
+    .map_err(|e| format!("Failed upserting imported codex entry tag: {e}"))?;
+    Ok(())
+}
+
+fn upsert_codex_template(
+    conn: &Connection,
+    series_id: &str,
+    template: &CodexTemplate,
+) -> Result<(), String> {
+    let payload_json = serde_json::to_string(template).map_err(|e| e.to_string())?;
+    conn.execute(
+        r#"
+        INSERT INTO codex_templates(id, series_id, payload_json, created_at)
+        VALUES (?1, ?2, ?3, ?4)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            payload_json = excluded.payload_json,
+            created_at = excluded.created_at
+        "#,
+        params![template.id, series_id, payload_json, template.created_at],
+    )
+    .map_err(|e| format!("Failed upserting imported codex template: {e}"))?;
+    Ok(())
+}
+
+fn upsert_codex_relation_type(
+    conn: &Connection,
+    series_id: &str,
+    relation_type: &CodexRelationType,
+) -> Result<(), String> {
+    let payload_json = serde_json::to_string(relation_type).map_err(|e| e.to_string())?;
+    conn.execute(
+        r#"
+        INSERT INTO codex_relation_types(id, series_id, payload_json)
+        VALUES (?1, ?2, ?3)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            payload_json = excluded.payload_json
+        "#,
+        params![relation_type.id, series_id, payload_json],
+    )
+    .map_err(|e| format!("Failed upserting imported codex relation type: {e}"))?;
+    Ok(())
+}
+
+fn upsert_scene_codex_link(
+    conn: &Connection,
+    series_id: &str,
+    link: &SceneCodexLink,
+) -> Result<(), String> {
+    let payload_json = serde_json::to_string(link).map_err(|e| e.to_string())?;
+    conn.execute(
+        r#"
+        INSERT INTO scene_codex_links(id, series_id, scene_id, codex_id, payload_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ON CONFLICT(id) DO UPDATE SET
+            series_id = excluded.series_id,
+            scene_id = excluded.scene_id,
+            codex_id = excluded.codex_id,
+            payload_json = excluded.payload_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            link.id,
+            series_id,
+            link.scene_id,
+            link.codex_id,
+            payload_json,
+            link.created_at,
+            link.updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed upserting imported scene codex link: {e}"))?;
+    Ok(())
+}
+
+fn import_codex_graph(
+    payload_conn: &Connection,
+    app_conn: &Connection,
+    old_series_id: &str,
+    target_series_id: &str,
+    project_id_map: &HashMap<String, String>,
+    scene_id_map: &HashMap<String, String>,
+) -> Result<(), String> {
+    let mut relation_type_map: HashMap<String, String> = HashMap::new();
+    let mut template_map: HashMap<String, String> = HashMap::new();
+    let mut entry_map: HashMap<String, String> = HashMap::new();
+    let mut tag_map: HashMap<String, String> = HashMap::new();
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                "SELECT payload_json FROM codex_relation_types WHERE series_id = ?1 ORDER BY id ASC",
+            )
+            .map_err(|e| format!("Failed preparing relation-type import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![old_series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying relation-type payloads: {e}"))?;
+
+        for row in rows {
+            let payload = row.map_err(|e| format!("Failed decoding relation-type payload: {e}"))?;
+            let mut rel_type: CodexRelationType = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid relation-type payload in package: {e}"))?;
+            let old_id = rel_type.id.clone();
+            rel_type.id = uuid::Uuid::new_v4().to_string();
+            relation_type_map.insert(old_id, rel_type.id.clone());
+            upsert_codex_relation_type(app_conn, target_series_id, &rel_type)?;
+        }
+    }
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                "SELECT payload_json FROM codex_templates WHERE series_id = ?1 ORDER BY created_at DESC",
+            )
+            .map_err(|e| format!("Failed preparing template import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![old_series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying template payloads: {e}"))?;
+
+        for row in rows {
+            let payload = row.map_err(|e| format!("Failed decoding template payload: {e}"))?;
+            let mut template: CodexTemplate = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid template payload in package: {e}"))?;
+            let old_id = template.id.clone();
+            template.id = uuid::Uuid::new_v4().to_string();
+            template_map.insert(old_id, template.id.clone());
+            upsert_codex_template(app_conn, target_series_id, &template)?;
+        }
+    }
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                "SELECT payload_json FROM codex_entries WHERE series_id = ?1 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| format!("Failed preparing codex-entry import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![old_series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying codex-entry payloads: {e}"))?;
+
+        for row in rows {
+            let payload = row.map_err(|e| format!("Failed decoding codex-entry payload: {e}"))?;
+            let mut entry: CodexEntry = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid codex-entry payload in package: {e}"))?;
+
+            let old_id = entry.id.clone();
+            entry.id = uuid::Uuid::new_v4().to_string();
+            if let Some(old_project_id) = entry.project_id.clone() {
+                entry.project_id = project_id_map.get(&old_project_id).cloned();
             }
+            if let Some(old_template_id) = entry.template_id.clone() {
+                entry.template_id = template_map.get(&old_template_id).cloned();
+            }
+
+            let payload_json = serde_json::to_string(&entry).map_err(|e| e.to_string())?;
+            let aliases_json = serde_json::to_string(&entry.aliases).map_err(|e| e.to_string())?;
+            app_conn
+                .execute(
+                    r#"
+                    INSERT INTO codex_entries(id, series_id, category, name, aliases_json, payload_json, created_at, updated_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                    ON CONFLICT(id) DO UPDATE SET
+                        series_id = excluded.series_id,
+                        category = excluded.category,
+                        name = excluded.name,
+                        aliases_json = excluded.aliases_json,
+                        payload_json = excluded.payload_json,
+                        updated_at = excluded.updated_at
+                    "#,
+                    params![
+                        entry.id,
+                        target_series_id,
+                        entry.category,
+                        entry.name,
+                        aliases_json,
+                        payload_json,
+                        entry.created_at,
+                        entry.updated_at,
+                    ],
+                )
+                .map_err(|e| format!("Failed inserting imported codex entry: {e}"))?;
+
+            entry_map.insert(old_id, entry.id);
+        }
+    }
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                "SELECT payload_json FROM codex_tags WHERE series_id = ?1 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| format!("Failed preparing codex-tag import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![old_series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying codex-tag payloads: {e}"))?;
+
+        for row in rows {
+            let payload = row.map_err(|e| format!("Failed decoding codex-tag payload: {e}"))?;
+            let mut tag: CodexTag = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid codex-tag payload in package: {e}"))?;
+            let old_id = tag.id.clone();
+            tag.id = uuid::Uuid::new_v4().to_string();
+            if let Some(old_project_id) = tag.project_id.clone() {
+                tag.project_id = project_id_map.get(&old_project_id).cloned();
+            }
+            tag_map.insert(old_id, tag.id.clone());
+            upsert_codex_tag(app_conn, target_series_id, &tag)?;
+        }
+    }
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                "SELECT payload_json FROM codex_entry_tags WHERE series_id = ?1 ORDER BY id ASC",
+            )
+            .map_err(|e| format!("Failed preparing codex-entry-tag import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![old_series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying codex-entry-tag payloads: {e}"))?;
+
+        for row in rows {
+            let payload =
+                row.map_err(|e| format!("Failed decoding codex-entry-tag payload: {e}"))?;
+            let mut entry_tag: CodexEntryTag = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid codex-entry-tag payload in package: {e}"))?;
+            let Some(mapped_entry_id) = entry_map.get(&entry_tag.entry_id).cloned() else {
+                continue;
+            };
+            let Some(mapped_tag_id) = tag_map.get(&entry_tag.tag_id).cloned() else {
+                continue;
+            };
+
+            entry_tag.id = uuid::Uuid::new_v4().to_string();
+            entry_tag.entry_id = mapped_entry_id;
+            entry_tag.tag_id = mapped_tag_id;
+            upsert_codex_entry_tag(app_conn, target_series_id, &entry_tag)?;
+        }
+    }
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                "SELECT payload_json FROM codex_relations WHERE series_id = ?1 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| format!("Failed preparing codex-relation import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![old_series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying codex-relation payloads: {e}"))?;
+
+        for row in rows {
+            let payload =
+                row.map_err(|e| format!("Failed decoding codex-relation payload: {e}"))?;
+            let mut relation: CodexRelation = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid codex-relation payload in package: {e}"))?;
+
+            let Some(parent_id) = entry_map.get(&relation.parent_id).cloned() else {
+                continue;
+            };
+            let Some(child_id) = entry_map.get(&relation.child_id).cloned() else {
+                continue;
+            };
+
+            relation.id = uuid::Uuid::new_v4().to_string();
+            relation.parent_id = parent_id;
+            relation.child_id = child_id;
+            if let Some(old_project_id) = relation.project_id.clone() {
+                relation.project_id = project_id_map.get(&old_project_id).cloned();
+            }
+            if let Some(old_type_id) = relation.type_id.clone() {
+                relation.type_id = relation_type_map.get(&old_type_id).cloned();
+            }
+
+            let payload_json = serde_json::to_string(&relation).map_err(|e| e.to_string())?;
+            app_conn
+                .execute(
+                    r#"
+                    INSERT INTO codex_relations(id, series_id, parent_id, child_id, payload_json, created_at, updated_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                    ON CONFLICT(id) DO UPDATE SET
+                        series_id = excluded.series_id,
+                        parent_id = excluded.parent_id,
+                        child_id = excluded.child_id,
+                        payload_json = excluded.payload_json,
+                        updated_at = excluded.updated_at
+                    "#,
+                    params![
+                        relation.id,
+                        target_series_id,
+                        relation.parent_id,
+                        relation.child_id,
+                        payload_json,
+                        relation.created_at,
+                        relation.updated_at,
+                    ],
+                )
+                .map_err(|e| format!("Failed inserting imported codex relation: {e}"))?;
+        }
+    }
+
+    {
+        let mut stmt = payload_conn
+            .prepare(
+                "SELECT payload_json FROM scene_codex_links WHERE series_id = ?1 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| format!("Failed preparing scene-codex-link import query: {e}"))?;
+        let rows = stmt
+            .query_map(params![old_series_id], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("Failed querying scene-codex-link payloads: {e}"))?;
+
+        for row in rows {
+            let payload =
+                row.map_err(|e| format!("Failed decoding scene-codex-link payload: {e}"))?;
+            let mut link: SceneCodexLink = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid scene-codex-link payload in package: {e}"))?;
+
+            let Some(mapped_codex_id) = entry_map.get(&link.codex_id).cloned() else {
+                continue;
+            };
+            let Some(mapped_scene_id) = scene_id_map.get(&link.scene_id).cloned() else {
+                continue;
+            };
+            let Some(mapped_project_id) = project_id_map.get(&link.project_id).cloned() else {
+                continue;
+            };
+
+            link.id = uuid::Uuid::new_v4().to_string();
+            link.codex_id = mapped_codex_id;
+            link.scene_id = mapped_scene_id;
+            link.project_id = mapped_project_id;
+            upsert_scene_codex_link(app_conn, target_series_id, &link)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn payload_series_seed(conn: &Connection) -> Result<Option<Series>, String> {
+    conn.query_row(
+        r#"
+        SELECT id, title, description, author, genre, status, created_at, updated_at
+        FROM series
+        ORDER BY updated_at DESC
+        LIMIT 1
+        "#,
+        [],
+        |row| {
+            Ok(Series {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                description: row.get(2)?,
+                author: row.get(3)?,
+                genre: row.get(4)?,
+                status: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        },
+    )
+    .optional()
+    .map_err(|e| format!("Failed reading payload series seed: {e}"))
+}
+
+fn ensure_target_series_for_novel(
+    app_conn: &Connection,
+    payload_series: Option<&Series>,
+    options: BackupImportOptions,
+) -> Result<String, String> {
+    if let Some(series_id) = options.target_series_id {
+        let exists: bool = app_conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM series WHERE id = ?1)",
+                params![series_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("Failed validating target series id: {e}"))?;
+        if !exists {
+            return Err("Target series does not exist".to_string());
+        }
+        return Ok(series_id);
+    }
+
+    let title = options
+        .create_series_title
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| payload_series.map(|series| series.title.clone()))
+        .unwrap_or_else(|| "Imported Series".to_string());
+
+    let created = crate::commands::series::create_series(
+        title,
+        payload_series.and_then(|series| series.description.clone()),
+        payload_series.and_then(|series| series.author.clone()),
+        payload_series.and_then(|series| series.genre.clone()),
+        payload_series.and_then(|series| series.status.clone()),
+    )?;
+
+    Ok(created.id)
+}
+
+fn import_series_package_payload(prepared: &PreparedPackage) -> Result<BackupImportResult, String> {
+    let payload_conn = Connection::open(&prepared.payload_db_path)
+        .map_err(|e| format!("Failed opening series package payload DB: {e}"))?;
+    let app_conn = open_app_db()?;
+
+    let seed_series = payload_series_seed(&payload_conn)?
+        .ok_or("Series package payload is missing series metadata")?;
+
+    let created_series = crate::commands::series::create_series(
+        seed_series.title.clone(),
+        seed_series.description.clone(),
+        seed_series.author.clone(),
+        seed_series.genre.clone(),
+        seed_series.status.clone(),
+    )?;
+
+    let projects = series_project_ids_and_paths(&payload_conn, &seed_series.id)?;
+    let fs_root = prepared
+        .fs_root
+        .as_ref()
+        .ok_or("Series package extraction did not provide filesystem payload")?;
+
+    let mut imported_project_ids = Vec::new();
+    let mut project_id_map: HashMap<String, String> = HashMap::new();
+    let mut scene_id_map: HashMap<String, String> = HashMap::new();
+
+    for seed in projects {
+        let (cloned_project, remapped_scene_ids) =
+            import_project_payload(&payload_conn, &app_conn, fs_root, &seed, &created_series.id)?;
+        imported_project_ids.push(cloned_project.id.clone());
+        project_id_map.insert(seed.id, cloned_project.id);
+        for (old_scene_id, new_scene_id) in remapped_scene_ids {
+            scene_id_map.insert(old_scene_id, new_scene_id);
+        }
+    }
+
+    import_codex_graph(
+        &payload_conn,
+        &app_conn,
+        &seed_series.id,
+        &created_series.id,
+        &project_id_map,
+        &scene_id_map,
+    )?;
+
+    Ok(BackupImportResult {
+        kind: BackupPackageKind::SeriesPackage,
+        imported_series_id: Some(created_series.id),
+        imported_project_ids,
+        replaced_app_data: false,
+        checkpoint_path: None,
+        requires_relaunch: false,
+    })
+}
+
+fn import_novel_package_payload(
+    prepared: &PreparedPackage,
+    options: BackupImportOptions,
+) -> Result<BackupImportResult, String> {
+    let payload_conn = Connection::open(&prepared.payload_db_path)
+        .map_err(|e| format!("Failed opening novel package payload DB: {e}"))?;
+    let app_conn = open_app_db()?;
+
+    let payload_series = payload_series_seed(&payload_conn)?;
+    let target_series_id =
+        ensure_target_series_for_novel(&app_conn, payload_series.as_ref(), options)?;
+
+    let mut stmt = payload_conn
+        .prepare(
+            r#"
+            SELECT id, title, author, description, path, archived, language, cover_image, series_id, series_index
+            FROM projects
+            ORDER BY updated_at DESC
+            LIMIT 1
+            "#,
+        )
+        .map_err(|e| format!("Failed preparing novel-project seed query: {e}"))?;
+    let seed = stmt
+        .query_row([], |row| {
+            Ok(ProjectSeed {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                author: row.get(2)?,
+                description: row.get(3)?,
+                path: row.get(4)?,
+                archived: row.get::<_, i64>(5)? != 0,
+                language: row.get(6)?,
+                cover_image: row.get(7)?,
+                series_id: row.get(8)?,
+                series_index: row.get(9)?,
+            })
+        })
+        .optional()
+        .map_err(|e| format!("Failed loading novel-project seed row: {e}"))?
+        .ok_or("Novel package payload has no project row")?;
+
+    let fs_root = prepared
+        .fs_root
+        .as_ref()
+        .ok_or("Novel package extraction did not provide filesystem payload")?;
+
+    let (cloned_project, scene_map) =
+        import_project_payload(&payload_conn, &app_conn, fs_root, &seed, &target_series_id)?;
+
+    let mut project_map = HashMap::new();
+    project_map.insert(seed.id.clone(), cloned_project.id.clone());
+
+    import_codex_graph(
+        &payload_conn,
+        &app_conn,
+        &seed.series_id,
+        &target_series_id,
+        &project_map,
+        &scene_map,
+    )?;
+
+    Ok(BackupImportResult {
+        kind: BackupPackageKind::NovelPackage,
+        imported_series_id: Some(target_series_id),
+        imported_project_ids: vec![cloned_project.id],
+        replaced_app_data: false,
+        checkpoint_path: None,
+        requires_relaunch: false,
+    })
+}
+
+fn remove_path_if_exists(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    if path.is_dir() {
+        fs::remove_dir_all(path)
+            .map_err(|e| format!("Failed removing directory '{}': {e}", path.display()))?;
+    } else {
+        fs::remove_file(path)
+            .map_err(|e| format!("Failed removing file '{}': {e}", path.display()))?;
+    }
+
+    Ok(())
+}
+
+fn move_path_if_exists(src: &Path, dest: &Path) -> Result<(), String> {
+    if !src.exists() {
+        return Ok(());
+    }
+
+    remove_path_if_exists(dest)?;
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    fs::rename(src, dest).map_err(|e| {
+        format!(
+            "Failed moving '{}' to '{}': {e}",
+            src.display(),
+            dest.display()
+        )
+    })
+}
+
+fn swap_with_rollback(target: &Path, incoming: &Path, rollback_path: &Path) -> Result<(), String> {
+    move_path_if_exists(target, rollback_path)?;
+    move_path_if_exists(incoming, target)
+}
+
+fn restore_from_rollback(target: &Path, rollback_path: &Path) -> Result<(), String> {
+    remove_path_if_exists(target)?;
+    move_path_if_exists(rollback_path, target)
+}
+
+fn enforce_secrets_excluded_after_restore(db_path: &Path) -> Result<(), String> {
+    let conn = Connection::open(db_path)
+        .map_err(|e| format!("Failed opening restored DB to enforce secret exclusion: {e}"))?;
+    conn.execute("DELETE FROM secure_secrets", [])
+        .map_err(|e| format!("Failed clearing restored secure secrets: {e}"))?;
+    conn.execute("DELETE FROM secure_accounts", [])
+        .map_err(|e| format!("Failed clearing restored secure accounts: {e}"))?;
+    Ok(())
+}
+
+fn import_full_snapshot_payload(prepared: &PreparedPackage) -> Result<BackupImportResult, String> {
+    let app_dir = get_app_dir()?;
+    let checkpoints_dir = app_dir.join(".meta").join("checkpoints");
+    fs::create_dir_all(&checkpoints_dir).map_err(|e| e.to_string())?;
+
+    let checkpoint_path = checkpoints_dir.join(format!(
+        "pre_restore_{}.{}",
+        now_slug_timestamp(),
+        PACKAGE_EXTENSION
+    ));
+
+    let checkpoint_summary = build_package(
+        BackupPackageKind::FullSnapshot,
+        Some(checkpoint_path.to_string_lossy().to_string()),
+        None,
+        None,
+    )?;
+
+    let incoming_fs_root = prepared
+        .fs_root
+        .as_ref()
+        .ok_or("Full snapshot extraction did not provide filesystem payload")?;
+
+    let stage_dir = create_temp_dir("full-restore-stage")?;
+    let staged_db_path = stage_dir.join(".meta").join("app.db");
+    if let Some(parent) = staged_db_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::copy(&prepared.payload_db_path, &staged_db_path).map_err(|e| {
+        format!(
+            "Failed staging snapshot DB '{}' for restore: {e}",
+            prepared.payload_db_path.display()
+        )
+    })?;
+
+    let staged_projects = stage_dir.join("Projects");
+    let staged_trash = stage_dir.join("Trash");
+    copy_directory_recursive(&incoming_fs_root.join("Projects"), &staged_projects)?;
+    copy_directory_recursive(&incoming_fs_root.join("Trash"), &staged_trash)?;
+
+    let rollback_dir = create_temp_dir("full-restore-rollback")?;
+    let rollback_db_path = rollback_dir.join(".meta").join("app.db");
+    let rollback_projects = rollback_dir.join("Projects");
+    let rollback_trash = rollback_dir.join("Trash");
+
+    let target_db_path = app_db_path()?;
+    if let Some(parent) = target_db_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let projects_path = app_dir.join("Projects");
+    let trash_path = app_dir.join("Trash");
+
+    let swap_result: Result<(), String> = (|| {
+        swap_with_rollback(&target_db_path, &staged_db_path, &rollback_db_path)?;
+
+        if std::env::var("BAA_SIMULATE_FULL_RESTORE_FAILURE")
+            .ok()
+            .as_deref()
+            == Some("1")
+        {
+            return Err("Simulated full snapshot restore failure".to_string());
         }
 
-        if let Some(series_id) = self.created_series_id {
-            let _ = conn.execute(
-                "DELETE FROM codex_entries WHERE series_id = ?1",
-                params![series_id],
-            );
-            let _ = conn.execute(
-                "DELETE FROM codex_relations WHERE series_id = ?1",
-                params![series_id],
-            );
-            let _ = conn.execute(
-                "DELETE FROM codex_tags WHERE series_id = ?1",
-                params![series_id],
-            );
-            let _ = conn.execute(
-                "DELETE FROM codex_entry_tags WHERE series_id = ?1",
-                params![series_id],
-            );
-            let _ = conn.execute(
-                "DELETE FROM codex_templates WHERE series_id = ?1",
-                params![series_id],
-            );
-            let _ = conn.execute(
-                "DELETE FROM codex_relation_types WHERE series_id = ?1",
-                params![series_id],
-            );
-            let _ = conn.execute(
-                "DELETE FROM scene_codex_links WHERE series_id = ?1",
-                params![series_id],
-            );
-            let _ = conn.execute("DELETE FROM series WHERE id = ?1", params![series_id]);
-            let _ = conn.execute(
-                "DELETE FROM deleted_series_registry WHERE old_series_id = ?1 OR restored_series_id = ?1",
-                params![series_id],
-            );
-        }
+        swap_with_rollback(&projects_path, &staged_projects, &rollback_projects)?;
+        swap_with_rollback(&trash_path, &staged_trash, &rollback_trash)?;
+        enforce_secrets_excluded_after_restore(&target_db_path)?;
+        Ok(())
+    })();
+
+    if let Err(error) = swap_result {
+        let _ = restore_from_rollback(&target_db_path, &rollback_db_path);
+        let _ = restore_from_rollback(&projects_path, &rollback_projects);
+        let _ = restore_from_rollback(&trash_path, &rollback_trash);
+
+        return Err(format!(
+            "Full snapshot restore failed and was rolled back: {}. Checkpoint package: {}",
+            error, checkpoint_summary.path
+        ));
+    }
+
+    let emergency_dir = app_dir.join(".emergency_backups");
+    if emergency_dir.exists() {
+        let _ = fs::remove_dir_all(&emergency_dir);
+    }
+
+    Ok(BackupImportResult {
+        kind: BackupPackageKind::FullSnapshot,
+        imported_series_id: None,
+        imported_project_ids: Vec::new(),
+        replaced_app_data: true,
+        checkpoint_path: Some(checkpoint_summary.path),
+        requires_relaunch: true,
+    })
+}
+
+#[tauri::command]
+pub fn export_full_snapshot(output_path: Option<String>) -> Result<BackupPackageSummary, String> {
+    build_package(BackupPackageKind::FullSnapshot, output_path, None, None)
+}
+
+#[tauri::command]
+pub fn export_series_package(
+    series_id: String,
+    output_path: Option<String>,
+) -> Result<BackupPackageSummary, String> {
+    if series_id.trim().is_empty() {
+        return Err("Series ID is required".to_string());
+    }
+    build_package(
+        BackupPackageKind::SeriesPackage,
+        output_path,
+        Some(series_id),
+        None,
+    )
+}
+
+#[tauri::command]
+pub fn export_novel_package(
+    project_id: String,
+    output_path: Option<String>,
+) -> Result<BackupPackageSummary, String> {
+    if project_id.trim().is_empty() {
+        return Err("Project ID is required".to_string());
+    }
+    build_package(
+        BackupPackageKind::NovelPackage,
+        output_path,
+        None,
+        Some(project_id),
+    )
+}
+
+#[tauri::command]
+pub fn inspect_backup_package(package_path: String) -> Result<BackupPackageInfo, String> {
+    let prepared = prepare_package(&package_path, false)?;
+    let info = BackupPackageInfo {
+        kind: prepared.manifest.kind,
+        app_version: prepared.manifest.app_version,
+        schema_version: prepared.manifest.schema_version,
+        created_at: prepared.manifest.created_at,
+        counts: prepared.manifest.counts,
+        source_hints: prepared.manifest.source_hints,
+    };
+
+    Ok(info)
+}
+
+#[tauri::command]
+pub fn import_backup_package(
+    package_path: String,
+    options: Option<BackupImportOptions>,
+) -> Result<BackupImportResult, String> {
+    let prepared = prepare_package(&package_path, true)?;
+    let options = options.unwrap_or_default();
+
+    match prepared.manifest.kind {
+        BackupPackageKind::FullSnapshot => import_full_snapshot_payload(&prepared),
+        BackupPackageKind::SeriesPackage => import_series_package_payload(&prepared),
+        BackupPackageKind::NovelPackage => import_novel_package_payload(&prepared, options),
     }
 }
 
 #[tauri::command]
-pub fn import_series_backup(backup_json: String) -> Result<ImportSeriesResult, String> {
-    let backup: serde_json::Value =
-        serde_json::from_str(&backup_json).map_err(|e| format!("Invalid backup JSON: {}", e))?;
-
-    let backup_type = backup
-        .get("backupType")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    if backup_type != "series" {
-        return Err("Invalid backup: expected a series backup file".to_string());
+pub fn read_file_bytes(file_path: String) -> Result<Vec<u8>, String> {
+    let path = PathBuf::from(file_path);
+    if !path.exists() {
+        return Err("File not found".to_string());
     }
+    fs::read(path).map_err(|e| format!("Failed to read file bytes: {e}"))
+}
 
-    let series_data = backup
-        .get("series")
-        .and_then(|v| v.as_object())
-        .ok_or("Missing 'series' field in backup")?;
-
-    let title = series_data
-        .get("title")
-        .and_then(|v| v.as_str())
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .ok_or("Missing series title")?;
-
-    let projects = backup
-        .get("projects")
-        .and_then(|v| v.as_array())
-        .ok_or("Missing 'projects' field in backup")?;
-
-    let mut rollback = ImportRollbackContext::default();
-    let result = (|| -> Result<ImportSeriesResult, String> {
-        let imported_series: Series = crate::commands::series::create_series(
-            title,
-            series_data
-                .get("description")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            series_data
-                .get("author")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            series_data
-                .get("genre")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            series_data
-                .get("status")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-        )?;
-        rollback.track_series(imported_series.id.clone());
-
-        let mut project_ids = Vec::new();
-        let mut project_id_map: HashMap<String, String> = HashMap::new();
-
-        for (index, payload) in projects.iter().enumerate() {
-            let project_value = payload
-                .get("project")
-                .ok_or("Missing project payload in series backup")?;
-
-            let title = require_project_title(project_value, index)?;
-            let author = get_project_field_string(project_value, "author").unwrap_or_default();
-            let series_index =
-                get_project_field_string_alias(project_value, "series_index", "seriesIndex")
-                    .unwrap_or_else(|| format!("Book {}", index + 1));
-
-            let mut imported_project = create_project_with_unique_series_index(
-                title,
-                author,
-                imported_series.id.clone(),
-                series_index,
-            )?;
-            rollback.track_project_path(imported_project.path.clone());
-
-            let description =
-                get_project_field_string(project_value, "description").unwrap_or_default();
-            let archived = project_value
-                .get("archived")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-            let language = get_project_field_string_alias(project_value, "language", "language");
-            let cover_image =
-                get_project_field_string_alias(project_value, "cover_image", "coverImage");
-
-            let updates = serde_json::json!({
-                "description": description,
-                "archived": archived,
-                "language": language,
-                "coverImage": cover_image
-            });
-            imported_project =
-                crate::commands::project::update_project(imported_project.path.clone(), updates)?;
-
-            let scene_files = payload.get("sceneFiles").and_then(|v| v.as_object());
-            let mut nodes = payload
-                .get("nodes")
-                .cloned()
-                .map(serde_json::from_value::<Vec<StructureNode>>)
-                .transpose()
-                .map_err(|e| {
-                    format!(
-                        "Invalid structure nodes in project payload {}: {}",
-                        index, e
-                    )
-                })?
-                .unwrap_or_default();
-
-            if nodes.is_empty() {
-                nodes = generate_nodes_from_scene_files(scene_files)?;
+#[tauri::command]
+pub fn write_temp_backup_file(file_name: String, data: Vec<u8>) -> Result<String, String> {
+    let safe_name = file_name
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '.' || ch == '-' || ch == '_' {
+                ch
+            } else {
+                '_'
             }
-
-            if !nodes.is_empty() {
-                crate::commands::project::save_structure(imported_project.path.clone(), nodes)?;
-            }
-
-            restore_scene_files(&imported_project.path, scene_files)?;
-
-            parse_snippets(
-                &imported_project.path,
-                &imported_project.id,
-                payload.get("snippets").and_then(|v| v.as_array()),
-            )?;
-            parse_scene_notes(
-                &imported_project.path,
-                &imported_project.id,
-                payload.get("sceneNotes").and_then(|v| v.as_array()),
-            )?;
-            parse_chats(
-                &imported_project.path,
-                &imported_project.id,
-                payload.get("chats").and_then(|v| v.as_array()),
-                payload.get("messages").and_then(|v| v.as_array()),
-            )?;
-
-            if let Some(old_project_id) = read_project_payload_id(project_value) {
-                project_id_map.insert(old_project_id, imported_project.id.clone());
-            }
-            project_ids.push(imported_project.id.clone());
-        }
-
-        parse_codex_entries(
-            &imported_series.id,
-            &project_id_map,
-            backup.get("codex").and_then(|v| v.as_array()),
-        )?;
-        parse_codex_relations(
-            &imported_series.id,
-            &project_id_map,
-            backup.get("codexRelations").and_then(|v| v.as_array()),
-        )?;
-
-        Ok(ImportSeriesResult {
-            series_id: imported_series.id,
-            series_title: imported_series.title,
-            imported_project_count: project_ids.len(),
-            project_ids,
         })
-    })();
+        .collect::<String>();
 
-    if result.is_err() {
-        rollback.rollback();
+    let app_dir = get_app_dir()?;
+    let imports_dir = app_dir.join(".meta").join("imports");
+    fs::create_dir_all(&imports_dir).map_err(|e| e.to_string())?;
+
+    let final_name = if safe_name.trim().is_empty() {
+        format!("import_{}.{}", now_slug_timestamp(), PACKAGE_EXTENSION)
+    } else if safe_name
+        .to_lowercase()
+        .ends_with(&format!(".{PACKAGE_EXTENSION}"))
+    {
+        format!("{}_{}", now_slug_timestamp(), safe_name)
+    } else {
+        format!(
+            "{}_{}.{}",
+            now_slug_timestamp(),
+            safe_name,
+            PACKAGE_EXTENSION
+        )
+    };
+
+    let target = imports_dir.join(final_name);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-
-    result
+    fs::write(&target, data).map_err(|e| format!("Failed writing temp backup file: {e}"))?;
+    Ok(target.to_string_lossy().to_string())
 }
 
 /// Write export file data to the specified path

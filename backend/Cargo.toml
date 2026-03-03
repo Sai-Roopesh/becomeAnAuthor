@@ -43,6 +43,7 @@ walkdir = "2"
 log = "0.4"
 slug = "0.1"
 rusqlite = { version = "0.32", features = ["bundled"] }
+zip = "2.2"
 aes-gcm = "0.10"
 rand = "0.8"
 

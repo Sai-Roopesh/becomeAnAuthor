@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 27, 2026
+> **Last Updated:** March 3, 2026
 > **Status:** Living Document
 
 ---
@@ -76,7 +76,7 @@ Authors need a dedicated writing environment that combines the organizational po
 | Constraint | Impact |
 |---|---|
 | Desktop-only (macOS, Windows, Linux) | No web or mobile deployment |
-| File-based storage (no database) | Simplifies deployment; limits concurrent access |
+| Hybrid storage (SQLite + filesystem) | SQL is authoritative for metadata/state; filesystem stores manuscript and artifacts |
 | Client-side AI calls | Requires user's own API keys; no server costs |
 | Tauri v2 runtime | WebView-based UI; Rust-only backend |
 
@@ -240,8 +240,8 @@ graph TB
 | **Navigation** | 3 | 1 | Sidebar manuscript tree, codex browser, snippet list, breadcrumbs |
 | **Snippets** | 3 | 0 | Reusable text blocks with pinning and rich text editing |
 | **Export** | 1 | 2 | Multi-format manuscript export (DOCX, EPUB, PDF via @react-pdf/renderer, Markdown, plain text) with section-aware structure controls, customizable settings, and Codex Appendix support |
-| **Data Management** | 3 | 0 | Backup Center UI, series backup import/export, novel archive conversion |
-| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback), cloud backup |
+| **Data Management** | 3 | 0 | Backup Center UI with `.baa` package inspect/import, full snapshot restore, and structured package exports |
+| **Google Drive** | 2 | 2 | OAuth 2.0 sign-in (Desktop: loopback), `.baa` full snapshot backup/restore |
 | **Collaboration** | 1 | 0 | Yjs CRDT document, WebRTC peer-to-peer sync, SQLite snapshot persistence |
 | **AI** | 1 | 0 | AI-specific UI components |
 | **Project** | 2 | 0 | Project-level settings and metadata editing |
@@ -695,8 +695,10 @@ AI Provider API (HTTPS)
 |---|---|---|
 | **Emergency Backup** | Per-scene | Auto-save on write failure; `.backups/` directory |
 | **Backup Center** | Unified UI | Manage local and cloud backups with one-click restore |
-| **Series Backup** | Full series + all projects | JSON export/import via Tauri command with rollback protection |
-| **Google Drive** | Full series | OAuth 2.0 upload/download |
+| **Full Snapshot Package** | Full app state | `.baa` `full_snapshot` export/import with auto-checkpoint and staged replace restore |
+| **Series Package** | One series + all novels | `.baa` `series_package` clone import with full series codex graph |
+| **Novel Package** | One novel | `.baa` `novel_package` clone import with referenced codex subset |
+| **Google Drive** | Full snapshot only | OAuth 2.0 upload/download of `.baa` full snapshot packages |
 | **Trash** | Project-level | Soft delete with 30-day retention |
 
 ---

@@ -234,19 +234,6 @@ export function isScene(node: DocumentNode): node is Scene {
   return node.type === "scene";
 }
 
-export interface ExportedProject {
-  version: number;
-  project: Project;
-  nodes: DocumentNode[];
-  codex: CodexEntry[];
-  chats: ChatThread[];
-  messages: ChatMessage[];
-  codexRelations: CodexRelation[];
-  codexAdditions: CodexAddition[];
-  sections: Section[];
-  snippets: Snippet[];
-}
-
 // Google OAuth and Drive Types
 export interface GoogleTokens {
   accessToken: string;
@@ -284,12 +271,67 @@ export interface BackupScheduleOptions {
   lastBackup?: number; // Timestamp of last backup
 }
 
-export interface DriveBackupMetadata {
-  version: string;
-  exportedAt: number;
+export type BackupPackageKind =
+  | "full_snapshot"
+  | "series_package"
+  | "novel_package";
+
+export interface BackupCounts {
+  series: number;
+  projects: number;
+  scenes: number;
+  codexEntries: number;
+  codexRelations: number;
+  codexTags: number;
+  codexEntryTags: number;
+  codexTemplates: number;
+  codexRelationTypes: number;
+  sceneCodexLinks: number;
+  snippets: number;
+  sceneNotes: number;
+  chatThreads: number;
+  chatMessages: number;
+  yjsSnapshots: number;
+  yjsUpdateLog: number;
+}
+
+export interface BackupSourceHints {
+  seriesId?: string;
+  seriesTitle?: string;
+  projectId?: string;
+  projectTitle?: string;
+}
+
+export interface BackupPackageSummary {
+  kind: BackupPackageKind;
+  path: string;
+  fileName: string;
+  sizeBytes: number;
+  createdAt: string;
+  sha256: string;
+}
+
+export interface BackupPackageInfo {
+  kind: BackupPackageKind;
   appVersion: string;
-  backupType: "manual" | "auto";
-  projectData: ExportedProject;
+  schemaVersion: number;
+  createdAt: string;
+  counts: BackupCounts;
+  sourceHints: BackupSourceHints;
+}
+
+export interface BackupImportOptions {
+  targetSeriesId?: string;
+  createSeriesTitle?: string;
+}
+
+export interface BackupImportResult {
+  kind: BackupPackageKind;
+  importedSeriesId?: string | null;
+  importedProjectIds: string[];
+  replacedAppData: boolean;
+  checkpointPath?: string | null;
+  requiresRelaunch: boolean;
 }
 
 // ============================================

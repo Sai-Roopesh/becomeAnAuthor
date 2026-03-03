@@ -1,114 +1,127 @@
 /**
- * Import/Export Hook (Series-first)
+ * Import/Export Hook (.baa package format)
  *
- * Backup import/export is series-scoped.
- * Individual novels should be exported as documents (PDF/DOCX/ePub), not JSON backups.
+ * - full_snapshot: backup/disaster recovery
+ * - series_package: share/migrate one series
+ * - novel_package: share/migrate one novel
  */
-import { invoke } from "@tauri-apps/api/core";
 import { toast } from "@/shared/utils/toast-service";
-import { ExportedSeriesSchema } from "@/shared/schemas/import-schema";
 import { googleAuthService } from "@/infrastructure/services/google-auth-service";
 import { googleDriveService } from "@/infrastructure/services/google-drive-service";
 import {
-  exportSeriesAsJson,
-  importSeriesBackup,
-  type ImportSeriesResult,
+  exportFullSnapshot,
+  exportNovelPackage,
+  exportSeriesPackage,
+  importBackupPackage,
+  inspectBackupPackage,
+  readFileBytes,
+  writeTempBackupFile,
+  type BackupImportOptions,
+  type BackupImportResult,
+  type BackupPackageInfo,
+  type BackupPackageSummary,
 } from "@/core/tauri/commands";
-import type { DriveFile, DriveBackupMetadata } from "@/domain/entities/types";
+import type { DriveFile } from "@/domain/entities/types";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("ImportExport");
 
 export function useImportExport() {
-  const exportSeries = async (
+  const exportFullAppSnapshot = async (
+    outputPath?: string | null,
+  ): Promise<BackupPackageSummary> => {
+    try {
+      const summary = await exportFullSnapshot(outputPath ?? null);
+      toast.success(`Full snapshot exported to ${summary.path}`);
+      return summary;
+    } catch (error) {
+      log.error("Full snapshot export failed", error);
+      toast.error("Failed to export full snapshot.");
+      throw error;
+    }
+  };
+
+  const exportSeriesArchive = async (
     seriesId: string,
     outputPath?: string | null,
-  ): Promise<string> => {
+  ): Promise<BackupPackageSummary> => {
     if (!seriesId) {
-      throw new Error("Series ID is required for export.");
+      throw new Error("Series ID is required.");
     }
 
     try {
-      const backupPath = await invoke<string>("export_series_backup", {
-        seriesId,
-        outputPath: outputPath ?? null,
-      });
-      toast.success(`Series backup exported to ${backupPath}`);
-      return backupPath;
+      const summary = await exportSeriesPackage(seriesId, outputPath ?? null);
+      toast.success(`Series package exported to ${summary.path}`);
+      return summary;
     } catch (error) {
-      log.error("Series export failed", error);
-      toast.error("Failed to export series backup.");
+      log.error("Series package export failed", error);
+      toast.error("Failed to export series package.");
       throw error;
     }
   };
 
-  const importSeries = async (file: File): Promise<ImportSeriesResult> => {
+  const exportNovelArchive = async (
+    projectId: string,
+    outputPath?: string | null,
+  ): Promise<BackupPackageSummary> => {
+    if (!projectId) {
+      throw new Error("Project ID is required.");
+    }
+
     try {
-      const isZipArchive =
-        file.name.toLowerCase().endsWith(".zip") ||
-        file.type === "application/zip" ||
-        file.type === "application/x-zip-compressed";
+      const summary = await exportNovelPackage(projectId, outputPath ?? null);
+      toast.success(`Novel package exported to ${summary.path}`);
+      return summary;
+    } catch (error) {
+      log.error("Novel package export failed", error);
+      toast.error("Failed to export novel package.");
+      throw error;
+    }
+  };
 
-      let backupJson = "";
-      if (isZipArchive) {
-        toast.info("Detected novel archive. Converting to series backup...");
-        const { convertNovelZipToSeriesBackup } =
-          await import("@/features/data-management/services/novel-zip-converter");
-        const converted = await convertNovelZipToSeriesBackup(file);
-        if (converted.warnings.length > 0) {
-          const warningSummary =
-            converted.warnings[0] ?? "Import completed with warnings.";
-          toast.info(warningSummary);
-          log.warn("Novel archive conversion warnings", converted.warnings);
-        }
-        backupJson = JSON.stringify(converted.backup);
+  const inspectPackage = async (
+    packagePath: string,
+  ): Promise<BackupPackageInfo> => {
+    try {
+      return await inspectBackupPackage(packagePath);
+    } catch (error) {
+      log.error("Package inspection failed", error);
+      throw error;
+    }
+  };
+
+  const importPackage = async (
+    packagePath: string,
+    options?: BackupImportOptions,
+  ): Promise<BackupImportResult> => {
+    try {
+      const info = await inspectBackupPackage(packagePath);
+      const result = await importBackupPackage(packagePath, options);
+
+      if (result.replacedAppData) {
+        toast.success(
+          `Full snapshot restored.${result.checkpointPath ? ` Checkpoint saved at ${result.checkpointPath}.` : ""}`,
+        );
+      } else if (info.kind === "series_package") {
+        toast.success(
+          `Series package imported (${result.importedProjectIds.length} novel${result.importedProjectIds.length === 1 ? "" : "s"}).`,
+        );
       } else {
-        const fileContent = await file.text();
-        let parsedData: unknown;
-        try {
-          parsedData = JSON.parse(fileContent);
-        } catch {
-          throw new Error("Invalid JSON file");
-        }
-
-        const validationResult = ExportedSeriesSchema.safeParse(parsedData);
-        if (!validationResult.success) {
-          log.error(
-            "Series backup validation errors",
-            validationResult.error.issues,
-          );
-          throw new Error("Invalid series backup file format.");
-        }
-        backupJson = fileContent;
+        toast.success("Novel package imported.");
       }
 
-      const result = await importSeriesBackup(backupJson);
-      toast.success(
-        `Series "${result.seriesTitle}" imported (${result.importedProjectCount} novel${result.importedProjectCount === 1 ? "" : "s"}).`,
-      );
       return result;
     } catch (error) {
-      log.error("Series import failed", error);
+      log.error("Package import failed", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to import series backup.",
+        error instanceof Error ? error.message : "Failed to import package.",
       );
       throw error;
     }
   };
 
-  /**
-   * Backup a series to Google Drive
-   */
-  const backupToGoogleDrive = async (
-    seriesId: string,
-  ): Promise<DriveFile | null> => {
+  const backupToGoogleDrive = async (): Promise<DriveFile | null> => {
     try {
-      if (!seriesId) {
-        throw new Error("Series ID is required for Drive backup.");
-      }
-
       if (!(await googleAuthService.isAuthenticated())) {
         toast.info("Please sign in with Google to backup to Drive.");
         await googleAuthService.signIn();
@@ -117,36 +130,31 @@ export function useImportExport() {
         }
       }
 
-      toast.info("Preparing series backup...");
-      const backupJson = await exportSeriesAsJson(seriesId);
-      const backupData = JSON.parse(backupJson) as {
-        series?: { title?: string };
-      };
+      toast.info("Preparing full snapshot...");
+      const summary = await exportFullSnapshot();
+      const bytes = await readFileBytes(summary.path);
 
-      const seriesTitle = backupData.series?.title || "Series";
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const fileName = `${seriesTitle}_series_backup_${timestamp}.json`;
+      const fileName = summary.fileName.endsWith(".baa")
+        ? summary.fileName
+        : `backup_${new Date().toISOString().replace(/[:.]/g, "-")}.baa`;
 
-      const result = await googleDriveService.uploadBackup(
-        backupData as unknown as DriveBackupMetadata,
+      const uploaded = await googleDriveService.uploadBackupPackage(
+        Uint8Array.from(bytes),
         fileName,
       );
 
-      toast.success(`Series backup saved to Google Drive: ${result.name}`);
-      return result;
+      toast.success(`Backup saved to Google Drive: ${uploaded.name}`);
+      return uploaded;
     } catch (error) {
       log.error("Google Drive backup failed", error);
-      toast.error("Failed to backup series to Google Drive.");
+      toast.error("Failed to backup to Google Drive.");
       throw error;
     }
   };
 
-  /**
-   * Restore series from Google Drive backup
-   */
   const restoreFromGoogleDrive = async (
     fileId: string,
-  ): Promise<ImportSeriesResult> => {
+  ): Promise<BackupImportResult> => {
     try {
       if (!(await googleAuthService.isAuthenticated())) {
         toast.info("Please sign in with Google to restore from Drive.");
@@ -157,20 +165,22 @@ export function useImportExport() {
       }
 
       toast.info("Downloading backup from Google Drive...");
-      const backupData = await googleDriveService.downloadBackup(fileId);
-      const validationResult = ExportedSeriesSchema.safeParse(backupData);
-      if (!validationResult.success) {
-        log.error(
-          "Drive backup validation failed",
-          validationResult.error.issues,
+      const packageBytes =
+        await googleDriveService.downloadBackupPackage(fileId);
+      const tempPath = await writeTempBackupFile(
+        `drive_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.baa`,
+        Array.from(packageBytes),
+      );
+
+      const info = await inspectBackupPackage(tempPath);
+      if (info.kind !== "full_snapshot") {
+        throw new Error(
+          "Cloud restore only supports full snapshot packages (.baa).",
         );
-        throw new Error("Invalid series backup file.");
       }
 
-      const result = await importSeriesBackup(JSON.stringify(backupData));
-      toast.success(
-        `Series "${result.seriesTitle}" restored from Google Drive (${result.importedProjectCount} novel${result.importedProjectCount === 1 ? "" : "s"}).`,
-      );
+      const result = await importBackupPackage(tempPath);
+      toast.success("Full snapshot restored from Google Drive.");
       return result;
     } catch (error) {
       log.error("Google Drive restore failed", error);
@@ -196,8 +206,11 @@ export function useImportExport() {
   };
 
   return {
-    exportSeries,
-    importSeries,
+    exportFullAppSnapshot,
+    exportSeriesArchive,
+    exportNovelArchive,
+    inspectPackage,
+    importPackage,
     backupToGoogleDrive,
     restoreFromGoogleDrive,
     listDriveBackups,

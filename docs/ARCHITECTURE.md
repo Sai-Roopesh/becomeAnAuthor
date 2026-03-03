@@ -1,6 +1,6 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** February 27, 2026
+> **Last Updated:** March 3, 2026
 > **Codebase Stats:** 342 frontend source files (49,400+ lines) · 36 backend source files (6,800 lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
@@ -170,7 +170,7 @@ isScene(node)  → node is Scene    // node.type === "scene"
 | `GoogleTokens` | accessToken, refreshToken, expiresAt, scope | OAuth 2.0 credentials |
 | `GoogleUser` | id, email, name, picture | Authenticated user profile |
 | `DriveFile` | id, name, mimeType, createdTime, size | Google Drive file metadata |
-| `DriveBackupMetadata` | version, exportedAt, appVersion, backupType, projectData | Cloud backup envelope |
+| `BackupPackageInfo` | kind, appVersion, schemaVersion, createdAt, counts, sourceHints | Inspected `.baa` package metadata before import |
 | `CollaborationRoom` | sceneId, projectId, lastSyncedAt | P2P collaboration session |
 | `YjsStateSnapshot` | stateVector, update (Uint8Array) | CRDT persistence |
 | `CollaborationPeer` | id, name, color, cursor | Connected peer state |
@@ -196,7 +196,7 @@ Command modules are re-exported via `pub use` for centralized Tauri registration
 | `codex` | `codex.rs` | 295 | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links | Full codex domain CRUD |
 | `chat` | `chat.rs` | ~300 | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message`, `find_chat_thread_for_message` | Thread/message persistence in SQLite (WAL) |
 | `snippet` | `snippet.rs` | ~80 | `list_snippets`, `save_snippet`, `delete_snippet` | Writing snippet CRUD |
-| `backup` | `backup.rs` | ~300 | `export_series_backup`, `export_series_as_json`, `export_project_backup`, `export_project_as_json`, `write_export_file`, `import_series_backup` | Backup/import orchestration and restore validation |
+| `backup` | `backup.rs` | ~2600 | `export_full_snapshot`, `export_series_package`, `export_novel_package`, `inspect_backup_package`, `import_backup_package`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file` | SQL-native `.baa` portability engine with staged full restore + clone imports |
 | `backup_manuscript` | `backup_manuscript.rs` | ~300 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub` | Manuscript export commands and scene-file collection |
 | `backup_emergency` | `backup_emergency.rs` | ~80 | `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups` | Emergency backup lifecycle |
 | `search` | `search.rs` | ~300 | `search_project` | Full-text search backed by SQLite FTS5 index with incremental rebuild by signature |
@@ -219,7 +219,7 @@ Command modules are re-exported via `pub use` for centralized Tauri registration
 | `codex.rs` | `CodexEntry`, `CodexRelation`, `CodexTag`, `CodexEntryTag`, `CodexTemplate`, `CodexRelationType`, `SceneCodexLink` |
 | `chat.rs` | `ChatThread`, `ChatMessage`, `ChatContext` |
 | `snippet.rs` | `Snippet` |
-| `backup.rs` | `EmergencyBackup`, `ExportManifest`, `SeriesBackup`, `ImportResult` |
+| `backup.rs` | `EmergencyBackup` |
 | `series.rs` | `Series` |
 | `scene_note.rs` | `SceneNote` |
 
@@ -622,19 +622,21 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 | Markdown | String assembly | Frontend | Clean prose mention text, optional Codex Appendix, and section-aware heading/TOC/page-break controls |
 | ePub | Rust command | Backend | |
 | Plain Text | Rust command | Backend | |
-| JSON | Rust commands | Backend | |
+| `.baa` package | Rust commands | Backend | ZIP package with `manifest.json`, `db/payload.db`, and `fs/**` payload |
 
 ### 14.2 Backup Hierarchy
 
 1. **Auto-save** — debounced, per-scene mutex
 2. **Emergency backup** — on save failure, 24-hour expiry
-3. **Backup Center** — Unified UI for local and cloud backups (JSON/ZIP)
-4. **Google Drive** — OAuth cloud backup (15min/1hour/daily)
+3. **Backup Center** — unified local/cloud full snapshot backup (`full_snapshot` `.baa`)
+4. **Structured package export** — `series_package` and `novel_package` `.baa` sharing/migration
+5. **Google Drive** — OAuth cloud backup/restore for full snapshots only (`.baa`)
 
-The `BackupCenterPanel` unifies backup management:
-- **Local/Cloud Tabs**: Switch between local file export/import and Google Drive operations.
-- **Status Tracking**: Persists last backup timestamp and source in SQLite preferences.
-- **Import Rollback**: Atomic series import with rollback strategy. If any project or file fails to import, the entire operation is reverted (directories cleaned up, registry entries removed) to prevent data corruption.
+The `BackupCenterPanel` now follows package-kind-driven import/export:
+- **Backup actions**: local/cloud backup create `full_snapshot` packages only.
+- **Inspect before import**: local `.baa` files are validated and summarized before the user confirms.
+- **Novel import targeting**: `novel_package` import requires existing/new target series selection.
+- **Destructive restore safety**: `full_snapshot` import creates an automatic checkpoint package, performs staged swap, and relaunches the app.
 
 ---
 
