@@ -32,7 +32,7 @@ function SeriesContent() {
   const projectRepo = useRepository<IProjectRepository>("projectRepository");
   const seriesRepo = useRepository<ISeriesRepository>("seriesRepository");
   const { confirm, ConfirmationDialog } = useConfirmation();
-  const { exportSeries } = useImportExport();
+  const { exportSeriesArchive } = useImportExport();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportProjectId, setExportProjectId] = useState<string | null>(null);
@@ -147,7 +147,7 @@ function SeriesContent() {
     if (!seriesId) return;
     setIsExportingSeries(true);
     try {
-      await exportSeries(seriesId);
+      await exportSeriesArchive(seriesId);
     } finally {
       setIsExportingSeries(false);
     }
@@ -293,7 +293,7 @@ function SeriesContent() {
             ) : (
               <Download className="w-4 h-4 mr-2" />
             )}
-            {isExportingSeries ? "Exporting..." : "Export Series Backup"}
+            {isExportingSeries ? "Exporting..." : "Export Series Package"}
           </Button>
           <Button
             onClick={() => setCreateDialogOpen(true)}

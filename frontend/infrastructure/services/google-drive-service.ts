@@ -6,11 +6,7 @@
  */
 
 import { googleAuthService } from "./google-auth-service";
-import type {
-  DriveFile,
-  DriveQuota,
-  DriveBackupMetadata,
-} from "@/domain/entities/types";
+import type { DriveFile, DriveQuota } from "@/domain/entities/types";
 import { fetchWithTimeout } from "@/core/api/fetch-utils";
 
 const DRIVE_API_BASE = "https://www.googleapis.com/drive/v3";
@@ -163,33 +159,68 @@ class GoogleDriveService {
     });
   }
 
+  private async requestBinary(
+    accessToken: string,
+    url: string,
+    options: Omit<RequestInit, "signal">,
+    timeoutMs: number,
+    errorPrefix: string,
+  ): Promise<Uint8Array> {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          ...(options.headers || {}),
+        },
+      },
+      timeoutMs,
+    );
+
+    if (!response.ok) {
+      const message = await this.readErrorMessage(response);
+      throw new Error(`${errorPrefix}: ${message}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  }
+
   /**
-   * Upload backup to Google Drive
+   * Upload backup package (.baa) to Google Drive
    */
-  async uploadBackup(
-    backupData: DriveBackupMetadata,
+  async uploadBackupPackage(
+    packageBytes: Uint8Array,
     fileName: string,
   ): Promise<DriveFile> {
     return this.withAccessToken(async (accessToken) => {
       const folderId = await this.ensureAppFolder();
       const metadata = {
         name: fileName,
-        mimeType: "application/json",
+        mimeType: "application/octet-stream",
         parents: [folderId],
       };
 
       const boundary = "-------314159265358979323846";
-      const delimiter = `\r\n--${boundary}\r\n`;
+      const delimiter = `--${boundary}\r\n`;
       const closeDelimiter = `\r\n--${boundary}--`;
+      const normalizedBytes = new Uint8Array(packageBytes.byteLength);
+      normalizedBytes.set(packageBytes);
 
-      const multipartRequestBody =
-        delimiter +
-        "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
-        JSON.stringify(metadata) +
-        delimiter +
-        "Content-Type: application/json\r\n\r\n" +
-        JSON.stringify(backupData, null, 2) +
-        closeDelimiter;
+      const multipartRequestBody = new Blob(
+        [
+          delimiter,
+          "Content-Type: application/json; charset=UTF-8\r\n\r\n",
+          JSON.stringify(metadata),
+          "\r\n",
+          delimiter,
+          "Content-Type: application/octet-stream\r\n\r\n",
+          new Blob([normalizedBytes], { type: "application/octet-stream" }),
+          closeDelimiter,
+        ],
+        { type: `multipart/related; boundary=${boundary}` },
+      );
 
       const data = await this.requestJson<GoogleDriveApiFile>(
         accessToken,
@@ -223,16 +254,18 @@ class GoogleDriveService {
         "Failed to list backups",
       );
 
-      return (data.files || []).map((file) => this.toDriveFile(file));
+      return (data.files || [])
+        .filter((file) => file.name.toLowerCase().endsWith(".baa"))
+        .map((file) => this.toDriveFile(file));
     });
   }
 
   /**
-   * Download backup from Google Drive
+   * Download backup package bytes from Google Drive
    */
-  async downloadBackup(fileId: string): Promise<DriveBackupMetadata> {
+  async downloadBackupPackage(fileId: string): Promise<Uint8Array> {
     return this.withAccessToken(async (accessToken) => {
-      return await this.requestJson<DriveBackupMetadata>(
+      return await this.requestBinary(
         accessToken,
         `${DRIVE_API_BASE}/files/${fileId}?alt=media`,
         { method: "GET" },

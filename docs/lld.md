@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** February 27, 2026
+> **Last Updated:** March 3, 2026
 > **Status:** Living Document
 
 ---
@@ -446,7 +446,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | Interface | Responsibility |
 |---|---|
 | `IChatService` | Chat thread management with AI message generation |
-| `IExportService` | Document export to DOCX, EPUB, PDF, JSON, backup |
+| `IExportService` | Document export to DOCX, EPUB, PDF, Markdown, text |
 | `IModelDiscoveryService` | AI model enumeration per provider |
 
 ### 8.2 Service Implementations (Infrastructure)
@@ -460,7 +460,7 @@ These hooks are the **only** way components access data—ensuring DI and testab
 | `ModelDiscoveryService` | `ModelDiscoveryService.ts` | ~300 lines | Fetches models per provider using dynamic endpoints and caching (TTL). Falls back to manual entry if API unavailable. |
 | `EmergencyBackupService` | `emergency-backup-service.ts` | 4KB | Auto-save crash recovery |
 | `GoogleAuthService` | `google-auth-service.ts` | 9.0KB | Google OAuth 2.0 (Desktop: invoke backend) with optional `client_secret` support. Web flow removed. |
-| `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive sync/backup |
+| `GoogleDriveService` | `google-drive-service.ts` | 8.9KB | Google Drive `.baa` full snapshot upload/download/delete |
 
 ---
 
@@ -493,8 +493,8 @@ features/{feature-name}/
 | **snippets** | 3 | 0 | Reusable text snippets |
 | **export** | 1 | 2 | Export dialog with customization support (DOCX/PDF) |
 | **navigation** | 3 | 1 | Sidebar, breadcrumbs, navigation state |
-| **data-management** | 3 | 0 | Import/export, BackupCenterPanel, DriveBackupBrowser |
-| **google-drive** | 2 | 2 | Google Drive backup integration |
+| **data-management** | 3 | 0 | `.baa` inspect/import/export flows, BackupCenterPanel, DriveBackupBrowser |
+| **google-drive** | 2 | 2 | Google Drive full snapshot (`.baa`) integration |
 | **collaboration** | 1 | 0 | Real-time collaboration via Yjs |
 | **ai** | 1 | 0 | AI-specific UI components |
 | **project** | 2 | 0 | Project-level settings and metadata |
@@ -683,10 +683,10 @@ export async function loadScene(
 | **Series** | 15 | `list_series`, `create_series`, `update_series`, series codex, deleted-series lifecycle |
 | **Search** | 1 | `search_project` |
 | **Trash** | 5 | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash` |
-| **Export** | 9 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_project_backup` |
-| **Import** | 1 | `import_series_backup` |
+| **Export** | 11 | `export_manuscript_text`, `export_manuscript_docx`, `export_manuscript_epub`, `export_full_snapshot`, `export_series_package`, `export_novel_package` |
+| **Import** | 2 | `inspect_backup_package`, `import_backup_package` |
 | **Security** | 5 | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers` |
-| **Backup** | 6 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `export_series_as_json` |
+| **Backup** | 8 | `save_emergency_backup`, `get_emergency_backup`, `cleanup_emergency_backups`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file` |
 | **Mention** | 2 | `find_mentions`, `count_mentions` |
 | **Collaboration** | 4 | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state` |
 | **Google OAuth** | 4 | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out` |
