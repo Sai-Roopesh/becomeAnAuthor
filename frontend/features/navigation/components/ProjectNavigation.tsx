@@ -320,8 +320,8 @@ export function ProjectNavigation({
 
   return (
     <div className="h-full min-w-0 flex flex-col bg-muted/10 border-r">
-      {/* Header - with left padding to avoid sidebar toggle button overlap */}
-      <div className="p-4 pt-12 border-b flex items-center justify-between">
+      {/* Header aligned with editor chrome row */}
+      <div className="h-14 px-4 border-b flex items-center justify-between">
         <div className="min-w-0 flex-1">
           <h2 className="font-semibold truncate" title={project.title}>
             {project.title}

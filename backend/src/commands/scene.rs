@@ -219,6 +219,14 @@ fn default_scene_meta(scene_file: &str, now: i64) -> SceneMeta {
     }
 }
 
+fn resolve_word_count(content: &str, provided_word_count: i32) -> i32 {
+    if provided_word_count >= 0 {
+        provided_word_count
+    } else {
+        count_words(content)
+    }
+}
+
 fn scene_file_path(project_path: &str, scene_file: &str) -> PathBuf {
     PathBuf::from(project_path)
         .join("manuscript")
@@ -274,11 +282,7 @@ pub fn save_scene(
         }
     }
 
-    meta.word_count = if word_count > 0 {
-        word_count
-    } else {
-        count_words(&content)
-    };
+    meta.word_count = resolve_word_count(&content, word_count);
     meta.updated_at = now;
 
     let path = scene_file_path(&project_path, &scene_file);
@@ -418,4 +422,21 @@ pub fn save_scene_by_id(
         };
 
     save_scene(project_path, resolved_file, content, None, word_count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_word_count;
+
+    #[test]
+    fn preserves_zero_word_count_when_provided() {
+        let content = r#"{"type":"doc","content":[{"type":"paragraph"}]}"#;
+        assert_eq!(resolve_word_count(content, 0), 0);
+    }
+
+    #[test]
+    fn falls_back_to_content_count_when_word_count_is_negative() {
+        let content = "one two three";
+        assert_eq!(resolve_word_count(content, -1), 3);
+    }
 }

@@ -1,5 +1,12 @@
 import { logger } from "@/shared/utils/logger";
 import { calculateMaxTokens } from "@/lib/config/model-specs";
+import { Button } from "@/components/ui/button";
+import {
+  PanelLeft,
+  PanelLeftClose,
+  PanelRight,
+  PanelRightClose,
+} from "lucide-react";
 
 const log = logger.scope("TiptapEditor");
 
@@ -15,6 +22,7 @@ import { EditorStateManager } from "@/lib/core/editor-state-manager";
 import type { SaveStatus } from "@/lib/core/editor-state-manager";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { EditorToolbar } from "./editor-toolbar";
+import { FocusModeToggle } from "./FocusModeToggle";
 import { TextSelectionMenu } from "./text-selection-menu";
 import { CodexLinkDialog, type CodexLinkSelection } from "./codex-link-dialog";
 import {
@@ -82,12 +90,24 @@ export function TiptapEditor({
   seriesId, // Required - series-first architecture
   content,
   onWordCountChange,
+  showSidebar,
+  showTimeline,
+  hasActiveScene = false,
+  showFocusToggle = false,
+  onToggleSidebar,
+  onToggleTimeline,
 }: {
   sceneId: string;
   projectId: string;
   seriesId: string; // Required - series-first architecture
   content: TiptapContent | null | undefined;
   onWordCountChange?: (count: number) => void;
+  showSidebar?: boolean;
+  showTimeline?: boolean;
+  hasActiveScene?: boolean;
+  showFocusToggle?: boolean;
+  onToggleSidebar?: () => void;
+  onToggleTimeline?: () => void;
 }) {
   const formatSettings = useFormatStore();
   const [showContinueMenu, setShowContinueMenu] = useState(false);
@@ -294,7 +314,7 @@ export function TiptapEditor({
     editorProps: {
       attributes: {
         class:
-          "prose dark:prose-invert max-w-full focus:outline-none h-full px-8 py-6",
+          "prose dark:prose-invert max-w-full focus:outline-none min-h-full px-8 py-6",
       },
       handleKeyDown: (_view, event) => {
         if (isModKey(event as unknown as KeyboardEvent) && event.key === "j") {
@@ -796,20 +816,65 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <EditorToolbar editor={editor} onInsertSection={handleInsertSection} />
-        <div className="flex items-center gap-6">
-          <SaveStatusIndicator status={saveStatus} />
-          <CollaborationPanel
-            status={collabStatus}
-            peers={peers}
-            roomId={roomId}
-            enabled={enableP2P}
-            isJoinedRoom={isJoinedRoom}
-            onToggle={setEnableP2P}
-            onJoinRoom={handleJoinRoom}
-            onLeaveRoom={handleLeaveRoom}
+      <div className="h-14 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/65 px-3">
+        <div className="grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+          <div className="flex items-center gap-1">
+            {onToggleSidebar && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
+                title={showSidebar ? "Hide sidebar" : "Show sidebar"}
+                className="h-8 w-8 rounded-full"
+                onClick={onToggleSidebar}
+              >
+                {showSidebar ? (
+                  <PanelLeftClose className="h-4 w-4" />
+                ) : (
+                  <PanelLeft className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+          </div>
+
+          <EditorToolbar
+            editor={editor}
+            onInsertSection={handleInsertSection}
+            className="min-w-0"
           />
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {showFocusToggle && (
+              <FocusModeToggle hasActiveScene={hasActiveScene} />
+            )}
+            <SaveStatusIndicator status={saveStatus} />
+            <CollaborationPanel
+              status={collabStatus}
+              peers={peers}
+              roomId={roomId}
+              enabled={enableP2P}
+              isJoinedRoom={isJoinedRoom}
+              onToggle={setEnableP2P}
+              onJoinRoom={handleJoinRoom}
+              onLeaveRoom={handleLeaveRoom}
+            />
+            {onToggleTimeline && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={showTimeline ? "Hide timeline" : "Show timeline"}
+                title={showTimeline ? "Hide timeline" : "Show timeline"}
+                className="h-8 w-8 rounded-full"
+                onClick={onToggleTimeline}
+              >
+                {showTimeline ? (
+                  <PanelRightClose className="h-4 w-4" />
+                ) : (
+                  <PanelRight className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       <TextSelectionMenu
@@ -861,12 +926,27 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
       <div
         ref={editorContainerRef}
         className={`flex-1 overflow-y-auto p-4 ${formatSettings.typewriterMode ? "scroll-smooth" : ""}`}
+        onMouseDown={(event) => {
+          const target = event.target as HTMLElement;
+          if (!target) return;
+          if (target.closest(".ProseMirror")) return;
+          if (
+            target.closest(
+              "button,a,input,textarea,select,[role='button'],[data-radix-popper-content-wrapper]",
+            )
+          ) {
+            return;
+          }
+
+          event.preventDefault();
+          editor.chain().focus("end").run();
+        }}
       >
         <div
-          className="mx-auto"
+          className="mx-auto min-h-full w-full"
           style={{ maxWidth: `${formatSettings.pageWidth}px` }}
         >
-          <EditorContent editor={editor} />
+          <EditorContent editor={editor} className="min-h-full" />
         </div>
       </div>
     </div>

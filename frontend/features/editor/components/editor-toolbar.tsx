@@ -22,6 +22,7 @@ import {
 import { FormatMenu } from "./format-menu";
 import { Separator } from "@/components/ui/separator";
 import { formatShortcut } from "@/shared/utils/platform";
+import { cn } from "@/lib/utils";
 
 interface ToolbarButtonProps {
   icon: React.ElementType;
@@ -69,9 +70,11 @@ function ToolbarButton({
 export function EditorToolbar({
   editor,
   onInsertSection,
+  className,
 }: {
   editor: Editor;
   onInsertSection?: () => void;
+  className?: string;
 }) {
   const undoShortcut = formatShortcut("z");
   const redoShortcut = formatShortcut("z", { useShift: true });
@@ -81,9 +84,14 @@ export function EditorToolbar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="sticky top-0 z-20 w-full flex items-center gap-1 overflow-x-auto px-4 py-2 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 [&::-webkit-scrollbar]:hidden">
+      <div
+        className={cn(
+          "flex min-w-0 items-center gap-1 overflow-x-auto px-1 py-1 [&::-webkit-scrollbar]:hidden",
+          className,
+        )}
+      >
         {/* History */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           <ToolbarButton
             icon={Undo}
             label="Undo"
@@ -103,7 +111,7 @@ export function EditorToolbar({
         <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
 
         {/* Basic Formatting */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           <ToolbarButton
             icon={Bold}
             label="Bold"
@@ -130,7 +138,7 @@ export function EditorToolbar({
         <Separator orientation="vertical" className="h-6 mx-1 bg-border/50" />
 
         {/* Lists & Structure */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           <ToolbarButton
             icon={List}
             label="Bullet List"
@@ -165,9 +173,9 @@ export function EditorToolbar({
           </>
         )}
 
-        <div className="flex-1" />
-
-        <FormatMenu />
+        <div className="shrink-0">
+          <FormatMenu />
+        </div>
       </div>
     </TooltipProvider>
   );
