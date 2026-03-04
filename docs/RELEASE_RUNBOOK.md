@@ -74,6 +74,7 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 25. In-app updater prompt/install/restart path from an older build.
 26. Verify accessibility (aria-labels, keyboard nav) for key flows.
 27. Verify editor click-to-focus and top rail alignment (main header aligned with sidebar and right panel headers).
+28. Verify app starts cleanly and builds without missing dependency errors after recent dependency cleanups (March 4, 2026).
 
 ## 4. Prepare a Release
 

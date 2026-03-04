@@ -749,6 +749,10 @@ ThemeProvider (dark/light/system)
 **Component-Level Responsiveness:**
 
 - **Editor**: Toolbar adapts to screen width, removing fixed margins for better mobile support. Top rails are aligned across the left navigation sidebar, main editor container, and right timeline/notes panel. Full writing-area focus is implemented to let users easily click anywhere in the editor container to continue typing.
+
+**Maintenance Updates:**
+
+- **March 4, 2026**: Removed unused dependencies and stale tiktoken webpack configuration to reduce frontend bloat.
 - **Chat**: Optimized message bubble padding on mobile devices to maximize content area. Sidebar width adapts (full width on mobile, fixed 540px on desktop) with `min-h-0` scroll containment.
 - **Dashboard**: `ProjectCard` dropdown menus adapt width for small screens.
 - **Settings**: Connection lists use flexible viewport heights to prevent scrolling issues.
