@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
 > **Last Updated:** March 4, 2026
-> **Codebase Stats:** 338 frontend source files (48,700+ lines) · 35 backend source files (10,500+ lines) · 8 app route files
+> **Codebase Stats:** 339 frontend source files (48,800+ lines) · 35 backend source files (10,500+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -78,7 +78,7 @@ becomeAnAuthor/
 │   │   ├── layout.tsx            # Project workspace layout
 │   │   └── page.tsx              # Project workspace (editor/plan/chat)
 │   └── series/page.tsx           # Series management
-├── frontend/                     # Frontend source (297 files, 41.6K lines)
+├── frontend/                     # Frontend source (339 files, 48.8K lines)
 │   ├── core/                     # Tauri bridge & low-level utilities
 │   ├── domain/                   # Domain entities, repositories, services (interfaces)
 │   ├── features/                 # Feature modules (editor, codex, plan, chat, etc.)
@@ -468,6 +468,7 @@ The primary writing environment. 15+ components:
 
 - **Performance**: `tiptap-editor` uses static imports for critical dependencies to improve load time.
 - **Stability**: Fixed memory leaks in `NodeActionsMenu` (Blob URL cleanup) and `CollaborationPanel` (timeout cleanup).
+- **Maintenance (March 4, 2026)**: Removed unused dependencies and stale tiktoken webpack configuration to reduce bloat.
 
 ### 10.2 Codex Feature — `features/codex/`
 
@@ -730,7 +731,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 ## 19. Appendix: Complete File Inventory
 
-### 19.1 Frontend — `frontend/` (311 source files)
+### 19.1 Frontend — `frontend/` (339 source files)
 
 | Directory                      | Key Files                                                                                      |
 | ------------------------------ | ---------------------------------------------------------------------------------------------- |

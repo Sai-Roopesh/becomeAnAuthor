@@ -561,6 +561,9 @@ The `tiptap-editor.tsx` component utilizes **static imports** for core editor de
 **UI Adjustments (March 2026):**
 The editor's top rail has been aligned with the navigation sidebars (`ProjectNavigation` and `WriteRightPanel`) so that the application has a unified chrome header height (`h-14`) across all panels. Additionally, click-to-focus was improved inside the `EditorContainer` to ensure that clicking anywhere in the container correctly focuses the TipTap content editable area.
 
+**Maintenance (March 4, 2026):**
+Removed unused dependencies and a stale tiktoken webpack configuration to reduce frontend project bloat.
+
 ---
 
 ## 10. AI Integration Design
