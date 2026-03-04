@@ -94,8 +94,8 @@ export function WriteRightPanel({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="h-full flex flex-col bg-background/50">
-        {/* Tab Bar - Below the absolute toggle buttons (pt-12 accounts for them) */}
-        <div className="flex-shrink-0 border-b border-border/50 p-1.5 pt-12 flex items-center justify-center gap-1 bg-muted/20">
+        {/* Tab rail aligned with editor chrome row */}
+        <div className="h-14 flex-shrink-0 border-b border-border/50 px-2 flex items-center justify-center gap-1 bg-muted/20">
           {/* Tab buttons - centered */}
           <TabButton
             id="timeline"
