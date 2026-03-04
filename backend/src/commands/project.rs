@@ -291,10 +291,12 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+type FlatStructureNodeRow = (String, Option<String>, String, String, i32, Option<String>);
+
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
-    output: &mut Vec<(String, Option<String>, String, String, i32, Option<String>)>,
+    output: &mut Vec<FlatStructureNodeRow>,
 ) {
     for (index, node) in nodes.iter().enumerate() {
         let order_index = if node.order >= 0 {
