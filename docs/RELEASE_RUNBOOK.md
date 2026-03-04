@@ -73,6 +73,7 @@ Run this in native runtime (`pnpm run tauri:dev`) against a clean release profil
 24. Google Drive connect, full snapshot backup, full snapshot restore, sign out.
 25. In-app updater prompt/install/restart path from an older build.
 26. Verify accessibility (aria-labels, keyboard nav) for key flows.
+27. Verify editor click-to-focus and top rail alignment (main header aligned with sidebar and right panel headers).
 
 ## 4. Prepare a Release
 

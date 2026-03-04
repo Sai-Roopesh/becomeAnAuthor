@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** March 3, 2026
+> **Last Updated:** March 4, 2026
 > **Status:** Living Document
 
 ---
@@ -557,6 +557,9 @@ features/editor/
 
 **Performance Optimization:**
 The `tiptap-editor.tsx` component utilizes **static imports** for core editor dependencies (instead of dynamic `import()`) to prevent loading waterfalls and improve initial render performance, while heavy AI components remain lazily loaded.
+
+**UI Adjustments (March 2026):**
+The editor's top rail has been aligned with the navigation sidebars (`ProjectNavigation` and `WriteRightPanel`) so that the application has a unified chrome header height (`h-14`) across all panels. Additionally, click-to-focus was improved inside the `EditorContainer` to ensure that clicking anywhere in the container correctly focuses the TipTap content editable area.
 
 ---
 

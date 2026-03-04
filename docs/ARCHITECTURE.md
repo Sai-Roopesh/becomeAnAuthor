@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** March 3, 2026
-> **Codebase Stats:** 340 frontend source files (49,100+ lines) · 36 backend source files (10,900+ lines) · 8 app route files
+> **Last Updated:** March 4, 2026
+> **Codebase Stats:** 338 frontend source files (48,700+ lines) · 35 backend source files (10,500+ lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -105,7 +105,7 @@ becomeAnAuthor/
 | ---------------------- | ------------------------------------ | ------------------------------------------------------------------ |
 | **Shell**              | Tauri 2.0                            | Native desktop wrapper, IPC bridge, filesystem access              |
 | **Backend**            | Rust (stable)                        | File I/O, JSON/YAML serialization, search, export                  |
-| **Frontend Framework** | Next.js 15 (App Router)              | SSR routing, page layouts, code splitting                          |
+| **Frontend Framework** | Next.js 16 (App Router)              | SSR routing, page layouts, code splitting                          |
 | **UI Library**         | React 19                             | Component model, hooks, context                                    |
 | **Rich Text Editor**   | TipTap (ProseMirror)                 | Manuscript editing, extensions, @mentions                          |
 | **AI SDK**             | Vercel AI SDK 4.x                    | Multi-provider text generation, streaming, structured output       |
@@ -686,7 +686,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 - **Accessibility**: Comprehensive `aria-label` coverage for icon-only buttons, tabs, and interactive elements.
 - **Responsive Design**: Mobile-first grid layouts (`ProjectGrid`, `ExportDialog`) and flexible toolbars (`EditorToolbar`, `TimelineControls`) adapting to viewport width.
-- **Layout Fixes**: `ChatSidebar` flex container now correctly handles overflow with `min-h-0` on ScrollArea, preventing layout blowouts.
+- **Layout Fixes**: `ChatSidebar` flex container now correctly handles overflow with `min-h-0` on ScrollArea, preventing layout blowouts. Editor top rails are aligned across navigation, editor, and right panels with restored writing-area focus.
 
 ---
 
