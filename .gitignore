@@ -46,6 +46,14 @@ dev_web_output.log
 lint_output.txt
 
 # local codex agent artifacts
-/.agents/
-/AGENTS.md
 /scripts/validate_skill_routing.sh
+
+# codex skill definitions are versioned
+!AGENTS.md
+!.agents/
+!.agents/skills/
+!.agents/skills/**/SKILL.md
+!.agents/skills/**/agents/openai.yaml
+
+# local/generated history references remain local
+.agents/skills/project-history-index/references/
