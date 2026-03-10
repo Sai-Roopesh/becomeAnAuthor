@@ -36,6 +36,9 @@ fn apply_master_key_permissions(path: &PathBuf) -> Result<(), String> {
             .map_err(|e| format!("Failed to set master key permissions: {e}"))?;
     }
 
+    // Use path to satisfy compiler when not on unix
+    let _ = path;
+
     Ok(())
 }
 
