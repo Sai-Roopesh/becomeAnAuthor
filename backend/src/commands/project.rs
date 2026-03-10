@@ -209,6 +209,13 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
+
+    if let Some(recreated_id) =
+        crate::commands::series::restore_or_recreate_deleted_series(original_series_id)?
+    {
+        return Ok(recreated_id);
+    }
+
     ensure_recovery_series(conn)
 }
 
