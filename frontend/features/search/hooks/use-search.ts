@@ -15,8 +15,6 @@ import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("useSearch");
 
-export type SearchScope = "all" | "scenes" | "codex";
-
 function mapBackendResults(results: BackendSearchResult[]): {
   scenes: SearchResult<SearchableScene>[];
   codex: SearchResult<SearchableCodex>[];
@@ -62,7 +60,7 @@ function mapBackendResults(results: BackendSearchResult[]): {
  */
 export function useSearch(projectId: string) {
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<SearchScope>("all");
+  const [scope, setScope] = useState<"all" | "scenes" | "codex">("all");
   const [results, setResults] = useState<{
     scenes: SearchResult<SearchableScene>[];
     codex: SearchResult<SearchableCodex>[];
