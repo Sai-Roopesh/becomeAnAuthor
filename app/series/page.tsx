@@ -18,6 +18,7 @@ import { useProjectRepository } from "@/hooks/use-project-repository";
 import { useSeriesRepository } from "@/hooks/use-series-repository";
 import { useConfirmation } from "@/hooks/use-confirmation";
 import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
+import { logger } from "@/shared/utils/logger";
 import { CreateProjectDialog } from "@/features/project";
 import { ExportDialog } from "@/features/export";
 import { toast } from "@/shared/utils/toast-service";
@@ -114,7 +115,7 @@ function SeriesContent() {
       await projectRepo.delete(projectId);
       toast.success("Project moved to Trash");
     } catch (error) {
-      console.error("Failed to delete project:", error);
+      logger.error("Failed to delete project", error);
       toast.error("Failed to delete project. Please try again.");
     }
   };
@@ -137,7 +138,7 @@ function SeriesContent() {
       await projectRepo.update(projectId, { archived: false });
       toast.success("Novel restored");
     } catch (error) {
-      console.error("Failed to restore project:", error);
+      logger.error("Failed to restore project", error);
       toast.error("Failed to restore project");
     }
   };
