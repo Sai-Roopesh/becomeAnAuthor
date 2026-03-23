@@ -550,6 +550,7 @@ pub fn upsert_secure_secret(
     Ok(())
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_secure_secret(
     conn: &Connection,
     namespace: &str,
@@ -964,6 +965,7 @@ pub fn save_yjs_snapshot(
         .ok_or_else(|| "Yjs snapshot was not saved".to_string())
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_yjs_snapshot(
     conn: &Connection,
     project_path: &str,
