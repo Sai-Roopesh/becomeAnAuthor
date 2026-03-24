@@ -550,6 +550,7 @@ pub fn upsert_secure_secret(
     Ok(())
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_secure_secret(
     conn: &Connection,
     namespace: &str,
