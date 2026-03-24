@@ -37,7 +37,7 @@ export function DashboardHeader() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground italic max-w-md">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground italic max-w-md min-w-0">
           <Sparkles className="w-4 h-4 text-primary/50 flex-shrink-0" />
           <span className="line-clamp-1">"{quote}"</span>
         </div>
