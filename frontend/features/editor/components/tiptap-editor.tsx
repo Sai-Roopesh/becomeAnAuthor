@@ -545,7 +545,6 @@ ${options.instructions || "Continue the story naturally from the current context
 
 YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragraphs):`;
 
-    // generatedText variable removed - unused
 
     const messages: AIModelMessage[] = [];
     if (codexContext) {
@@ -580,7 +579,6 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
       },
       {
         onChunk: () => {
-          // generatedText += chunk;
         },
         onComplete: async (fullText) => {
           if (fullText && editor) {
