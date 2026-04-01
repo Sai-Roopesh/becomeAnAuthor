@@ -291,6 +291,7 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+#[allow(clippy::type_complexity)]
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
