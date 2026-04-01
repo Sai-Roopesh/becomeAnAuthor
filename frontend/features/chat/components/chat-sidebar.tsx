@@ -63,6 +63,7 @@ function ThreadActions({
             onArchive(threadId);
           }}
           title="Archive chat"
+          aria-label="Archive chat"
         >
           {!compact && <Archive className="h-3.5 w-3.5" />}
           {compact && "Archive"}
@@ -82,6 +83,7 @@ function ThreadActions({
             onRestore(threadId);
           }}
           title="Restore chat"
+          aria-label="Restore chat"
         >
           {!compact && <RotateCcw className="h-3.5 w-3.5" />}
           {compact && "Restore"}
@@ -100,6 +102,9 @@ function ThreadActions({
           onDelete(threadId);
         }}
         title={
+          threadView === "deleted" ? "Delete permanently" : "Move to Deleted"
+        }
+        aria-label={
           threadView === "deleted" ? "Delete permanently" : "Move to Deleted"
         }
       >
