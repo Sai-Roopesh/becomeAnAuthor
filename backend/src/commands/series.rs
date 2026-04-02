@@ -172,13 +172,21 @@ pub(crate) fn restore_or_recreate_deleted_series(
     let restored_id = if let Some(existing_id) = existing_by_title {
         existing_id
     } else {
-        let created = create_series(
+        let mut created = create_series(
             record.title,
             record.description,
             record.author,
             record.genre,
             record.status,
         )?;
+
+        // Force the ID to be the original deleted series ID, not a randomly generated new one,
+        // so that dependent projects point back to the right place.
+        conn.execute("DELETE FROM series WHERE id = ?1", params![created.id])
+            .map_err(|e| format!("Failed to delete randomly generated series: {e}"))?;
+
+        created.id = old_series_id.to_string();
+        upsert_series(&conn, &created)?;
         created.id
     };
 

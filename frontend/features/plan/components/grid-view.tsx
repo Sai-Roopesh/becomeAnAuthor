@@ -90,14 +90,14 @@ export function GridView({ projectId, seriesId, nodes }: GridViewProps) {
             style={{ animationDelay: `${actIndex * 100}ms` }}
           >
             {/* Act Section Header - Swimlane Style */}
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-4 mb-4 min-w-0">
               <div className="flex-1 h-px bg-border" />
-              <div className="flex items-center gap-3 bg-card border border-border/50 shadow-sm px-4 py-2 rounded-full">
+              <div className="flex items-center gap-3 bg-card border border-border/50 shadow-sm px-4 py-2 rounded-full max-w-[80%] min-w-0">
                 <Button
                   variant="ghost"
                   size="icon"
                   aria-label={isExpanded ? "Collapse act" : "Expand act"}
-                  className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                  className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors flex-shrink-0"
                   onClick={() => toggleAct(act.id)}
                 >
                   {isExpanded ? (
@@ -137,9 +137,9 @@ export function GridView({ projectId, seriesId, nodes }: GridViewProps) {
                       className="flex flex-col bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300 group/chapter"
                     >
                       {/* Chapter Header */}
-                      <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between group-hover/chapter:bg-muted/40 transition-colors">
+                      <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between gap-2 group-hover/chapter:bg-muted/40 transition-colors min-w-0">
                         <h3
-                          className="font-heading font-semibold text-foreground truncate"
+                          className="font-heading font-semibold text-foreground truncate min-w-0 flex-1"
                           title={chapter.title}
                         >
                           {chapter.title}
