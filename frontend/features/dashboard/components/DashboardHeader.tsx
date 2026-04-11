@@ -24,13 +24,13 @@ export function DashboardHeader() {
     <div className="relative mb-8 p-6 rounded-2xl bg-muted/30 border border-border/50 overflow-hidden">
       <DecorativeGrid dotSize="lg" opacity={30} />
 
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-xl">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 bg-primary/10 rounded-xl shrink-0">
             <BookOpen className="w-5 h-5 text-primary" />
           </div>
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-heading font-bold text-foreground truncate">
               {greeting}, <span className="text-primary">Author</span>
             </h1>
             <p className="text-sm text-muted-foreground">Your novels await</p>
