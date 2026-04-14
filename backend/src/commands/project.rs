@@ -199,6 +199,10 @@ fn resolve_series_for_restored_project(
     conn: &Connection,
     original_series_id: &str,
 ) -> Result<String, String> {
+    if let Ok(Some(restored_id)) = crate::commands::series::restore_or_recreate_deleted_series(original_series_id) {
+        return Ok(restored_id);
+    }
+
     let exists: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM series WHERE id = ?1)",
