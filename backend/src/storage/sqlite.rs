@@ -1,3 +1,4 @@
+type KeyPair = (Vec<u8>, Vec<u8>);
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -555,7 +556,7 @@ pub fn get_secure_secret(
     namespace: &str,
     provider: &str,
     connection_id: &str,
-) -> Result<Option<(Vec<u8>, Vec<u8>)>, String> {
+) -> Result<Option<KeyPair>, String> {
     conn.query_row(
         r#"
         SELECT nonce, ciphertext
