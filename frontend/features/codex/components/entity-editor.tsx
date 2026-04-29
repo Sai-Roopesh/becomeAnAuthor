@@ -248,46 +248,39 @@ export function EntityEditor({
         className="flex-1 flex flex-col overflow-hidden"
       >
         <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto overflow-x-auto flex-nowrap scrollbar-hide">
-          <TabsTrigger
-            value="details"
+          <TabsTrigger value="details" aria-label="Details"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Details
           </TabsTrigger>
           {template && (
-            <TabsTrigger
-              value="template"
+            <TabsTrigger value="template" aria-label="Template Fields"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
             >
               Template Fields
             </TabsTrigger>
           )}
-          <TabsTrigger
-            value="tags"
+          <TabsTrigger value="tags" aria-label="Tags"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Tags
           </TabsTrigger>
-          <TabsTrigger
-            value="research"
+          <TabsTrigger value="research" aria-label="Research"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Research
           </TabsTrigger>
-          <TabsTrigger
-            value="relations"
+          <TabsTrigger value="relations" aria-label="Relations"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Relations
           </TabsTrigger>
-          <TabsTrigger
-            value="mentions"
+          <TabsTrigger value="mentions" aria-label="Mentions"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Mentions
           </TabsTrigger>
-          <TabsTrigger
-            value="tracking"
+          <TabsTrigger value="tracking" aria-label="Tracking"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Tracking

@@ -780,7 +780,7 @@ export function SceneLinkPanel({
                                 <Icon className="h-3.5 w-3.5" />
                               )}
                             </div>
-                            <span className="flex-1 text-sm truncate">
+                            <span className="flex-1 text-sm truncate min-w-0">
                               {entry.name}
                             </span>
                             {pending ? (
