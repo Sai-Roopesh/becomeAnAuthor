@@ -250,6 +250,7 @@ export function EntityEditor({
         <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto overflow-x-auto flex-nowrap scrollbar-hide">
           <TabsTrigger
             value="details"
+            aria-label="Details"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Details
@@ -257,6 +258,7 @@ export function EntityEditor({
           {template && (
             <TabsTrigger
               value="template"
+              aria-label="Template Fields"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
             >
               Template Fields
@@ -264,30 +266,35 @@ export function EntityEditor({
           )}
           <TabsTrigger
             value="tags"
+            aria-label="Tags"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Tags
           </TabsTrigger>
           <TabsTrigger
             value="research"
+            aria-label="Research"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Research
           </TabsTrigger>
           <TabsTrigger
             value="relations"
+            aria-label="Relations"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Relations
           </TabsTrigger>
           <TabsTrigger
             value="mentions"
+            aria-label="Mentions"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Mentions
           </TabsTrigger>
           <TabsTrigger
             value="tracking"
+            aria-label="Tracking"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
           >
             Tracking
