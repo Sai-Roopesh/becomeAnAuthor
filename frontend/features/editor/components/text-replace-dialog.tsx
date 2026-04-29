@@ -239,8 +239,14 @@ Provide only the transformed text. No explanations, no preamble.`,
         >
           <div className="flex-none px-6 pt-2">
             <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger value="tweak" aria-label="✏️ Tweak">✏️ Tweak</TabsTrigger>
-              <TabsTrigger value="preview" aria-label="👁️ Preview" disabled={!state.result}>
+              <TabsTrigger value="tweak" aria-label="✏️ Tweak">
+                ✏️ Tweak
+              </TabsTrigger>
+              <TabsTrigger
+                value="preview"
+                aria-label="👁️ Preview"
+                disabled={!state.result}
+              >
                 👁️ Preview
               </TabsTrigger>
             </TabsList>

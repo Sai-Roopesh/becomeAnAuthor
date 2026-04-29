@@ -41,9 +41,15 @@ export function FormatMenu() {
     <div className="p-4">
       <Tabs defaultValue="focus">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="focus" aria-label="Focus">Focus</TabsTrigger>
-          <TabsTrigger value="typography" aria-label="Typography">Typography</TabsTrigger>
-          <TabsTrigger value="page" aria-label="Page">Page</TabsTrigger>
+          <TabsTrigger value="focus" aria-label="Focus">
+            Focus
+          </TabsTrigger>
+          <TabsTrigger value="typography" aria-label="Typography">
+            Typography
+          </TabsTrigger>
+          <TabsTrigger value="page" aria-label="Page">
+            Page
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="focus" className="space-y-4 mt-4">
