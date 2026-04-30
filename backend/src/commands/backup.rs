@@ -1491,7 +1491,7 @@ fn build_structure_tree_with_remapped_ids(
     }
 
     for list in grouped.values_mut() {
-        list.sort_by(|a, b| a.order_index.cmp(&b.order_index));
+        list.sort_by_key(|a| a.order_index);
     }
 
     let mut id_map: HashMap<String, String> = HashMap::new();
