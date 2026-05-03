@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::commands::series::restore_or_recreate_deleted_series;
 use crate::models::{ProjectMeta, StructureNode};
 use crate::storage::open_app_db;
 use crate::utils::{
@@ -209,6 +210,11 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
+
+    if let Ok(Some(restored_id)) = restore_or_recreate_deleted_series(original_series_id) {
+        return Ok(restored_id);
+    }
+
     ensure_recovery_series(conn)
 }
 
