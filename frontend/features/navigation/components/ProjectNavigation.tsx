@@ -403,7 +403,9 @@ export function ProjectNavigation({
                       key={scene.id}
                       className="px-3 py-2 flex items-center gap-2 text-sm min-w-0"
                     >
-                      <span className="truncate flex-1 min-w-0">{scene.title}</span>
+                      <span className="truncate flex-1 min-w-0">
+                        {scene.title}
+                      </span>
                       <Button
                         variant="ghost"
                         size="icon"
