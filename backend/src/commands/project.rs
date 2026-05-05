@@ -209,7 +209,11 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
-    ensure_recovery_series(conn)
+
+    match crate::commands::series::restore_or_recreate_deleted_series(original_series_id) {
+        Ok(Some(new_id)) => Ok(new_id),
+        _ => ensure_recovery_series(conn),
+    }
 }
 
 fn add_recent_entry(conn: &Connection, project_path: &str, title: &str) -> Result<(), String> {
@@ -291,10 +295,12 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+type FlattenedStructureNode = (String, Option<String>, String, String, i32, Option<String>);
+
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
-    output: &mut Vec<(String, Option<String>, String, String, i32, Option<String>)>,
+    output: &mut Vec<FlattenedStructureNode>,
 ) {
     for (index, node) in nodes.iter().enumerate() {
         let order_index = if node.order >= 0 {
