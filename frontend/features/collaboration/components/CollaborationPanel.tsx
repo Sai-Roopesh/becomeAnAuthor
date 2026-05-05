@@ -171,8 +171,8 @@ export function CollaborationPanel({
             <span className="text-sm font-medium">
               {isJoinedRoom ? "Current Room ID" : "Your Room ID"}
             </span>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 px-2 py-1.5 bg-muted rounded text-xs truncate font-mono">
+            <div className="flex items-center gap-2 min-w-0">
+              <code className="flex-1 min-w-0 px-2 py-1.5 bg-muted rounded text-xs truncate font-mono">
                 {roomId}
               </code>
               <Button
