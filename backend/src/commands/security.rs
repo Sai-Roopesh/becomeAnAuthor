@@ -28,11 +28,11 @@ fn master_key_path() -> Result<PathBuf, String> {
     Ok(meta_dir.join(MASTER_KEY_FILE))
 }
 
-fn apply_master_key_permissions(path: &PathBuf) -> Result<(), String> {
+fn apply_master_key_permissions(_path: &PathBuf) -> Result<(), String> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+        fs::set_permissions(_path, fs::Permissions::from_mode(0o600))
             .map_err(|e| format!("Failed to set master key permissions: {e}"))?;
     }
 

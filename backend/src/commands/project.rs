@@ -280,7 +280,7 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
         parent_id: Option<String>,
     ) -> Vec<StructureNode> {
         let mut current = grouped.remove(&parent_id).unwrap_or_default();
-        current.sort_by(|a, b| a.order_index.cmp(&b.order_index));
+        current.sort_by_key(|a| a.order_index);
 
         current
             .into_iter()
@@ -298,10 +298,12 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+type FlattenedStructureTuple = (String, Option<String>, String, String, i32, Option<String>);
+
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
-    output: &mut Vec<(String, Option<String>, String, String, i32, Option<String>)>,
+    output: &mut Vec<FlattenedStructureTuple>,
 ) {
     for (index, node) in nodes.iter().enumerate() {
         let order_index = if node.order >= 0 {
