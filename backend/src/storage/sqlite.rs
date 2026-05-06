@@ -550,12 +550,14 @@ pub fn upsert_secure_secret(
     Ok(())
 }
 
+type SecureSecretTuple = (Vec<u8>, Vec<u8>);
+
 pub fn get_secure_secret(
     conn: &Connection,
     namespace: &str,
     provider: &str,
     connection_id: &str,
-) -> Result<Option<(Vec<u8>, Vec<u8>)>, String> {
+) -> Result<Option<SecureSecretTuple>, String> {
     conn.query_row(
         r#"
         SELECT nonce, ciphertext
