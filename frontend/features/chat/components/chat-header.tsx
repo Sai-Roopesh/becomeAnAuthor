@@ -73,12 +73,12 @@ export function ChatHeader({
               setIsEditing(false);
             }
           }}
-          className="flex-1 h-8 font-heading font-semibold"
+          className="flex-1 min-w-0 h-8 font-heading font-semibold"
           autoFocus
         />
       ) : (
         <h2
-          className="flex-1 font-heading font-semibold text-lg cursor-pointer hover:text-primary transition-colors truncate"
+          className="flex-1 min-w-0 font-heading font-semibold text-lg cursor-pointer hover:text-primary transition-colors truncate"
           onClick={() => setIsEditing(true)}
           title="Click to rename"
         >

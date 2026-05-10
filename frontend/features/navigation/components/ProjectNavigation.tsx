@@ -245,7 +245,7 @@ export function ProjectNavigation({
                 <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
               ))}
             <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="block w-0 flex-1 truncate">{node.title}</span>
+            <span className="block w-0 flex-1 min-w-0 truncate">{node.title}</span>
           </div>
 
           {/* Always show indicator, expand on hover */}
@@ -322,7 +322,7 @@ export function ProjectNavigation({
     <div className="h-full min-w-0 flex flex-col bg-muted/10 border-r">
       {/* Header aligned with editor chrome row */}
       <div className="h-14 px-4 border-b flex items-center justify-between">
-        <div className="min-w-0 flex-1">
+        <div className="flex-1 min-w-0">
           <h2 className="font-semibold truncate" title={project.title}>
             {project.title}
           </h2>
@@ -336,7 +336,7 @@ export function ProjectNavigation({
       <Tabs
         value={leftSidebarTab}
         onValueChange={(value) => setLeftSidebarTab(value as LeftSidebarTab)}
-        className="flex-1 min-h-0 flex flex-col overflow-hidden"
+        className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden"
       >
         <TabsList className="grid w-full grid-cols-3 rounded-none border-b bg-transparent p-0 overflow-hidden">
           <TabsTrigger
@@ -367,7 +367,7 @@ export function ProjectNavigation({
 
         <TabsContent
           value="manuscript"
-          className="flex-1 min-h-0 overflow-hidden flex flex-col m-0"
+          className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col m-0"
         >
           <div className="p-2 border-b flex justify-between items-center bg-background/50">
             <span className="text-xs font-medium text-muted-foreground">
@@ -382,7 +382,7 @@ export function ProjectNavigation({
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <ScrollArea className="flex-1 min-h-0">
+          <ScrollArea className="flex-1 min-w-0 min-h-0">
             <div className="p-2">
               {acts.map((act) => renderNode(act, 0))}
               {acts.length === 0 && (
@@ -403,7 +403,7 @@ export function ProjectNavigation({
                       key={scene.id}
                       className="px-3 py-2 flex items-center gap-2 text-sm"
                     >
-                      <span className="truncate flex-1">{scene.title}</span>
+                      <span className="truncate flex-1 min-w-0">{scene.title}</span>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -424,7 +424,7 @@ export function ProjectNavigation({
 
         <TabsContent
           value="codex"
-          className="flex-1 min-h-0 overflow-hidden m-0"
+          className="flex-1 min-w-0 min-h-0 overflow-hidden m-0"
         >
           {renderCodexList ? (
             renderCodexList({
@@ -441,7 +441,7 @@ export function ProjectNavigation({
 
         <TabsContent
           value="snippets"
-          className="flex-1 min-h-0 overflow-hidden m-0"
+          className="flex-1 min-w-0 min-h-0 overflow-hidden m-0"
         >
           {renderSnippetList ? (
             renderSnippetList({
