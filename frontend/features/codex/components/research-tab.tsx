@@ -47,7 +47,7 @@ export function ResearchTab({ entity, onChange }: ResearchTabProps) {
           physical descriptions, or editing notes.
         </p>
         <Textarea
-          className="flex-1"
+          className="flex-1 min-w-0"
           value={entity.notes || ""}
           onChange={(e) => onChange("notes", e.target.value)}
           placeholder="Add research notes..."
@@ -78,7 +78,7 @@ export function ResearchTab({ entity, onChange }: ResearchTabProps) {
                   href={link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 text-sm text-primary hover:underline truncate"
+                  className="flex-1 min-w-0 text-sm text-primary hover:underline truncate"
                 >
                   {link}
                 </a>

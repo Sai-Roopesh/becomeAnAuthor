@@ -521,7 +521,7 @@ export function SceneLinkPanel({
           </p>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 px-4 pb-4 space-y-4">
+        <div className="flex-1 min-w-0 min-h-0 px-4 pb-4 space-y-4">
           <div className="mt-3 rounded-lg border bg-muted/30 p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Info className="h-4 w-4 text-primary" />
@@ -780,7 +780,7 @@ export function SceneLinkPanel({
                                 <Icon className="h-3.5 w-3.5" />
                               )}
                             </div>
-                            <span className="flex-1 text-sm truncate">
+                            <span className="flex-1 min-w-0 text-sm truncate">
                               {entry.name}
                             </span>
                             {pending ? (
