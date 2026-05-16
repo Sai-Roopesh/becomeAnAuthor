@@ -245,7 +245,9 @@ SUMMARY (2-3 sentences, present tense):`,
     a.href = url;
     a.download = `${node.title}.txt`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 100);
     toast.success("Scene exported");
   };
 
