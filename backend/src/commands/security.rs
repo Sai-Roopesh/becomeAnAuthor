@@ -28,7 +28,7 @@ fn master_key_path() -> Result<PathBuf, String> {
     Ok(meta_dir.join(MASTER_KEY_FILE))
 }
 
-fn apply_master_key_permissions(path: &PathBuf) -> Result<(), String> {
+fn apply_master_key_permissions(#[allow(unused_variables)] path: &PathBuf) -> Result<(), String> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
