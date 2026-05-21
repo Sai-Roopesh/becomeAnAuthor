@@ -545,8 +545,6 @@ ${options.instructions || "Continue the story naturally from the current context
 
 YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragraphs):`;
 
-    // generatedText variable removed - unused
-
     const messages: AIModelMessage[] = [];
     if (codexContext) {
       messages.push({

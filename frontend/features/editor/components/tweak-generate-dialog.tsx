@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-// ScrollArea, Checkbox imports removed - unused
 import { Expand, Copy } from "lucide-react";
 import { ModelSelector } from "@/features/ai/components/model-selector";
 import {
