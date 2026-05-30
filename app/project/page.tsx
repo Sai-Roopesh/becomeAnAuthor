@@ -107,7 +107,8 @@ function ProjectContent() {
     error: openError,
   } = useOpenProject();
 
-  const { viewMode, setActiveProjectId } = useProjectStore();
+  const { viewMode, setActiveProjectId, setActiveProjectPath } =
+    useProjectStore();
   const [searchOpen, setSearchOpen] = useState(false);
   const [autoRecoveryAttempted, setAutoRecoveryAttempted] = useState(false);
   const [openingRecentPath, setOpeningRecentPath] = useState<string | null>(
@@ -203,6 +204,20 @@ function ProjectContent() {
       setActiveProjectId(null);
     };
   }, [projectId, setActiveProjectId]);
+
+  // Sync the loaded project's filesystem path into the store so repositories
+  // (which call useProjectStore.getState().activeProjectPath) can operate.
+  // TauriProjectRepository.get() attaches _tauriPath to the returned entity.
+  const tauriPath = (project as typeof project & { _tauriPath?: string })
+    ?._tauriPath;
+  useEffect(() => {
+    if (tauriPath) {
+      setActiveProjectPath(tauriPath);
+    }
+    return () => {
+      setActiveProjectPath(null);
+    };
+  }, [tauriPath, setActiveProjectPath]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
