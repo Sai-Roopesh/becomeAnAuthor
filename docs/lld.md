@@ -1,7 +1,7 @@
 # Become An Author — Low Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** March 4, 2026
+> **Last Updated:** May 31, 2026
 > **Status:** Living Document
 
 ---
@@ -135,6 +135,8 @@ Layer 8: Core / IPC Bridge    → frontend/core/tauri/commands.ts + frontend/cor
 
 ## 4. Backend Design (Rust / Tauri)
 
+Database schema migrations are handled on launch via `run_migrations(conn)` enforcing schema versions using PRAGMA.
+
 ### 4.1 Module Organization
 
 ```
@@ -230,6 +232,8 @@ Parsed by the Rust backend using `gray_matter` for frontmatter extraction and `s
 ---
 
 ## 5. Frontend Design (Next.js / React)
+
+All data query usages of `useLiveQuery` explicitly map to a `LiveQueryResult<T>` object with `{data, loading, error}` structure. Additionally, project path information is tracked centrally via `activeProjectPath` in the `useProjectStore` instead of a standalone mutable singleton module.
 
 ### 5.1 App Routes
 

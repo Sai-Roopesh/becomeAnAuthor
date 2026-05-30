@@ -373,7 +373,7 @@ OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, Cohere, xAI (Grok), A
 
 | Store             | File                         | Lines | Persisted    | State                                                                                                                              |
 | ----------------- | ---------------------------- | ----- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `useProjectStore` | `store/use-project-store.ts` | 116   | ✅ (partial) | `viewMode` (plan/write/chat), `activeSceneId`, `activeProjectId`, `activeCodexEntryId`, `showSidebar`, `showTimeline`, `rightPanelTab`, `leftSidebarTab` |
+| `useProjectStore` | `store/use-project-store.ts` | 116   | ✅ (partial) | `viewMode` (plan/write/chat), `activeSceneId`, `activeProjectId`, `activeProjectPath`, `activeCodexEntryId`, `showSidebar`, `showTimeline`, `rightPanelTab`, `leftSidebarTab` |
 | `useChatStore`    | `store/use-chat-store.ts`    | 45    | ❌           | `activeThreadIds` (per-project map), `threadViews` (per-project map: active/archived/deleted)                                      |
 | `useFormatStore`  | `store/use-format-store.ts`  | 93    | ✅ (full)    | Typography (fontFamily, fontSize, lineHeight, textIndent, alignment, paragraphSpacing, pageWidth, sceneDividerStyle), continueInChapter, typewriterMode, typewriterOffset, showLineNumbers, showWordCount, focusMode |
 
@@ -385,6 +385,7 @@ Custom hook (`hooks/use-live-query.ts`) providing a React Query-like pattern for
 - **Invalidation** via `invalidateQueries(patterns)`
 - **Background refetch** on window focus
 - **Optimistic updates** support
+- **Returns** `LiveQueryResult<T> = {data, loading, error}` object (suppresses `E_PROJECT_NOT_OPEN` errors in the console)
 
 ---
 
@@ -733,6 +734,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 4. Import failures → **Import Rollback** automatically reverts partial series imports
 5. Expired cleanup → `cleanup_emergency_backups` on startup
 6. Atomic writes → temp-file-then-rename pattern
+7. Database integrity → Wraps multi-step operations in BEGIN IMMEDIATE/COMMIT/ROLLBACK transactions via `with_transaction<T,F>(conn, f)`
 
 ### 18.3 Logging
 

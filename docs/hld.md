@@ -1,7 +1,7 @@
 # Become An Author — High Level Design Document
 
 > **Version:** 0.0.1
-> **Last Updated:** March 4, 2026
+> **Last Updated:** May 31, 2026
 > **Status:** Living Document
 
 ---
@@ -332,6 +332,8 @@ The application uses three primary views, controlled by `useProjectStore.viewMod
 
 ## 7. Frontend Architecture
 
+**UI Rendering Slots:** To remove cross-feature imports, the frontend heavily uses render-prop slots (e.g., `renderSettingsButton`, `renderCollaborationPanel`) injected by the app shell.
+
 ### 7.1 Layer Architecture (8 Layers)
 
 The frontend follows a strict 8-layer Clean Architecture with enforced dependency rules:
@@ -395,6 +397,8 @@ app/
 ---
 
 ## 8. Backend Architecture
+
+**Database Transactions:** Complex updates across tables are handled securely using a `with_transaction` helper enforcing SQLite BEGIN IMMEDIATE/COMMIT/ROLLBACK workflows.
 
 ### 8.1 Module Organization
 
