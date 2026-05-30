@@ -646,7 +646,7 @@ Assembles contextual information for AI prompts:
 
 | Store             | File                   | Persistence                                    | Purpose                                                                  |
 | ----------------- | ---------------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| `useProjectStore` | `use-project-store.ts` | SQLite `app_preferences["ui.project_store"]`   | Active scene, view mode (plan/write/chat), panel visibility, active tabs |
+| `useProjectStore` | `use-project-store.ts` | SQLite `app_preferences["ui.project_store"]`   | Active scene, active project path, view mode (plan/write/chat), panel visibility, active tabs |
 | `useChatStore`    | `use-chat-store.ts`    | None                                           | Active chat thread state                                                 |
 | `useFormatStore`  | `use-format-store.ts`  | SQLite `app_preferences["ui.format_settings"]` | Editor formatting preferences                                            |
 
@@ -964,4 +964,5 @@ All components built on **Radix UI** primitives with **class-variance-authority*
 _End of Low Level Design Document_
 
 ## Change Log
+- **2026-05-31**: Adds fixes for frontend startup and collaboration: synchronizes `activeProjectPath` in project store to prevent Yjs save and repository operation errors, suppresses `E_PROJECT_NOT_OPEN` in `useLiveQuery` for cleaner console output, and resolves Next.js dev server startup failures related to Turbopack aliases and server boundary events.
 - **2026-05-30**: Resolves 57 bug-bash findings across the Rust backend and TypeScript frontend, focusing on React hooks fixes (`usePrompt`, `useLiveQuery`), editor autosave data loss fixes, UI/accessibility improvements, and security enhancements (path traversal prevention, OAuth secret removal, safe CSP).

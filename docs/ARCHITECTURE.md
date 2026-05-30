@@ -373,13 +373,13 @@ OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, Cohere, xAI (Grok), A
 
 | Store             | File                         | Lines | Persisted    | State                                                                                                                              |
 | ----------------- | ---------------------------- | ----- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `useProjectStore` | `store/use-project-store.ts` | 116   | ✅ (partial) | `viewMode` (plan/write/chat), `activeSceneId`, `activeProjectId`, `activeCodexEntryId`, `showSidebar`, `showTimeline`, `rightPanelTab`, `leftSidebarTab` |
+| `useProjectStore` | `store/use-project-store.ts` | 116   | ✅ (partial) | `viewMode` (plan/write/chat), `activeSceneId`, `activeProjectId`, `activeProjectPath`, `activeCodexEntryId`, `showSidebar`, `showTimeline`, `rightPanelTab`, `leftSidebarTab` |
 | `useChatStore`    | `store/use-chat-store.ts`    | 45    | ❌           | `activeThreadIds` (per-project map), `threadViews` (per-project map: active/archived/deleted)                                      |
 | `useFormatStore`  | `store/use-format-store.ts`  | 93    | ✅ (full)    | Typography (fontFamily, fontSize, lineHeight, textIndent, alignment, paragraphSpacing, pageWidth, sceneDividerStyle), continueInChapter, typewriterMode, typewriterOffset, showLineNumbers, showWordCount, focusMode |
 
 ### 8.2 Server State — `useLiveQuery`
 
-Custom hook (`hooks/use-live-query.ts`) providing a React Query-like pattern for Tauri data:
+Custom hook (`hooks/use-live-query.ts`) providing a React Query-like pattern for Tauri data: (Note: It also suppresses precondition errors such as `E_PROJECT_NOT_OPEN` by treating them as empty data states rather than logging them as errors).
 
 - **Caching** with configurable stale time
 - **Invalidation** via `invalidateQueries(patterns)`
@@ -802,4 +802,5 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 _This architecture document was generated from an exhaustive, file-by-file analysis of every source file in the project._
 
 ## Change Log
+- **2026-05-31**: Adds fixes for frontend startup and collaboration: synchronizes `activeProjectPath` in project store to prevent Yjs save and repository operation errors, suppresses `E_PROJECT_NOT_OPEN` in `useLiveQuery` for cleaner console output, and resolves Next.js dev server startup failures related to Turbopack aliases and server boundary events.
 - **2026-05-30**: Resolves 57 bug-bash findings across the Rust backend and TypeScript frontend, focusing on React hooks fixes (`usePrompt`, `useLiveQuery`), editor autosave data loss fixes, UI/accessibility improvements, and security enhancements (path traversal prevention, OAuth secret removal, safe CSP).
