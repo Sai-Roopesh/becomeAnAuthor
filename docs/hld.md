@@ -908,3 +908,6 @@ npm run tauri:build
 ---
 
 _End of High Level Design Document_
+
+## Change Log
+- **2026-05-30**: Resolves 57 bug-bash findings across the Rust backend and TypeScript frontend, focusing on React hooks fixes (`usePrompt`, `useLiveQuery`), editor autosave data loss fixes, UI/accessibility improvements, and security enhancements (path traversal prevention, OAuth secret removal, safe CSP).

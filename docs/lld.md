@@ -391,7 +391,7 @@ interface INodeRepository {
   renameNode(projectId: string, nodeId: string, title: string): Promise<void>;
   deleteNode(projectId: string, nodeId: string): Promise<void>;
   loadScene(projectId: string, sceneId: string): Promise<Scene>;
-  saveScene(projectId: string, scene: Scene): Promise<void>;
+  saveScene(projectId: string, sceneId: string, content: string, metadata: Omit<Scene, 'content'>, wordCount: number): Promise<void>;
 }
 ```
 
@@ -739,7 +739,7 @@ useNodeRepository() → INodeRepository.saveScene()
         │
         ▼
 TauriNodeRepository.saveScene()
-  → invoke("save_scene", { projectPath, sceneId, content, metadata })
+  → invoke("save_scene", { projectPath, sceneId, content, metadata, wordCount })
         │
         ▼
 Rust: commands::scene::save_scene()
@@ -962,3 +962,6 @@ All components built on **Radix UI** primitives with **class-variance-authority*
 ---
 
 _End of Low Level Design Document_
+
+## Change Log
+- **2026-05-30**: Resolves 57 bug-bash findings across the Rust backend and TypeScript frontend, focusing on React hooks fixes (`usePrompt`, `useLiveQuery`), editor autosave data loss fixes, UI/accessibility improvements, and security enhancements (path traversal prevention, OAuth secret removal, safe CSP).
