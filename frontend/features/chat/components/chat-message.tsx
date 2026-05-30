@@ -268,9 +268,12 @@ export function ChatMessage({
                   );
                 },
                 a({ children, href }) {
+                  // M-8: Reject javascript: and other unsafe URI schemes
+                  const safeHref =
+                    href && /^(https?:|mailto:)/i.test(href) ? href : "#";
                   return (
                     <a
-                      href={href}
+                      href={safeHref}
                       className="underline underline-offset-2 hover:opacity-80"
                       target="_blank"
                       rel="noopener noreferrer"

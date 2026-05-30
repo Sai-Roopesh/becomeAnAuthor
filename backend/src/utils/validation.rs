@@ -48,7 +48,7 @@ pub fn validate_project_title(title: &str) -> Result<(), String> {
     }
 
     // Disallow potentially dangerous characters
-    let dangerous_chars = ['*', '?', '<', '>', '|', ':', '"', '\0'];
+    let dangerous_chars = ['*', '?', '<', '>', '|', ':', '"', '\0', '~'];
     if title.chars().any(|c| dangerous_chars.contains(&c)) {
         return Err("Project title contains invalid characters".to_string());
     }
@@ -94,17 +94,6 @@ pub fn validate_no_null_bytes(input: &str, field_name: &str) -> Result<(), Strin
         return Err(format!("{} contains null bytes", field_name));
     }
     Ok(())
-}
-
-/// Validate UUID format using the uuid crate
-pub fn validate_uuid_format(uuid_str: &str) -> Result<(), String> {
-    if uuid_str.is_empty() {
-        return Err("UUID cannot be empty".to_string());
-    }
-
-    uuid::Uuid::parse_str(uuid_str)
-        .map(|_| ())
-        .map_err(|e| format!("Invalid UUID format: {}", e))
 }
 
 // ============================================================================
@@ -194,11 +183,4 @@ mod tests {
         assert!(validate_no_null_bytes("text\0with\0nulls", "Field").is_err());
     }
 
-    #[test]
-    fn test_validate_uuid_format() {
-        assert!(validate_uuid_format("550e8400-e29b-41d4-a716-446655440000").is_ok());
-        assert!(validate_uuid_format("invalid-uuid").is_err());
-        assert!(validate_uuid_format("").is_err());
-        assert!(validate_uuid_format("not-a-uuid-at-all").is_err());
-    }
 }

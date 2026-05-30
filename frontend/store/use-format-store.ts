@@ -57,7 +57,7 @@ export const defaultFormatSettings: FormatSettings = {
 
 export const useFormatStore = create<FormatStore>()((set) => ({
   ...defaultFormatSettings,
-  updateSettings: (settings) => set((state) => ({ ...state, ...settings })),
+  updateSettings: (settings) => set(settings),
   resetSettings: () => set(defaultFormatSettings),
   toggleFocusMode: () => set((state) => ({ focusMode: !state.focusMode })),
   toggleTypewriterMode: () =>

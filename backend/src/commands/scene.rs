@@ -245,6 +245,7 @@ fn read_scene_content(path: &PathBuf) -> Result<String, String> {
 
 #[tauri::command]
 pub fn load_scene(project_path: String, scene_file: String) -> Result<Scene, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     validate_scene_file_name(&scene_file)?;
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
@@ -267,7 +268,11 @@ pub fn save_scene(
     title: Option<String>,
     word_count: i32,
 ) -> Result<SceneMeta, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     validate_scene_file_name(&scene_file)?;
+    if content.len() as u64 > MAX_SCENE_SIZE {
+        return Err("[E_CONTENT_TOO_LARGE] Scene content exceeds maximum size of 10 MB".to_string());
+    }
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
 
@@ -314,6 +319,7 @@ pub fn update_scene_metadata(
     scene_file: String,
     updates: SceneMetadataUpdates,
 ) -> Result<SceneMeta, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     validate_scene_file_name(&scene_file)?;
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
@@ -379,6 +385,7 @@ pub fn update_scene_metadata(
 
 #[tauri::command]
 pub fn delete_scene(project_path: String, scene_file: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     validate_scene_file_name(&scene_file)?;
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
@@ -404,6 +411,7 @@ pub fn save_scene_by_id(
     content: String,
     word_count: i32,
 ) -> Result<SceneMeta, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
 

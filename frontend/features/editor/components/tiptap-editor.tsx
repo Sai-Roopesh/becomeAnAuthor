@@ -17,6 +17,7 @@ import Typography from "@tiptap/extension-typography";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
 import Collaboration from "@tiptap/extension-collaboration";
+import { closeHistory } from "prosemirror-history";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useAI } from "@/hooks/use-ai";
 import { EditorStateManager } from "@/lib/core/editor-state-manager";
@@ -426,18 +427,27 @@ export function TiptapEditor({
               nodeCount: parsedContent.content?.length || 0,
               preview: JSON.stringify(parsedContent).substring(0, 150),
             });
+            // H-3 fix: setContent then immediately close the history entry so
+            // the load does not appear in the undo stack. closeHistory() from
+            // prosemirror-history marks the current state as a hard boundary;
+            // pressing Ctrl+Z will not undo back past the load point.
             editor.commands.setContent(parsedContent);
+            editor.view.dispatch(closeHistory(editor.state.tr));
           } else {
             log.warn(`Scene ${sceneId} has no file, using empty`);
+            // H-3 fix: same — clear undo history after load.
             editor.commands.setContent({
               type: "doc",
               content: [{ type: "paragraph" }],
             });
+            editor.view.dispatch(closeHistory(editor.state.tr));
           }
         } catch (error) {
           log.error("Failed to fetch from backend:", error);
-          // Use the latest provided prop content if backend fetch fails
+          // Use the latest provided prop content if backend fetch fails.
+          // H-3 fix: close history after fallback load too.
           editor.commands.setContent(validatedContent);
+          editor.view.dispatch(closeHistory(editor.state.tr));
         }
 
         previousSceneIdRef.current = sceneId;
@@ -451,6 +461,18 @@ export function TiptapEditor({
   // Create EditorStateManager when editor is ready
   useEffect(() => {
     if (!editor || !sceneId) return;
+
+    // H-1 fix: flush any pending save from the PREVIOUS manager BEFORE we
+    // replace the ref. Effect 1 (handleSceneSwitch) reads
+    // editorStateManagerRef.current to flush; if we null it here first the
+    // flush is silently skipped.
+    const flushPrevious = async () => {
+      if (editorStateManagerRef.current) {
+        await editorStateManagerRef.current.flush();
+      }
+    };
+
+    void flushPrevious();
 
     // Create EditorStateManager
     const manager = new EditorStateManager(editor, sceneId, {
@@ -466,8 +488,10 @@ export function TiptapEditor({
 
     return () => {
       unsubscribe();
+      // H-1 fix: only destroy; do NOT null the ref here. Effect 1's
+      // handleSceneSwitch may still need to call flush() on the ref after
+      // this cleanup runs. A destroyed manager is safe to hold in the ref.
       manager.destroy();
-      editorStateManagerRef.current = null;
     };
   }, [editor, sceneId]);
 

@@ -231,6 +231,10 @@ export function useCollaboration({
       return;
     }
 
+    // M-1 fix: cancelled is captured by reference inside initYjs so every
+    // await point can guard against continuing on a torn-down effect.
+    let cancelled = false;
+
     const initYjs = async () => {
       try {
         setStatus("connecting");
@@ -245,6 +249,12 @@ export function useCollaboration({
           sceneId,
           projectId,
         );
+
+        // M-1 fix: guard after every await — if the effect was cleaned up
+        // while we were waiting, bail out immediately so we never attach
+        // listeners to a destroyed Y.Doc.
+        if (cancelled) return undefined;
+
         if (savedState?.update && savedState.update.length > 0) {
           Y.applyUpdate(doc, savedState.update);
           log.debug("Applied saved Yjs state", { sceneId });
@@ -258,6 +268,8 @@ export function useCollaboration({
 
         // Set up WebRTC P2P sync if enabled
         if (enableP2P) {
+          // M-1 fix: guard before setting up more async work.
+          if (cancelled) return undefined;
           const provider = initWebRTC(doc);
           if (provider) {
             webrtcProviderRef.current = provider;
@@ -283,6 +295,16 @@ export function useCollaboration({
         window.addEventListener("beforeunload", flushOnBeforeUnload);
         document.addEventListener("visibilitychange", flushOnVisibility);
 
+        // M-1 fix: one final cancelled check before exposing the doc to React
+        // state — if we're cancelled here the cleanup return will handle it.
+        if (cancelled) {
+          doc.off("update", onDocUpdate);
+          window.removeEventListener("blur", flushOnBlur);
+          window.removeEventListener("beforeunload", flushOnBeforeUnload);
+          document.removeEventListener("visibilitychange", flushOnVisibility);
+          return undefined;
+        }
+
         setYdoc(doc);
         setError(null);
 
@@ -294,17 +316,18 @@ export function useCollaboration({
         };
       } catch (err) {
         log.error("Failed to initialize Yjs", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to initialize collaboration",
-        );
-        setStatus("disconnected");
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Failed to initialize collaboration",
+          );
+          setStatus("disconnected");
+        }
         return undefined;
       }
     };
 
-    let cancelled = false;
     let cleanupListeners: (() => void) | undefined;
     void initYjs().then((cleanup) => {
       if (cancelled) {
@@ -339,8 +362,11 @@ export function useCollaboration({
         webrtcProviderRef.current = null;
       }
 
-      // Cleanup Yjs document
+      // H-4 fix: clear React state BEFORE destroying the Y.Doc so that the
+      // Collaboration extension never receives a stale destroyed doc between
+      // effect cleanup and the next initYjs resolving.
       if (ydocRef.current) {
+        setYdoc(null);
         ydocRef.current.destroy();
         ydocRef.current = null;
       }

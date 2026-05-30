@@ -51,11 +51,16 @@ export interface GenerateOptions {
 export interface StreamCallbacks {
   /** Called for each chunk of text */
   onChunk?: (chunk: string) => void;
-  /** Called when generation completes */
-  onComplete?: (fullText: string) => void;
-  /** Called on error */
-  onError?: (error: Error) => void;
+  /** Called when generation completes successfully */
+  onComplete?: (fullText: string) => Promise<void> | void;
+  /** Called on non-abort error; partialText holds any accumulated tokens */
+  onError?: (error: Error, partialText: string) => void;
+  /** Called when generation is cancelled via abort */
+  onCancel?: () => Promise<void> | void;
 }
+
+// 2-minute hard timeout for hung providers
+const STREAM_TIMEOUT_MS = 120_000;
 
 function withSystemMessage(
   messages: AIModelMessage[],
@@ -90,6 +95,12 @@ export function useAI(options: UseAIOptions = {}) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
 
+  // H-9: Stable ref for options so useCallback deps don't include the options object
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  });
+
   useEffect(() => {
     if (options.defaultModel) {
       return;
@@ -109,17 +120,25 @@ export function useAI(options: UseAIOptions = {}) {
     };
   }, [options.defaultModel]);
 
+  // H-8: Abort any in-flight request when the component unmounts
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   /**
    * Non-streaming generation
    */
   const generateText = useCallback(
     async (genOptions: GenerateOptions): Promise<string> => {
+      const opts = optionsRef.current;
       if (inFlightRef.current || isGenerating) {
         log.warn("Generation already in progress");
         return "";
       }
       if (genOptions.messages.length === 0) {
-        const errorMsg = `${options.operationName || "Generation"} failed: no messages provided`;
+        const errorMsg = `${opts.operationName || "Generation"} failed: no messages provided`;
         setError(errorMsg);
         toast.error(errorMsg);
         return "";
@@ -133,7 +152,7 @@ export function useAI(options: UseAIOptions = {}) {
 
       try {
         const modelToUse = genOptions.model || model;
-        const systemPrompt = genOptions.system ?? options.defaultSystem;
+        const systemPrompt = genOptions.system ?? opts.defaultSystem;
         const messages = withSystemMessage(genOptions.messages, systemPrompt);
         const result = await generate({
           model: modelToUse,
@@ -152,7 +171,7 @@ export function useAI(options: UseAIOptions = {}) {
           }),
         });
 
-        if (options.persistModel) {
+        if (opts.persistModel) {
           await setAppPreference(APP_PREF_KEYS.LAST_USED_MODEL, modelToUse);
         }
 
@@ -160,7 +179,7 @@ export function useAI(options: UseAIOptions = {}) {
       } catch (err: unknown) {
         const e = err as Error;
         if (e.name !== "AbortError") {
-          const errorMsg = `${options.operationName || "Generation"} failed: ${e.message}`;
+          const errorMsg = `${opts.operationName || "Generation"} failed: ${e.message}`;
           setError(errorMsg);
           toast.error(errorMsg);
         }
@@ -171,7 +190,8 @@ export function useAI(options: UseAIOptions = {}) {
         abortControllerRef.current = null;
       }
     },
-    [model, isGenerating, options],
+    // H-9: remove options and isGenerating from deps; read via optionsRef/inFlightRef
+    [model],
   );
 
   /**
@@ -182,12 +202,13 @@ export function useAI(options: UseAIOptions = {}) {
       genOptions: GenerateOptions,
       callbacks: StreamCallbacks = {},
     ): Promise<string> => {
+      const opts = optionsRef.current;
       if (inFlightRef.current || isGenerating) {
         log.warn("Generation already in progress");
         return "";
       }
       if (genOptions.messages.length === 0) {
-        const errorMsg = `${options.operationName || "Generation"} failed: no messages provided`;
+        const errorMsg = `${opts.operationName || "Generation"} failed: no messages provided`;
         setError(errorMsg);
         toast.error(errorMsg);
         return "";
@@ -199,9 +220,15 @@ export function useAI(options: UseAIOptions = {}) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
+      // M-7: Hard timeout so hung providers don't spin forever
+      const timeout = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+
+      // M-4: Hoist fullText so the catch block can pass partial tokens to onError
+      let fullText = "";
+
       try {
         const modelToUse = genOptions.model || model;
-        const systemPrompt = genOptions.system ?? options.defaultSystem;
+        const systemPrompt = genOptions.system ?? opts.defaultSystem;
         const messages = withSystemMessage(genOptions.messages, systemPrompt);
         const result = await stream({
           model: modelToUse,
@@ -220,34 +247,41 @@ export function useAI(options: UseAIOptions = {}) {
           }),
         });
 
-        let fullText = "";
         for await (const chunk of result.textStream) {
           fullText += chunk;
           callbacks.onChunk?.(chunk);
         }
 
-        if (options.persistModel) {
+        if (opts.persistModel) {
           await setAppPreference(APP_PREF_KEYS.LAST_USED_MODEL, modelToUse);
         }
 
-        callbacks.onComplete?.(fullText);
+        // H-6: await onComplete so DB writes finish before isGenerating clears
+        await callbacks.onComplete?.(fullText);
         return fullText;
       } catch (err: unknown) {
         const e = err as Error;
-        if (e.name !== "AbortError") {
-          const errorMsg = `${options.operationName || "Generation"} failed: ${e.message}`;
+        if (e.name === "AbortError") {
+          // H-5: Cancelled — call onCancel instead of onError so the caller
+          // can clean up the placeholder message rather than silently leaving it.
+          await callbacks.onCancel?.();
+        } else {
+          // M-4: Pass accumulated partialText so caller can preserve streamed tokens
+          // M-5: Do NOT call toast here — infrastructure must not own UI
+          const errorMsg = `${opts.operationName || "Generation"} failed: ${e.message}`;
           setError(errorMsg);
-          toast.error(errorMsg);
-          callbacks.onError?.(e);
+          callbacks.onError?.(e, fullText);
         }
         return "";
       } finally {
+        clearTimeout(timeout);
         inFlightRef.current = false;
         setIsGenerating(false);
         abortControllerRef.current = null;
       }
     },
-    [model, isGenerating, options],
+    // H-9: remove options and isGenerating from deps
+    [model],
   );
 
   /**

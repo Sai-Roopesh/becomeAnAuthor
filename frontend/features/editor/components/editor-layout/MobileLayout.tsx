@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, PenTool } from "lucide-react";
 import { TiptapEditor } from "../tiptap-editor";
 import { StoryTimeline } from "../story-timeline";
@@ -127,6 +127,7 @@ export function MobileLayout({
       {/* Left Sidebar Sheet */}
       <Sheet open={showSidebar} onOpenChange={onSetShowSidebar}>
         <SheetContent side="left" className="p-0 w-[85vw] max-w-mobile-sheet">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
           {renderSidebar()}
         </SheetContent>
       </Sheet>
@@ -134,6 +135,7 @@ export function MobileLayout({
       {/* Right Timeline Sheet */}
       <Sheet open={showTimeline} onOpenChange={onSetShowTimeline}>
         <SheetContent side="right" className="p-0 w-[85vw] max-w-mobile-sheet">
+          <SheetTitle className="sr-only">Story Timeline</SheetTitle>
           <StoryTimeline
             projectId={projectId}
             activeSceneWordCount={editorWordCount}

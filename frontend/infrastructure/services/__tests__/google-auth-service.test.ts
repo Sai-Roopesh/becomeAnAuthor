@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { googleAuthService } from "../google-auth-service";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@/core/tauri/invoke", () => ({
   invoke: vi.fn(),
 }));
 
@@ -21,7 +21,7 @@ vi.mock("@/lib/config/constants", () => ({
   },
 }));
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import { isTauri } from "@/core/tauri/commands";
 
 describe("GoogleAuthService Contract", () => {
@@ -57,7 +57,6 @@ describe("GoogleAuthService Contract", () => {
 
     expect(invoke).toHaveBeenCalledWith("google_oauth_connect", {
       clientId: "test-client-id",
-      clientSecret: "test-client-secret",
       scopes: ["https://www.googleapis.com/auth/drive.file"],
     });
   });

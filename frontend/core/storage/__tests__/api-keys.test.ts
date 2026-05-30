@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ============================================
 
 const mockInvoke = vi.fn();
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@/core/tauri/invoke", () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 

@@ -7,6 +7,7 @@ use crate::models::{
     SceneCodexLink,
 };
 use crate::storage::{open_app_db, with_transaction};
+use crate::utils::validate_no_null_bytes;
 
 fn project_series_id(conn: &Connection, project_path: &str) -> Result<String, String> {
     conn.query_row(
@@ -50,6 +51,7 @@ fn list_payloads<T: for<'de> serde::Deserialize<'de>>(
 
 #[tauri::command]
 pub fn list_codex_entries(project_path: String) -> Result<Vec<CodexEntry>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     list_payloads::<CodexEntry>(
@@ -62,6 +64,7 @@ pub fn list_codex_entries(project_path: String) -> Result<Vec<CodexEntry>, Strin
 
 #[tauri::command]
 pub fn save_codex_entry(project_path: String, entry: CodexEntry) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     let payload_json = serde_json::to_string(&entry).map_err(|e| e.to_string())?;
@@ -100,6 +103,7 @@ pub fn delete_codex_entry(
     _category: String,
     entry_id: String,
 ) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 
@@ -131,6 +135,7 @@ pub fn delete_codex_entry(
 
 #[tauri::command]
 pub fn list_codex_relations(project_path: String) -> Result<Vec<CodexRelation>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     list_payloads::<CodexRelation>(
@@ -143,6 +148,7 @@ pub fn list_codex_relations(project_path: String) -> Result<Vec<CodexRelation>, 
 
 #[tauri::command]
 pub fn save_codex_relation(project_path: String, relation: CodexRelation) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     let payload_json = serde_json::to_string(&relation).map_err(|e| e.to_string())?;
@@ -175,6 +181,7 @@ pub fn save_codex_relation(project_path: String, relation: CodexRelation) -> Res
 
 #[tauri::command]
 pub fn delete_codex_relation(project_path: String, relation_id: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 
@@ -189,6 +196,7 @@ pub fn delete_codex_relation(project_path: String, relation_id: String) -> Resul
 
 #[tauri::command]
 pub fn list_codex_tags(project_path: String) -> Result<Vec<CodexTag>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     list_payloads::<CodexTag>(
@@ -201,6 +209,7 @@ pub fn list_codex_tags(project_path: String) -> Result<Vec<CodexTag>, String> {
 
 #[tauri::command]
 pub fn save_codex_tag(project_path: String, tag: CodexTag) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     let payload_json = serde_json::to_string(&tag).map_err(|e| e.to_string())?;
@@ -229,6 +238,7 @@ pub fn save_codex_tag(project_path: String, tag: CodexTag) -> Result<(), String>
 
 #[tauri::command]
 pub fn delete_codex_tag(project_path: String, tag_id: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 
@@ -248,6 +258,7 @@ pub fn delete_codex_tag(project_path: String, tag_id: String) -> Result<(), Stri
 
 #[tauri::command]
 pub fn list_codex_entry_tags(project_path: String) -> Result<Vec<CodexEntryTag>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     list_payloads::<CodexEntryTag>(
@@ -260,6 +271,7 @@ pub fn list_codex_entry_tags(project_path: String) -> Result<Vec<CodexEntryTag>,
 
 #[tauri::command]
 pub fn save_codex_entry_tag(project_path: String, entry_tag: CodexEntryTag) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     let payload_json = serde_json::to_string(&entry_tag).map_err(|e| e.to_string())?;
@@ -289,6 +301,7 @@ pub fn save_codex_entry_tag(project_path: String, entry_tag: CodexEntryTag) -> R
 
 #[tauri::command]
 pub fn delete_codex_entry_tag(project_path: String, entry_tag_id: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 
@@ -303,6 +316,7 @@ pub fn delete_codex_entry_tag(project_path: String, entry_tag_id: String) -> Res
 
 #[tauri::command]
 pub fn list_codex_templates(project_path: String) -> Result<Vec<CodexTemplate>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     list_payloads::<CodexTemplate>(
@@ -315,6 +329,7 @@ pub fn list_codex_templates(project_path: String) -> Result<Vec<CodexTemplate>, 
 
 #[tauri::command]
 pub fn save_codex_template(project_path: String, template: CodexTemplate) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     let payload_json = serde_json::to_string(&template).map_err(|e| e.to_string())?;
@@ -337,6 +352,7 @@ pub fn save_codex_template(project_path: String, template: CodexTemplate) -> Res
 
 #[tauri::command]
 pub fn delete_codex_template(project_path: String, template_id: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 
@@ -351,6 +367,7 @@ pub fn delete_codex_template(project_path: String, template_id: String) -> Resul
 
 #[tauri::command]
 pub fn list_codex_relation_types(project_path: String) -> Result<Vec<CodexRelationType>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     list_payloads::<CodexRelationType>(
@@ -366,6 +383,7 @@ pub fn save_codex_relation_type(
     project_path: String,
     rel_type: CodexRelationType,
 ) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     let payload_json = serde_json::to_string(&rel_type).map_err(|e| e.to_string())?;
@@ -387,6 +405,7 @@ pub fn save_codex_relation_type(
 
 #[tauri::command]
 pub fn delete_codex_relation_type(project_path: String, type_id: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 
@@ -413,6 +432,7 @@ pub fn delete_codex_relation_type(project_path: String, type_id: String) -> Resu
 
 #[tauri::command]
 pub fn list_scene_codex_links(project_path: String) -> Result<Vec<SceneCodexLink>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     list_payloads::<SceneCodexLink>(
@@ -425,6 +445,7 @@ pub fn list_scene_codex_links(project_path: String) -> Result<Vec<SceneCodexLink
 
 #[tauri::command]
 pub fn save_scene_codex_link(project_path: String, link: SceneCodexLink) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
     let payload_json = serde_json::to_string(&link).map_err(|e| e.to_string())?;
@@ -457,6 +478,7 @@ pub fn save_scene_codex_link(project_path: String, link: SceneCodexLink) -> Resu
 
 #[tauri::command]
 pub fn delete_scene_codex_link(project_path: String, link_id: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 

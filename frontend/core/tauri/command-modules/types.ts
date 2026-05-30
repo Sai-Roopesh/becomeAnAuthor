@@ -80,7 +80,6 @@ export interface SearchResult {
   id: string;
   title: string;
   type: "scene" | "codex";
-  contentType?: "scene" | "codex";
   snippet?: string;
   score?: number;
   category?: string;

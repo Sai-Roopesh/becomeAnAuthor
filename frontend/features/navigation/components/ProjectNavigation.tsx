@@ -233,9 +233,21 @@ export function ProjectNavigation({
             activeSceneId === node.id && "bg-accent font-medium",
           )}
           style={{ paddingLeft: `${level * 12 + 4}px` }}
+          role="button"
+          tabIndex={0}
           onClick={() =>
             isScene ? setActiveSceneId(node.id) : toggleExpanded(node.id)
           }
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              if (isScene) {
+                setActiveSceneId(node.id);
+              } else {
+                toggleExpanded(node.id);
+              }
+            }
+          }}
         >
           <div className="flex min-w-0 items-center gap-2 pr-14">
             {!isScene &&
@@ -387,7 +399,7 @@ export function ProjectNavigation({
               {acts.map((act) => renderNode(act, 0))}
               {acts.length === 0 && (
                 <div className="p-4 text-center text-xs text-muted-foreground">
-                  No acts yet. Click + to start.
+                  Add your first scene using the + button above.
                 </div>
               )}
             </div>

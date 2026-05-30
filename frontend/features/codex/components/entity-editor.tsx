@@ -17,6 +17,7 @@ import { TagManager } from "./tag-manager";
 import { TemplateFieldRenderer } from "./template-field-renderer";
 import { toast } from "@/shared/utils/toast-service";
 import { useConfirmation } from "@/hooks/use-confirmation";
+import { SkeletonPanel } from "@/components/ui/skeleton-panel";
 
 // Extracted sub-components
 import { EntityEditorHeader } from "./entity-editor/EntityEditorHeader";
@@ -218,7 +219,7 @@ export function EntityEditor({
   // Use real mention count from useMentions hook
   const { count: mentionCount } = useMentions(entityId);
 
-  if (!entity) return <div className="p-4">Loading...</div>;
+  if (!entity) return <SkeletonPanel className="p-4" />;
 
   return (
     <div className="h-full flex flex-col bg-background">

@@ -25,7 +25,7 @@ function mapBackendResults(results: BackendSearchResult[]): {
   const codex: SearchResult<SearchableCodex>[] = [];
 
   for (const result of results) {
-    const type = result.contentType || result.type;
+    const type = result.type;
     if (type === "scene") {
       scenes.push({
         item: {

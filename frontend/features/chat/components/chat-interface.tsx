@@ -12,7 +12,12 @@ import { ChatThread } from "./chat-thread";
 import { toast } from "@/shared/utils/toast-service";
 import { useConfirmation } from "@/hooks/use-confirmation";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DecorativeGrid } from "@/components/ui/decorative-grid";
 import { useHasAIConnection } from "@/hooks/use-has-ai-connection";
@@ -190,8 +195,9 @@ export function ChatInterface({
           </SheetTrigger>
           <SheetContent
             side="left"
-            className="p-0 w-full sm:w-[540px] max-w-[90vw] md:max-w-none"
+            className="p-0 w-full sm:w-135 max-w-[90vw] md:max-w-none"
           >
+            <SheetTitle className="sr-only">Chat Sidebar</SheetTitle>
             <ChatSidebar
               projectId={projectId}
               activeThreadId={activeThreadId}

@@ -15,10 +15,10 @@ import { toAppError } from "@/shared/errors/app-error";
 const log = logger.scope("GoogleAuthService");
 const GOOGLE_AUTH_STATE_EVENT = "google-auth-state-updated";
 
-function getConfiguredClientSecret(): string | null {
-  const value = GOOGLE_CONFIG.CLIENT_SECRET.trim();
-  return value.length > 0 ? value : null;
-}
+// CLIENT_SECRET is intentionally absent from the frontend.
+// The Rust backend reads it from its own environment (GOOGLE_CLIENT_SECRET).
+// Do NOT restore a client-secret accessor here — it would leak the credential
+// into the JS bundle / Tauri binary.
 
 function assertDesktopOAuth(): void {
   if (!isTauri()) {
@@ -53,7 +53,8 @@ class GoogleAuthService {
     try {
       await invoke<GoogleUser>("google_oauth_connect", {
         clientId: GOOGLE_CONFIG.CLIENT_ID,
-        clientSecret: getConfiguredClientSecret(),
+        // clientSecret is intentionally omitted — the backend reads it from
+        // its own environment variable (GOOGLE_CLIENT_SECRET), never the frontend.
         scopes: GOOGLE_CONFIG.SCOPES,
       });
       notifyAuthStateChanged();
@@ -86,7 +87,7 @@ class GoogleAuthService {
     try {
       return await invoke<string | null>("google_oauth_get_access_token", {
         clientId: GOOGLE_CONFIG.CLIENT_ID,
-        clientSecret: getConfiguredClientSecret(),
+        // clientSecret intentionally omitted — backend reads GOOGLE_CLIENT_SECRET.
       });
     } catch (error) {
       const appError = toAppError(

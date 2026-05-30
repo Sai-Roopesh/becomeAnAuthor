@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock Dependencies
 // ============================================
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@/core/tauri/invoke", () => ({
   invoke: vi.fn(),
 }));
 
@@ -37,7 +37,7 @@ vi.mock("@/shared/utils/logger", () => ({
   },
 }));
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import { toast } from "@/shared/utils/toast-service";
 
 // Import after mocks

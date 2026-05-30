@@ -36,30 +36,38 @@ vi.mock("@/hooks/use-project-repository", () => ({
 vi.mock("@/hooks/use-live-query", () => ({
   invalidateQueries: vi.fn(),
   useLiveQuery: vi.fn(
-    (_: unknown, __: unknown, options?: { keys?: string }) => {
-      if (options?.keys === "projects") {
-        return [
-          {
-            id: "project-1",
-            title: "Novel in Trash",
-            originalPath: "/projects/novel-in-trash",
-            trashPath: "/trash/novel-in-trash",
-            deletedAt: 1769011200000,
-          },
-        ];
+    (_: unknown, __: unknown, queryKey?: string | string[]) => {
+      if (queryKey === "projects") {
+        return {
+          data: [
+            {
+              id: "project-1",
+              title: "Novel in Trash",
+              originalPath: "/projects/novel-in-trash",
+              trashPath: "/trash/novel-in-trash",
+              deletedAt: 1769011200000,
+            },
+          ],
+          loading: false,
+          error: null,
+        };
       }
 
-      if (options?.keys === "series") {
-        return [
-          {
-            oldSeriesId: "series-old-1",
-            title: "The lord",
-            deletedAt: 1769011200000,
-          },
-        ];
+      if (queryKey === "series") {
+        return {
+          data: [
+            {
+              oldSeriesId: "series-old-1",
+              title: "The lord",
+              deletedAt: 1769011200000,
+            },
+          ],
+          loading: false,
+          error: null,
+        };
       }
 
-      return [];
+      return { data: [], loading: false, error: null };
     },
   ),
 }));
@@ -88,6 +96,19 @@ vi.mock("@/features/dashboard/components/DashboardHeader", () => ({
   DashboardHeader: () => <div data-testid="dashboard-header" />,
 }));
 
+vi.mock("@/features/google-drive", () => ({
+  useGoogleAuth: () => ({
+    isAuthenticated: false,
+    user: null,
+    isLoading: false,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refreshAuth: vi.fn(),
+  }),
+  InlineGoogleAuth: () => <div data-testid="inline-google-auth" />,
+  DriveBackupBrowser: () => <div data-testid="drive-backup-browser" />,
+}));
+
 vi.mock("@/features/data-management", () => ({
   BackupCenterDialog: ({ trigger }: { trigger: React.ReactNode }) => (
     <div>{trigger}</div>
@@ -103,6 +124,8 @@ vi.mock("@/features/shared/components", () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
+  withErrorBoundary: <P extends object>(Component: React.ComponentType<P>) =>
+    Component,
 }));
 
 describe("Dashboard Trash", () => {

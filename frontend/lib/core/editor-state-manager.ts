@@ -129,27 +129,32 @@ export class EditorStateManager {
     this.isSaving = true;
     this.updateStatus("saving");
 
+    // H-2 fix: capture content and reset isDirty ATOMICALLY before the async
+    // save, not after it. If the user types between content capture and save
+    // resolution the editor's "update" handler will set isDirty = true again,
+    // and that value is preserved. The old pattern (reset after await) would
+    // clobber that re-dirtied flag, silently dropping the change.
+    const content =
+      this.editor.getJSON() as unknown as import("@/shared/types/tiptap").TiptapContent;
+    const wordCount = this.editor.storage.characterCount?.words() ?? 0;
+    this.isDirty = false; // reset immediately at capture time
+
+    log.debug(`Saving scene ${this.sceneId}...`, { wordCount });
+
     try {
-      // Cast to TiptapContent to satisfy type checker - getJSON() returns compatible structure
-      const content =
-        this.editor.getJSON() as unknown as import("@/shared/types/tiptap").TiptapContent;
-
-      // Get word count from Tiptap's CharacterCount extension (source of truth)
-      const wordCount = this.editor.storage.characterCount?.words() ?? 0;
-      log.debug(`Saving scene ${this.sceneId}...`, { wordCount });
-
       await saveCoordinator.scheduleSave(
         this.sceneId,
         () => content,
         wordCount,
       );
 
-      this.isDirty = false;
       this.lastSavedAt = Date.now();
       this.updateStatus("saved");
       log.debug(`✅ Scene ${this.sceneId} saved successfully`);
     } catch (error) {
       log.error(`❌ Save failed for scene ${this.sceneId}:`, error);
+      // Restore dirty flag so the next debounce attempt will retry.
+      this.isDirty = true;
       this.updateStatus("error");
       throw error;
     } finally {

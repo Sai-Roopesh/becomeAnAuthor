@@ -237,7 +237,15 @@ export function CodexList({
                   <div
                     className="p-3 border rounded hover:bg-accent cursor-pointer flex items-center gap-3 group mx-1"
                     style={{ height: ITEM_HEIGHT - 8 }}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedEntityId(entry.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedEntityId(entry.id);
+                      }
+                    }}
                   >
                     <div className="h-8 w-8 bg-muted rounded flex items-center justify-center">
                       {getIcon(entry.category)}

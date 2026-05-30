@@ -19,7 +19,10 @@ interface ChatSidebarProps {
   projectId: string;
   activeThreadId: string | null;
   threadView: "active" | "archived" | "deleted";
-  setThreadView: (projectId: string, view: "active" | "archived" | "deleted") => void;
+  setThreadView: (
+    projectId: string,
+    view: "active" | "archived" | "deleted",
+  ) => void;
   setActiveThreadId: (projectId: string, threadId: string | null) => void;
   createNewThread: () => void;
   hasAIConnection: boolean;
@@ -210,10 +213,20 @@ export function ChatSidebar({
                 threadView === "deleted" &&
                   "cursor-default hover:bg-transparent hover:border-transparent hover:shadow-none",
               )}
+              role="button"
+              tabIndex={threadView === "deleted" ? -1 : 0}
               onClick={() => {
                 if (threadView === "deleted") return;
                 setActiveThreadId(projectId, thread.id);
                 onCloseMobileSidebar?.();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  if (threadView === "deleted") return;
+                  setActiveThreadId(projectId, thread.id);
+                  onCloseMobileSidebar?.();
+                }
               }}
             >
               <div

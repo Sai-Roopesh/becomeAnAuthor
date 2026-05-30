@@ -406,226 +406,238 @@ export function CreateProjectDialog({
       )}
 
       <DialogContent className="w-dialog-md max-h-[90dvh] sm:max-h-[85dvh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>
-            {isSeriesLocked && selectedSeriesTitle
-              ? `Create a New Novel in ${selectedSeriesTitle}`
-              : "Create a New Novel"}
-          </DialogTitle>
-          <DialogDescription>
-            Start with a title. We will create the structure automatically.
-          </DialogDescription>
-        </DialogHeader>
+        <form
+          className="flex flex-col flex-1 min-h-0 overflow-hidden"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleCreate();
+          }}
+        >
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>
+              {isSeriesLocked && selectedSeriesTitle
+                ? `Create a New Novel in ${selectedSeriesTitle}`
+                : "Create a New Novel"}
+            </DialogTitle>
+            <DialogDescription>
+              Start with a title. We will create the structure automatically.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
-          <div className="space-y-2">
-            <Label>Title *</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, title: e.target.value }))
-                }
-                placeholder="My Awesome Novel"
-                autoFocus
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSurpriseMe}
-                title="Surprise Me"
-                className="w-full sm:w-auto"
-              >
-                <Sparkles className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
-              Quick Start Defaults
-            </p>
-            <p className="text-sm flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-primary" />
-              Series: <span className="font-medium">{selectedSeriesTitle}</span>
-            </p>
-            <p className="text-sm flex items-center gap-2">
-              <FolderOpen className="h-4 w-4 text-primary" />
-              Save location:
-              <span className="font-medium truncate" title={resolvedSavePath}>
-                {resolvedSavePath || "Loading default location..."}
-              </span>
-            </p>
-          </div>
-
-          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full justify-between"
-              >
-                Advanced Options
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  placeholder="My Awesome Novel"
+                  autoFocus
                 />
-              </Button>
-            </CollapsibleTrigger>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSurpriseMe}
+                  title="Surprise Me"
+                  className="w-full sm:w-auto"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
-            <CollapsibleContent className="space-y-4 pt-3">
-              <div className="space-y-2">
-                <Label>Series</Label>
+            <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                Quick Start Defaults
+              </p>
+              <p className="text-sm flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Series:{" "}
+                <span className="font-medium">{selectedSeriesTitle}</span>
+              </p>
+              <p className="text-sm flex items-center gap-2">
+                <FolderOpen className="h-4 w-4 text-primary" />
+                Save location:
+                <span className="font-medium truncate" title={resolvedSavePath}>
+                  {resolvedSavePath || "Loading default location..."}
+                </span>
+              </p>
+            </div>
 
-                {isSeriesLocked ? (
-                  <div className="rounded-md border bg-background/50 p-3 text-sm">
-                    {selectedSeriesTitle || "Selected series"}
-                  </div>
-                ) : !isCreatingNewSeries ? (
-                  <div className="space-y-2">
-                    <Select
-                      value={formData.seriesId}
-                      onValueChange={(val) => {
-                        setSeriesIndexManuallyEdited(false);
-                        setFormData((prev) => ({ ...prev, seriesId: val }));
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Auto-select first series" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(existingSeries ?? []).map((series) => (
-                          <SelectItem key={series.id} value={series.id}>
-                            {series.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-between"
+                >
+                  Advanced Options
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent className="space-y-4 pt-3">
+                <div className="space-y-2">
+                  <Label>Series</Label>
+
+                  {isSeriesLocked ? (
+                    <div className="rounded-md border bg-background/50 p-3 text-sm">
+                      {selectedSeriesTitle || "Selected series"}
+                    </div>
+                  ) : !isCreatingNewSeries ? (
+                    <div className="space-y-2">
+                      <Select
+                        value={formData.seriesId}
+                        onValueChange={(val) => {
+                          setSeriesIndexManuallyEdited(false);
+                          setFormData((prev) => ({ ...prev, seriesId: val }));
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Auto-select first series" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(existingSeries ?? []).map((series) => (
+                            <SelectItem key={series.id} value={series.id}>
+                              {series.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setIsCreatingNewSeries(true)}
+                      >
+                        <Plus className="mr-2 h-3 w-3" />
+                        Create New Series
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
+                          value={newSeriesName}
+                          onChange={(e) => setNewSeriesName(e.target.value)}
+                          placeholder="Enter series name..."
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCreateNewSeries}
+                          disabled={!newSeriesName.trim()}
+                          className="w-full sm:w-auto"
+                        >
+                          Create
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsCreatingNewSeries(false);
+                          setNewSeriesName("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Book Number</Label>
+                  <Input
+                    value={formData.seriesIndex}
+                    onChange={(e) => {
+                      setSeriesIndexManuallyEdited(true);
+                      setFormData((prev) => ({
+                        ...prev,
+                        seriesIndex: e.target.value,
+                      }));
+                    }}
+                    placeholder="Book 1"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Author / Pen Name</Label>
+                  <Input
+                    value={formData.author}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        author: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. J.K. Rowling"
+                    list="project-author-suggestions"
+                  />
+                  <datalist id="project-author-suggestions">
+                    {uniqueAuthors.map((author) => (
+                      <option key={author} value={author} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Save Location</Label>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={resolvedSavePath}
+                      readOnly
+                      placeholder="Loading default location..."
+                      className="flex-1"
+                    />
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setIsCreatingNewSeries(true)}
+                      onClick={handleChooseLocation}
+                      className="w-full sm:w-auto"
                     >
-                      <Plus className="mr-2 h-3 w-3" />
-                      Create New Series
+                      Choose Folder
                     </Button>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Input
-                        value={newSeriesName}
-                        onChange={(e) => setNewSeriesName(e.target.value)}
-                        placeholder="Enter series name..."
-                        autoFocus
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleCreateNewSeries}
-                        disabled={!newSeriesName.trim()}
-                        className="w-full sm:w-auto"
-                      >
-                        Create
-                      </Button>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setIsCreatingNewSeries(false);
-                        setNewSeriesName("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Book Number</Label>
-                <Input
-                  value={formData.seriesIndex}
-                  onChange={(e) => {
-                    setSeriesIndexManuallyEdited(true);
-                    setFormData((prev) => ({
-                      ...prev,
-                      seriesIndex: e.target.value,
-                    }));
-                  }}
-                  placeholder="Book 1"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Author / Pen Name</Label>
-                <Input
-                  value={formData.author}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, author: e.target.value }))
-                  }
-                  placeholder="e.g. J.K. Rowling"
-                  list="project-author-suggestions"
-                />
-                <datalist id="project-author-suggestions">
-                  {uniqueAuthors.map((author) => (
-                    <option key={author} value={author} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Save Location</Label>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    value={resolvedSavePath}
-                    readOnly
-                    placeholder="Loading default location..."
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleChooseLocation}
-                    className="w-full sm:w-auto"
-                  >
-                    Choose Folder
-                  </Button>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>Language</Label>
-                <Select
-                  value={formData.language}
-                  onValueChange={(val) =>
-                    setFormData((prev) => ({ ...prev, language: val }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="English (US)">English (US)</SelectItem>
-                    <SelectItem value="English (UK)">English (UK)</SelectItem>
-                    <SelectItem value="Spanish">Spanish</SelectItem>
-                    <SelectItem value="French">French</SelectItem>
-                    <SelectItem value="German">German</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select
+                    value={formData.language}
+                    onValueChange={(val) =>
+                      setFormData((prev) => ({ ...prev, language: val }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="English (US)">English (US)</SelectItem>
+                      <SelectItem value="English (UK)">English (UK)</SelectItem>
+                      <SelectItem value="Spanish">Spanish</SelectItem>
+                      <SelectItem value="French">French</SelectItem>
+                      <SelectItem value="German">German</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
 
-        <DialogFooter className="flex-shrink-0 border-t pt-4">
-          <Button onClick={handleCreate} disabled={!isFormValid}>
-            Create Novel
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
+            <Button type="submit" disabled={!isFormValid}>
+              Create Novel
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -65,7 +65,7 @@ export function SearchResults({
   }
 
   return (
-    <div className="max-h-96 overflow-y-auto">
+    <div className="max-h-[min(24rem,60dvh)] overflow-y-auto">
       {results.scenes.length > 0 && (
         <div>
           <div className="px-4 py-2 text-xs font-semibold text-muted-foreground bg-muted/30">

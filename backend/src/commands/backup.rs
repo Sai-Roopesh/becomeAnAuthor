@@ -154,6 +154,12 @@ struct PreparedPackage {
     _temp_dir: PathBuf,
 }
 
+impl Drop for PreparedPackage {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self._temp_dir);
+    }
+}
+
 fn bool_to_sql(value: bool) -> i64 {
     if value {
         1
@@ -359,9 +365,12 @@ fn snapshot_live_db(dest: &Path) -> Result<(), String> {
     }
 
     let conn = open_app_db()?;
+    let dest_path_str = dest.to_string_lossy();
+    // Path is always internally generated, never user-controlled
+    validate_no_null_bytes(&dest_path_str, "Vacuum destination")?;
     let sql = format!(
         "VACUUM INTO '{}'",
-        escape_single_quotes(&dest.to_string_lossy())
+        escape_single_quotes(&dest_path_str)
     );
     conn.execute_batch(&sql)
         .map_err(|e| format!("Failed to snapshot application database: {e}"))?;
@@ -387,7 +396,23 @@ fn apply_common_db_prune(conn: &Connection) -> Result<(), String> {
 fn prune_full_snapshot_db(db_path: &Path) -> Result<(), String> {
     let conn = Connection::open(db_path)
         .map_err(|e| format!("Failed to open full snapshot payload DB: {e}"))?;
-    apply_common_db_prune(&conn)
+    apply_common_db_prune(&conn)?;
+
+    // Remove sensitive tables that should never leave the device in a snapshot.
+    conn.execute("DELETE FROM ai_connections", [])
+        .map_err(|e| format!("Failed to prune ai_connections from full snapshot: {e}"))?;
+    conn.execute("DELETE FROM ai_connection_models", [])
+        .map_err(|e| format!("Failed to prune ai_connection_models from full snapshot: {e}"))?;
+    conn.execute("DELETE FROM app_preferences", [])
+        .map_err(|e| format!("Failed to prune app_preferences from full snapshot: {e}"))?;
+    conn.execute("DELETE FROM deleted_projects", [])
+        .map_err(|e| format!("Failed to prune deleted_projects from full snapshot: {e}"))?;
+    conn.execute("DELETE FROM deleted_series_registry", [])
+        .map_err(|e| format!("Failed to prune deleted_series_registry from full snapshot: {e}"))?;
+    conn.execute("DELETE FROM recent_projects", [])
+        .map_err(|e| format!("Failed to prune recent_projects from full snapshot: {e}"))?;
+
+    Ok(())
 }
 
 fn delete_not_in_column(
@@ -1033,6 +1058,7 @@ fn write_package_zip(
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
 
+    // TODO: Set mode 0o600 via OpenOptionsExt for extracted files
     let file = fs::File::create(output_path)
         .map_err(|e| format!("Failed creating package '{}': {e}", output_path.display()))?;
     let mut zip = ZipWriter::new(file);
@@ -1236,6 +1262,7 @@ fn write_zip_entry_with_digest<R: Read>(
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
 
+    // TODO: Set mode 0o600 via OpenOptionsExt for extracted files
     let mut file = fs::File::create(output_path).map_err(|e| {
         format!(
             "Failed creating extracted file '{}': {e}",
@@ -2646,8 +2673,31 @@ fn import_full_snapshot_payload(prepared: &PreparedPackage) -> Result<BackupImpo
     }
     let projects_path = app_dir.join("Projects");
     let trash_path = app_dir.join("Trash");
+
+    // Stage the new DB to a temporary path before touching the live DB.
+    // This ensures that if the copy fails we have not yet destroyed the live data.
+    let db_staging = target_db_path.with_extension("db.incoming");
+    fs::copy(&prepared.payload_db_path, &db_staging).map_err(|e| {
+        format!(
+            "Full snapshot restore failed while staging DB to '{}': {e}. Checkpoint package: {}",
+            db_staging.display(),
+            checkpoint_summary.path
+        )
+    })?;
+    if fs::metadata(&db_staging)
+        .map(|m| m.len())
+        .unwrap_or(0) == 0
+    {
+        return Err(format!(
+            "Full snapshot restore aborted: staged DB '{}' is empty. Checkpoint package: {}",
+            db_staging.display(),
+            checkpoint_summary.path
+        ));
+    }
+
+    // Staging verified — now atomically replace the live DB.
     remove_path_if_exists(&target_db_path)?;
-    fs::copy(&prepared.payload_db_path, &target_db_path).map_err(|e| {
+    fs::rename(&db_staging, &target_db_path).map_err(|e| {
         format!(
             "Full snapshot restore failed while replacing DB '{}': {e}. Checkpoint package: {}",
             target_db_path.display(),
@@ -2688,6 +2738,9 @@ fn import_full_snapshot_payload(prepared: &PreparedPackage) -> Result<BackupImpo
 
 #[tauri::command]
 pub fn export_full_snapshot(output_path: Option<String>) -> Result<BackupPackageSummary, String> {
+    if let Some(ref path) = output_path {
+        validate_no_null_bytes(path, "Output path")?;
+    }
     build_package(BackupPackageKind::FullSnapshot, output_path, None, None)
 }
 
@@ -2698,6 +2751,9 @@ pub fn export_series_package(
 ) -> Result<BackupPackageSummary, String> {
     if series_id.trim().is_empty() {
         return Err("Series ID is required".to_string());
+    }
+    if let Some(ref path) = output_path {
+        validate_no_null_bytes(path, "Output path")?;
     }
     build_package(
         BackupPackageKind::SeriesPackage,
@@ -2715,6 +2771,9 @@ pub fn export_novel_package(
     if project_id.trim().is_empty() {
         return Err("Project ID is required".to_string());
     }
+    if let Some(ref path) = output_path {
+        validate_no_null_bytes(path, "Output path")?;
+    }
     build_package(
         BackupPackageKind::NovelPackage,
         output_path,
@@ -2725,14 +2784,15 @@ pub fn export_novel_package(
 
 #[tauri::command]
 pub fn inspect_backup_package(package_path: String) -> Result<BackupPackageInfo, String> {
+    validate_no_null_bytes(&package_path, "Package path")?;
     let prepared = prepare_package(&package_path, false)?;
     let info = BackupPackageInfo {
         kind: prepared.manifest.kind,
-        app_version: prepared.manifest.app_version,
+        app_version: prepared.manifest.app_version.clone(),
         schema_version: prepared.manifest.schema_version,
-        created_at: prepared.manifest.created_at,
-        counts: prepared.manifest.counts,
-        source_hints: prepared.manifest.source_hints,
+        created_at: prepared.manifest.created_at.clone(),
+        counts: prepared.manifest.counts.clone(),
+        source_hints: prepared.manifest.source_hints.clone(),
     };
 
     Ok(info)
@@ -2743,6 +2803,7 @@ pub fn import_backup_package(
     package_path: String,
     options: Option<BackupImportOptions>,
 ) -> Result<BackupImportResult, String> {
+    validate_no_null_bytes(&package_path, "Package path")?;
     let prepared = prepare_package(&package_path, true)?;
     let options = options.unwrap_or_default();
 
@@ -2813,7 +2874,7 @@ pub fn write_temp_backup_file(file_name: String, data: Vec<u8>) -> Result<String
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(&target, data).map_err(|e| format!("Failed writing temp backup file: {e}"))?;
+    atomic_write_bytes(&target, &data).map_err(|e| format!("Failed writing temp backup file: {e}"))?;
     Ok(target.to_string_lossy().to_string())
 }
 
