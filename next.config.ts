@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
 
   turbopack: {
     root: process.cwd(),
+    resolveAlias: {
+      // @tauri-apps/plugin-log is a native Tauri plugin — not resolvable by Node/Turbopack.
+      // The stub is a no-op; the real module loads at runtime inside the Tauri webview.
+      "@tauri-apps/plugin-log": "./frontend/lib/tauri-plugin-log-stub.ts",
+    },
   },
 };
 
