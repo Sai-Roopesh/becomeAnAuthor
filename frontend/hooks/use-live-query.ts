@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState, type DependencyList } from "react";
 import { logger } from "@/shared/utils/logger";
 import { TauriNotAvailableError } from "@/core/tauri/invoke";
+import { AppError } from "@/shared/errors/app-error";
+
+// Error codes that signal a precondition not yet met — not a real error.
+// Treat these as "data not available" rather than logging them as errors.
+const PRECONDITION_CODES = new Set(["E_PROJECT_NOT_OPEN"]);
 
 const log = logger.scope("useLiveQuery");
 
@@ -92,11 +97,23 @@ export function useLiveQuery<T>(
       })
       .catch((err: unknown) => {
         if (active && requestVersionRef.current === requestVersion) {
-          if (!(err instanceof TauriNotAvailableError)) {
+          const isPrecondition =
+            err instanceof AppError && PRECONDITION_CODES.has(err.code);
+          const isTauriUnavailable = err instanceof TauriNotAvailableError;
+
+          if (!isPrecondition && !isTauriUnavailable) {
             log.error("Query execution failed", err);
           }
-          setError(err instanceof Error ? err : new Error(String(err)));
-          setLoading(false);
+
+          // Precondition errors (no project open) are not real errors —
+          // return empty/undefined data silently so the UI shows its empty state.
+          if (isPrecondition) {
+            setData(undefined);
+            setLoading(false);
+          } else {
+            setError(err instanceof Error ? err : new Error(String(err)));
+            setLoading(false);
+          }
         }
       });
 
