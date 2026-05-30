@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as Y from "yjs";
 import { WebrtcProvider } from "y-webrtc";
 import { useAppServices } from "@/infrastructure/di/AppContext";
+import { useProjectStore } from "@/store/use-project-store";
 import type {
   CollaborationStatus,
   CollaborationPeer,
@@ -93,9 +94,10 @@ export function useCollaboration({
   const colorRef = useRef(userColor || getRandomColor());
 
   const flushSave = useCallback(async () => {
-    if (!ydocRef.current) {
-      return;
-    }
+    if (!ydocRef.current) return;
+    // Skip if the project path hasn't been set in the store yet (async load gap).
+    // The next Yjs update will trigger a fresh debounced save once the path is ready.
+    if (!useProjectStore.getState().activeProjectPath) return;
 
     try {
       const update = Y.encodeStateAsUpdate(ydocRef.current);
