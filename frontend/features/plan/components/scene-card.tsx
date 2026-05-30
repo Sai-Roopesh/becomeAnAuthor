@@ -26,7 +26,7 @@ export function SceneCard({ scene, seriesId }: SceneCardProps) {
   const { setActiveSceneId, setViewMode } = useProjectStore();
   const [linkPanelOpen, setLinkPanelOpen] = useState(false);
   const { sceneCodexLinkRepository: linkRepo } = useAppServices();
-  const sceneLinks = useLiveQuery(
+  const { data: sceneLinks } = useLiveQuery(
     () => linkRepo.getByScene(scene.id),
     [scene.id, linkRepo],
   );

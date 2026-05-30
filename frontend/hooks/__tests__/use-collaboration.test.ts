@@ -56,11 +56,15 @@ vi.mock("y-webrtc", () => ({
   }),
 }));
 
-vi.mock("@/infrastructure/repositories/TauriCollaborationRepository", () => ({
-  collaborationRepository: {
-    loadYjsState: (...args: unknown[]) => mockLoadState(...args),
-    saveYjsState: (...args: unknown[]) => mockSaveState(...args),
-  },
+// The hook now resolves the repository via dependency injection
+// (useAppServices), so we mock the DI surface instead of the module singleton.
+vi.mock("@/infrastructure/di/AppContext", () => ({
+  useAppServices: () => ({
+    collaborationRepository: {
+      loadYjsState: (...args: unknown[]) => mockLoadState(...args),
+      saveYjsState: (...args: unknown[]) => mockSaveState(...args),
+    },
+  }),
 }));
 
 vi.mock("@/shared/utils/logger", () => ({

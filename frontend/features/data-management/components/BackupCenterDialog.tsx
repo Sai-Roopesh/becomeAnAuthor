@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,17 +13,33 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { BackupCenterPanel } from "./BackupCenterPanel";
+import type { BackupImportResult } from "@/core/tauri/commands";
 
-interface BackupCenterDialogProps {
+interface GoogleAuthState {
+  isAuthenticated: boolean;
+  user?: { name?: string; email?: string } | null;
+  signOut: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
+}
+
+export interface BackupCenterDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  trigger?: React.ReactNode;
+  trigger?: ReactNode;
+  googleAuth?: GoogleAuthState;
+  renderGoogleAuthWidget?: (props: { onAuthComplete: () => void }) => ReactNode;
+  renderDriveBackupBrowser?: (props: {
+    onRestore: (result: BackupImportResult) => Promise<void>;
+  }) => ReactNode;
 }
 
 export function BackupCenterDialog({
   open: controlledOpen,
   onOpenChange,
   trigger,
+  googleAuth,
+  renderGoogleAuthWidget,
+  renderDriveBackupBrowser,
 }: BackupCenterDialogProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -55,7 +72,12 @@ export function BackupCenterDialog({
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-          <BackupCenterPanel onCompleted={() => setOpen(false)} />
+          <BackupCenterPanel
+            onCompleted={() => setOpen(false)}
+            googleAuth={googleAuth}
+            renderGoogleAuthWidget={renderGoogleAuthWidget}
+            renderDriveBackupBrowser={renderDriveBackupBrowser}
+          />
         </div>
       </DialogContent>
     </Dialog>

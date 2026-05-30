@@ -17,13 +17,15 @@ describe("useLiveQuery", () => {
     vi.clearAllMocks();
   });
 
-  it("should return undefined initially", () => {
+  it("should return loading: true and data: undefined initially", () => {
     const mockQueryFn = vi.fn().mockResolvedValue([{ id: 1 }]);
 
     const { result } = renderHook(() => useLiveQuery(mockQueryFn, []));
 
-    // Initially undefined before async resolves
-    expect(result.current).toBeUndefined();
+    // Initially loading before async resolves
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.error).toBeNull();
   });
 
   it("should return data after query resolves", async () => {
@@ -33,8 +35,12 @@ describe("useLiveQuery", () => {
     const { result } = renderHook(() => useLiveQuery(mockQueryFn, []));
 
     await waitFor(() => {
-      expect(result.current).toEqual(mockData);
+      const { data: result_ } = result.current;
+      expect(result_).toEqual(mockData);
     });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 
   it("should call query function with dependencies", async () => {
@@ -47,15 +53,18 @@ describe("useLiveQuery", () => {
     });
   });
 
-  it("should handle sync query functions", async () => {
-    const syncData = { sync: true };
-    const mockQueryFn = vi.fn().mockReturnValue(syncData);
+  it("should handle async query functions", async () => {
+    const asyncData = { async: true };
+    const mockQueryFn = vi.fn().mockResolvedValue(asyncData);
 
     const { result } = renderHook(() => useLiveQuery(mockQueryFn, []));
 
     await waitFor(() => {
-      expect(result.current).toEqual(syncData);
+      expect(result.current.data).toEqual(asyncData);
     });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 
   it("should refetch when dependencies change", async () => {
@@ -70,7 +79,7 @@ describe("useLiveQuery", () => {
     );
 
     await waitFor(() => {
-      expect(result.current).toEqual([{ id: "1" }]);
+      expect(result.current.data).toEqual([{ id: "1" }]);
     });
 
     // Change dependency
@@ -79,6 +88,79 @@ describe("useLiveQuery", () => {
     await waitFor(() => {
       expect(mockQueryFn).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("should set loading: true again on re-query (dep change)", async () => {
+    const deferred = createDeferred<string>();
+    const mockQueryFn = vi
+      .fn()
+      .mockResolvedValueOnce("first")
+      .mockReturnValueOnce(deferred.promise);
+
+    const { result, rerender } = renderHook(
+      ({ dep }) => useLiveQuery(mockQueryFn, [dep]),
+      { initialProps: { dep: "a" } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toBe("first");
+      expect(result.current.loading).toBe(false);
+    });
+
+    rerender({ dep: "b" });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+    });
+
+    deferred.resolve("second");
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.data).toBe("second");
+    });
+  });
+
+  it("should set error and loading: false after a failed query", async () => {
+    const testError = new Error("query failed");
+    const mockQueryFn = vi.fn().mockRejectedValue(testError);
+
+    const { result } = renderHook(() => useLiveQuery(mockQueryFn, []));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toBe("query failed");
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it("should reset error to null on re-query after failure", async () => {
+    const testError = new Error("transient failure");
+    const mockQueryFn = vi
+      .fn()
+      .mockRejectedValueOnce(testError)
+      .mockResolvedValueOnce("recovered");
+
+    const { result, rerender } = renderHook(
+      ({ dep }) => useLiveQuery(mockQueryFn, [dep]),
+      { initialProps: { dep: "a" } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+
+    rerender({ dep: "b" });
+
+    // During re-query: loading resets, error resets
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.data).toBe("recovered");
   });
 
   it("should have invalidateQueries export", () => {
@@ -94,21 +176,49 @@ describe("useLiveQuery", () => {
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    const { result } = renderHook(() =>
-      useLiveQuery(mockQueryFn, [], { keys: "race" }),
-    );
+    const { result } = renderHook(() => useLiveQuery(mockQueryFn, [], "race"));
 
     invalidateQueries("race");
 
     second.resolve("newer");
     await waitFor(() => {
-      expect(result.current).toBe("newer");
+      expect(result.current.data).toBe("newer");
     });
 
     first.resolve("stale");
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(result.current).toBe("newer");
+    expect(result.current.data).toBe("newer");
     expect(mockQueryFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("should set loading: true again on invalidation", async () => {
+    const deferred = createDeferred<string>();
+    const mockQueryFn = vi
+      .fn()
+      .mockResolvedValueOnce("initial")
+      .mockReturnValueOnce(deferred.promise);
+
+    const { result } = renderHook(() =>
+      useLiveQuery(mockQueryFn, [], "invalidation-test"),
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toBe("initial");
+      expect(result.current.loading).toBe(false);
+    });
+
+    invalidateQueries("invalidation-test");
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+    });
+
+    deferred.resolve("refreshed");
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.data).toBe("refreshed");
+    });
   });
 });

@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import type { Scene, SceneMeta } from "./types";
+import { invoke } from "@/core/tauri/invoke";
+import type { LoadedSceneDto, SceneMeta } from "./types";
 import type { TiptapContent } from "@/shared/types/tiptap";
 import type { SceneNote } from "@/domain/entities/types";
 
@@ -17,8 +17,8 @@ export interface SceneMetadataUpdates {
 export async function loadScene(
   projectPath: string,
   sceneFile: string,
-): Promise<Scene> {
-  return invoke<Scene>("load_scene", { projectPath, sceneFile });
+): Promise<LoadedSceneDto> {
+  return invoke<LoadedSceneDto>("load_scene", { projectPath, sceneFile });
 }
 
 export async function saveScene(
@@ -56,6 +56,20 @@ export async function deleteScene(
   sceneFile: string,
 ): Promise<void> {
   return invoke("delete_scene", { projectPath, sceneFile });
+}
+
+export async function saveSceneById(
+  projectPath: string,
+  sceneId: string,
+  content: string,
+  wordCount: number,
+): Promise<void> {
+  return invoke("save_scene_by_id", {
+    projectPath,
+    sceneId,
+    content,
+    wordCount,
+  });
 }
 
 export async function getSceneNote(

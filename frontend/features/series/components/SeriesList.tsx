@@ -27,9 +27,15 @@ export function SeriesList({ onSeriesCreated }: SeriesListProps) {
     router.push(`/series?id=${seriesId}`);
   };
 
-  const series = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
+  const { data: series } = useLiveQuery(
+    () => seriesRepo.getAll(),
+    [seriesRepo],
+  );
 
-  const projects = useLiveQuery(() => projectRepo.getAll(), [projectRepo]);
+  const { data: projects } = useLiveQuery(
+    () => projectRepo.getAll(),
+    [projectRepo],
+  );
 
   if (!series || !projects) {
     return (

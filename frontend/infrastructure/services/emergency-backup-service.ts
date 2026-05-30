@@ -9,7 +9,7 @@
  * NOTE: Tauri 2.0 auto-converts Rust snake_case to JS camelCase.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import { logger } from "@/shared/utils/logger";
 import type { JSONContent } from "@tiptap/core";
 

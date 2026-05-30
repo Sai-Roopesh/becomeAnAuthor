@@ -8,7 +8,12 @@ import {
 } from "@/components/ui/tooltip";
 import { X } from "lucide-react";
 import { TiptapEditor } from "../tiptap-editor";
-import type { DocumentNode } from "@/domain/entities/types";
+import type {
+  DocumentNode,
+  CollaborationStatus,
+  CollaborationPeer,
+} from "@/domain/entities/types";
+import type { ReactNode } from "react";
 
 interface FocusModeLayoutProps {
   activeScene: DocumentNode;
@@ -17,6 +22,18 @@ interface FocusModeLayoutProps {
   editorWordCount: number;
   onWordCountChange: (count: number) => void;
   onExitFocusMode: () => void;
+  renderCollaborationPanel?:
+    | ((props: {
+        status: CollaborationStatus;
+        peers: CollaborationPeer[];
+        roomId: string;
+        enabled: boolean;
+        isJoinedRoom: boolean;
+        onToggle: (enabled: boolean) => void;
+        onJoinRoom: (roomId: string) => void;
+        onLeaveRoom: () => void;
+      }) => ReactNode)
+    | undefined;
 }
 
 /**
@@ -30,6 +47,7 @@ export function FocusModeLayout({
   editorWordCount,
   onWordCountChange,
   onExitFocusMode,
+  renderCollaborationPanel,
 }: FocusModeLayoutProps) {
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -67,6 +85,7 @@ export function FocusModeLayout({
                 : { type: "doc", content: [] }
             }
             onWordCountChange={onWordCountChange}
+            renderCollaborationPanel={renderCollaborationPanel}
           />
         </div>
       </div>

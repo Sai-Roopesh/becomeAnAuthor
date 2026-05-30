@@ -30,7 +30,7 @@ export function SnippetList({
   const [search, setSearch] = useState("");
   const { confirm, ConfirmationDialog } = useConfirmation();
 
-  const snippets = useLiveQuery(
+  const { data: snippets } = useLiveQuery(
     () => snippetRepo.getByProject(projectId),
     [projectId],
   );

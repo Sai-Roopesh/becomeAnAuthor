@@ -1,8 +1,13 @@
 // Public API for google-drive feature
-// Components
-export { DriveBackupBrowser } from './components/DriveBackupBrowser';
-export { InlineGoogleAuth } from './components/InlineGoogleAuth';
+import { withErrorBoundary } from "@/features/shared/components";
+
+import { DriveBackupBrowser as DriveBackupBrowserBase } from "./components/DriveBackupBrowser";
+export const DriveBackupBrowser = withErrorBoundary(DriveBackupBrowserBase, {
+  name: "Drive Backup Browser",
+});
+
+export { InlineGoogleAuth } from "./components/InlineGoogleAuth";
 
 // Hooks
-export { useGoogleAuth } from './hooks/use-google-auth';
-export { useGoogleDrive } from './hooks/use-google-drive';
+export { useGoogleAuth } from "./hooks/use-google-auth";
+export { useGoogleDrive } from "./hooks/use-google-drive";

@@ -186,24 +186,24 @@ export function SceneLinkPanel({
 
   const { setViewMode, setLeftSidebarTab, setShowSidebar } = useProjectStore();
 
-  const sceneNode = useLiveQuery(
+  const { data: sceneNode } = useLiveQuery(
     () => nodeRepo.get(sceneId),
     [sceneId, nodeRepo],
-    { keys: "nodes" },
+    "nodes",
   );
 
   // Get all codex entries (series-level)
-  const entries = useLiveQuery(
+  const { data: entries } = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
-    { keys: "codex" },
+    "codex",
   );
 
   // Get existing links for this scene
-  const links = useLiveQuery(
+  const { data: links } = useLiveQuery(
     () => linkRepo.getByScene(sceneId),
     [sceneId, linkRepo],
-    { keys: "scene-codex-links" },
+    "scene-codex-links",
   );
 
   const linkedCodexIds = useMemo(

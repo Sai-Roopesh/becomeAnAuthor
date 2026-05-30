@@ -47,11 +47,14 @@ export function ProjectSettingsDialog({ projectId }: { projectId: string }) {
   const router = useRouter();
   const { projectRepository: projectRepo } = useAppServices();
   const seriesRepo = useSeriesRepository();
-  const project = useLiveQuery(
+  const { data: project } = useLiveQuery(
     () => projectRepo.get(projectId),
     [projectId, projectRepo],
   );
-  const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
+  const { data: allSeries } = useLiveQuery(
+    () => seriesRepo.getAll(),
+    [seriesRepo],
+  );
 
   const {
     register,

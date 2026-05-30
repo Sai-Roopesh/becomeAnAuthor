@@ -7,8 +7,10 @@ import {
 } from "@/core/tauri";
 import type { ISeriesRepository } from "@/domain/repositories/ISeriesRepository";
 import type { Series } from "@/domain/entities/types";
+import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
 import { toAppError } from "@/shared/errors/app-error";
+import { TauriNotAvailableError } from "@/core/tauri/invoke";
 
 const log = logger.scope("TauriSeriesRepository");
 
@@ -21,7 +23,9 @@ export class TauriSeriesRepository implements ISeriesRepository {
     try {
       return await listSeries();
     } catch (error) {
-      log.error("Failed to list series:", error);
+      if (!(error instanceof TauriNotAvailableError)) {
+        log.error("Failed to list series:", error);
+      }
       throw toAppError(error, "E_SERIES_LIST_FAILED", "Failed to load series");
     }
   }
@@ -48,6 +52,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
   ): Promise<string> {
     try {
       const result = await createSeries(series);
+      invalidateQueries("series");
       return result.id;
     } catch (error) {
       log.error("Failed to create series:", error);
@@ -61,7 +66,9 @@ export class TauriSeriesRepository implements ISeriesRepository {
 
   async update(id: string, updates: Partial<Series>): Promise<void> {
     try {
-      return await updateSeries(id, updates);
+      const result = await updateSeries(id, updates);
+      invalidateQueries("series");
+      return result;
     } catch (error) {
       log.error("Failed to update series:", error);
       throw toAppError(
@@ -75,6 +82,7 @@ export class TauriSeriesRepository implements ISeriesRepository {
   async delete(id: string): Promise<void> {
     try {
       await deleteSeries(id);
+      invalidateQueries("series");
     } catch (error) {
       log.error("Failed to delete series:", error);
       throw toAppError(
@@ -87,7 +95,9 @@ export class TauriSeriesRepository implements ISeriesRepository {
 
   async deleteCascade(id: string): Promise<number> {
     try {
-      return await deleteSeriesCascade(id);
+      const count = await deleteSeriesCascade(id);
+      invalidateQueries(["series", "projects"]);
+      return count;
     } catch (error) {
       log.error("Failed to cascade delete series:", error);
       throw toAppError(

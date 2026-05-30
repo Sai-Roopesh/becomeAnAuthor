@@ -10,7 +10,7 @@ import {
   showOpenProjectDialog,
   type ProjectMeta,
 } from "@/core/tauri";
-import { setCurrentProjectPath } from "@/core/project-path";
+import { useProjectStore } from "@/store/use-project-store";
 import { logger } from "@/shared/utils/logger";
 import { toast } from "@/shared/utils/toast-service";
 
@@ -56,6 +56,7 @@ export interface UseOpenProjectResult {
 export function useOpenProject(): UseOpenProjectResult {
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setActiveProjectPath = useProjectStore((s) => s.setActiveProjectPath);
 
   const openFromPicker = useCallback(async (): Promise<ProjectMeta | null> => {
     setIsOpening(true);
@@ -74,7 +75,7 @@ export function useOpenProject(): UseOpenProjectResult {
       const project = await openProject(selectedPath);
 
       // Use canonical backend path to keep repositories aligned even after folder moves.
-      setCurrentProjectPath(project.path);
+      setActiveProjectPath(project.path);
 
       log.info("Opened project from picker", {
         path: selectedPath,
@@ -91,7 +92,7 @@ export function useOpenProject(): UseOpenProjectResult {
     } finally {
       setIsOpening(false);
     }
-  }, []);
+  }, [setActiveProjectPath]);
 
   const openByPath = useCallback(
     async (path: string): Promise<ProjectMeta | null> => {
@@ -103,7 +104,7 @@ export function useOpenProject(): UseOpenProjectResult {
         const project = await openProject(path);
 
         // Use canonical backend path to keep repositories aligned even after folder moves.
-        setCurrentProjectPath(project.path);
+        setActiveProjectPath(project.path);
 
         log.info("Opened project by path", { path, title: project.title });
         return project;
@@ -118,7 +119,7 @@ export function useOpenProject(): UseOpenProjectResult {
         setIsOpening(false);
       }
     },
-    [],
+    [setActiveProjectPath],
   );
 
   const clearError = useCallback(() => {

@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { EditorContainer } from "@/features/editor/components/EditorContainer";
 import { PlanView } from "@/features/plan/components/plan-view";
 import { ChatInterface } from "@/features/chat/components/chat-interface";
 import { SearchPalette } from "@/features/search/components/SearchPalette";
 import { TopNavigation } from "@/features/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { SettingsDialog } from "@/features/settings";
+import { CollaborationPanel } from "@/features/collaboration";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProjectStore } from "@/store/use-project-store";
 import { useLiveQuery } from "@/hooks/use-live-query";
@@ -113,12 +114,16 @@ function ProjectContent() {
     null,
   );
 
-  const allProjects = useLiveQuery(() => projectRepo.getAll(), [projectRepo], {
-    keys: "projects",
-  });
-  const recentProjects = useLiveQuery(() => listRecentProjects(), [], {
-    keys: "projects",
-  });
+  const { data: allProjects } = useLiveQuery(
+    () => projectRepo.getAll(),
+    [projectRepo],
+    "projects",
+  );
+  const { data: recentProjects } = useLiveQuery(
+    () => listRecentProjects(),
+    [],
+    "projects",
+  );
 
   const projectsWithPath = useMemo(() => {
     return (allProjects ?? []).map((project) => {
@@ -171,10 +176,10 @@ function ProjectContent() {
     router,
   ]);
 
-  const project = useLiveQuery(
+  const { data: project } = useLiveQuery(
     () => (projectId ? projectRepo.get(projectId) : Promise.resolve(undefined)),
     [projectId, projectRepo],
-    { keys: "projects" },
+    "projects",
   );
 
   // Dynamic document title based on project name and view mode
@@ -299,7 +304,10 @@ function ProjectContent() {
 
   return (
     <div className="h-[100dvh] min-h-[100dvh] overflow-hidden flex flex-col">
-      <TopNavigation onOpenSearch={() => setSearchOpen(true)} />
+      <TopNavigation
+        onOpenSearch={() => setSearchOpen(true)}
+        renderSettingsButton={() => <SettingsDialog />}
+      />
 
       <SearchPalette
         projectId={projectId}
@@ -311,9 +319,26 @@ function ProjectContent() {
         {viewMode === "plan" ? (
           <PlanView projectId={projectId} />
         ) : viewMode === "write" ? (
-          <EditorContainer projectId={projectId} />
+          <EditorContainer
+            projectId={projectId}
+            renderCollaborationPanel={(props) => (
+              <CollaborationPanel
+                status={props.status}
+                peers={props.peers}
+                roomId={props.roomId}
+                enabled={props.enabled}
+                isJoinedRoom={props.isJoinedRoom}
+                onToggle={props.onToggle}
+                onJoinRoom={props.onJoinRoom}
+                onLeaveRoom={props.onLeaveRoom}
+              />
+            )}
+          />
         ) : viewMode === "chat" ? (
-          <ChatInterface projectId={projectId} />
+          <ChatInterface
+            projectId={projectId}
+            renderSettingsButton={() => <SettingsDialog />}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             Unknown view mode

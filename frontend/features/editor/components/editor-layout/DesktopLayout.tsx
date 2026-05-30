@@ -9,7 +9,12 @@ import {
 import { PenTool, PinOff } from "lucide-react";
 import { TiptapEditor } from "../tiptap-editor";
 import { WriteRightPanel } from "../write-right-panel";
-import type { DocumentNode, Snippet } from "@/domain/entities/types";
+import type {
+  DocumentNode,
+  Snippet,
+  CollaborationStatus,
+  CollaborationPeer,
+} from "@/domain/entities/types";
 import type { ISnippetRepository } from "@/domain/repositories/ISnippetRepository";
 import { isElementNode } from "@/shared/types/tiptap";
 import type { ReactNode } from "react";
@@ -37,6 +42,18 @@ interface DesktopLayoutProps {
     snippetId: string;
     onClose: () => void;
   }) => ReactNode;
+  renderCollaborationPanel?:
+    | ((props: {
+        status: CollaborationStatus;
+        peers: CollaborationPeer[];
+        roomId: string;
+        enabled: boolean;
+        isJoinedRoom: boolean;
+        onToggle: (enabled: boolean) => void;
+        onJoinRoom: (roomId: string) => void;
+        onLeaveRoom: () => void;
+      }) => ReactNode)
+    | undefined;
 }
 
 /**
@@ -60,6 +77,7 @@ export function DesktopLayout({
   onCloseSnippet,
   renderSidebar,
   renderSnippetEditor,
+  renderCollaborationPanel,
 }: DesktopLayoutProps) {
   return (
     <div className="h-full flex overflow-hidden bg-background/95 backdrop-blur-sm">
@@ -113,6 +131,7 @@ export function DesktopLayout({
                         showFocusToggle
                         onToggleSidebar={onToggleSidebar}
                         onToggleTimeline={onToggleTimeline}
+                        renderCollaborationPanel={renderCollaborationPanel}
                       />
                     </div>
                   </div>

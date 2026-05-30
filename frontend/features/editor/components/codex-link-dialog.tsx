@@ -69,10 +69,10 @@ export function CodexLinkDialog({
   onConfirm,
 }: CodexLinkDialogProps) {
   const { codexRepository: codexRepo } = useAppServices();
-  const entries = useLiveQuery(
+  const { data: entries } = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
-    { keys: "codex" },
+    "codex",
   );
 
   const [search, setSearch] = useState("");

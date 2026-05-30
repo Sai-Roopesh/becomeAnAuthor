@@ -6,7 +6,11 @@ import { PanelLeft, PanelRight, PenTool } from "lucide-react";
 import { TiptapEditor } from "../tiptap-editor";
 import { StoryTimeline } from "../story-timeline";
 import { FocusModeToggle } from "../FocusModeToggle";
-import type { DocumentNode } from "@/domain/entities/types";
+import type {
+  DocumentNode,
+  CollaborationStatus,
+  CollaborationPeer,
+} from "@/domain/entities/types";
 import type { ReactNode } from "react";
 
 interface MobileLayoutProps {
@@ -28,6 +32,18 @@ interface MobileLayoutProps {
     snippetId: string;
     onClose: () => void;
   }) => ReactNode;
+  renderCollaborationPanel?:
+    | ((props: {
+        status: CollaborationStatus;
+        peers: CollaborationPeer[];
+        roomId: string;
+        enabled: boolean;
+        isJoinedRoom: boolean;
+        onToggle: (enabled: boolean) => void;
+        onJoinRoom: (roomId: string) => void;
+        onLeaveRoom: () => void;
+      }) => ReactNode)
+    | undefined;
 }
 
 /**
@@ -48,6 +64,7 @@ export function MobileLayout({
   onCloseSnippet,
   renderSidebar,
   renderSnippetEditor,
+  renderCollaborationPanel,
 }: MobileLayoutProps) {
   const hasActiveScene = !!activeScene && activeScene.type === "scene";
 
@@ -97,6 +114,7 @@ export function MobileLayout({
                 : { type: "doc", content: [] }
             }
             onWordCountChange={onWordCountChange}
+            renderCollaborationPanel={renderCollaborationPanel}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-4">

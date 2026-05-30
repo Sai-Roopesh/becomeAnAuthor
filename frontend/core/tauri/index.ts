@@ -4,3 +4,4 @@
  */
 
 export * from "./commands";
+export { TauriNotAvailableError } from "./invoke";

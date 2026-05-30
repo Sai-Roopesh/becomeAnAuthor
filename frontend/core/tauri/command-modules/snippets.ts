@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import type { Snippet } from "@/domain/entities/types";
 
 export async function listSnippets(projectPath: string): Promise<Snippet[]> {

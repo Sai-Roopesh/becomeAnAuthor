@@ -17,10 +17,10 @@ import {
   archiveProject as archiveProjectCommand,
   type ProjectMeta,
 } from "@/core/tauri";
-import { setCurrentProjectPath } from "@/core/project-path";
 import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
 import { toAppError } from "@/shared/errors/app-error";
+import { TauriNotAvailableError } from "@/core/tauri/invoke";
 
 const log = logger.scope("TauriProjectRepository");
 
@@ -57,14 +57,6 @@ export class TauriProjectRepository implements IProjectRepository {
     const projects = await this.getAll();
     const project = projects.find((p) => p.id === id);
 
-    if (project) {
-      // Set the current project path for other repos to use
-      const tauriProject = project as Project & { _tauriPath?: string };
-      if (tauriProject._tauriPath) {
-        setCurrentProjectPath(tauriProject._tauriPath);
-      }
-    }
-
     return project;
   }
 
@@ -73,7 +65,9 @@ export class TauriProjectRepository implements IProjectRepository {
       const projects = await listProjects();
       return projects.map(projectMetaToProject);
     } catch (error) {
-      log.error("Failed to list projects:", error);
+      if (!(error instanceof TauriNotAvailableError)) {
+        log.error("Failed to list projects:", error);
+      }
       throw toAppError(
         error,
         "E_PROJECT_LIST_FAILED",
@@ -108,8 +102,6 @@ export class TauriProjectRepository implements IProjectRepository {
       params.seriesId,
       params.seriesIndex,
     );
-    // Set the current project path for all project-scoped repositories
-    setCurrentProjectPath(created.path);
     return created.id;
   }
 
@@ -162,7 +154,9 @@ export class TauriProjectRepository implements IProjectRepository {
     try {
       return await listProjectTrash();
     } catch (error) {
-      log.error("Failed to list trashed projects:", error);
+      if (!(error instanceof TauriNotAvailableError)) {
+        log.error("Failed to list trashed projects:", error);
+      }
       throw toAppError(
         error,
         "E_PROJECT_TRASH_LIST_FAILED",

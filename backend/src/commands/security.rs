@@ -3,7 +3,7 @@
 
 use crate::storage::sqlite::{
     delete_secure_account, delete_secure_secret, get_secure_secret, list_secure_account_providers,
-    open_app_db, upsert_secure_account, upsert_secure_secret,
+    open_app_db, upsert_secure_account, upsert_secure_secret, with_transaction,
 };
 use crate::utils::get_app_dir;
 use aes_gcm::aead::Aead;
@@ -11,7 +11,8 @@ use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use chrono::Utc;
 use rand::RngCore;
 use rusqlite::Connection;
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::PathBuf;
 use tauri::command;
 
@@ -39,6 +40,49 @@ fn apply_master_key_permissions(path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// Write the master key to disk atomically with owner-only permissions.
+///
+/// The key is written to a temporary file created with mode `0o600` (on Unix)
+/// and renamed into place, so the live key file never exists with permissive
+/// permissions — this closes the create-then-chmod TOCTOU window that the
+/// previous `fs::write` + `set_permissions` sequence left open. On Windows the
+/// file inherits the per-user ACLs of the app-data directory.
+fn write_master_key_file(path: &PathBuf, key: &[u8]) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Invalid master key path".to_string())?;
+    let temp_path = parent.join(format!(".{MASTER_KEY_FILE}.tmp"));
+
+    // Clear any stale temp file left by a previously interrupted write.
+    if temp_path.exists() {
+        let _ = fs::remove_file(&temp_path);
+    }
+
+    let mut options = OpenOptions::new();
+    options.create_new(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+
+    let mut file = options
+        .open(&temp_path)
+        .map_err(|e| format!("Failed to create master key temp file: {e}"))?;
+    file.write_all(key)
+        .map_err(|e| format!("Failed to write master key temp file: {e}"))?;
+    file.sync_all()
+        .map_err(|e| format!("Failed to sync master key temp file: {e}"))?;
+    drop(file);
+
+    fs::rename(&temp_path, path)
+        .map_err(|e| format!("Failed to finalize master key file: {e}"))?;
+
+    // Belt-and-suspenders for platforms where the create-time mode is a no-op.
+    apply_master_key_permissions(path)?;
+    Ok(())
+}
+
 fn load_or_create_master_key() -> Result<[u8; KEY_LENGTH], String> {
     let path = master_key_path()?;
 
@@ -55,8 +99,7 @@ fn load_or_create_master_key() -> Result<[u8; KEY_LENGTH], String> {
 
     let mut key = [0u8; KEY_LENGTH];
     rand::rngs::OsRng.fill_bytes(&mut key);
-    fs::write(&path, key).map_err(|e| format!("Failed to create master key file: {e}"))?;
-    apply_master_key_permissions(&path)?;
+    write_master_key_file(&path, &key)?;
     Ok(key)
 }
 
@@ -128,18 +171,19 @@ pub(crate) fn store_secret_for_account(
     let (nonce, ciphertext) = encrypt_secret(normalized_secret)?;
     let now = Utc::now().timestamp_millis();
 
-    upsert_secure_account(conn, &normalized_namespace, &provider, &connection_id, now)?;
-    upsert_secure_secret(
-        conn,
-        &normalized_namespace,
-        &provider,
-        &connection_id,
-        &nonce,
-        &ciphertext,
-        now,
-    )?;
-
-    Ok(())
+    with_transaction(conn, |conn| {
+        upsert_secure_account(conn, &normalized_namespace, &provider, &connection_id, now)?;
+        upsert_secure_secret(
+            conn,
+            &normalized_namespace,
+            &provider,
+            &connection_id,
+            &nonce,
+            &ciphertext,
+            now,
+        )?;
+        Ok(())
+    })
 }
 
 pub(crate) fn get_secret_for_account(

@@ -1,7 +1,11 @@
 // Public API for plan feature
+import { withErrorBoundary } from "@/features/shared/components";
 
-// Components
-export { PlanView } from "./components/plan-view";
+import { PlanView as PlanViewBase } from "./components/plan-view";
+export const PlanView = withErrorBoundary(PlanViewBase, {
+  name: "Plan View",
+});
+
 export { OutlineView } from "./components/outline-view";
 export { GridView } from "./components/grid-view";
 export { TimelineView } from "./components/timeline-view";

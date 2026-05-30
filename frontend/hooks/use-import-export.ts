@@ -6,8 +6,7 @@
  * - novel_package: share/migrate one novel
  */
 import { toast } from "@/shared/utils/toast-service";
-import { googleAuthService } from "@/infrastructure/services/google-auth-service";
-import { googleDriveService } from "@/infrastructure/services/google-drive-service";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import {
   exportFullSnapshot,
   exportNovelPackage,
@@ -27,6 +26,8 @@ import { logger } from "@/shared/utils/logger";
 const log = logger.scope("ImportExport");
 
 export function useImportExport() {
+  const { googleAuthService, googleDriveService } = useAppServices();
+
   const exportFullAppSnapshot = async (
     outputPath?: string | null,
   ): Promise<BackupPackageSummary> => {

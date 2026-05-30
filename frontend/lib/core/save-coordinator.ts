@@ -5,8 +5,8 @@
  * preventing conflicts between auto-save (debounced) and AI-generation (immediate) saves.
  */
 
-import { invoke } from "@tauri-apps/api/core";
-import { getCurrentProjectPath } from "@/core/project-path";
+import { saveSceneById } from "@/core/tauri/commands";
+import { useProjectStore } from "@/store/use-project-store";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
 import { emergencyBackupService } from "@/infrastructure/services/emergency-backup-service";
@@ -58,7 +58,7 @@ class SaveCoordinator {
       }
 
       // Now perform our save via Tauri
-      const projectPath = getCurrentProjectPath();
+      const projectPath = useProjectStore.getState().activeProjectPath;
       if (!projectPath) {
         log.warn("No project path set, cannot save");
         return;
@@ -76,15 +76,14 @@ class SaveCoordinator {
 
         log.debug(`Calling save_scene_by_id for ${sceneId}`, { wordCount });
         // Tauri auto-converts Rust snake_case to JS camelCase
-        await invoke("save_scene_by_id", {
+        await saveSceneById(
           projectPath,
           sceneId,
-          content:
-            typeof cleanContent === "string"
-              ? cleanContent
-              : JSON.stringify(cleanContent),
+          typeof cleanContent === "string"
+            ? cleanContent
+            : JSON.stringify(cleanContent),
           wordCount,
-        });
+        );
         log.debug(`✅ Save successful for scene: ${sceneId}`);
 
         // CRITICAL: Invalidate useLiveQuery cache so scene reloads fresh data

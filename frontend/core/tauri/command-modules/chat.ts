@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import type { ChatMessage, ChatThread } from "@/domain/entities/types";
 
 export async function listChatThreads(

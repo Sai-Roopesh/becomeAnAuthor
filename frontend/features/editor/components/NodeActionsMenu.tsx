@@ -58,7 +58,10 @@ export function NodeActionsMenu({
   onDelete,
 }: NodeActionsMenuProps) {
   const { nodeRepository: nodeRepo } = useAppServices();
-  const node = useLiveQuery(() => nodeRepo.get(nodeId), [nodeId, nodeRepo]);
+  const { data: node } = useLiveQuery(
+    () => nodeRepo.get(nodeId),
+    [nodeId, nodeRepo],
+  );
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [isPovDialogOpen, setIsPovDialogOpen] = useState(false);

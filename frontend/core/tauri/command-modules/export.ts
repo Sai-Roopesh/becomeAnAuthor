@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import type {
   AppInfo,
   BackupImportOptions,
@@ -53,6 +53,13 @@ export async function importBackupPackage(
 
 export async function readFileBytes(filePath: string): Promise<number[]> {
   return invoke<number[]>("read_file_bytes", { filePath });
+}
+
+export async function writeExportFile(
+  filePath: string,
+  data: number[],
+): Promise<void> {
+  return invoke("write_export_file", { filePath, data });
 }
 
 export async function writeTempBackupFile(

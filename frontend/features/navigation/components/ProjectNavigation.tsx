@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ProjectSettingsDialog } from "../../project/components/ProjectSettingsDialog";
+import { ProjectSettingsDialog } from "@/features/project";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import {
   DropdownMenu,
@@ -76,11 +76,11 @@ export function ProjectNavigation({
   const { projectRepository: projectRepo, nodeRepository: nodeRepo } =
     useAppServices();
 
-  const project = useLiveQuery(
+  const { data: project } = useLiveQuery(
     () => projectRepo.get(projectId),
     [projectId, projectRepo],
   );
-  const nodes = useLiveQuery(
+  const { data: nodes } = useLiveQuery(
     () => nodeRepo.getByProject(projectId),
     [projectId, nodeRepo],
   );

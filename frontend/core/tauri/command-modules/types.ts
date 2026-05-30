@@ -19,13 +19,7 @@ export interface RecentProject {
   lastOpened: number;
 }
 
-export interface TrashedProject {
-  id: string;
-  title: string;
-  originalPath: string;
-  trashPath: string;
-  deletedAt: number;
-}
+export type { TrashedProject } from "@/shared/types/backup";
 
 export interface DeletedSeriesMeta {
   oldSeriesId: string;
@@ -58,7 +52,14 @@ export interface SceneMeta {
   updated_at: string;
 }
 
-export interface Scene {
+/**
+ * Raw payload returned by the `load_scene` Tauri command: scene metadata
+ * (snake_case, RFC3339 string timestamps) plus the scene body as a JSON
+ * string. This is the wire DTO — distinct from the camelCase domain `Scene`
+ * entity in `@/domain/entities/types`. Map it to the domain entity in the
+ * repository layer (see `TauriNodeRepository.extractSceneMetadata`).
+ */
+export interface LoadedSceneDto {
   id: string;
   title: string;
   order: number;
@@ -104,68 +105,15 @@ export interface AppInfo {
   arch: string;
 }
 
-export type BackupPackageKind =
-  | "full_snapshot"
-  | "series_package"
-  | "novel_package";
-
-export interface BackupCounts {
-  series: number;
-  projects: number;
-  scenes: number;
-  codexEntries: number;
-  codexRelations: number;
-  codexTags: number;
-  codexEntryTags: number;
-  codexTemplates: number;
-  codexRelationTypes: number;
-  sceneCodexLinks: number;
-  snippets: number;
-  sceneNotes: number;
-  chatThreads: number;
-  chatMessages: number;
-  yjsSnapshots: number;
-  yjsUpdateLog: number;
-}
-
-export interface BackupSourceHints {
-  seriesId?: string;
-  seriesTitle?: string;
-  projectId?: string;
-  projectTitle?: string;
-}
-
-export interface BackupPackageSummary {
-  kind: BackupPackageKind;
-  path: string;
-  fileName: string;
-  sizeBytes: number;
-  createdAt: string;
-  sha256: string;
-}
-
-export interface BackupPackageInfo {
-  kind: BackupPackageKind;
-  appVersion: string;
-  schemaVersion: number;
-  createdAt: string;
-  counts: BackupCounts;
-  sourceHints: BackupSourceHints;
-}
-
-export interface BackupImportOptions {
-  targetSeriesId?: string;
-  createSeriesTitle?: string;
-}
-
-export interface BackupImportResult {
-  kind: BackupPackageKind;
-  importedSeriesId?: string | null;
-  importedProjectIds: string[];
-  replacedAppData: boolean;
-  checkpointPath?: string | null;
-  requiresRelaunch: boolean;
-}
+export type {
+  BackupPackageKind,
+  BackupCounts,
+  BackupSourceHints,
+  BackupPackageSummary,
+  BackupPackageInfo,
+  BackupImportOptions,
+  BackupImportResult,
+} from "@/shared/types/backup";
 
 export interface SaveDialogOptions {
   defaultPath?: string;

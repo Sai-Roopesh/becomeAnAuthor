@@ -1,18 +1,15 @@
-import { invoke } from "@tauri-apps/api/core";
-import { getCurrentProjectPath } from "@/core/project-path";
+// TODO: Migrate callers to IContextAssemblyService from useAppServices()
+import {
+  getStructure,
+  listSeriesCodexEntries,
+  loadScene,
+} from "@/core/tauri/commands";
+import type { StructureNode } from "@/core/tauri/commands";
+import { useProjectStore } from "@/store/use-project-store";
 import type { CodexEntry } from "@/domain/entities/types";
-import type { Scene } from "@/core/tauri/commands";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("ContextEngine");
-
-// Structure node type from Tauri backend
-interface StructureNode {
-  id: string;
-  type: string;
-  file?: string;
-  children?: StructureNode[];
-}
 
 // Helper to yield to main thread to prevent blocking UI
 const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -126,15 +123,13 @@ export async function assembleContext(
   seriesId?: string,
 ): Promise<string> {
   let context = "";
-  const projectPath = getCurrentProjectPath();
+  const projectPath = useProjectStore.getState().activeProjectPath;
   if (!projectPath) return context;
 
   if (sceneId) {
     try {
       // First, get the project structure to find the scene's file path
-      const structure = await invoke<StructureNode[]>("get_structure", {
-        projectPath,
-      });
+      const structure = await getStructure(projectPath);
 
       // Flatten and find the scene node
       const flattenStructure = (nodes: StructureNode[]): StructureNode[] => {
@@ -156,11 +151,8 @@ export async function assembleContext(
         return context;
       }
 
-      // Load scene content using the file path
-      const sceneResult = await invoke<Scene>("load_scene", {
-        projectPath,
-        sceneFile: sceneNode.file, // Use the actual file path, not the ID
-      });
+      // Load scene content using the file path (not the ID)
+      const sceneResult = await loadScene(projectPath, sceneNode.file);
 
       // Parse scene content - content is a JSON string of Tiptap document
       let sceneJson;
@@ -192,10 +184,7 @@ export async function assembleContext(
       if (mentionedIds.length > 0) {
         try {
           if (seriesId) {
-            const allCodex = await invoke<CodexEntry[]>(
-              "list_series_codex_entries",
-              { seriesId },
-            );
+            const allCodex = await listSeriesCodexEntries(seriesId);
             mentionedEntries = allCodex.filter((e) =>
               mentionedIds.includes(e.id),
             );

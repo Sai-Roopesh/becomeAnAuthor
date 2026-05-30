@@ -8,9 +8,11 @@ vi.mock("@/core/tauri", () => ({
   deleteSceneCodexLink: vi.fn(),
 }));
 
-vi.mock("@/core/project-path", () => ({
-  getCurrentProjectPath: () => "/mock/project/path",
-  requireCurrentProjectPath: () => "/mock/project/path",
+vi.mock("@/store/use-project-store", () => ({
+  useProjectStore: Object.assign(
+    () => ({ activeProjectPath: "/mock/project/path" }),
+    { getState: () => ({ activeProjectPath: "/mock/project/path" }) },
+  ),
 }));
 
 vi.mock("@/hooks/use-live-query", () => ({

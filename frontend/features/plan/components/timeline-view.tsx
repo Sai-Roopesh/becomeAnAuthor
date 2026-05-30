@@ -38,12 +38,12 @@ export function TimelineView({
   ]);
 
   // Data fetching (series-level codex)
-  const codexEntries = useLiveQuery(
+  const { data: codexEntries } = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
   );
 
-  const links = useLiveQuery(
+  const { data: links } = useLiveQuery(
     () => linkRepo.getByProject(projectId),
     [projectId, linkRepo],
   );

@@ -10,15 +10,22 @@ import {
   saveCodexRelationType,
   deleteCodexRelationType,
 } from "@/core/tauri";
-import { requireCurrentProjectPath } from "@/core/project-path";
+import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
-import { toAppError } from "@/shared/errors/app-error";
+import { AppError, toAppError } from "@/shared/errors/app-error";
+import { useProjectStore } from "@/store/use-project-store";
 
 const log = logger.scope("TauriCodexRelationTypeRepository");
 
 export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepository {
   private requireProjectPath(): string {
-    return requireCurrentProjectPath();
+    const path = useProjectStore.getState().activeProjectPath;
+    if (!path) {
+      throw new AppError("E_PROJECT_NOT_OPEN", "No project is currently open", {
+        recoverable: true,
+      });
+    }
+    return path;
   }
 
   async get(id: string): Promise<CodexRelationType | undefined> {
@@ -74,6 +81,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
 
     try {
       await saveCodexRelationType(projectPath, newType);
+      invalidateQueries("codex");
       return newType;
     } catch (error) {
       log.error("Failed to create codex relation type:", error);
@@ -94,6 +102,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
     const updated = { ...existing, ...data };
     try {
       await saveCodexRelationType(projectPath, updated);
+      invalidateQueries("codex");
     } catch (error) {
       log.error("Failed to update codex relation type:", error);
       throw toAppError(
@@ -109,6 +118,7 @@ export class TauriCodexRelationTypeRepository implements ICodexRelationTypeRepos
 
     try {
       await deleteCodexRelationType(projectPath, id);
+      invalidateQueries("codex");
     } catch (error) {
       log.error("Failed to delete codex relation type:", error);
       throw toAppError(

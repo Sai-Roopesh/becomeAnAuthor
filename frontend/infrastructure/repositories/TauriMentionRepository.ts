@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import type { IMentionRepository } from "@/domain/repositories/IMentionRepository";
 import type { Mention } from "@/domain/entities/types";
 import { listProjects } from "@/core/tauri";
@@ -101,18 +101,4 @@ export class TauriMentionRepository implements IMentionRepository {
     // Not implemented yet - would require backend support
     return {};
   }
-}
-
-// Singleton instance
-let _mentionRepository: TauriMentionRepository | null = null;
-
-/**
- * Get the singleton MentionRepository instance.
- * Lazily initialized on first access.
- */
-export function getMentionRepository(): TauriMentionRepository {
-  if (!_mentionRepository) {
-    _mentionRepository = new TauriMentionRepository();
-  }
-  return _mentionRepository;
 }

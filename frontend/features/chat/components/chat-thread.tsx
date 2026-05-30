@@ -19,8 +19,6 @@ import { useAppServices } from "@/infrastructure/di/AppContext";
 import { getPromptTemplate } from "@/shared/prompts/templates";
 import { buildRollingMemory } from "@/features/chat/utils/chat-memory";
 import type { AIModelMessage } from "@/lib/ai/client";
-import { SettingsDialog } from "@/features/settings/components/SettingsDialog";
-import { Button } from "@/components/ui/button";
 import { useHasAIConnection } from "@/hooks/use-has-ai-connection";
 
 // Import child components
@@ -32,6 +30,7 @@ import { ChatInput } from "./chat-input";
 interface ChatThreadProps {
   threadId: string;
   projectId: string;
+  renderSettingsButton?: (() => React.ReactNode) | undefined;
 }
 
 /**
@@ -40,7 +39,11 @@ interface ChatThreadProps {
  * Series-first: fetches project to get seriesId for context selection
  * Uses streaming AI responses via useAI hook
  */
-export function ChatThread({ threadId, projectId }: ChatThreadProps) {
+export function ChatThread({
+  threadId,
+  projectId,
+  renderSettingsButton,
+}: ChatThreadProps) {
   const chatRepo = useChatRepository();
   const { setActiveThreadId } = useChatStore();
   const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
@@ -74,14 +77,17 @@ export function ChatThread({ threadId, projectId }: ChatThreadProps) {
   const isMountedRef = useRef(true);
 
   // Data Queries
-  const thread = useLiveQuery(() => chatRepo.get(threadId), [threadId]);
-  const messages = useLiveQuery(
+  const { data: thread } = useLiveQuery(
+    () => chatRepo.get(threadId),
+    [threadId],
+  );
+  const { data: messages } = useLiveQuery(
     () => chatRepo.getMessagesByThread(threadId),
     [threadId],
   );
 
   // Fetch project to get seriesId for context assembly
-  const project = useLiveQuery(
+  const { data: project } = useLiveQuery(
     () =>
       thread?.projectId
         ? projectRepo.get(thread.projectId)
@@ -460,14 +466,7 @@ export function ChatThread({ threadId, projectId }: ChatThreadProps) {
           <p className="text-destructive">
             AI provider is not configured for this device.
           </p>
-          <SettingsDialog
-            initialTab="ai-connections"
-            trigger={
-              <Button size="sm" className="mt-2">
-                Open AI Settings
-              </Button>
-            }
-          />
+          {renderSettingsButton?.()}
         </div>
       )}
 

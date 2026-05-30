@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as Y from "yjs";
 import { WebrtcProvider } from "y-webrtc";
-import { collaborationRepository } from "@/infrastructure/repositories/TauriCollaborationRepository";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import type {
   CollaborationStatus,
   CollaborationPeer,
@@ -71,6 +71,7 @@ export function useCollaboration({
   enableP2P = false,
   customRoomId,
 }: UseCollaborationOptions): UseCollaborationReturn {
+  const { collaborationRepository } = useAppServices();
   const [ydoc, setYdoc] = useState<Y.Doc | null>(null);
   const [status, setStatus] = useState<CollaborationStatus>("disconnected");
   const [peers, setPeers] = useState<CollaborationPeer[]>([]);
@@ -103,7 +104,7 @@ export function useCollaboration({
     } catch (saveError) {
       log.error("Failed to persist Yjs state", saveError);
     }
-  }, [projectId, sceneId]);
+  }, [projectId, sceneId, collaborationRepository]);
 
   const scheduleSave = useCallback(() => {
     if (saveDebounceRef.current) {
@@ -356,6 +357,7 @@ export function useCollaboration({
     initWebRTC,
     scheduleSave,
     flushSave,
+    collaborationRepository,
   ]);
 
   return {

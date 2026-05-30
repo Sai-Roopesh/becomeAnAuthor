@@ -39,7 +39,11 @@ vi.mock("@/store/use-project-store", () => ({
 }));
 
 vi.mock("@/hooks/use-live-query", () => ({
-  useLiveQuery: (queryFn: () => unknown) => queryFn(),
+  useLiveQuery: (queryFn: () => unknown) => ({
+    data: queryFn(),
+    loading: false,
+    error: null,
+  }),
 }));
 
 vi.mock("@/shared/utils/toast-service", () => ({

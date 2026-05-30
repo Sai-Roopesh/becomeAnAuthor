@@ -53,13 +53,13 @@ export function ContextSelector({
     useAppServices();
 
   // Fetch all nodes and codex entries
-  const nodes = useLiveQuery(
+  const { data: nodes } = useLiveQuery(
     () => nodeRepo.getByProject(projectId),
     [projectId, nodeRepo],
   );
 
   // Fetch codex entries at series level
-  const codexEntries = useLiveQuery(
+  const { data: codexEntries } = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
   );

@@ -218,3 +218,20 @@ export async function clearModelDiscoveryCache(
 ): Promise<void> {
   await clearModelDiscoveryCacheCommand(provider);
 }
+
+const FEATURE_FLAGS_KEY = "FEATURE_FLAGS";
+
+export async function getFeatureFlags(): Promise<Record<string, boolean>> {
+  return getAppPreference<Record<string, boolean>>(FEATURE_FLAGS_KEY, {});
+}
+
+export async function setFeatureFlag(
+  name: string,
+  enabled: boolean,
+): Promise<void> {
+  const current = await getFeatureFlags();
+  await setAppPreference<Record<string, boolean>>(FEATURE_FLAGS_KEY, {
+    ...current,
+    [name]: enabled,
+  });
+}

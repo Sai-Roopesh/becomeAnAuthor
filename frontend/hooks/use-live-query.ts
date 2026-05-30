@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type DependencyList } from "react";
 import { logger } from "@/shared/utils/logger";
+import { TauriNotAvailableError } from "@/core/tauri/invoke";
 
 const log = logger.scope("useLiveQuery");
 
@@ -39,23 +40,27 @@ export function invalidateQueries(keys?: string | string[]): void {
   });
 }
 
-interface UseLiveQueryOptions {
-  keys?: string | string[];
+export interface LiveQueryResult<T> {
+  data: T | undefined;
+  loading: boolean;
+  error: Error | null;
 }
 
 export function useLiveQuery<T>(
-  queryFn: () => T | Promise<T>,
-  deps: DependencyList = [],
-  options: UseLiveQueryOptions = {},
-): T | undefined {
-  const [result, setResult] = useState<T | undefined>(undefined);
+  queryFn: () => Promise<T>,
+  deps: DependencyList,
+  queryKey?: string | string[],
+): LiveQueryResult<T> {
+  const [data, setData] = useState<T | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const keysRef = useRef<Set<string>>(normalizeKeys(options.keys));
+  const keysRef = useRef<Set<string>>(normalizeKeys(queryKey));
   const requestVersionRef = useRef(0);
 
   useEffect(() => {
-    keysRef.current = normalizeKeys(options.keys);
-  }, [options.keys]);
+    keysRef.current = normalizeKeys(queryKey);
+  }, [queryKey]);
 
   useEffect(() => {
     const listener = () => setRefreshKey((k) => k + 1);
@@ -75,15 +80,23 @@ export function useLiveQuery<T>(
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
 
+    setLoading(true);
+    setError(null);
+
     void Promise.resolve(queryFn())
-      .then((data) => {
+      .then((result) => {
         if (active && requestVersionRef.current === requestVersion) {
-          setResult(data);
+          setData(result);
+          setLoading(false);
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (active && requestVersionRef.current === requestVersion) {
-          log.error("Query execution failed", err);
+          if (!(err instanceof TauriNotAvailableError)) {
+            log.error("Query execution failed", err);
+          }
+          setError(err instanceof Error ? err : new Error(String(err)));
+          setLoading(false);
         }
       });
 
@@ -93,5 +106,5 @@ export function useLiveQuery<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, refreshKey]);
 
-  return result;
+  return { data, loading, error };
 }

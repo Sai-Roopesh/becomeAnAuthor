@@ -9,12 +9,13 @@ import { useAIConnections } from "../hooks/useAIConnections";
 import { ConnectionForm } from "./ai-connections/ConnectionForm";
 import { ConnectionList } from "./ai-connections/ConnectionList";
 import { NewConnectionDialog } from "./new-connection-dialog";
-import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import { getAPIKey } from "@/core/storage/api-keys";
 
 const log = logger.scope("AIConnectionsTab");
 
 export function AIConnectionsTab() {
+  const { modelDiscoveryService } = useAppServices();
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [isRefreshingModels, setIsRefreshingModels] = useState(false);
   const [modelRefreshError, setModelRefreshError] = useState("");

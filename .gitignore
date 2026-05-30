@@ -37,13 +37,14 @@ next-env.d.ts
 # tauri generated files
 backend/gen/
 
-# local check artifacts
+# local check artifacts (build/lint/test/tsc output logs)
 *_results.txt
 *_audit.txt
+*_output.txt
+lint_*.txt
 circular_deps.txt
 cargo_check_results.txt
 dev_web_output.log
-lint_output.txt
 
 # local codex agent artifacts
 /.agents/

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crate::utils::get_app_dir;
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 fn app_database_path() -> Result<PathBuf, String> {
     let app_dir = get_app_dir()?;
@@ -389,7 +389,43 @@ pub fn open_app_db() -> Result<Connection, String> {
     conn.busy_timeout(Duration::from_secs(5))
         .map_err(|e| format!("Failed to set SQLite busy timeout: {e}"))?;
     initialize_schema(&conn)?;
+    run_migrations(&conn)?;
     Ok(conn)
+}
+
+/// Runs a closure inside a BEGIN IMMEDIATE / COMMIT transaction.
+/// Rolls back automatically if the closure returns Err or panics.
+pub fn with_transaction<T, F>(conn: &Connection, f: F) -> Result<T, String>
+where
+    F: FnOnce(&Connection) -> Result<T, String>,
+{
+    conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
+    match f(conn) {
+        Ok(val) => {
+            conn.execute_batch("COMMIT").map_err(|e| e.to_string())?;
+            Ok(val)
+        }
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            Err(e)
+        }
+    }
+}
+
+/// Upgrades the on-disk schema to SCHEMA_VERSION using PRAGMA user_version.
+/// Safe to call on every open: a no-op when already current.
+pub fn run_migrations(conn: &Connection) -> Result<(), String> {
+    let current: u32 = conn
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if current >= SCHEMA_VERSION as u32 {
+        return Ok(());
+    }
+    // Version 1 → 2: handled by CREATE TABLE IF NOT EXISTS (initial schema)
+    // Version 2 → 3: no schema changes; bump marks migration system adoption
+    conn.execute_batch(&format!("PRAGMA user_version = {}", SCHEMA_VERSION))
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 pub fn get_search_signature(
@@ -797,46 +833,50 @@ pub fn save_ai_connection(
     conn: &Connection,
     row: &AIConnectionRecord,
 ) -> Result<AIConnectionRecord, String> {
-    conn.execute(
-        r#"
-        INSERT INTO ai_connections(id, name, provider, custom_endpoint, enabled, created_at, updated_at)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-        ON CONFLICT(id) DO UPDATE SET
-            name = excluded.name,
-            provider = excluded.provider,
-            custom_endpoint = excluded.custom_endpoint,
-            enabled = excluded.enabled,
-            updated_at = excluded.updated_at
-        "#,
-        params![
-            row.id,
-            row.name,
-            row.provider,
-            row.custom_endpoint,
-            bool_to_sql(row.enabled),
-            row.created_at,
-            row.updated_at
-        ],
-    )
-    .map_err(|e| format!("Failed to upsert ai connection row: {e}"))?;
+    with_transaction(conn, |conn| {
+        conn.execute(
+            r#"
+            INSERT INTO ai_connections(id, name, provider, custom_endpoint, enabled, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                provider = excluded.provider,
+                custom_endpoint = excluded.custom_endpoint,
+                enabled = excluded.enabled,
+                updated_at = excluded.updated_at
+            "#,
+            params![
+                row.id,
+                row.name,
+                row.provider,
+                row.custom_endpoint,
+                bool_to_sql(row.enabled),
+                row.created_at,
+                row.updated_at
+            ],
+        )
+        .map_err(|e| format!("Failed to upsert ai connection row: {e}"))?;
 
-    conn.execute(
-        "DELETE FROM ai_connection_models WHERE connection_id = ?1",
-        params![row.id],
-    )
-    .map_err(|e| format!("Failed to clear ai connection models: {e}"))?;
+        conn.execute(
+            "DELETE FROM ai_connection_models WHERE connection_id = ?1",
+            params![row.id],
+        )
+        .map_err(|e| format!("Failed to clear ai connection models: {e}"))?;
 
-    if !row.models.is_empty() {
-        let mut stmt = conn
-            .prepare(
-                "INSERT OR IGNORE INTO ai_connection_models(connection_id, model_id) VALUES (?1, ?2)",
-            )
-            .map_err(|e| format!("Failed to prepare ai model insert statement: {e}"))?;
-        for model in &row.models {
-            stmt.execute(params![row.id, model])
-                .map_err(|e| format!("Failed to insert ai model row: {e}"))?;
+        if !row.models.is_empty() {
+            let mut stmt = conn
+                .prepare(
+                    "INSERT OR IGNORE INTO ai_connection_models(connection_id, model_id) VALUES (?1, ?2)",
+                )
+                .map_err(|e| format!("Failed to prepare ai model insert statement: {e}"))?;
+            for model in &row.models {
+                stmt.execute(params![row.id, model])
+                    .map_err(|e| format!("Failed to insert ai model row: {e}"))?;
+            }
         }
-    }
+
+        Ok(())
+    })?;
 
     get_ai_connection(conn, &row.id)?.ok_or_else(|| "AI connection was not saved".to_string())
 }

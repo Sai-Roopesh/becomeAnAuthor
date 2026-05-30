@@ -6,9 +6,10 @@
 import type { ISnippetRepository } from "@/domain/repositories/ISnippetRepository";
 import type { Snippet } from "@/domain/entities/types";
 import { listSnippets, saveSnippet, deleteSnippet } from "@/core/tauri";
-import { requireCurrentProjectPath } from "@/core/project-path";
+import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
-import { toAppError } from "@/shared/errors/app-error";
+import { AppError, toAppError } from "@/shared/errors/app-error";
+import { useProjectStore } from "@/store/use-project-store";
 
 const log = logger.scope("TauriSnippetRepository");
 
@@ -18,7 +19,13 @@ const log = logger.scope("TauriSnippetRepository");
  */
 export class TauriSnippetRepository implements ISnippetRepository {
   private requireProjectPath(): string {
-    return requireCurrentProjectPath();
+    const path = useProjectStore.getState().activeProjectPath;
+    if (!path) {
+      throw new AppError("E_PROJECT_NOT_OPEN", "No project is currently open", {
+        recoverable: true,
+      });
+    }
+    return path;
   }
 
   async get(id: string): Promise<Snippet | undefined> {
@@ -66,6 +73,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
 
     try {
       await saveSnippet(projectPath, newSnippet);
+      invalidateQueries("snippets");
       return newSnippet;
     } catch (error) {
       log.error("Failed to create snippet:", error);
@@ -91,6 +99,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
 
     try {
       await saveSnippet(projectPath, updated);
+      invalidateQueries("snippets");
     } catch (error) {
       log.error("Failed to update snippet:", error);
       throw toAppError(
@@ -113,6 +122,7 @@ export class TauriSnippetRepository implements ISnippetRepository {
 
     try {
       await deleteSnippet(projectPath, id);
+      invalidateQueries("snippets");
     } catch (error) {
       log.error("Failed to delete snippet:", error);
       throw toAppError(
