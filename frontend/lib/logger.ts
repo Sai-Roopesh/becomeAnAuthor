@@ -49,10 +49,12 @@ async function getTauriLog(): Promise<TauriLogPlugin | null> {
   tauriLogLoadAttempted = true;
   try {
     // Dynamic import — module may not be installed; caught below if absent.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod = await (import(
-      "@tauri-apps/plugin-log" as string
-    ) as Promise<any>);
+    const mod = await (import("@tauri-apps/plugin-log" as string) as Promise<{
+      debug: unknown;
+      info: unknown;
+      warn: unknown;
+      error: unknown;
+    }>);
     tauriLog = {
       debug: mod.debug as TauriLogFn,
       info: mod.info as TauriLogFn,
