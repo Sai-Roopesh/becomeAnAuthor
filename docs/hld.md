@@ -377,7 +377,7 @@ The `AppProvider` component creates a React Context providing singleton instance
 
 | Store             | Scope    | Persistence                                    | Purpose                                                         |
 | ----------------- | -------- | ---------------------------------------------- | --------------------------------------------------------------- |
-| `useProjectStore` | App-wide | SQLite `app_preferences["ui.project_store"]`   | Active scene, view mode, panel visibility, sidebar tabs         |
+| `useProjectStore` | App-wide | SQLite `app_preferences["ui.project_store"]`   | Active scene, active project path, view mode, panel visibility, sidebar tabs         |
 | `useChatStore`    | App-wide | None                                           | Active chat thread, thread list                                 |
 | `useFormatStore`  | App-wide | SQLite `app_preferences["ui.format_settings"]` | Font size, line height, page width, focus mode, typewriter mode |
 
@@ -910,4 +910,5 @@ npm run tauri:build
 _End of High Level Design Document_
 
 ## Change Log
+- **2026-05-31**: Adds fixes for frontend startup and collaboration: synchronizes `activeProjectPath` in project store to prevent Yjs save and repository operation errors, suppresses `E_PROJECT_NOT_OPEN` in `useLiveQuery` for cleaner console output, and resolves Next.js dev server startup failures related to Turbopack aliases and server boundary events.
 - **2026-05-30**: Resolves 57 bug-bash findings across the Rust backend and TypeScript frontend, focusing on React hooks fixes (`usePrompt`, `useLiveQuery`), editor autosave data loss fixes, UI/accessibility improvements, and security enhancements (path traversal prevention, OAuth secret removal, safe CSP).
