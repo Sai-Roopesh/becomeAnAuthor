@@ -17,9 +17,9 @@ import {
   updateChatMessage,
   deleteChatMessage,
 } from "@/core/tauri";
-import { requireCurrentProjectPath } from "@/core/project-path";
 import { logger } from "@/shared/utils/logger";
-import { toAppError } from "@/shared/errors/app-error";
+import { AppError, toAppError } from "@/shared/errors/app-error";
+import { useProjectStore } from "@/store/use-project-store";
 
 const log = logger.scope("TauriChatRepository");
 const DELETED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -35,7 +35,13 @@ async function refreshQueries(): Promise<void> {
  */
 export class TauriChatRepository implements IChatRepository {
   private requireProjectPath(): string {
-    return requireCurrentProjectPath();
+    const path = useProjectStore.getState().activeProjectPath;
+    if (!path) {
+      throw new AppError("E_PROJECT_NOT_OPEN", "No project is currently open", {
+        recoverable: true,
+      });
+    }
+    return path;
   }
 
   private async findThreadIdForMessage(

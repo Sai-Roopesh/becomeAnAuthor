@@ -10,6 +10,7 @@ import {
   saveSeriesCodexRelation,
   deleteSeriesCodexRelation,
 } from "@/core/tauri";
+import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
 import { toAppError } from "@/shared/errors/app-error";
 
@@ -58,6 +59,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
 
     try {
       await saveSeriesCodexRelation(seriesId, newRelation);
+      invalidateQueries("codex");
       return newRelation;
     } catch (error) {
       log.error("Failed to save codex relation:", error);
@@ -74,6 +76,7 @@ export class TauriCodexRelationRepository implements ICodexRelationRepository {
 
     try {
       await deleteSeriesCodexRelation(seriesId, id);
+      invalidateQueries("codex");
     } catch (error) {
       log.error("Failed to delete codex relation:", error);
       throw toAppError(

@@ -20,10 +20,9 @@ import {
   deleteSceneCodexLink,
   type StructureNode,
 } from "@/core/tauri";
-import {
-  getCurrentProjectPath,
-  requireCurrentProjectPath,
-} from "@/core/project-path";
+import { invalidateQueries } from "@/hooks/use-live-query";
+import { AppError } from "@/shared/errors/app-error";
+import { useProjectStore } from "@/store/use-project-store";
 import { logger } from "@/shared/utils/logger";
 
 const log = logger.scope("TauriNodeRepository");
@@ -171,11 +170,17 @@ export class TauriNodeRepository implements INodeRepository {
    * Get the current project path
    */
   getProjectPath(): string | null {
-    return getCurrentProjectPath();
+    return useProjectStore.getState().activeProjectPath;
   }
 
   private requireProjectPath(): string {
-    return requireCurrentProjectPath();
+    const path = useProjectStore.getState().activeProjectPath;
+    if (!path) {
+      throw new AppError("E_PROJECT_NOT_OPEN", "No project is currently open", {
+        recoverable: true,
+      });
+    }
+    return path;
   }
 
   private collectSceneMetadata(nodes: StructureNode[]): {
@@ -365,6 +370,7 @@ export class TauriNodeRepository implements INodeRepository {
       node.title || "Untitled",
     );
 
+    invalidateQueries("nodes");
     return structureNodeToDocumentNode(createdNode, node.projectId, parentId);
   }
 
@@ -421,6 +427,7 @@ export class TauriNodeRepository implements INodeRepository {
       }
     }
 
+    invalidateQueries("nodes");
     log.debug("Update complete");
   }
 
@@ -461,6 +468,7 @@ export class TauriNodeRepository implements INodeRepository {
     if (Object.keys(updates).length === 0) return;
 
     await updateSceneMetadata(projectPath, node._tauriFile, updates);
+    invalidateQueries("nodes");
 
     // Keep manuscript structure title aligned with scene frontmatter title.
     if (updates.title) {
@@ -506,6 +514,7 @@ export class TauriNodeRepository implements INodeRepository {
       await this.cleanupSceneArtifacts(projectPath, removedScenes.ids);
 
       await saveStructure(projectPath, structure);
+      invalidateQueries("nodes");
     }
   }
 
@@ -555,6 +564,7 @@ export class TauriNodeRepository implements INodeRepository {
       await this.cleanupSceneArtifacts(projectPath, removedScenes.ids);
 
       await saveStructure(projectPath, structure);
+      invalidateQueries("nodes");
     }
   }
 

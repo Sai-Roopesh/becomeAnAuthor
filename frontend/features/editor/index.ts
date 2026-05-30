@@ -1,8 +1,12 @@
 // Public API for editor feature
+import { withErrorBoundary } from "@/features/shared/components";
 
 // Core Components
 export { TiptapEditor } from "./components/tiptap-editor";
-export { EditorContainer } from "./components/EditorContainer";
+import { EditorContainer as EditorContainerBase } from "./components/EditorContainer";
+export const EditorContainer = withErrorBoundary(EditorContainerBase, {
+  name: "Editor",
+});
 export { EditorToolbar } from "./components/editor-toolbar";
 
 // AI Menu Components

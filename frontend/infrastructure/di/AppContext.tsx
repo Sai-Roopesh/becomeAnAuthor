@@ -32,6 +32,21 @@ import type { IChatService } from "@/domain/services/IChatService";
 import { ChatService } from "@/infrastructure/services/ChatService";
 import type { IExportService } from "@/domain/services/IExportService";
 import { DocumentExportService } from "@/infrastructure/services/DocumentExportService";
+import type { IModelDiscoveryService } from "@/domain/services/IModelDiscoveryService";
+import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import type { ICollaborationRepository } from "@/domain/repositories/ICollaborationRepository";
+import { TauriCollaborationRepository } from "@/infrastructure/repositories/TauriCollaborationRepository";
+import type { IMentionRepository } from "@/domain/repositories/IMentionRepository";
+import { TauriMentionRepository } from "@/infrastructure/repositories/TauriMentionRepository";
+import { googleAuthService } from "@/infrastructure/services/google-auth-service";
+import { googleDriveService } from "@/infrastructure/services/google-drive-service";
+import type { ISearchRepository } from "@/domain/entities/ISearchRepository";
+import { TauriSearchRepository } from "@/infrastructure/repositories/TauriSearchRepository";
+import type { IAIConnectionRepository } from "@/domain/entities/IAIConnectionRepository";
+import { TauriAIConnectionRepository } from "@/infrastructure/repositories/TauriAIConnectionRepository";
+import type { IContextAssemblyService } from "@/domain/entities/IContextAssemblyService";
+import { TauriContextAssemblyService } from "@/infrastructure/services/TauriContextAssemblyService";
+import { EmergencyBackupService } from "@/infrastructure/services/emergency-backup-service";
 
 /**
  * Application-wide service container
@@ -59,6 +74,17 @@ interface AppServices {
   // Services
   chatService: IChatService;
   exportService: IExportService;
+  modelDiscoveryService: IModelDiscoveryService;
+  // Standalone repositories/services (previously imported as module singletons)
+  collaborationRepository: ICollaborationRepository;
+  mentionRepository: IMentionRepository;
+  googleAuthService: typeof googleAuthService;
+  googleDriveService: typeof googleDriveService;
+  // NEW: Search, AI connections, context assembly
+  searchRepository: ISearchRepository;
+  aiConnectionRepository: IAIConnectionRepository;
+  contextAssemblyService: IContextAssemblyService;
+  emergencyBackupService: EmergencyBackupService;
 }
 
 const AppContext = createContext<AppServices | null>(null);
@@ -127,6 +153,28 @@ export function AppProvider({
     const exportSvc =
       customServices?.exportService ?? new DocumentExportService(nodeRepo);
 
+    const modelDiscoverySvc =
+      customServices?.modelDiscoveryService ?? modelDiscoveryService;
+    const collaborationRepo =
+      customServices?.collaborationRepository ??
+      new TauriCollaborationRepository();
+    const mentionRepo =
+      customServices?.mentionRepository ?? new TauriMentionRepository();
+    const googleAuthSvc =
+      customServices?.googleAuthService ?? googleAuthService;
+    const googleDriveSvc =
+      customServices?.googleDriveService ?? googleDriveService;
+    const searchRepo =
+      customServices?.searchRepository ?? new TauriSearchRepository();
+    const aiConnectionRepo =
+      customServices?.aiConnectionRepository ??
+      new TauriAIConnectionRepository();
+    const contextAssemblySvc =
+      customServices?.contextAssemblyService ??
+      new TauriContextAssemblyService(nodeRepo, codexRepo);
+    const emergencyBackupSvc =
+      customServices?.emergencyBackupService ?? new EmergencyBackupService();
+
     return {
       nodeRepository: nodeRepo,
       codexRepository: codexRepo,
@@ -142,6 +190,15 @@ export function AppProvider({
       sceneNoteRepository: sceneNoteRepo,
       chatService: chatSvc,
       exportService: exportSvc,
+      modelDiscoveryService: modelDiscoverySvc,
+      collaborationRepository: collaborationRepo,
+      mentionRepository: mentionRepo,
+      googleAuthService: googleAuthSvc,
+      googleDriveService: googleDriveSvc,
+      searchRepository: searchRepo,
+      aiConnectionRepository: aiConnectionRepo,
+      contextAssemblyService: contextAssemblySvc,
+      emergencyBackupService: emergencyBackupSvc,
     };
   }, [customServices]);
 

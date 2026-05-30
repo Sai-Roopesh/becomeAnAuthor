@@ -42,8 +42,15 @@ interface ModelSelectorProps {
  */
 function groupModelsByProvider(models: AIModel[]): Map<string, AIModel[]> {
   const grouped = new Map<string, AIModel[]>();
+  // De-duplicate by model id: the id is used as both the React key and the
+  // <SelectItem> value, so duplicates (e.g. the same model surfaced by more
+  // than one connection) must collapse to a single entry.
+  const seenIds = new Set<string>();
 
   for (const model of models) {
+    if (seenIds.has(model.id)) continue;
+    seenIds.add(model.id);
+
     const provider = model.provider;
     if (!grouped.has(provider)) {
       grouped.set(provider, []);

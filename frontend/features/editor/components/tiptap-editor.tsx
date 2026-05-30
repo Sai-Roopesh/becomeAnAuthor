@@ -1,3 +1,4 @@
+import React from "react";
 import { logger } from "@/shared/utils/logger";
 import { calculateMaxTokens } from "@/lib/config/model-specs";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,6 @@ import {
   type GenerationMode,
 } from "./continue-writing-menu";
 import { SparkPopover } from "./spark-popover";
-import { CollaborationPanel } from "@/features/collaboration/components/CollaborationPanel";
 import { SaveStatusIndicator } from "@/components/ui/save-status-indicator";
 import { useFormatStore } from "@/store/use-format-store";
 import { Section } from "@/lib/tiptap-extensions/section-node";
@@ -42,14 +42,18 @@ import Mention from "@tiptap/extension-mention";
 import { createCodexSuggestion } from "./suggestion";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useContextAssembly } from "@/hooks/use-context-assembly";
-import { assembleContext as assembleCodexContext } from "@/shared/utils/context-engine";
+import { assembleContext as assembleCodexContext } from "@/features/editor/utils/context-engine";
 import type { AIModelMessage } from "@/lib/ai/client";
-import type { CodexCategory } from "@/domain/entities/types";
+import type {
+  CodexCategory,
+  CollaborationStatus,
+  CollaborationPeer,
+} from "@/domain/entities/types";
 import type { TiptapContent } from "@/shared/types/tiptap";
 import type { EditorView } from "@tiptap/pm/view";
 import type { ContextItem } from "@/features/shared/components/ContextSelector";
 import { getStructure, loadScene } from "@/core/tauri/commands";
-import { getCurrentProjectPath } from "@/core/project-path";
+import { useProjectStore } from "@/store/use-project-store";
 import { formatShortcut, isModKey } from "@/shared/utils/platform";
 import { toast } from "@/shared/utils/toast-service";
 
@@ -96,6 +100,7 @@ export function TiptapEditor({
   showFocusToggle = false,
   onToggleSidebar,
   onToggleTimeline,
+  renderCollaborationPanel,
 }: {
   sceneId: string;
   projectId: string;
@@ -108,8 +113,21 @@ export function TiptapEditor({
   showFocusToggle?: boolean;
   onToggleSidebar?: () => void;
   onToggleTimeline?: () => void;
+  renderCollaborationPanel?:
+    | ((props: {
+        status: CollaborationStatus;
+        peers: CollaborationPeer[];
+        roomId: string;
+        enabled: boolean;
+        isJoinedRoom: boolean;
+        onToggle: (enabled: boolean) => void;
+        onJoinRoom: (roomId: string) => void;
+        onLeaveRoom: () => void;
+      }) => React.ReactNode)
+    | undefined;
 }) {
   const formatSettings = useFormatStore();
+  const activeProjectPath = useProjectStore((s) => s.activeProjectPath);
   const [showContinueMenu, setShowContinueMenu] = useState(false);
   const [continueMenuMode, setContinueMenuMode] =
     useState<GenerationMode>("continue-writing");
@@ -358,7 +376,7 @@ export function TiptapEditor({
         // Step 2: Fetch FRESH content DIRECTLY from backend, bypassing ALL caches
         log.debug(`Fetching fresh content for scene ${sceneId} from BACKEND`);
         try {
-          const projectPath = getCurrentProjectPath();
+          const projectPath = activeProjectPath;
           if (!projectPath) throw new Error("No project path");
 
           // Get structure to find the scene file
@@ -848,16 +866,16 @@ YOUR CONTINUATION (EXACTLY ${targetWords} words in ${expectedParagraphs} paragra
               <FocusModeToggle hasActiveScene={hasActiveScene} />
             )}
             <SaveStatusIndicator status={saveStatus} />
-            <CollaborationPanel
-              status={collabStatus}
-              peers={peers}
-              roomId={roomId}
-              enabled={enableP2P}
-              isJoinedRoom={isJoinedRoom}
-              onToggle={setEnableP2P}
-              onJoinRoom={handleJoinRoom}
-              onLeaveRoom={handleLeaveRoom}
-            />
+            {renderCollaborationPanel?.({
+              status: collabStatus,
+              peers,
+              roomId,
+              enabled: enableP2P,
+              isJoinedRoom,
+              onToggle: setEnableP2P,
+              onJoinRoom: handleJoinRoom,
+              onLeaveRoom: handleLeaveRoom,
+            })}
             {onToggleTimeline && (
               <Button
                 variant="ghost"

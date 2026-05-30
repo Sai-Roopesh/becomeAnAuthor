@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Cloud, Download, Loader2, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,6 @@ import { useImportExport } from "@/hooks/use-import-export";
 import { useSeriesRepository } from "@/hooks/use-series-repository";
 import { useProjectRepository } from "@/hooks/use-project-repository";
 import { useLiveQuery, invalidateQueries } from "@/hooks/use-live-query";
-import { useGoogleAuth } from "@/features/google-drive/hooks/use-google-auth";
-import { InlineGoogleAuth } from "@/features/google-drive/components/InlineGoogleAuth";
-import { DriveBackupBrowser } from "@/features/google-drive/components/DriveBackupBrowser";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
 import {
@@ -51,14 +48,35 @@ function slugifyTitle(input: string): string {
 type BackupSource = "local" | "cloud";
 type NovelTargetMode = "existing" | "new";
 
-interface BackupCenterPanelProps {
+interface GoogleAuthState {
+  isAuthenticated: boolean;
+  user?: { name?: string; email?: string } | null;
+  signOut: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
+}
+
+export interface BackupCenterPanelProps {
   onCompleted?: () => void;
   className?: string;
+  googleAuth?: GoogleAuthState | undefined;
+  renderGoogleAuthWidget?:
+    | ((props: { onAuthComplete: () => void }) => React.ReactNode)
+    | undefined;
+  renderDriveBackupBrowser?:
+    | ((props: {
+        onRestore: (
+          result: import("@/core/tauri/commands").BackupImportResult,
+        ) => Promise<void>;
+      }) => React.ReactNode)
+    | undefined;
 }
 
 export function BackupCenterPanel({
   onCompleted,
   className,
+  googleAuth,
+  renderGoogleAuthWidget,
+  renderDriveBackupBrowser,
 }: BackupCenterPanelProps) {
   const router = useRouter();
   const {
@@ -71,14 +89,21 @@ export function BackupCenterPanel({
   } = useImportExport();
   const seriesRepo = useSeriesRepository();
   const projectRepo = useProjectRepository();
-  const { isAuthenticated, user, signOut, refreshAuth } = useGoogleAuth();
+  const isAuthenticated = googleAuth?.isAuthenticated ?? false;
+  const user = googleAuth?.user;
+  const signOut = googleAuth?.signOut ?? (async () => {});
+  const refreshAuth = googleAuth?.refreshAuth ?? (async () => {});
 
-  const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo], {
-    keys: ["series", "projects"],
-  });
-  const allProjects = useLiveQuery(() => projectRepo.getAll(), [projectRepo], {
-    keys: ["projects", "series"],
-  });
+  const { data: allSeries } = useLiveQuery(
+    () => seriesRepo.getAll(),
+    [seriesRepo],
+    ["series", "projects"],
+  );
+  const { data: allProjects } = useLiveQuery(
+    () => projectRepo.getAll(),
+    [projectRepo],
+    ["projects", "series"],
+  );
 
   const [activeTab, setActiveTab] = useState<BackupSource>("local");
   const [restoreSource, setRestoreSource] = useState<BackupSource>("local");
@@ -521,7 +546,9 @@ export function BackupCenterPanel({
 
         <TabsContent value="cloud" className="space-y-4">
           {!isAuthenticated ? (
-            <InlineGoogleAuth onAuthComplete={() => void refreshAuth()} />
+            (renderGoogleAuthWidget?.({
+              onAuthComplete: () => void refreshAuth(),
+            }) ?? null)
           ) : (
             <Card className="p-4 space-y-3">
               <div className="space-y-1">
@@ -789,8 +816,8 @@ export function BackupCenterPanel({
             </Button>
           </Card>
         ) : (
-          <DriveBackupBrowser
-            onRestore={async (result) => {
+          (renderDriveBackupBrowser?.({
+            onRestore: async (result) => {
               invalidateQueries(["projects", "series", "nodes"]);
               setLastRestoreResult(result);
 
@@ -807,8 +834,8 @@ export function BackupCenterPanel({
                   toast.info("Please relaunch the app to complete restore.");
                 }
               }
-            }}
-          />
+            },
+          }) ?? null)
         )}
 
         {lastRestoreResult && !lastRestoreResult.replacedAppData && (

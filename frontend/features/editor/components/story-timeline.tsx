@@ -37,7 +37,7 @@ export function StoryTimeline({
   const [isCreatingScene, setIsCreatingScene] = useState(false);
   const { nodeRepository: nodeRepo } = useAppServices();
 
-  const scenes = useLiveQuery(async () => {
+  const { data: scenes } = useLiveQuery(async () => {
     const nodes = await nodeRepo.getByProject(projectId);
     return nodes.filter((n): n is Scene => n.type === "scene");
   }, [projectId, nodeRepo]);

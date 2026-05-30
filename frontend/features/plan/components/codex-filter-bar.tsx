@@ -90,7 +90,7 @@ export function CodexFilterBar({
 
   const searchQuery = watch("query");
 
-  const entries = useLiveQuery(
+  const { data: entries } = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
   );

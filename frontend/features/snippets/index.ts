@@ -1,4 +1,9 @@
 // Public API for snippets feature
-// Components
-export { SnippetEditor } from './components/snippet-editor';
-export { SnippetList } from './components/snippet-list';
+import { withErrorBoundary } from "@/features/shared/components";
+
+import { SnippetList as SnippetListBase } from "./components/snippet-list";
+export const SnippetList = withErrorBoundary(SnippetListBase, {
+  name: "Snippet List",
+});
+
+export { SnippetEditor } from "./components/snippet-editor";

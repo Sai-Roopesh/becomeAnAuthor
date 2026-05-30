@@ -1,7 +1,7 @@
 # Become An Author — Architecture Document
 
-> **Last Updated:** March 4, 2026
-> **Codebase Stats:** 338 frontend source files (48,700+ lines) · 35 backend source files (10,500+ lines) · 8 app route files
+> **Last Updated:** May 29, 2026
+> **Codebase Stats:** 322 frontend source files (~46.9K lines) · 34 backend source files (~10.1K lines) · 8 app route files
 > **Architecture:** Two-tier Tauri 2.0 desktop application (Rust backend ↔ Next.js frontend)
 
 ---
@@ -39,10 +39,10 @@
 │                    Tauri Shell                        │
 │  ┌────────────────────┐  ┌────────────────────────┐  │
 │  │  Frontend (WebView) │  │  Backend (Rust sidecar)│  │
-│  │  Next.js 15 + React │◄─►│  Tauri 2.0 commands   │  │
+│  │  Next.js 16 + React │◄─►│  Tauri 2.0 commands   │  │
 │  │  TipTap Editor      │IPC│  File-system storage  │  │
 │  │  Vercel AI SDK      │   │  serde_json models    │  │
-│  │  Zustand stores     │   │  YAML frontmatter     │  │
+│  │  Zustand stores     │   │  SQLite + file storage│  │
 │  └────────────────────┘  └────────────────────────┘  │
 │                                                      │
 │  External APIs: OpenAI, Anthropic, Google, Mistral,  │
@@ -78,22 +78,22 @@ becomeAnAuthor/
 │   │   ├── layout.tsx            # Project workspace layout
 │   │   └── page.tsx              # Project workspace (editor/plan/chat)
 │   └── series/page.tsx           # Series management
-├── frontend/                     # Frontend source (297 files, 41.6K lines)
+├── frontend/                     # Frontend source (322 files, ~46.9K lines)
 │   ├── core/                     # Tauri bridge & low-level utilities
 │   ├── domain/                   # Domain entities, repositories, services (interfaces)
 │   ├── features/                 # Feature modules (editor, codex, plan, chat, etc.)
-│   ├── hooks/                    # Shared React hooks (17 hooks)
+│   ├── hooks/                    # Shared React hooks (22 hooks)
 │   ├── infrastructure/           # Concrete implementations (DI, repos, services)
 │   ├── lib/                      # AI SDK, config, core services
 │   ├── shared/                   # Cross-cutting utilities, prompts, types
 │   ├── store/                    # Zustand state stores
 │   └── components/               # Shared UI component library
-├── backend/                      # Rust/Tauri backend (36 files, 6.8K lines)
+├── backend/                      # Rust/Tauri backend (34 files, ~10.1K lines)
 │   └── src/
 │       ├── lib.rs                # Entry point, command registration (188 lines)
-│       ├── commands/             # 18 command modules
-│       ├── models/               # 11 data models
-│       └── utils/                # 7 utility modules
+│       ├── commands/             # 15 command modules
+│       ├── models/               # 7 data models
+│       └── utils/                # 5 utility modules
 └── docs/                         # Documentation
 ```
 
@@ -104,16 +104,16 @@ becomeAnAuthor/
 | Layer                  | Technology                           | Purpose                                                            |
 | ---------------------- | ------------------------------------ | ------------------------------------------------------------------ |
 | **Shell**              | Tauri 2.0                            | Native desktop wrapper, IPC bridge, filesystem access              |
-| **Backend**            | Rust (stable)                        | File I/O, JSON/YAML serialization, search, export                  |
+| **Backend**            | Rust (stable)                        | File I/O, JSON serialization, search, export                       |
 | **Frontend Framework** | Next.js 16 (App Router)              | SSR routing, page layouts, code splitting                          |
 | **UI Library**         | React 19                             | Component model, hooks, context                                    |
 | **Rich Text Editor**   | TipTap (ProseMirror)                 | Manuscript editing, extensions, @mentions                          |
-| **AI SDK**             | Vercel AI SDK 4.x                    | Multi-provider text generation, streaming, structured output       |
+| **AI SDK**             | Vercel AI SDK 6.x (@ai-sdk providers v3) | Multi-provider text generation, streaming, structured output   |
 | **State Management**   | Zustand + SQLite app-state hydration | Client-side reactive state synced to backend SQLite preferences    |
 | **Styling**            | Tailwind CSS 4 + shadcn/ui           | Utility-first CSS, accessible component primitives                 |
 | **Collaboration**      | Yjs + y-webrtc + SQLite snapshots    | CRDT-based P2P real-time editing with backend snapshot persistence |
 | **Document Export**    | docx (npm), @react-pdf/renderer      | PDF, DOCX generation (frontend); ePub via Rust backend             |
-| **Serialization**      | serde, serde_json, serde_yaml        | Rust data serialization for all storage formats                    |
+| **Serialization**      | serde, serde_json                    | Rust data serialization for all storage formats                    |
 | **Search**             | walkdir + regex (Rust)               | Full-text project-wide search                                      |
 | **Positioning**        | tippy.js                             | Floating menus, popovers for editor UI                             |
 
@@ -123,7 +123,7 @@ becomeAnAuthor/
 
 ### 4.1 Entity Hierarchy
 
-All entities defined in `frontend/domain/entities/types.ts` (529 lines, 30+ interfaces):
+All entities defined in `frontend/domain/entities/types.ts` (432 lines, 40+ interfaces):
 
 ```
 Series (1)
@@ -166,7 +166,6 @@ isScene(node)  → node is Scene    // node.type === "scene"
 
 | Type                  | Fields                                                                | Purpose                                         |
 | --------------------- | --------------------------------------------------------------------- | ----------------------------------------------- |
-| `ExportedProject`     | project, nodes, codex, chats, messages, relations, sections, snippets | Full project export bundle                      |
 | `GoogleTokens`        | accessToken, refreshToken, expiresAt, scope                           | OAuth 2.0 credentials                           |
 | `GoogleUser`          | id, email, name, picture                                              | Authenticated user profile                      |
 | `DriveFile`           | id, name, mimeType, createdTime, size                                 | Google Drive file metadata                      |
@@ -181,7 +180,7 @@ isScene(node)  → node is Scene    // node.type === "scene"
 
 ## 5. Backend Architecture (Rust/Tauri)
 
-### 5.1 Entry Point — `lib.rs` (188 lines)
+### 5.1 Entry Point — `lib.rs` (186 lines)
 
 Registers **100+ Tauri commands** across all domains. Uses `tauri::generate_handler![]` macro. Includes plugins: `tauri-plugin-log`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `tauri-plugin-notification`, `tauri-plugin-shell`, `tauri-plugin-process`, `tauri-plugin-updater`.
 
@@ -191,71 +190,63 @@ Command modules are re-exported via `pub use` for centralized Tauri registration
 
 | Module             | File                  | Lines | Commands                                                                                                                                                                                                                                                                     | Description                                                                        |
 | ------------------ | --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `project`          | `project.rs`          | ~480  | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management                                            |
-| `scene`            | `scene.rs`            | 320   | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene`                                                                                                                                                                                      | Scene content I/O with YAML frontmatter + path security                            |
-| `codex`            | `codex.rs`            | 295   | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links                                                                                                                                                                           | Full codex domain CRUD                                                             |
-| `chat`             | `chat.rs`             | ~300  | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message`, `find_chat_thread_for_message`                                           | Thread/message persistence in SQLite (WAL)                                         |
-| `snippet`          | `snippet.rs`          | ~80   | `list_snippets`, `save_snippet`, `delete_snippet`                                                                                                                                                                                                                            | Writing snippet CRUD                                                               |
-| `backup`           | `backup.rs`           | ~2600 | `export_full_snapshot`, `export_series_package`, `export_novel_package`, `inspect_backup_package`, `import_backup_package`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file`                                                                                 | SQL-native `.baa` portability engine for full snapshots and scoped clone imports   |
+| `project`          | `project.rs`          | ~1155 | `list_projects`, `create_project`, `delete_project`, `update_project`, `archive_project`, `get_structure`, `save_structure`, `create_node`, `rename_node`, `delete_node`, `open_project`, `get_projects_path`, `list_recent_projects`, `add_to_recent`, `remove_from_recent` | Project CRUD, structure tree management                                            |
+| `scene`            | `scene.rs`            | 442   | `load_scene`, `save_scene`, `update_scene_metadata`, `save_scene_by_id`, `delete_scene`                                                                                                                                                                                      | Scene content I/O (TipTap JSON `.md` body + SQLite metadata) + path security        |
+| `codex`            | `codex.rs`            | 468   | 21 commands for entries, relations, tags, entry-tags, templates, relation-types, scene-codex-links                                                                                                                                                                           | Full codex domain CRUD                                                             |
+| `chat`             | `chat.rs`             | ~345  | `list_chat_threads`, `get_chat_thread`, `create_chat_thread`, `update_chat_thread`, `delete_chat_thread`, `get_chat_messages`, `create_chat_message`, `update_chat_message`, `delete_chat_message`, `find_chat_thread_for_message`                                           | Thread/message persistence in SQLite (WAL)                                         |
+| `snippet`          | `snippet.rs`          | ~120  | `list_snippets`, `save_snippet`, `delete_snippet`                                                                                                                                                                                                                            | Writing snippet CRUD                                                               |
+| `backup`           | `backup.rs`           | ~2815 | `export_full_snapshot`, `export_series_package`, `export_novel_package`, `inspect_backup_package`, `import_backup_package`, `read_file_bytes`, `write_temp_backup_file`, `write_export_file`                                                                                 | SQL-native `.baa` portability engine for full snapshots and scoped clone imports   |
 | `backup_emergency` | `backup_emergency.rs` | ~80   | `save_emergency_backup`, `get_emergency_backup`, `delete_emergency_backup`, `cleanup_emergency_backups`                                                                                                                                                                      | Emergency backup lifecycle                                                         |
-| `search`           | `search.rs`           | ~300  | `search_project`                                                                                                                                                                                                                                                             | Full-text search backed by SQLite FTS5 index with incremental rebuild by signature |
-| `trash`            | `trash.rs`            | ~120  | `move_to_trash`, `restore_from_trash`, `list_trash`, `permanent_delete`, `empty_trash`                                                                                                                                                                                       | Soft-delete with restore                                                           |
-| `series`           | `series.rs`           | ~300  | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands                                                                       | Series lifecycle + codex management                                                |
-| `security`         | `security.rs`         | ~170  | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers`                                                                                                                                                                                    | Encrypted API-key storage in SQLite                                                |
-| `mention`          | `mention.rs`          | ~80   | `find_mentions`, `count_mentions`                                                                                                                                                                                                                                            | @mention scanning across scenes                                                    |
-| `collaboration`    | `collaboration.rs`    | ~60   | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`                                                                                                                                                                                                      | Yjs CRDT state persistence                                                         |
-| `scene_note`       | `scene_note.rs`       | ~60   | `get_scene_note`, `save_scene_note`, `delete_scene_note`                                                                                                                                                                                                                     | Per-scene note CRUD                                                                |
-| `google_oauth`     | `google_oauth.rs`     | ~430  | `google_oauth_connect`, `get_access_token`, `get_user`, `sign_out`                                                                                                                                                                                                           | Desktop OAuth 2.0 via loopback + encrypted SQLite secure storage                   |
+| `search`           | `search.rs`           | ~330  | `search_project`                                                                                                                                                                                                                                                             | Full-text search backed by SQLite FTS5 index with incremental rebuild by signature |
+| project trash      | `project.rs`          | —     | `list_project_trash`, `restore_trashed_project`, `permanently_delete_trashed_project`                                                                                                                                                                                        | Project soft-delete / restore (in `project.rs`; no separate `trash.rs` module)     |
+| `series`           | `series.rs`           | ~640  | `list_series`, `create_series`, `update_series`, `delete_series`, `delete_series_cascade`, `list_deleted_series`, `restore_deleted_series`, `permanently_delete_deleted_series`, series-codex commands                                                                       | Series lifecycle + codex management                                                |
+| `security`         | `security.rs`         | ~350  | `store_api_key`, `get_api_key`, `has_api_key`, `delete_api_key`, `list_api_key_providers`                                                                                                                                                                                    | Encrypted API-key storage in SQLite                                                |
+| `mention`          | `mention.rs`          | ~305  | `find_mentions`, `count_mentions`                                                                                                                                                                                                                                            | @mention scanning across scenes                                                    |
+| `collaboration`    | `collaboration.rs`    | ~140  | `save_yjs_state`, `load_yjs_state`, `has_yjs_state`, `delete_yjs_state`                                                                                                                                                                                                      | Yjs CRDT state persistence                                                         |
+| `scene_note`       | `scene_note.rs`       | ~105  | `get_scene_note`, `save_scene_note`, `delete_scene_note`                                                                                                                                                                                                                     | Per-scene note CRUD                                                                |
+| `google_oauth`     | `google_oauth.rs`     | ~445  | `google_oauth_connect`, `google_oauth_get_access_token`, `google_oauth_get_user`, `google_oauth_sign_out`                                                                                                                                                                     | Desktop OAuth 2.0 via loopback + encrypted SQLite secure storage                   |
+| `app_state`        | `app_state.rs`        | ~260  | `app_pref_get`, `app_pref_get_many`, `app_pref_set`, `app_pref_delete`, `list_ai_connections`, `save_ai_connection`, `delete_ai_connection`, model-discovery-cache get/set/clear, `get_app_info`                                                                               | App preferences, AI-connection persistence, model-discovery cache (SQLite)         |
 
 ### 5.3 Models — `models/mod.rs`
 
-**9 model files** defining serde-serializable Rust structs:
+**7 model files** defining serde-serializable Rust structs:
 
 | Model           | Key Structs                                                                                                        |
 | --------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `project.rs`    | `ProjectMeta`, `ProjectConfig`, `StructureNode`, `RecentProject`                                                   |
-| `scene.rs`      | `Scene`, `SceneMeta`, `YamlSceneMeta`                                                                              |
+| `scene.rs`      | `Scene`, `SceneMeta`                                                                                               |
 | `codex.rs`      | `CodexEntry`, `CodexRelation`, `CodexTag`, `CodexEntryTag`, `CodexTemplate`, `CodexRelationType`, `SceneCodexLink` |
 | `chat.rs`       | `ChatThread`, `ChatMessage`, `ChatContext`                                                                         |
 | `snippet.rs`    | `Snippet`                                                                                                          |
 | `backup.rs`     | `EmergencyBackup`                                                                                                  |
-| `series.rs`     | `Series`                                                                                                           |
 | `scene_note.rs` | `SceneNote`                                                                                                        |
+
+> `Series` is defined in `commands/series.rs` (not in `models/`).
 
 ### 5.4 Utilities — `utils/mod.rs`
 
-**7 utility modules**:
+**5 utility modules** (`io`, `paths`, `text`, `timestamp`, `validation`), exposing key functions:
 
-| Utility                  | Purpose                                                |
-| ------------------------ | ------------------------------------------------------ |
-| `atomic_write`           | Temp-file-then-rename write to prevent data corruption |
-| `timestamp`              | UTC timestamp generation (`chrono`)                    |
-| `count_words`            | Word counting for scene statistics                     |
-| `project_dir`            | Platform-aware project directory resolution            |
-| `validate_file_size`     | Enforces `MAX_SCENE_SIZE` (10MB)                       |
-| `validate_json_size`     | JSON content size validation                           |
-| `validate_no_null_bytes` | Input sanitization against null byte injection         |
+| Function                          | Module       | Purpose                                                |
+| --------------------------------- | ------------ | ------------------------------------------------------ |
+| `atomic_write` / `atomic_write_bytes` | `io`     | Temp-file-then-rename write to prevent data corruption |
+| `now_millis`                      | `timestamp`  | Epoch-millis timestamp generation (`chrono`)           |
+| `count_words`                     | `text`       | Word counting for scene statistics                     |
+| `project_dir` / `get_app_dir`     | `paths`      | Platform-aware project/app directory resolution        |
+| `validate_file_size`              | `validation` | Enforces a caller-supplied max file size               |
+| `validate_json_size`              | `validation` | JSON content size validation (`MAX_JSON_SIZE`, 5MB)    |
+| `validate_no_null_bytes`          | `validation` | Input sanitization against null byte injection         |
 
 ### 5.5 Scene Storage Format
 
-Scenes use **YAML frontmatter + TipTap JSON body**:
+Scene **body text** is stored as a TipTap JSON document in a `.md` file on disk. All **scene metadata** (title, order, status, pov, subtitle, labels, word count, timestamps, etc.) lives in the SQLite `scene_metadata` table — there is no YAML frontmatter.
 
-```yaml
----
-id: scene-uuid
-title: "Chapter 1 Scene"
-order: 1.0
-parent_id: chapter-uuid
-status: draft
-pov: "Alice"
-word_count: 1234
-created_at: "2026-01-15T10:30:00Z"
-updated_at: "2026-02-16T20:00:00Z"
----
-{ "type": "doc", "content": [{ "type": "paragraph", "content": [...] }] }
+```
+scenes/<scene-file>.md   →  { "type": "doc", "content": [ ... ] }   (body only)
+SQLite scene_metadata    →  id, title, order, status, pov, word_count, created_at, updated_at, ...
 ```
 
-The `parse_scene_document()` function (68 lines) splits frontmatter from content, and `build_frontmatter()` reconstructs it.
+`load_scene()` reads the `.md` body and joins it with the metadata row, returning a `Scene { meta, content }` (the `SceneMeta` struct serializes its `created_at`/`updated_at` as RFC3339 strings). When no metadata row exists yet (a freshly created scene), it falls back to `default_scene_meta()`.
 
 ---
 
@@ -285,26 +276,33 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
 
 **Dependency rule:** Each layer may only depend on layers below it.
 
+**Enforcement:** These boundaries are checked by `dependency-cruiser` (`pnpm deps:check`) and ESLint, not just convention:
+
+- `invoke-only-in-boundary` (error) — Tauri `invoke()`/`@tauri-apps/api/core` may only be imported from `core/` or `infrastructure/`; everything above goes through a repository or a `core/tauri` command-module wrapper. ESLint `no-restricted-imports` mirrors this for editor-time feedback.
+- `domain-stays-pure` (error) — `domain/` must not import `infrastructure`/`features`/`hooks`/`store`/`core`/`lib`/`app`.
+- `shared-no-app-logic` (error) — `shared/` must not import app-specific layers.
+- `lib-no-upward` and `no-cross-feature-deep-import` (warn) — flag `lib/ → features|infrastructure` and deep imports past a feature's public barrel.
+
 ### 6.2 Domain Layer — `frontend/domain/`
 
 **Interfaces only** — no implementations. Enables dependency injection and testing.
 
 | Directory           | Files         | Purpose                                                                                                                                                                                                    |
 | ------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `entities/types.ts` | 1 (529 lines) | All entity interfaces (30+)                                                                                                                                                                                |
-| `repositories/`     | 9 interfaces  | `INodeRepository`, `IProjectRepository`, `ICodexRepository`, `IChatRepository`, `ISnippetRepository`, `ICodexRelationRepository`, `ISceneCodexLinkRepository`, `ISeriesRepository`, `ISceneNoteRepository` |
-| `services/`         | 2 interfaces  | `IChatService`, `IExportService`                                                                                                                                                                           |
+| `entities/types.ts` | 1 (432 lines) | All entity interfaces (40+)                                                                                                                                                                                |
+| `repositories/`     | 14 interfaces | `INodeRepository`, `IProjectRepository`, `ICodexRepository`, `IChatRepository`, `ISnippetRepository`, `ICodexRelationRepository`, `ICodexRelationTypeRepository`, `ICodexTagRepository`, `ICodexTemplateRepository`, `ICollaborationRepository`, `IMentionRepository`, `ISceneCodexLinkRepository`, `ISeriesRepository`, `ISceneNoteRepository` |
+| `services/`         | 3 interfaces  | `IChatService`, `IExportService`, `IModelDiscoveryService`                                                                                                                                                  |
 | `types/`            | 1 file        | `export-types.ts` — export configuration types                                                                                                                                                             |
 
 ### 6.3 Core Layer — `frontend/core/`
 
 | File                                                      | Lines | Purpose                                                                                               |
 | --------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------- |
-| `core/tauri/commands.ts` + `core/tauri/command-modules/*` | ~400  | Type-safe `invoke()` wrappers split by domain (project/scene/codex/chat/series/search/export/dialogs) |
-| `core/tauri/index.ts`                                     | ~30   | Barrel exports                                                                                        |
-| `core/state/app-state.ts`                                 | ~300  | SQLite-backed app preference, AI connection, cache, and legacy purge helpers                          |
-| `lib/core/save-coordinator.ts`                            | 175   | Singleton preventing race conditions — per-scene mutex, debounce, retry                               |
-| `lib/core/editor-state-manager.ts`                        | 236   | VS Code-style dirty tracking, debounced saves, emergency backups, status notifications                |
+| `core/tauri/commands.ts` + `core/tauri/command-modules/*` | ~950  | Type-safe `invoke()` wrappers split by domain (project/scene/codex/chat/series/search/export/dialogs); `invoke.ts` guards the Tauri boundary |
+| `core/tauri/index.ts`                                     | ~7    | Barrel exports                                                                                        |
+| `core/state/app-state.ts`                                 | ~220  | SQLite-backed app preferences, AI connection persistence, and model-discovery cache helpers           |
+| `lib/core/save-coordinator.ts`                            | 168   | Singleton preventing race conditions — per-scene mutex, debounce, retry                               |
+| `lib/core/editor-state-manager.ts`                        | 234   | VS Code-style dirty tracking, debounced saves, emergency backups, status notifications                |
 
 **Navigation Note:** Project creation now utilizes SPA navigation via `router.push` (Next.js App Router) instead of full page reloads, improving transition performance.
 
@@ -321,14 +319,14 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
                      └──────────┬──────────┘
                                 │ generate() / stream() / object()
                      ┌──────────▼──────────┐
-                     │   lib/ai/client.ts   │  204 lines
+                     │   lib/ai/client.ts   │  235 lines
                      │   (Unified AI Client) │
                      │   - getConnection()   │
                      │   - assertMessages()  │
                      └──────────┬──────────┘
                                 │ getModel()
                      ┌──────────▼──────────┐
-                     │  lib/ai/providers.ts │  57 lines
+                     │  lib/ai/providers.ts │  56 lines
                      │  (14 Provider Factory)│
                      └──────────┬──────────┘
                                 │
@@ -343,9 +341,9 @@ The `parse_scene_document()` function (68 lines) splits frontmatter from content
 
 | File                  | Lines | Exports                                                                                                                  | Purpose                                                           |
 | --------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| `lib/ai/index.ts`     | 29    | Barrel                                                                                                                   | Re-exports all client + provider functions                        |
-| `lib/ai/client.ts`    | 204   | `generate()`, `stream()`, `object()`, `getEnabledConnections()`, `getConnectionForModel()`, `fetchModelsForConnection()` | Unified AI client wrapping Vercel AI SDK                          |
-| `lib/ai/providers.ts` | 57    | `getModel()`                                                                                                             | Factory creating provider-specific model instances for 14 vendors |
+| `lib/ai/index.ts`     | 25    | Barrel                                                                                                                   | Re-exports all client + provider functions                        |
+| `lib/ai/client.ts`    | 235   | `generate()`, `stream()`, `object()`, `getEnabledConnections()`, `getConnectionForModel()`, `hasUsableAIConnection()`    | Unified AI client wrapping Vercel AI SDK                          |
+| `lib/ai/providers.ts` | 56    | `getModel()`                                                                                                             | Factory creating provider-specific model instances for 14 vendors |
 
 ### 7.3 Supported Providers (14)
 
@@ -363,9 +361,9 @@ OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, Cohere, xAI (Grok), A
 
 ### 7.5 Context Assembly
 
-1. **ContextEngine** (`shared/utils/context-engine.ts`, 324 lines) — Gathers context from structure nodes, scene content, codex entries, and snippets.
-2. **ContextPacker** (`shared/utils/context-packer.ts`, 275 lines) — Token-budget-aware packing. Calculates budget from model specs, truncates blocks to fit within `MIN_CONTEXT_BUDGET_TOKENS` (1500) to `MAX_CONTEXT_BUDGET_CAP_TOKENS` (16000).
-3. **Prompt Templates** (`shared/prompts/templates.ts`, 128 lines) — 8 predefined chat system prompts (e.g., Story Architect, Character Coach, World Builder).
+1. **ContextEngine** (`assembleContext()` in `features/editor/utils/context-engine.ts`, 311 lines) — Gathers context from structure nodes, scene content, codex entries, and snippets.
+2. **ContextPacker** (`packContext()` in `shared/utils/context-packer.ts`, 274 lines) — Token-budget-aware packing. Calculates budget from model specs, truncates blocks to fit within `MIN_CONTEXT_BUDGET_TOKENS` (1500) to `MAX_CONTEXT_BUDGET_CAP_TOKENS` (16000).
+3. **Prompt Templates** (`shared/prompts/templates.ts`, 127 lines) — 8 predefined chat system prompts (e.g., Creative Partner, Master Architect, Historian & Geographer).
 
 ---
 
@@ -375,9 +373,9 @@ OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, Cohere, xAI (Grok), A
 
 | Store             | File                         | Lines | Persisted    | State                                                                                                                              |
 | ----------------- | ---------------------------- | ----- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `useProjectStore` | `store/use-project-store.ts` | 99    | ✅ (partial) | `viewMode` (plan/write/chat), `activeSceneId`, `activeProjectId`, `showSidebar`, `showTimeline`, `rightPanelTab`, `leftSidebarTab` |
-| `useChatStore`    | `store/use-chat-store.ts`    | 23    | ❌           | `activeThreadId`, `threadView` (active/archived/deleted)                                                                           |
-| `useFormatStore`  | `store/use-format-store.ts`  | 73    | ✅ (full)    | Typography settings (fontFamily, fontSize, lineHeight, alignment, pageWidth), typewriterMode, focusMode, showWordCount             |
+| `useProjectStore` | `store/use-project-store.ts` | 116   | ✅ (partial) | `viewMode` (plan/write/chat), `activeSceneId`, `activeProjectId`, `activeCodexEntryId`, `showSidebar`, `showTimeline`, `rightPanelTab`, `leftSidebarTab` |
+| `useChatStore`    | `store/use-chat-store.ts`    | 45    | ❌           | `activeThreadIds` (per-project map), `threadViews` (per-project map: active/archived/deleted)                                      |
+| `useFormatStore`  | `store/use-format-store.ts`  | 93    | ✅ (full)    | Typography (fontFamily, fontSize, lineHeight, textIndent, alignment, paragraphSpacing, pageWidth, sceneDividerStyle), continueInChapter, typewriterMode, typewriterOffset, showLineNumbers, showWordCount, focusMode |
 
 ### 8.2 Server State — `useLiveQuery`
 
@@ -392,54 +390,70 @@ Custom hook (`hooks/use-live-query.ts`) providing a React Query-like pattern for
 
 ## 9. Infrastructure Layer
 
-### 9.1 Dependency Injection — `infrastructure/di/AppContext.tsx` (214 lines)
+### 9.1 Dependency Injection — `infrastructure/di/AppContext.tsx` (190 lines)
 
 `AppProvider` constructs concrete repositories/services with `useMemo`, and test suites can inject overrides through `services`.
 
 ```typescript
 interface AppServices {
+  // Repositories
   nodeRepository: INodeRepository; // TauriNodeRepository
-  projectRepository: IProjectRepository; // TauriProjectRepository
   codexRepository: ICodexRepository; // TauriCodexRepository
   chatRepository: IChatRepository; // TauriChatRepository
   snippetRepository: ISnippetRepository; // TauriSnippetRepository
+  projectRepository: IProjectRepository; // TauriProjectRepository
   codexRelationRepository: ICodexRelationRepository;
+  codexTagRepository: ICodexTagRepository;
+  codexTemplateRepository: ICodexTemplateRepository;
+  codexRelationTypeRepository: ICodexRelationTypeRepository;
   sceneCodexLinkRepository: ISceneCodexLinkRepository;
   seriesRepository: ISeriesRepository;
   sceneNoteRepository: ISceneNoteRepository;
+  collaborationRepository: ICollaborationRepository; // TauriCollaborationRepository
+  mentionRepository: IMentionRepository; // TauriMentionRepository
+
+  // Services
   chatService: IChatService; // ChatService
   exportService: IExportService; // DocumentExportService
+  modelDiscoveryService: IModelDiscoveryService; // ModelDiscoveryService
+  googleAuthService: typeof googleAuthService; // google-auth-service singleton
+  googleDriveService: typeof googleDriveService; // google-drive-service singleton
 }
 ```
 
 Test injection via `<AppProvider services={{ nodeRepository: mockRepo }}>`.
 
-### 9.2 Repositories (9 Tauri implementations)
+### 9.2 Repositories (14 Tauri implementations)
 
 Each wraps `invoke()` calls to Tauri backend commands:
 
 | Repository                      | Lines | Key Operations                                                                                                                                 |
 | ------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TauriNodeRepository`           | ~200  | `getByProject()`, `create()`, `update()`, `delete()`, `getStructure()`, `saveStructure()` — reads active project path from `core/project-path` |
-| `TauriProjectRepository`        | 188   | `get()`, `getAll()`, `create()`, `update()`, `archive()`, `delete()`, `listTrash()`, `restoreFromTrash()`, `getBySeries()`                     |
-| `TauriCodexRepository`          | ~150  | `getBySeries()`, `save()`, `delete()` — reads from per-category folders                                                                        |
-| `TauriChatRepository`           | ~100  | Thread/message CRUD, `getMessagesByThread()`                                                                                                   |
-| `TauriSnippetRepository`        | ~80   | Snippet CRUD with project-scoped storage                                                                                                       |
-| `TauriCodexRelationRepository`  | ~80   | Relation CRUD                                                                                                                                  |
-| `TauriSceneCodexLinkRepository` | ~80   | Scene↔Codex link CRUD                                                                                                                          |
-| `TauriSeriesRepository`         | ~120  | Series lifecycle + series-scoped codex                                                                                                         |
-| `TauriSceneNoteRepository`      | ~60   | Per-scene note storage                                                                                                                         |
+| `TauriNodeRepository`              | ~565  | `getByProject()`, `create()`, `update()`, `delete()`, `getStructure()`, `saveStructure()` — reads active project path from `core/project-path` |
+| `TauriProjectRepository`           | ~195  | `get()`, `getAll()`, `create()`, `update()`, `archive()`, `delete()`, `listTrash()`, `restoreFromTrash()`, `getBySeries()`                     |
+| `TauriCodexRepository`             | ~170  | `getBySeries()`, `save()`, `delete()` — series-scoped codex entries (SQLite)                                                                   |
+| `TauriChatRepository`              | ~360  | Thread/message CRUD, `getMessagesByThread()`                                                                                                   |
+| `TauriSnippetRepository`           | ~125  | Snippet CRUD with project-scoped storage                                                                                                       |
+| `TauriCodexRelationRepository`     | ~85   | Codex relation CRUD                                                                                                                            |
+| `TauriCodexTagRepository`          | ~205  | Codex tag + entry-tag CRUD                                                                                                                     |
+| `TauriCodexTemplateRepository`     | ~145  | Codex template CRUD                                                                                                                            |
+| `TauriCodexRelationTypeRepository` | ~120  | Codex relation-type CRUD                                                                                                                       |
+| `TauriSceneCodexLinkRepository`    | ~220  | Scene↔Codex link CRUD                                                                                                                          |
+| `TauriSeriesRepository`            | ~105  | Series lifecycle + series-scoped codex                                                                                                         |
+| `TauriSceneNoteRepository`         | ~70   | Per-scene note storage                                                                                                                         |
+| `TauriCollaborationRepository`     | ~140  | Yjs snapshot persistence (`save/load/has/deleteYjsState`)                                                                                      |
+| `TauriMentionRepository`           | ~120  | @mention scanning across scenes                                                                                                                |
 
 ### 9.3 Services
 
 | Service                  | File                                                           | Lines | Purpose                                                                                                                                                                                                                                    |
 | ------------------------ | -------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ChatService`            | `ChatService.ts`                                               | 124   | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()`                                                                                                        |
-| `DocumentExportService`  | `DocumentExportService.ts` + `document-export/export-utils.ts` | ~1260 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, inclusion options, and section-aware content segmentation (`SceneSectionSegment`). |
-| `ModelDiscoveryService`  | `ModelDiscoveryService.ts`                                     | ~300  | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with manual model entry support.                                                                                          |
-| `EmergencyBackupService` | `emergency-backup-service.ts`                                  | 123   | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry.                                                                                                                                    |
-| `GoogleAuthService`      | `google-auth-service.ts`                                       | 301   | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). Web flow removed.                                                                                                                                         |
-| `GoogleDriveService`     | `google-drive-service.ts`                                      | 286   | Drive API: app folder management, backup upload/download/delete, storage quota                                                                                                                                                             |
+| `ChatService`            | `ChatService.ts`                                               | 123   | Orchestrates AI generation: builds context from scenes+codex, assembles conversation history (last 10 messages), calls `generate()`                                                                                                        |
+| `DocumentExportService`  | `DocumentExportService.ts` + `document-export/export-utils.ts` | ~1295 | Multi-format export engine with configurable settings: PDF (@react-pdf/renderer), DOCX (docx npm), Markdown. Supports custom fonts, margins, page size, inclusion options, and section-aware content segmentation (`SceneSectionSegment`). |
+| `ModelDiscoveryService`  | `ModelDiscoveryService.ts`                                     | ~445  | Singleton with cache. Dynamically fetches models from provider APIs (OpenAI, Anthropic, Google, OpenRouter, etc) with manual model entry support.                                                                                          |
+| `EmergencyBackupService` | `emergency-backup-service.ts`                                  | 110   | Emergency backups via Tauri filesystem. Stores in `{project}/.meta/emergency_backups/`. 24-hour expiry.                                                                                                                                    |
+| `GoogleAuthService`      | `google-auth-service.ts`                                       | 125   | OAuth 2.0 service. **Desktop:** Uses backend `google_oauth` commands (loopback). Web flow removed.                                                                                                                                         |
+| `GoogleDriveService`     | `google-drive-service.ts`                                      | 323   | Drive API: app folder management, backup upload/download/delete, storage quota                                                                                                                                                             |
 
 ---
 
@@ -451,18 +465,17 @@ The primary writing environment. 15+ components:
 
 | Component             | File                        | Lines | Purpose                                                                                                                 |
 | --------------------- | --------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------- |
-| `SceneEditor`         | `scene-editor.tsx`          | ~500  | Main editor orchestrator — TipTap initialization, extension loading, toolbar, save coordination                         |
+| `TiptapEditor`        | `tiptap-editor.tsx`         | 954   | Main editor orchestrator — TipTap initialization, extension loading, toolbar, save coordination                         |
 | `EditorToolbar`       | `editor-toolbar.tsx`        | 173   | Formatting toolbar with text style, alignment, lists, undo/redo (responsive layout)                                     |
-| `TextSelectionMenu`   | `text-selection-menu.tsx`   | 208   | Floating tippy.js menu on text selection with 4 AI actions (Tweak, Expand, Rephrase, Shorten) and Link to Codex         |
+| `TextSelectionMenu`   | `text-selection-menu.tsx`   | 330   | Floating tippy.js menu on text selection with 4 AI actions (Tweak, Expand, Rephrase, Shorten) and Link to Codex         |
 | `CodexLinkDialog`     | `codex-link-dialog.tsx`     | ~300  | Dialog for linking selected text to codex entries with filtering and role selection                                     |
-| `TextReplaceDialog`   | `text-replace-dialog.tsx`   | ~300  | AI-powered text replacement dialog with streaming preview, accept/reject                                                |
+| `TextReplaceDialog`   | `text-replace-dialog.tsx`   | 477   | AI-powered text replacement dialog with streaming preview, accept/reject                                                |
 | `ContinueWritingMenu` | `continue-writing-menu.tsx` | 332   | Dialog for AI text continuation with mode selection (continue/rewrite/summarize), model picker                          |
 | `SparkPopover`        | `spark-popover.tsx`         | 446   | AI prompt generator — generates context-aware writing prompts via `generateObject()` with Zod schema-based JSON parsing |
-| `FormatBar`           | `format-bar.tsx`            | ~200  | Typography settings panel (font, size, line height, alignment, page width)                                              |
-| `SceneBeats`          | `scene-beats.tsx`           | ~150  | Beat tracking checklist for scene planning                                                                              |
-| `MentionSuggestion`   | `mention-suggestion.tsx`    | ~200  | @mention autocomplete for codex entries with alias matching and slash command /link                                     |
+| `FormatMenu`          | `format-menu.tsx`           | ~200  | Typography settings panel (font, size, line height, alignment, page width)                                              |
+| `MentionList`         | `mention-list.tsx`          | ~200  | @mention autocomplete for codex entries with alias matching and slash command /link                                     |
 
-**Editor Extensions** (`features/editor/extensions/`): `MentionExtension` (codex linking), `TypewriterExtension` (cursor centering at configurable offset), `FocusModeExtension` (dims non-focused paragraphs).
+**Editor Extensions** (`features/editor/extensions/`): `TypewriterExtension` (cursor centering at configurable offset). Additional custom TipTap extensions live in `lib/tiptap-extensions/`: `section-node` (manuscript section nodes) and `slash-commands` (slash-command menu). @mention support is provided via `@tiptap/extension-mention` + `mention-list.tsx`/`suggestion.ts`.
 
 **Recent Improvements:**
 
@@ -475,19 +488,19 @@ The primary writing environment. 15+ components:
 | -------------------- | ----- | ----------------------------------------------------------------------------------------------- |
 | `CodexList`          | 311   | Virtualized scrolling list with category filtering, template selection, search                  |
 | `EntityEditor`       | ~400  | Tabbed entity management (Details, Research, Relations, Mentions) with cascading delete support |
-| `CodexRelationGraph` | ~400  | Force-directed relationship visualization                                                       |
-| `MentionTracker`     | ~150  | Tracks @mentions of codex entries across manuscript                                             |
+| `RelationsTab`       | ~300  | Codex relationship management (within `EntityEditor`)                                           |
+| `TrackingTab`        | ~200  | Tracks @mentions of codex entries across the manuscript                                         |
 
 ### 10.3 Plan Feature — `features/plan/`
 
-3 views orchestrated by `PlanView` (400 lines):
+3 views orchestrated by `PlanView` (232 lines):
 
 | View             | File                   | Lines | Purpose                                                                                            |
 | ---------------- | ---------------------- | ----- | -------------------------------------------------------------------------------------------------- |
 | `GridView`       | `grid-view.tsx`        | 231   | Collapsible Acts/Chapters/Scenes hierarchy                                                         |
 | `OutlineView`    | `outline-view.tsx`     | 265   | Tree hierarchy with drag-and-drop reordering                                                       |
 | `TimelineView`   | `timeline-view.tsx`    | 162   | Codex-scene matrix showing character/location appearances                                          |
-| `SceneLinkPanel` | `scene-link-panel.tsx` | ~520  | Sheet-based scene-codex linking interface with unlinked mention detection and consistency warnings |
+| `SceneLinkPanel` | `scene-link-panel.tsx` | 806   | Sheet-based scene-codex linking interface with unlinked mention detection and consistency warnings |
 
 **Grid Filtering**: The Plan View (Grid) implements structure-preserving filtering via `filterSceneBasedNodes`. It ensures Acts and Chapters remain visible if they match the search query or if no filters are active, providing context even for empty structural nodes.
 
@@ -509,7 +522,7 @@ Scene-codex linking in Grid now uses a dedicated `SceneLinkPanel` workflow:
 | ----------------- | ----- | ------------------------------------------------------------------------------------------------------------ |
 | `ChatInterface`   | 278   | Thread sidebar, message list, input, model/prompt selection. **Mobile:** `w-full`, **Desktop:** `w-[540px]`. |
 | `ChatSidebar`     | 286   | Thread list, active thread management, sidebar visibility control (mobile responsive).                       |
-| `ChatMessage`     | ~150  | Markdown rendering, copy, regenerate, mobile-responsive layout.                                              |
+| `ChatMessage`     | 351   | Markdown rendering, copy, regenerate, mobile-responsive layout.                                              |
 | `ContextSelector` | ~200  | Select scenes, codex entries, snippets as context                                                            |
 
 ### 10.5 Navigation — `ProjectNavigation` (489 lines)
@@ -520,7 +533,7 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 
 | Component          | Lines | Purpose                                                                                   |
 | ------------------ | ----- | ----------------------------------------------------------------------------------------- |
-| `SettingsDialog`   | 131   | 4-tab dialog orchestrator with theme toggle                                               |
+| `SettingsDialog`   | 180   | 4-tab dialog orchestrator with theme toggle                                               |
 | `AIConnectionsTab` | 171   | AI vendor connection CRUD with model refresh, API key status checks, responsive list view |
 | `useAIConnections` | 260   | Hook: CRUD via SQLite commands, secure key-status checks, model discovery                 |
 
@@ -535,10 +548,10 @@ Left sidebar tree: manuscript structure (acts/chapters/scenes), codex tabs, snip
 
 | Feature          | Key Components                                               | Purpose                                                 |
 | ---------------- | ------------------------------------------------------------ | ------------------------------------------------------- |
-| `ai/`            | `ModelSelector`, `PromptSelector`                            | AI model and prompt dropdowns                           |
-| `collaboration/` | `CollaborationProvider`, `CursorOverlay`, `useCollaboration` | Yjs + WebRTC P2P editing                                |
-| `export/`        | `ExportDialog`, `ExportPreview`, `useDocumentExport`         | Multi-format export UI                                  |
-| `search/`        | `SearchDialog`                                               | Full-text search via Tauri backend                      |
+| `ai/`            | `ModelSelector` (`PromptSelector` lives in `features/chat/`)  | AI model dropdown                                       |
+| `collaboration/` | `CollaborationPanel` (hook `useCollaboration` lives in `hooks/`) | Yjs + WebRTC P2P editing                             |
+| `export/`        | `ExportDialog` (hook `useDocumentExport` lives in `hooks/`)   | Multi-format export UI                                  |
+| `search/`        | `SearchPalette`, `SearchInput`, `SearchResults`              | Full-text search via Tauri backend                      |
 | `updater/`       | `UpdateNotifier`                                             | Checks for updates on startup, shows toast notification |
 
 ---
@@ -556,7 +569,7 @@ useLiveQuery("key", () => repo.method()) → Cache + Auto-invalidation ───
 ### 11.2 AI Generation Flow
 
 ```
-User action → ContextEngine.gather() → ContextPacker.pack() → generate()/stream()/object()
+User action → assembleContext() → packContext() → generate()/stream()/object()
                                                                     │
                                                     getConnection(modelId) → getModel() → Vercel AI SDK → External API
 ```
@@ -565,7 +578,7 @@ User action → ContextEngine.gather() → ContextPacker.pack() → generate()/s
 
 ```
 Editor onChange → EditorStateManager.markDirty() → Debounced save
-    → SaveCoordinator.save(sceneId) → acquire mutex → invoke("save_scene_by_id")
+    → SaveCoordinator.scheduleSave(sceneId) → per-scene serialize → saveSceneById() → invoke("save_scene_by_id")
     → On failure: EmergencyBackupService.saveBackup() → release mutex
 ```
 
@@ -605,10 +618,10 @@ Editor onChange → EditorStateManager.markDirty() → Debounced save
 - **API Keys**: Secrets stored encrypted in SQLite via `security.rs`; no browser storage fallback.
 - **OAuth 2.0**:
   - **Desktop:** System browser + localhost loopback + PKCE. Tokens stored in encrypted SQLite (`secure_secrets`) via `google_oauth.rs`.
-- **Path Security**: Strict path validation in `scene.rs`, `trash.rs`, and `security.rs` to prevent directory traversal.
+- **Path Security**: Strict path validation in `scene.rs` and `security.rs` to prevent directory traversal; arbitrary-path commands (`read_file_bytes`, `write_export_file`) reject null bytes, enforce a size cap, and write atomically.
 - **Updater Signing**: Updates signed with Minisign private key; app verifies with public key.
 - **macOS Release Signing**: CI workflow requires `APPLE_SIGNING_IDENTITY` secret for signed macOS release builds; ad-hoc signing is no longer the default configuration.
-- **Input Validation**: `validate_no_null_bytes()`, `validate_json_size()`, `validate_file_size()` (10MB max)
+- **Input Validation**: `validate_no_null_bytes()`, `validate_json_size()` (`MAX_JSON_SIZE`, 5MB), `validate_file_size()` (caller-supplied max; scenes capped at `MAX_SCENE_SIZE`, 10MB)
 - **Atomic Writes**: All backend writes use temp-file-then-rename
 
 ---
@@ -648,7 +661,7 @@ The `BackupCenterPanel` now follows package-kind-driven import/export:
 ### 15.1 P2P Stack
 
 ```
-CollaborationProvider → Yjs Doc (CRDT) + y-webrtc (P2P Signaling) + SQLite snapshot persistence
+useCollaboration (hook) → Yjs Doc (CRDT) + y-webrtc (P2P Signaling) + SQLite snapshot persistence
                             │
                             ▼
                    TipTap y-prosemirror binding
@@ -656,11 +669,10 @@ CollaborationProvider → Yjs Doc (CRDT) + y-webrtc (P2P Signaling) + SQLite sna
 
 ### 15.2 Components
 
-| Component               | Purpose                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| `CollaborationProvider` | React context managing Yjs document lifecycle, WebRTC connection |
-| `CursorOverlay`         | Renders remote peer cursors with names and colors                |
-| `useCollaboration`      | Hook: connection status, peer list, sync state                   |
+| Component                 | Purpose                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| `useCollaboration` (hook) | Manages Yjs document lifecycle, WebRTC connection, and SQLite snapshot persistence (`hooks/use-collaboration.ts`) |
+| `CollaborationPanel`      | UI panel: connection status, peer list, room sharing                           |
 
 ### 15.3 State Persistence
 
@@ -670,17 +682,17 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 ## 16. UI Component Library
 
-**37+ shared components** in `frontend/components/ui/` (shadcn/ui + Radix):
+**26 shared components** in `frontend/components/ui/` (shadcn/ui + Radix):
 
 | Category       | Components                                                                                |
 | -------------- | ----------------------------------------------------------------------------------------- |
 | **Layout**     | `card`, `dialog`, `sheet`, `tabs`, `scroll-area`, `separator`, `collapsible`, `resizable` |
-| **Forms**      | `button`, `input`, `textarea`, `select`, `checkbox`, `switch`, `slider`, `label`, `form`  |
-| **Data**       | `table`, `badge`, `avatar`, `progress`, `skeleton`                                        |
-| **Feedback**   | `alert`, `toast` (sonner), `tooltip`, `popover`                                           |
-| **Navigation** | `dropdown-menu`, `context-menu`, `menubar`, `command`, `breadcrumb`                       |
-| **Overlay**    | `alert-dialog`, `hover-card`                                                              |
-| **Custom**     | `empty-state`, `decorative-grid`, `loading-spinner`                                       |
+| **Forms**      | `button`, `input`, `textarea`, `select`, `checkbox`, `radio-group`, `switch`, `slider`, `label` |
+| **Data**       | `badge`, `skeleton`                                                                       |
+| **Feedback**   | `toast` (sonner), `tooltip`, `tippy-popover`                                              |
+| **Navigation** | `dropdown-menu`                                                                           |
+| **Overlay**    | `alert-dialog`                                                                            |
+| **Custom**     | `empty-state`, `decorative-grid`, `save-status-indicator`                                 |
 
 **Design System Updates:**
 
@@ -694,10 +706,10 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 | File                        | Lines | Purpose                                                                |
 | --------------------------- | ----- | ---------------------------------------------------------------------- |
-| `lib/config/constants.ts`   | ~200  | `GOOGLE_CONFIG` (Client ID), `INFRASTRUCTURE`, `APP_NAME`, limits      |
-| `lib/config/ai-vendors.ts`  | ~300  | 14 provider registry with name, icon, color, default models, endpoints |
-| `lib/config/model-specs.ts` | ~150  | Token limits and capabilities per model (context windows)              |
-| `lib/config/timing.ts`      | ~40   | `SAVE_DEBOUNCE`, `SEARCH_DEBOUNCE`, `AUTOSAVE_INTERVAL`                |
+| `lib/config/constants.ts`   | ~240  | `GOOGLE_CONFIG` (Client ID), `INFRASTRUCTURE`, limits                  |
+| `lib/config/ai-vendors.ts`  | ~230  | 14-vendor provider registry with name, icon, color, default models, endpoints |
+| `lib/config/model-specs.ts` | ~200  | Token limits and capabilities per model (context windows)              |
+| `lib/config/timing.ts`      | ~40   | `TIMING` object: `SAVE_DEBOUNCE_MS`, `SCENE_NOTE_DEBOUNCE_MS`, `COLLAB_SAVE_INTERVAL_MS`, etc. |
 
 ---
 
@@ -716,7 +728,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 ### 18.2 Data Recovery
 
 1. Scene save failure → `EmergencyBackupService.saveBackup()`
-2. Corruption → `parse_scene_document()` falls back to `default_scene_meta()`
+2. Missing scene metadata row → `load_scene()` falls back to `default_scene_meta()` (new-scene defaults); a corrupt metadata column surfaces as an error rather than silently discarding data
 3. Project deletion → soft delete to `.trash/` with restore (automatically restores/recreates original series if deleted)
 4. Import failures → **Import Rollback** automatically reverts partial series imports
 5. Expired cleanup → `cleanup_emergency_backups` on startup
@@ -730,46 +742,46 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 ## 19. Appendix: Complete File Inventory
 
-### 19.1 Frontend — `frontend/` (311 source files)
+### 19.1 Frontend — `frontend/` (322 source files)
 
 | Directory                      | Key Files                                                                                      |
 | ------------------------------ | ---------------------------------------------------------------------------------------------- |
 | `core/tauri/`                  | `commands.ts`, `command-modules/*`, `index.ts`                                                 |
 | `core/state/`                  | `app-state.ts`                                                                                 |
-| `domain/entities/`             | `types.ts` (529 lines, 30+ interfaces)                                                         |
-| `domain/repositories/`         | 12 interface files (`I*Repository.ts`)                                                         |
-| `domain/services/`             | `IChatService.ts`, `IExportService.ts`                                                         |
-| `infrastructure/di/`           | `AppContext.tsx` (214 lines)                                                                   |
-| `infrastructure/repositories/` | 12 Tauri implementations                                                                       |
+| `domain/entities/`             | `types.ts` (432 lines, 40+ interfaces)                                                         |
+| `domain/repositories/`         | 14 interface files (`I*Repository.ts`)                                                         |
+| `domain/services/`             | `IChatService.ts`, `IExportService.ts`, `IModelDiscoveryService.ts`                            |
+| `infrastructure/di/`           | `AppContext.tsx` (190 lines)                                                                   |
+| `infrastructure/repositories/` | 14 Tauri implementations                                                                       |
 | `infrastructure/services/`     | 6 service implementations                                                                      |
 | `lib/ai/`                      | `index.ts`, `client.ts`, `providers.ts`                                                        |
 | `lib/config/`                  | `constants.ts`, `ai-vendors.ts`, `model-specs.ts`, `timing.ts`                                 |
 | `lib/core/`                    | `save-coordinator.ts`, `editor-state-manager.ts`                                               |
 | `store/`                       | `use-project-store.ts`, `use-chat-store.ts`, `use-format-store.ts`                             |
-| `hooks/`                       | 31 shared hooks                                                                                |
-| `shared/utils/`                | `context-engine.ts`, `context-packer.ts`, `toast-service.ts`, `logger.ts`, `scene-sections.ts` |
+| `hooks/`                       | 22 shared hooks                                                                                |
+| `shared/utils/`                | `context-packer.ts`, `toast-service.ts`, `logger.ts`, `scene-sections.ts`, `editor.ts`, `platform.ts` (note: `context-engine.ts` lives in `features/editor/utils/`) |
 | `shared/prompts/`              | `templates.ts`                                                                                 |
-| `features/editor/`             | ~15 components, 3 hooks, 3 extensions                                                          |
-| `features/codex/`              | ~8 components, 2 hooks                                                                         |
+| `features/editor/`             | ~17 components, 2 hooks, 1 extension (+ `utils/context-engine.ts`)                             |
+| `features/codex/`              | ~11 components                                                                                |
 | `features/plan/`               | 3 views + orchestrator + filtering utility                                                     |
-| `features/chat/`               | ~5 components, 1 hook                                                                          |
+| `features/chat/`               | ~10 components, 1 hook                                                                         |
 | `features/navigation/`         | 2 components                                                                                   |
-| `features/settings/`           | ~10 components, 2 hooks                                                                        |
-| `features/dashboard/`          | 2 components                                                                                   |
-| `features/ai/`                 | 2 components                                                                                   |
-| `features/collaboration/`      | 3 components, 1 hook, 1 provider                                                               |
-| `features/export/`             | 3 components, 1 hook                                                                           |
-| `features/search/`             | 1 component                                                                                    |
-| `components/ui/`               | 36+ shadcn/ui components                                                                       |
+| `features/settings/`           | ~10 components, 1 hook                                                                         |
+| `features/dashboard/`          | 4 components                                                                                   |
+| `features/ai/`                 | 1 component                                                                                    |
+| `features/collaboration/`      | 1 component (`CollaborationPanel`; `useCollaboration` hook lives in `hooks/`)                  |
+| `features/export/`             | 1 component (`useDocumentExport` hook lives in `hooks/`)                                       |
+| `features/search/`             | 5 components, 1 hook                                                                           |
+| `components/ui/`               | 26 shadcn/ui components                                                                        |
 
-### 19.2 Backend — `backend/src/` (36 source files)
+### 19.2 Backend — `backend/src/` (34 source files)
 
 | Directory   | Files                                                                                                                                                                                                               |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Root        | `lib.rs` (188 lines), `main.rs`                                                                                                                                                                                     |
-| `commands/` | `mod.rs` + 16 modules: `app_state`, `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `backup_emergency`, `search`, `trash`, `series`, `security`, `mention`, `collaboration`, `scene_note`, `google_oauth` |
+| `commands/` | `mod.rs` + 15 modules: `app_state`, `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `backup_emergency`, `search`, `series`, `security`, `mention`, `collaboration`, `scene_note`, `google_oauth` |
 | `models/`   | `mod.rs` + 7 models: `project`, `scene`, `codex`, `chat`, `snippet`, `backup`, `scene_note`                                                                                                                         |
-| `utils/`    | `mod.rs` + 7 utils: `atomic_write`, `timestamp`, `count_words`, `project_dir`, `validate_file_size`, `validate_json_size`, `validate_no_null_bytes`                                                                 |
+| `utils/`    | `mod.rs` + 5 modules: `io` (`atomic_write`), `paths` (`project_dir`/`get_app_dir`), `text` (`count_words`), `timestamp` (`now_millis`), `validation` (`validate_file_size`/`_json_size`/`_no_null_bytes`) |
 | `storage/`  | `mod.rs` + 1 module: `sqlite`                                                                                                                                                                                       |
 
 ### 19.3 App Routes — `app/` (8 files)

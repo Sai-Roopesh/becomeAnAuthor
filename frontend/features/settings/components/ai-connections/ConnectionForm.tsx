@@ -12,7 +12,7 @@ import {
   AIVendor,
   connectionRequiresApiKey,
 } from "@/lib/config/ai-vendors";
-import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import { formatModelIds, parseModelIds } from "@/lib/ai/model-ids";
 import { VendorLogo } from "@/features/shared/components/VendorLogo";
 
@@ -46,6 +46,7 @@ export function ConnectionForm({
   loading,
   error,
 }: ConnectionFormProps) {
+  const { modelDiscoveryService } = useAppServices();
   const [connectionName, setConnectionName] = useState(connection.name);
   const [apiKey, setApiKey] = useState(connection.apiKey);
   const [customEndpoint, setCustomEndpoint] = useState(

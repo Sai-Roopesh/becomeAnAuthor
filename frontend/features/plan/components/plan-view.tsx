@@ -63,21 +63,21 @@ export function PlanView({ projectId }: { projectId: string }) {
   const isSceneBasedView =
     viewType === "grid" || viewType === "outline" || viewType === "timeline";
 
-  const project = useLiveQuery(
+  const { data: project } = useLiveQuery(
     () => projectRepo.get(projectId),
     [projectId, projectRepo],
   );
-  const nodes = useLiveQuery(
+  const { data: nodes } = useLiveQuery(
     () => nodeRepo.getByProject(projectId),
     [projectId, nodeRepo],
   );
 
-  const allLinks = useLiveQuery(
+  const { data: allLinks } = useLiveQuery(
     () => linkRepo.getByProject(projectId),
     [projectId, linkRepo],
   );
 
-  const codexEntries = useLiveQuery(
+  const { data: codexEntries } = useLiveQuery(
     () =>
       project ? codexRepo.getBySeries(project.seriesId) : Promise.resolve([]),
     [project?.seriesId, codexRepo],

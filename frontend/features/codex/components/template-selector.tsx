@@ -44,7 +44,7 @@ export function TemplateSelector({
   const templateRepo = useCodexTemplateRepository();
 
   // ✅ Use repository hook + live query with client-side deduplication
-  const templates = useLiveQuery(async () => {
+  const { data: templates } = useLiveQuery(async () => {
     const results = await templateRepo.getByCategory(category);
 
     // Defense in depth: Deduplicate on client side

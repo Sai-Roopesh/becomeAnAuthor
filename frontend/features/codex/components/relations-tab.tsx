@@ -46,13 +46,13 @@ export function RelationsTab({ entityId, seriesId }: RelationsTabProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const relations = useLiveQuery(
+  const { data: relations } = useLiveQuery(
     () => relationRepo.getByParent(seriesId, entityId),
     [seriesId, entityId, relationRepo],
   );
 
   // Fetch all entries once, filter client-side
-  const allEntries = useLiveQuery(
+  const { data: allEntries } = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId, codexRepo],
   );

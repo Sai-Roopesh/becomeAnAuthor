@@ -138,13 +138,7 @@ export interface Project {
   updatedAt: number;
 }
 
-export interface TrashedProject {
-  id: string;
-  title: string;
-  originalPath: string;
-  trashPath: string;
-  deletedAt: number;
-}
+export type { TrashedProject } from "@/shared/types/backup";
 
 export interface Series {
   id: string;
@@ -271,68 +265,15 @@ export interface BackupScheduleOptions {
   lastBackup?: number; // Timestamp of last backup
 }
 
-export type BackupPackageKind =
-  | "full_snapshot"
-  | "series_package"
-  | "novel_package";
-
-export interface BackupCounts {
-  series: number;
-  projects: number;
-  scenes: number;
-  codexEntries: number;
-  codexRelations: number;
-  codexTags: number;
-  codexEntryTags: number;
-  codexTemplates: number;
-  codexRelationTypes: number;
-  sceneCodexLinks: number;
-  snippets: number;
-  sceneNotes: number;
-  chatThreads: number;
-  chatMessages: number;
-  yjsSnapshots: number;
-  yjsUpdateLog: number;
-}
-
-export interface BackupSourceHints {
-  seriesId?: string;
-  seriesTitle?: string;
-  projectId?: string;
-  projectTitle?: string;
-}
-
-export interface BackupPackageSummary {
-  kind: BackupPackageKind;
-  path: string;
-  fileName: string;
-  sizeBytes: number;
-  createdAt: string;
-  sha256: string;
-}
-
-export interface BackupPackageInfo {
-  kind: BackupPackageKind;
-  appVersion: string;
-  schemaVersion: number;
-  createdAt: string;
-  counts: BackupCounts;
-  sourceHints: BackupSourceHints;
-}
-
-export interface BackupImportOptions {
-  targetSeriesId?: string;
-  createSeriesTitle?: string;
-}
-
-export interface BackupImportResult {
-  kind: BackupPackageKind;
-  importedSeriesId?: string | null;
-  importedProjectIds: string[];
-  replacedAppData: boolean;
-  checkpointPath?: string | null;
-  requiresRelaunch: boolean;
-}
+export type {
+  BackupPackageKind,
+  BackupCounts,
+  BackupSourceHints,
+  BackupPackageSummary,
+  BackupPackageInfo,
+  BackupImportOptions,
+  BackupImportResult,
+} from "@/shared/types/backup";
 
 // ============================================
 // Phase 1: Codex Enhancements - New Types

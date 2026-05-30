@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Loader2, X } from "lucide-react";
-import { ModelSelector } from "@/features/ai/components/model-selector";
+import { ModelSelector } from "@/features/ai";
 import { useAI } from "@/hooks/use-ai";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {

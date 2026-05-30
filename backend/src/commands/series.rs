@@ -4,7 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
 use crate::models::{CodexEntry, CodexRelation, Series};
-use crate::storage::open_app_db;
+use crate::storage::{open_app_db, with_transaction};
 use crate::utils::validate_project_title;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -535,31 +535,33 @@ pub fn delete_series_codex_entry(
 ) -> Result<(), String> {
     let conn = open_app_db()?;
 
-    conn.execute(
-        "DELETE FROM codex_entries WHERE series_id = ?1 AND id = ?2",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete codex entry row: {e}"))?;
+    with_transaction(&conn, |conn| {
+        conn.execute(
+            "DELETE FROM codex_entries WHERE series_id = ?1 AND id = ?2",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete codex entry row: {e}"))?;
 
-    conn.execute(
-        "DELETE FROM codex_relations WHERE series_id = ?1 AND (parent_id = ?2 OR child_id = ?2)",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete dependent codex relations: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_relations WHERE series_id = ?1 AND (parent_id = ?2 OR child_id = ?2)",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete dependent codex relations: {e}"))?;
 
-    conn.execute(
-        "DELETE FROM scene_codex_links WHERE series_id = ?1 AND codex_id = ?2",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete dependent scene codex links: {e}"))?;
+        conn.execute(
+            "DELETE FROM scene_codex_links WHERE series_id = ?1 AND codex_id = ?2",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete dependent scene codex links: {e}"))?;
 
-    conn.execute(
-        "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND entry_id = ?2",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete dependent codex entry tag rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND entry_id = ?2",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete dependent codex entry tag rows: {e}"))?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 #[tauri::command]

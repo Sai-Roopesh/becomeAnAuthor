@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import type { StructureNode } from "./types";
 
 export async function getStructure(

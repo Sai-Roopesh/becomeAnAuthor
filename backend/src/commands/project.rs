@@ -7,7 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::models::{ProjectMeta, StructureNode};
-use crate::storage::open_app_db;
+use crate::storage::{open_app_db, with_transaction};
 use crate::utils::{
     get_app_dir, get_projects_dir, slugify, timestamp, validate_project_creation,
     validate_project_title,
@@ -411,45 +411,47 @@ fn replace_structure(
     project_id: &str,
     structure: &[StructureNode],
 ) -> Result<(), String> {
-    conn.execute(
-        "DELETE FROM structure_nodes WHERE project_id = ?1",
-        params![project_id],
-    )
-    .map_err(|e| format!("Failed to clear existing structure rows: {e}"))?;
-
     let now = timestamp::now_millis();
     let mut flattened = Vec::new();
     flatten_structure_nodes(structure, None, &mut flattened);
 
-    if !flattened.is_empty() {
-        let mut stmt = conn
-            .prepare(
-                r#"
-                INSERT INTO structure_nodes(
-                    id, project_id, parent_id, node_type, title, order_index, scene_file, created_at, updated_at
+    with_transaction(conn, |conn| {
+        conn.execute(
+            "DELETE FROM structure_nodes WHERE project_id = ?1",
+            params![project_id],
+        )
+        .map_err(|e| format!("Failed to clear existing structure rows: {e}"))?;
+
+        if !flattened.is_empty() {
+            let mut stmt = conn
+                .prepare(
+                    r#"
+                    INSERT INTO structure_nodes(
+                        id, project_id, parent_id, node_type, title, order_index, scene_file, created_at, updated_at
+                    )
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                    "#,
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-                "#,
-            )
-            .map_err(|e| format!("Failed to prepare structure insert: {e}"))?;
+                .map_err(|e| format!("Failed to prepare structure insert: {e}"))?;
 
-        for (id, parent_id, node_type, title, order_index, scene_file) in flattened {
-            stmt.execute(params![
-                id,
-                project_id,
-                parent_id,
-                node_type,
-                title,
-                order_index,
-                scene_file,
-                now,
-                now,
-            ])
-            .map_err(|e| format!("Failed to insert structure node: {e}"))?;
+            for (id, parent_id, node_type, title, order_index, scene_file) in &flattened {
+                stmt.execute(params![
+                    id,
+                    project_id,
+                    parent_id,
+                    node_type,
+                    title,
+                    order_index,
+                    scene_file,
+                    now,
+                    now,
+                ])
+                .map_err(|e| format!("Failed to insert structure node: {e}"))?;
+            }
         }
-    }
 
-    sync_scene_metadata_from_structure(conn, project_id, structure)
+        sync_scene_metadata_from_structure(conn, project_id, structure)
+    })
 }
 
 fn normalize_series_index(series_index: &str) -> Result<String, String> {
@@ -634,31 +636,35 @@ pub fn delete_project(project_path: String) -> Result<(), String> {
 
     let payload_json = serde_json::to_string(&project)
         .map_err(|e| format!("Failed to serialize trashed project payload: {e}"))?;
-    conn.execute(
-        r#"
-        INSERT OR REPLACE INTO deleted_projects(project_id, title, original_path, trash_path, payload_json, deleted_at)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-        "#,
-        params![
-            project.id,
-            project.title,
-            project.path,
-            trash_path.to_string_lossy().to_string(),
-            payload_json,
-            timestamp::now_millis(),
-        ],
-    )
-    .map_err(|e| format!("Failed to insert deleted project row: {e}"))?;
+    let trash_path_str = trash_path.to_string_lossy().to_string();
 
-    conn.execute("DELETE FROM projects WHERE id = ?1", params![project.id])
-        .map_err(|e| format!("Failed to remove project row: {e}"))?;
-    conn.execute(
-        "DELETE FROM recent_projects WHERE project_path = ?1",
-        params![project.path],
-    )
-    .map_err(|e| format!("Failed to remove project from recent list: {e}"))?;
+    with_transaction(&conn, |conn| {
+        conn.execute(
+            r#"
+            INSERT OR REPLACE INTO deleted_projects(project_id, title, original_path, trash_path, payload_json, deleted_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "#,
+            params![
+                project.id,
+                project.title,
+                project.path,
+                trash_path_str,
+                payload_json,
+                timestamp::now_millis(),
+            ],
+        )
+        .map_err(|e| format!("Failed to insert deleted project row: {e}"))?;
 
-    Ok(())
+        conn.execute("DELETE FROM projects WHERE id = ?1", params![project.id])
+            .map_err(|e| format!("Failed to remove project row: {e}"))?;
+        conn.execute(
+            "DELETE FROM recent_projects WHERE project_path = ?1",
+            params![project.path],
+        )
+        .map_err(|e| format!("Failed to remove project from recent list: {e}"))?;
+
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -790,71 +796,73 @@ pub fn permanently_delete_trashed_project(trash_path: String) -> Result<(), Stri
             .map_err(|e| format!("Failed to remove trashed project directory: {e}"))?;
     }
 
-    conn.execute(
-        "DELETE FROM deleted_projects WHERE trash_path = ?1",
-        params![trash_path],
-    )
-    .map_err(|e| format!("Failed to delete deleted_projects row: {e}"))?;
-    conn.execute("DELETE FROM projects WHERE id = ?1", params![project_id])
-        .map_err(|e| format!("Failed to delete project row: {e}"))?;
-    conn.execute(
-        "DELETE FROM recent_projects WHERE project_path = ?1",
-        params![original_path],
-    )
-    .map_err(|e| format!("Failed to delete recent project row: {e}"))?;
+    with_transaction(&conn, |conn| {
+        conn.execute(
+            "DELETE FROM deleted_projects WHERE trash_path = ?1",
+            params![trash_path],
+        )
+        .map_err(|e| format!("Failed to delete deleted_projects row: {e}"))?;
+        conn.execute("DELETE FROM projects WHERE id = ?1", params![project_id])
+            .map_err(|e| format!("Failed to delete project row: {e}"))?;
+        conn.execute(
+            "DELETE FROM recent_projects WHERE project_path = ?1",
+            params![original_path],
+        )
+        .map_err(|e| format!("Failed to delete recent project row: {e}"))?;
 
-    conn.execute(
-        "DELETE FROM structure_nodes WHERE project_id = ?1",
-        params![project_id],
-    )
-    .map_err(|e| format!("Failed to delete structure rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM scene_metadata WHERE project_id = ?1",
-        params![project_id],
-    )
-    .map_err(|e| format!("Failed to delete scene metadata rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM snippets WHERE project_id = ?1",
-        params![project_id],
-    )
-    .map_err(|e| format!("Failed to delete snippet rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM scene_notes WHERE project_id = ?1",
-        params![project_id],
-    )
-    .map_err(|e| format!("Failed to delete scene note rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM chat_messages WHERE project_path = ?1",
-        params![original_path],
-    )
-    .map_err(|e| format!("Failed to delete chat message rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM chat_threads WHERE project_path = ?1",
-        params![original_path],
-    )
-    .map_err(|e| format!("Failed to delete chat thread rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM yjs_snapshots WHERE project_path = ?1",
-        params![original_path],
-    )
-    .map_err(|e| format!("Failed to delete yjs snapshot rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM yjs_update_log WHERE project_path = ?1",
-        params![original_path],
-    )
-    .map_err(|e| format!("Failed to delete yjs update rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM search_index WHERE project_path = ?1",
-        params![original_path],
-    )
-    .map_err(|e| format!("Failed to delete search index rows: {e}"))?;
-    conn.execute(
-        "DELETE FROM search_sync_state WHERE project_path = ?1",
-        params![original_path],
-    )
-    .map_err(|e| format!("Failed to delete search sync rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM structure_nodes WHERE project_id = ?1",
+            params![project_id],
+        )
+        .map_err(|e| format!("Failed to delete structure rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM scene_metadata WHERE project_id = ?1",
+            params![project_id],
+        )
+        .map_err(|e| format!("Failed to delete scene metadata rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM snippets WHERE project_id = ?1",
+            params![project_id],
+        )
+        .map_err(|e| format!("Failed to delete snippet rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM scene_notes WHERE project_id = ?1",
+            params![project_id],
+        )
+        .map_err(|e| format!("Failed to delete scene note rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM chat_messages WHERE project_path = ?1",
+            params![original_path],
+        )
+        .map_err(|e| format!("Failed to delete chat message rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM chat_threads WHERE project_path = ?1",
+            params![original_path],
+        )
+        .map_err(|e| format!("Failed to delete chat thread rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM yjs_snapshots WHERE project_path = ?1",
+            params![original_path],
+        )
+        .map_err(|e| format!("Failed to delete yjs snapshot rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM yjs_update_log WHERE project_path = ?1",
+            params![original_path],
+        )
+        .map_err(|e| format!("Failed to delete yjs update rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM search_index WHERE project_path = ?1",
+            params![original_path],
+        )
+        .map_err(|e| format!("Failed to delete search index rows: {e}"))?;
+        conn.execute(
+            "DELETE FROM search_sync_state WHERE project_path = ?1",
+            params![original_path],
+        )
+        .map_err(|e| format!("Failed to delete search sync rows: {e}"))?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 #[tauri::command]

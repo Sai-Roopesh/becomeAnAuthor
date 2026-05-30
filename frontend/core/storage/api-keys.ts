@@ -3,7 +3,7 @@
  * Stores API keys through backend secure storage commands.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import { AIProvider, validateApiKey } from "@/lib/config/ai-vendors";
 import { logger } from "@/shared/utils/logger";
 import { toAppError } from "@/shared/errors/app-error";

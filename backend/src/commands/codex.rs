@@ -6,7 +6,7 @@ use crate::models::{
     CodexEntry, CodexEntryTag, CodexRelation, CodexRelationType, CodexTag, CodexTemplate,
     SceneCodexLink,
 };
-use crate::storage::open_app_db;
+use crate::storage::{open_app_db, with_transaction};
 
 fn project_series_id(conn: &Connection, project_path: &str) -> Result<String, String> {
     conn.query_row(
@@ -103,28 +103,30 @@ pub fn delete_codex_entry(
     let conn = open_app_db()?;
     let series_id = project_series_id(&conn, &project_path)?;
 
-    conn.execute(
-        "DELETE FROM codex_entries WHERE series_id = ?1 AND id = ?2",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete codex entry: {e}"))?;
-    conn.execute(
-        "DELETE FROM codex_relations WHERE series_id = ?1 AND (parent_id = ?2 OR child_id = ?2)",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete dependent codex relations: {e}"))?;
-    conn.execute(
-        "DELETE FROM scene_codex_links WHERE series_id = ?1 AND codex_id = ?2",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete dependent scene links: {e}"))?;
-    conn.execute(
-        "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND entry_id = ?2",
-        params![series_id, entry_id],
-    )
-    .map_err(|e| format!("Failed to delete dependent codex entry tags: {e}"))?;
+    with_transaction(&conn, |conn| {
+        conn.execute(
+            "DELETE FROM codex_entries WHERE series_id = ?1 AND id = ?2",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete codex entry: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_relations WHERE series_id = ?1 AND (parent_id = ?2 OR child_id = ?2)",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete dependent codex relations: {e}"))?;
+        conn.execute(
+            "DELETE FROM scene_codex_links WHERE series_id = ?1 AND codex_id = ?2",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete dependent scene links: {e}"))?;
+        conn.execute(
+            "DELETE FROM codex_entry_tags WHERE series_id = ?1 AND entry_id = ?2",
+            params![series_id, entry_id],
+        )
+        .map_err(|e| format!("Failed to delete dependent codex entry tags: {e}"))?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 #[tauri::command]

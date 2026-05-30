@@ -4,7 +4,7 @@ import React, { Component, ErrorInfo, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "@/shared/utils/toast-service";
-import { logger } from "@/shared/utils/logger";
+import { logger } from "@/lib/logger";
 
 const log = logger.scope("ErrorBoundary");
 
@@ -32,8 +32,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { name, onError } = this.props;
+    const componentStack = errorInfo.componentStack ?? "";
 
-    log.error(`Error in ${name || "component"}:`, error, errorInfo);
+    log.error(`Error in ${name || "component"}: ${error.message}`, {
+      componentStack,
+      errorName: error.name,
+    });
     onError?.(error, errorInfo);
 
     toast.error("Component failed to load", {

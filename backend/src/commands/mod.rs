@@ -15,7 +15,6 @@ pub mod search;
 pub mod security;
 pub mod series;
 pub mod snippet;
-pub mod trash;
 
 // Re-export all commands for easy access in lib.rs
 pub use app_state::*;
@@ -32,4 +31,3 @@ pub use scene_note::*;
 pub use search::*;
 pub use series::*;
 pub use snippet::*;
-pub use trash::*;

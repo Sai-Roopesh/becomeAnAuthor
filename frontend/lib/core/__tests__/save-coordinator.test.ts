@@ -15,12 +15,18 @@ import { invoke } from "@tauri-apps/api/core";
 // Mock Dependencies
 // ============================================
 
+// save-coordinator now calls invoke through the @/core/tauri/invoke wrapper,
+// which guards on isTauri(); make it pass through to the mocked invoke.
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+  isTauri: () => true,
 }));
 
-vi.mock("@/core/project-path", () => ({
-  getCurrentProjectPath: () => "/mock/project/path",
+vi.mock("@/store/use-project-store", () => ({
+  useProjectStore: Object.assign(
+    () => ({ activeProjectPath: "/mock/project/path" }),
+    { getState: () => ({ activeProjectPath: "/mock/project/path" }) },
+  ),
 }));
 
 vi.mock("@/shared/utils/toast-service", () => ({

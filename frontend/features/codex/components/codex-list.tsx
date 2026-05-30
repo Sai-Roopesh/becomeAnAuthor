@@ -71,7 +71,7 @@ export function CodexList({
     setInternalSelectedEntityId(id);
   };
 
-  const entries = useLiveQuery(
+  const { data: entries } = useLiveQuery(
     () => codexRepo.getBySeries(seriesId),
     [seriesId],
   );

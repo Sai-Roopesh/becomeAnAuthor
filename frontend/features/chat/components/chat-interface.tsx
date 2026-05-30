@@ -15,15 +15,20 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DecorativeGrid } from "@/components/ui/decorative-grid";
-import { SettingsDialog } from "@/features/settings/components/SettingsDialog";
 import { useHasAIConnection } from "@/hooks/use-has-ai-connection";
 import { ChatSidebar } from "./chat-sidebar";
 
 interface ChatInterfaceProps {
   projectId: string;
+  renderSettingsButton?: (() => React.ReactNode) | undefined;
+  onOpenSettings?: () => void;
 }
 
-export function ChatInterface({ projectId }: ChatInterfaceProps) {
+export function ChatInterface({
+  projectId,
+  renderSettingsButton,
+  onOpenSettings,
+}: ChatInterfaceProps) {
   const chatRepo = useChatRepository();
   const activeThreadId = useChatStore((state) =>
     state.getActiveThreadId(projectId),
@@ -34,23 +39,22 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
   const { confirm, ConfirmationDialog } = useConfirmation();
   const isMobile = useIsMobile();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const hasAIConnection = useHasAIConnection();
 
-  const activeThreads = useLiveQuery(
+  const { data: activeThreads } = useLiveQuery(
     () => chatRepo.getActiveThreads(projectId),
     [projectId],
-    { keys: "chat" },
+    "chat",
   );
-  const archivedThreads = useLiveQuery(
+  const { data: archivedThreads } = useLiveQuery(
     () => chatRepo.getArchivedThreads(projectId),
     [projectId],
-    { keys: "chat" },
+    "chat",
   );
-  const deletedThreads = useLiveQuery(
+  const { data: deletedThreads } = useLiveQuery(
     () => chatRepo.getDeletedThreads(projectId),
     [projectId],
-    { keys: "chat" },
+    "chat",
   );
 
   const threadsByView = {
@@ -84,7 +88,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
   const createNewThread = async () => {
     if (!hasAIConnection) {
       toast.info("Set up an AI connection before starting a new chat.");
-      setSettingsOpen(true);
+      onOpenSettings?.();
       return;
     }
 
@@ -184,7 +188,10 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-full sm:w-[540px] max-w-[90vw] md:max-w-none">
+          <SheetContent
+            side="left"
+            className="p-0 w-full sm:w-[540px] max-w-[90vw] md:max-w-none"
+          >
             <ChatSidebar
               projectId={projectId}
               activeThreadId={activeThreadId}
@@ -227,7 +234,11 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
         <DecorativeGrid />
 
         {activeThreadId ? (
-          <ChatThread threadId={activeThreadId} projectId={projectId} />
+          <ChatThread
+            threadId={activeThreadId}
+            projectId={projectId}
+            renderSettingsButton={renderSettingsButton}
+          />
         ) : (
           <div className="h-full">
             {!hasAIConnection && (
@@ -239,7 +250,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                 <Button
                   className="mt-3"
                   size="sm"
-                  onClick={() => setSettingsOpen(true)}
+                  onClick={() => onOpenSettings?.()}
                 >
                   Set Up AI Connection
                 </Button>
@@ -256,7 +267,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
                   : "Set Up AI Connection",
                 onClick: hasAIConnection
                   ? createNewThread
-                  : () => setSettingsOpen(true),
+                  : () => onOpenSettings?.(),
                 variant: hasAIConnection ? "outline" : "default",
               }}
             />
@@ -264,11 +275,7 @@ export function ChatInterface({ projectId }: ChatInterfaceProps) {
         )}
       </div>
 
-      <SettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        hideTrigger
-      />
+      {renderSettingsButton?.()}
       <ConfirmationDialog />
     </div>
   );

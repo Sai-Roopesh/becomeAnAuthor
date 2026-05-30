@@ -21,7 +21,7 @@ import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
 import { CreateProjectDialog } from "@/features/project";
 import { ExportDialog } from "@/features/export";
 import { toast } from "@/shared/utils/toast-service";
-import { setCurrentProjectPath } from "@/core/project-path";
+import { useProjectStore } from "@/store/use-project-store";
 import { useImportExport } from "@/hooks/use-import-export";
 
 function SeriesContent() {
@@ -31,17 +31,23 @@ function SeriesContent() {
   const projectRepo = useProjectRepository();
   const seriesRepo = useSeriesRepository();
   const { confirm, ConfirmationDialog } = useConfirmation();
+  const { setActiveProjectPath } = useProjectStore();
   const { exportSeriesArchive } = useImportExport();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportProjectId, setExportProjectId] = useState<string | null>(null);
   const [isExportingSeries, setIsExportingSeries] = useState(false);
 
-  const allSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo]);
-  const allProjects = useLiveQuery(() => projectRepo.getAll(), [projectRepo], {
-    keys: "projects",
-  });
-  const projects = useLiveQuery(
+  const { data: allSeries } = useLiveQuery(
+    () => seriesRepo.getAll(),
+    [seriesRepo],
+  );
+  const { data: allProjects } = useLiveQuery(
+    () => projectRepo.getAll(),
+    [projectRepo],
+    "projects",
+  );
+  const { data: projects } = useLiveQuery(
     () => (seriesId ? projectRepo.getBySeries(seriesId) : Promise.resolve([])),
     [seriesId, projectRepo],
   );
@@ -125,7 +131,7 @@ function SeriesContent() {
       | undefined;
 
     if (project?._tauriPath) {
-      setCurrentProjectPath(project._tauriPath);
+      setActiveProjectPath(project._tauriPath);
     }
 
     setExportProjectId(projectId);

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { useProjectStore, ViewMode } from "@/store/use-project-store";
 import {
@@ -9,7 +10,6 @@ import {
   Home,
   Search,
 } from "lucide-react";
-import { SettingsDialog } from "../../settings/components/SettingsDialog";
 import Link from "next/link";
 import {
   Tooltip,
@@ -21,9 +21,13 @@ import { shortcuts } from "@/shared/utils/platform";
 
 interface TopNavigationProps {
   onOpenSearch?: () => void;
+  renderSettingsButton?: () => React.ReactNode;
 }
 
-export function TopNavigation({ onOpenSearch }: TopNavigationProps) {
+export function TopNavigation({
+  onOpenSearch,
+  renderSettingsButton,
+}: TopNavigationProps) {
   const { viewMode, setViewMode } = useProjectStore();
 
   const modes: { id: ViewMode; label: string; icon: React.ElementType }[] = [
@@ -94,7 +98,7 @@ export function TopNavigation({ onOpenSearch }: TopNavigationProps) {
                 <TooltipContent>Search manuscript and codex</TooltipContent>
               </Tooltip>
             )}
-            <SettingsDialog />
+            {renderSettingsButton?.()}
           </div>
         </div>
       </div>

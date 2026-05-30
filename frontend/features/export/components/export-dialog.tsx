@@ -47,7 +47,7 @@ export function ExportDialog({
   const { projectRepository } = useAppServices();
   const { exportDocument, isExporting } = useDocumentExport();
 
-  const project = useLiveQuery(async () => {
+  const { data: project } = useLiveQuery(async () => {
     return await projectRepository.get(projectId);
   }, [projectId, projectRepository]);
 

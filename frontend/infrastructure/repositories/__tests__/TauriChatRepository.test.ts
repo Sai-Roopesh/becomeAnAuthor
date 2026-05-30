@@ -16,8 +16,11 @@ vi.mock("@/core/tauri", () => ({
   deleteChatMessage: vi.fn(),
 }));
 
-vi.mock("@/core/project-path", () => ({
-  requireCurrentProjectPath: vi.fn(() => "/mock/project/path"),
+vi.mock("@/store/use-project-store", () => ({
+  useProjectStore: Object.assign(
+    () => ({ activeProjectPath: "/mock/project/path" }),
+    { getState: () => ({ activeProjectPath: "/mock/project/path" }) },
+  ),
 }));
 
 function buildThread(

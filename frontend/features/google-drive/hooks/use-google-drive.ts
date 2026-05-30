@@ -3,78 +3,85 @@
  * Provides methods for backup/restore operations
  */
 
-'use client';
+"use client";
 
-import { useState, useCallback } from 'react';
-import { googleDriveService } from '@/infrastructure/services/google-drive-service';
-import { DriveFile, DriveQuota } from '@/domain/entities/types';
-import { useGoogleAuth } from './use-google-auth';
-import { logger } from '@/shared/utils/logger';
+import { useState, useCallback } from "react";
+import { useAppServices } from "@/infrastructure/di/AppContext";
+import { DriveFile, DriveQuota } from "@/domain/entities/types";
+import { useGoogleAuth } from "./use-google-auth";
+import { logger } from "@/shared/utils/logger";
 
-const log = logger.scope('GoogleDrive');
+const log = logger.scope("GoogleDrive");
 
 export function useGoogleDrive() {
-    const { isAuthenticated } = useGoogleAuth();
-    const [isUploading, setIsUploading] = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useGoogleAuth();
+  const { googleDriveService } = useAppServices();
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const listBackups = useCallback(async (): Promise<DriveFile[]> => {
-        if (!isAuthenticated) {
-            throw new Error('Not authenticated with Google Drive');
-        }
+  const listBackups = useCallback(async (): Promise<DriveFile[]> => {
+    if (!isAuthenticated) {
+      throw new Error("Not authenticated with Google Drive");
+    }
 
-        try {
-            setError(null);
-            return await googleDriveService.listBackups();
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to list backups';
-            log.error('List backups failed:', err);
-            setError(message);
-            throw err;
-        }
-    }, [isAuthenticated]);
+    try {
+      setError(null);
+      return await googleDriveService.listBackups();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to list backups";
+      log.error("List backups failed:", err);
+      setError(message);
+      throw err;
+    }
+  }, [isAuthenticated, googleDriveService]);
 
-    const deleteBackup = useCallback(async (fileId: string): Promise<void> => {
-        if (!isAuthenticated) {
-            throw new Error('Not authenticated with Google Drive');
-        }
+  const deleteBackup = useCallback(
+    async (fileId: string): Promise<void> => {
+      if (!isAuthenticated) {
+        throw new Error("Not authenticated with Google Drive");
+      }
 
-        try {
-            setError(null);
-            await googleDriveService.deleteBackup(fileId);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to delete backup';
-            log.error('Delete backup failed:', err);
-            setError(message);
-            throw err;
-        }
-    }, [isAuthenticated]);
+      try {
+        setError(null);
+        await googleDriveService.deleteBackup(fileId);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to delete backup";
+        log.error("Delete backup failed:", err);
+        setError(message);
+        throw err;
+      }
+    },
+    [isAuthenticated, googleDriveService],
+  );
 
-    const getQuota = useCallback(async (): Promise<DriveQuota> => {
-        if (!isAuthenticated) {
-            throw new Error('Not authenticated with Google Drive');
-        }
+  const getQuota = useCallback(async (): Promise<DriveQuota> => {
+    if (!isAuthenticated) {
+      throw new Error("Not authenticated with Google Drive");
+    }
 
-        try {
-            setError(null);
-            return await googleDriveService.getStorageQuota();
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to get quota';
-            log.error('Get quota failed:', err);
-            setError(message);
-            throw err;
-        }
-    }, [isAuthenticated]);
+    try {
+      setError(null);
+      return await googleDriveService.getStorageQuota();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to get quota";
+      log.error("Get quota failed:", err);
+      setError(message);
+      throw err;
+    }
+  }, [isAuthenticated, googleDriveService]);
 
-    return {
-        isUploading,
-        isDownloading,
-        error,
-        setIsUploading,
-        setIsDownloading,
-        listBackups,
-        deleteBackup,
-        getQuota,
-    };
+  return {
+    isUploading,
+    isDownloading,
+    error,
+    setIsUploading,
+    setIsDownloading,
+    listBackups,
+    deleteBackup,
+    getQuota,
+  };
 }

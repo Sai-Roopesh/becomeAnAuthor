@@ -10,6 +10,11 @@ import { ErrorBoundary } from "@/features/shared/components";
 import { BackupCenterDialog } from "@/features/data-management";
 import { CreateSeriesDialog, SeriesList } from "@/features/series";
 import {
+  useGoogleAuth,
+  InlineGoogleAuth,
+  DriveBackupBrowser,
+} from "@/features/google-drive";
+import {
   listDeletedSeries,
   permanentlyDeleteDeletedSeries,
   restoreDeletedSeries,
@@ -27,6 +32,7 @@ export default function Dashboard() {
     error: openProjectError,
   } = useOpenProject();
   const projectRepo = useProjectRepository();
+  const googleAuth = useGoogleAuth();
   const [createSeriesDialogOpen, setCreateSeriesDialogOpen] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [pendingProjectAction, setPendingProjectAction] = useState<{
@@ -39,16 +45,16 @@ export default function Dashboard() {
   } | null>(null);
   const { confirm, ConfirmationDialog } = useConfirmation();
 
-  const trashedProjects = useLiveQuery(
+  const { data: trashedProjects } = useLiveQuery(
     () => projectRepo.listTrash(),
     [projectRepo],
-    {
-      keys: "projects",
-    },
+    "projects",
   );
-  const deletedSeries = useLiveQuery(() => listDeletedSeries(), [], {
-    keys: "series",
-  });
+  const { data: deletedSeries } = useLiveQuery(
+    () => listDeletedSeries(),
+    [],
+    "series",
+  );
 
   const handleOpenNovel = async () => {
     const project = await openFromPicker();
@@ -182,6 +188,19 @@ export default function Dashboard() {
                 Backup Center
               </Button>
             }
+            googleAuth={googleAuth}
+            renderGoogleAuthWidget={({
+              onAuthComplete,
+            }: {
+              onAuthComplete: () => void;
+            }) => <InlineGoogleAuth onAuthComplete={onAuthComplete} />}
+            renderDriveBackupBrowser={({
+              onRestore,
+            }: {
+              onRestore: (
+                result: import("@/core/tauri/commands").BackupImportResult,
+              ) => Promise<void>;
+            }) => <DriveBackupBrowser onRestore={onRestore} />}
           />
         </div>
         {openProjectError && (
@@ -241,7 +260,7 @@ export default function Dashboard() {
                         >
                           {pendingSeriesAction?.oldSeriesId ===
                             series.oldSeriesId &&
-                          pendingSeriesAction.action === "restore" ? (
+                          pendingSeriesAction?.action === "restore" ? (
                             <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                           ) : (
                             <RotateCcw className="w-4 h-4 mr-1" />
@@ -263,7 +282,7 @@ export default function Dashboard() {
                         >
                           {pendingSeriesAction?.oldSeriesId ===
                             series.oldSeriesId &&
-                          pendingSeriesAction.action === "delete" ? (
+                          pendingSeriesAction?.action === "delete" ? (
                             <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                           ) : (
                             <Trash2 className="w-4 h-4 mr-1" />
@@ -305,7 +324,7 @@ export default function Dashboard() {
                         >
                           {pendingProjectAction?.trashPath ===
                             project.trashPath &&
-                          pendingProjectAction.action === "restore" ? (
+                          pendingProjectAction?.action === "restore" ? (
                             <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                           ) : (
                             <RotateCcw className="w-4 h-4 mr-1" />
@@ -327,7 +346,7 @@ export default function Dashboard() {
                         >
                           {pendingProjectAction?.trashPath ===
                             project.trashPath &&
-                          pendingProjectAction.action === "delete" ? (
+                          pendingProjectAction?.action === "delete" ? (
                             <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                           ) : (
                             <Trash2 className="w-4 h-4 mr-1" />

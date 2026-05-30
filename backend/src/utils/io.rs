@@ -1,7 +1,5 @@
 // I/O utilities
 
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -14,12 +12,17 @@ fn now_nanos() -> u128 {
         .unwrap_or(0)
 }
 
-/// Atomic write with durability best-effort:
+/// Atomic text write with durability best-effort. See [`atomic_write_bytes`].
+pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
+    atomic_write_bytes(path, content.as_bytes())
+}
+
+/// Atomic byte write with durability best-effort:
 /// 1) writes to a temporary file in the same directory
 /// 2) fsyncs the file
 /// 3) renames into place
 /// 4) fsyncs the parent directory (where supported)
-pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
+pub fn atomic_write_bytes(path: &Path, content: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()
         .ok_or_else(|| format!("Invalid target path: {}", path.display()))?;
@@ -49,7 +52,7 @@ pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
                 e
             )
         })?;
-    file.write_all(content.as_bytes())
+    file.write_all(content)
         .map_err(|e| format!("Failed to write temp file '{}': {}", temp_path.display(), e))?;
     file.sync_all()
         .map_err(|e| format!("Failed to sync temp file '{}': {}", temp_path.display(), e))?;
@@ -69,39 +72,4 @@ pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
     }
 
     Ok(())
-}
-
-pub fn read_json_file<T>(path: &Path, label: &str) -> Result<T, String>
-where
-    T: DeserializeOwned,
-{
-    let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read {} at '{}': {}", label, path.display(), e))?;
-    serde_json::from_str::<T>(&content).map_err(|e| {
-        format!(
-            "Failed to parse {} JSON at '{}': {}",
-            label,
-            path.display(),
-            e
-        )
-    })
-}
-
-pub fn read_json_file_if_exists<T>(path: &Path, label: &str) -> Result<Vec<T>, String>
-where
-    T: DeserializeOwned,
-{
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    read_json_file(path, label)
-}
-
-pub fn write_json_file<T>(path: &Path, value: &T, label: &str) -> Result<(), String>
-where
-    T: Serialize + ?Sized,
-{
-    let json = serde_json::to_string_pretty(value)
-        .map_err(|e| format!("Failed to serialize {}: {}", label, e))?;
-    atomic_write(path, &json)
 }

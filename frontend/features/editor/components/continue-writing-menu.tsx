@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sparkles, Wand2, BookOpen, Settings2, Brain } from "lucide-react";
 import { TweakGenerateDialog, GenerateOptions } from "./tweak-generate-dialog";
-import { ModelSelector } from "@/features/ai/components/model-selector";
+import { ModelSelector } from "@/features/ai";
 import {
   APP_PREF_KEYS,
   getAppPreference,

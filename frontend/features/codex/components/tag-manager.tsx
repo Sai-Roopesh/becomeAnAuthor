@@ -46,12 +46,12 @@ export function TagManager({ seriesId, entryId }: TagManagerProps) {
   });
 
   // ✅ Repository hooks + live queries
-  const allTags = useLiveQuery(
+  const { data: allTags } = useLiveQuery(
     () => tagRepo.getByProject(seriesId),
     [seriesId],
   );
 
-  const entryTags = useLiveQuery(
+  const { data: entryTags } = useLiveQuery(
     () => tagRepo.getTagsByEntry(entryId),
     [entryId],
   );

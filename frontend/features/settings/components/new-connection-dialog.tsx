@@ -24,7 +24,7 @@ import {
   validateApiKey,
   connectionRequiresApiKey,
 } from "@/lib/config/ai-vendors";
-import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import { parseModelIds } from "@/lib/ai/model-ids";
 import { Loader2, Eye, EyeOff, Check } from "lucide-react";
 import { VendorLogo } from "@/features/shared/components/VendorLogo";
@@ -50,6 +50,7 @@ export function NewConnectionDialog({
   onClose,
   onSave,
 }: NewConnectionDialogProps) {
+  const { modelDiscoveryService } = useAppServices();
   const [selectedProvider, setSelectedProvider] = useState<AIProvider | null>(
     null,
   );

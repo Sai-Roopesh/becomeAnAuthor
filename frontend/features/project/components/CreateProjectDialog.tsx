@@ -123,15 +123,15 @@ export function CreateProjectDialog({
   const seriesRepo = useSeriesRepository();
   const isSeriesLocked = Boolean(lockedSeriesId);
 
-  const existingSeries = useLiveQuery(() => seriesRepo.getAll(), [seriesRepo], {
-    keys: ["series", "projects"],
-  });
-  const existingProjects = useLiveQuery(
+  const { data: existingSeries } = useLiveQuery(
+    () => seriesRepo.getAll(),
+    [seriesRepo],
+    ["series", "projects"],
+  );
+  const { data: existingProjects } = useLiveQuery(
     () => projectRepo.getAll(),
     [projectRepo],
-    {
-      keys: "projects",
-    },
+    "projects",
   );
 
   const [advancedOpen, setAdvancedOpen] = useState(false);

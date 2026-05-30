@@ -3,14 +3,13 @@
  *
  * Routes DOCX/PDF export through the shared ExportConfigV2 pipeline.
  */
-import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 import {
   DEFAULT_EXPORT_CONFIG,
   type ExportConfigV2,
   withExportDefaults,
 } from "@/domain/types/export-types";
-import { showSaveDialog } from "@/core/tauri/commands";
+import { showSaveDialog, writeExportFile } from "@/core/tauri/commands";
 import { logger } from "@/shared/utils/logger";
 import { toast } from "@/shared/utils/toast-service";
 import { useAppServices } from "@/infrastructure/di/AppContext";
@@ -71,7 +70,7 @@ export function useDocumentExport() {
         id: progressToastId,
       });
       await withTimeout(
-        invoke("write_export_file", { filePath: savePath, data }),
+        writeExportFile(savePath, data),
         120000,
         "File save timed out",
       );

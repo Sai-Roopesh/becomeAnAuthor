@@ -5,7 +5,7 @@
  * Desktop-only (Tauri): system-browser loopback OAuth via backend commands.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import { GOOGLE_CONFIG } from "@/lib/config/constants";
 import { GoogleUser } from "@/domain/entities/types";
 import { logger } from "@/shared/utils/logger";

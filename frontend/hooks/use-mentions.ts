@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { Mention } from "@/domain/entities/types";
-import { getMentionRepository } from "@/infrastructure/repositories/TauriMentionRepository";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import { useProjectStore } from "@/store/use-project-store";
 import { logger } from "@/shared/utils/logger";
 
@@ -21,6 +21,7 @@ export function useMentions(codexEntryId: string) {
   const [error, setError] = useState<string | null>(null);
 
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
+  const { mentionRepository } = useAppServices();
 
   const refresh = useCallback(async () => {
     if (!activeProjectId || !codexEntryId) {
@@ -34,7 +35,7 @@ export function useMentions(codexEntryId: string) {
     setError(null);
 
     try {
-      const repo = getMentionRepository();
+      const repo = mentionRepository;
       const [mentionsList, mentionCount] = await Promise.all([
         repo.getByCodexEntry(activeProjectId, codexEntryId),
         repo.countByCodexEntry(activeProjectId, codexEntryId),
@@ -50,7 +51,7 @@ export function useMentions(codexEntryId: string) {
     } finally {
       setLoading(false);
     }
-  }, [activeProjectId, codexEntryId]);
+  }, [activeProjectId, codexEntryId, mentionRepository]);
 
   // Load mentions on mount and when dependencies change
   useEffect(() => {

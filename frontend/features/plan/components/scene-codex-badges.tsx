@@ -66,13 +66,13 @@ export function SceneCodexBadges({
     useAppServices();
 
   // Get all links for this scene
-  const links = useLiveQuery(
+  const { data: links } = useLiveQuery(
     () => linkRepo.getByScene(sceneId),
     [sceneId, linkRepo],
   );
 
   // Get codex entries for the linked IDs (series-level)
-  const entries = useLiveQuery(async () => {
+  const { data: entries } = useLiveQuery(async () => {
     if (!links || links.length === 0) return [];
     const codexIds = links.map((l) => l.codexId);
     const allEntries = await codexRepo.getBySeries(seriesId);

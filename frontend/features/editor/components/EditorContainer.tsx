@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useProjectStore } from "@/store/use-project-store";
 import { useFormatStore } from "@/store/use-format-store";
 import { useLiveQuery } from "@/hooks/use-live-query";
@@ -13,18 +13,43 @@ import { MobileLayout } from "./editor-layout/MobileLayout";
 import { DesktopLayout } from "./editor-layout/DesktopLayout";
 import { ErrorBoundary } from "@/features/shared/components";
 // Import slot components at app/feature boundary level
-import { ProjectNavigation } from "@/features/navigation/components/ProjectNavigation";
-import { SnippetEditor } from "@/features/snippets/components/snippet-editor";
-import { SnippetList } from "@/features/snippets/components/snippet-list";
-import { CodexList } from "@/features/codex/components/codex-list";
+import { ProjectNavigation } from "@/features/navigation";
+import { SnippetEditor, SnippetList } from "@/features/snippets";
+import { CodexList } from "@/features/codex";
 import { NodeActionsMenu } from "@/features/editor/components/NodeActionsMenu";
+
+import type {
+  CollaborationStatus,
+  CollaborationPeer,
+} from "@/domain/entities/types";
+
+type CollaborationPanelProps = {
+  status: CollaborationStatus;
+  peers: CollaborationPeer[];
+  roomId: string;
+  enabled: boolean;
+  isJoinedRoom: boolean;
+  onToggle: (enabled: boolean) => void;
+  onJoinRoom: (roomId: string) => void;
+  onLeaveRoom: () => void;
+};
+
+interface EditorContainerProps {
+  projectId: string;
+  renderCollaborationPanel?:
+    | ((props: CollaborationPanelProps) => ReactNode)
+    | undefined;
+}
 
 /**
  * EditorContainer - Refactored
  * Main orchestrator for the editor with responsive layout switching.
  * Series-first: fetches project to get seriesId for editor features
  */
-export function EditorContainer({ projectId }: { projectId: string }) {
+export function EditorContainer({
+  projectId,
+  renderCollaborationPanel,
+}: EditorContainerProps) {
   const {
     activeSceneId,
     showSidebar,
@@ -46,17 +71,17 @@ export function EditorContainer({ projectId }: { projectId: string }) {
   const { editorWordCount, handleWordCountUpdate } = useEditorState();
 
   // Fetch project to get seriesId
-  const project = useLiveQuery(
+  const { data: project } = useLiveQuery(
     () => projectRepo.get(projectId),
     [projectId, projectRepo],
   );
 
-  const activeScene = useLiveQuery(
+  const { data: activeScene } = useLiveQuery(
     async () => (activeSceneId ? await nodeRepo.get(activeSceneId) : undefined),
     [activeSceneId, nodeRepo],
   );
 
-  const pinnedSnippets = useLiveQuery(
+  const { data: pinnedSnippets } = useLiveQuery(
     () => snippetRepo.getPinned(projectId),
     [projectId, snippetRepo],
   );
@@ -161,6 +186,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
           editorWordCount={editorWordCount}
           onWordCountChange={handleWordCountUpdate}
           onExitFocusMode={toggleFocusMode}
+          renderCollaborationPanel={renderCollaborationPanel}
         />
       </ErrorBoundary>
     );
@@ -185,6 +211,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
           onCloseSnippet={handleCloseSnippet}
           renderSidebar={renderSidebar}
           renderSnippetEditor={renderSnippetEditor}
+          renderCollaborationPanel={renderCollaborationPanel}
         />
       </ErrorBoundary>
     );
@@ -211,6 +238,7 @@ export function EditorContainer({ projectId }: { projectId: string }) {
         onCloseSnippet={handleCloseSnippet}
         renderSidebar={renderSidebar}
         renderSnippetEditor={renderSnippetEditor}
+        renderCollaborationPanel={renderCollaborationPanel}
       />
     </ErrorBoundary>
   );

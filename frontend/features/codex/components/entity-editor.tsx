@@ -47,13 +47,13 @@ export function EntityEditor({
 }: EntityEditorProps) {
   const codexRepo = useCodexRepository();
   const templateRepo = useCodexTemplateRepository();
-  const entity = useLiveQuery(
+  const { data: entity } = useLiveQuery(
     () => codexRepo.get(seriesId, entityId),
     [seriesId, entityId],
   );
 
   // Load template if entity has one
-  const template = useLiveQuery(
+  const { data: template } = useLiveQuery(
     () =>
       entity?.templateId
         ? templateRepo.get(entity.templateId)

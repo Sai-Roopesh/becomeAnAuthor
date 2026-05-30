@@ -6,7 +6,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { googleAuthService } from "@/infrastructure/services/google-auth-service";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import { GoogleUser } from "@/domain/entities/types";
 import { logger } from "@/shared/utils/logger";
 
@@ -16,31 +16,35 @@ export function useGoogleAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<GoogleUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { googleAuthService } = useAppServices();
 
-  const refreshAuth = useCallback(async (showLoading = false) => {
-    if (showLoading) {
-      setIsLoading(true);
-    }
-    try {
-      const authenticated = await googleAuthService.isAuthenticated();
-      setIsAuthenticated(authenticated);
-
-      if (authenticated) {
-        const userInfo = await googleAuthService.getUserInfo();
-        setUser(userInfo);
-      } else {
-        setUser(null);
-      }
-    } catch (error) {
-      log.error("Failed to refresh auth state:", error);
-      setIsAuthenticated(false);
-      setUser(null);
-    } finally {
+  const refreshAuth = useCallback(
+    async (showLoading = false) => {
       if (showLoading) {
-        setIsLoading(false);
+        setIsLoading(true);
       }
-    }
-  }, []);
+      try {
+        const authenticated = await googleAuthService.isAuthenticated();
+        setIsAuthenticated(authenticated);
+
+        if (authenticated) {
+          const userInfo = await googleAuthService.getUserInfo();
+          setUser(userInfo);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        log.error("Failed to refresh auth state:", error);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        if (showLoading) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [googleAuthService],
+  );
 
   useEffect(() => {
     void refreshAuth(true);
@@ -48,7 +52,7 @@ export function useGoogleAuth() {
       void refreshAuth(false);
     });
     return unsubscribe;
-  }, [refreshAuth]);
+  }, [refreshAuth, googleAuthService]);
 
   const signIn = async () => {
     try {

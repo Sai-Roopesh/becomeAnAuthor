@@ -10,15 +10,22 @@ import {
   saveCodexTemplate,
   deleteCodexTemplate,
 } from "@/core/tauri";
-import { requireCurrentProjectPath } from "@/core/project-path";
+import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
-import { toAppError } from "@/shared/errors/app-error";
+import { AppError, toAppError } from "@/shared/errors/app-error";
+import { useProjectStore } from "@/store/use-project-store";
 
 const log = logger.scope("TauriCodexTemplateRepository");
 
 export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
   private requireProjectPath(): string {
-    return requireCurrentProjectPath();
+    const path = useProjectStore.getState().activeProjectPath;
+    if (!path) {
+      throw new AppError("E_PROJECT_NOT_OPEN", "No project is currently open", {
+        recoverable: true,
+      });
+    }
+    return path;
   }
 
   async get(id: string): Promise<CodexTemplate | undefined> {
@@ -98,6 +105,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
 
     try {
       await saveCodexTemplate(projectPath, newTemplate);
+      invalidateQueries("codex");
       return newTemplate;
     } catch (error) {
       log.error("Failed to create codex template:", error);
@@ -118,6 +126,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
     const updated = { ...existing, ...data };
     try {
       await saveCodexTemplate(projectPath, updated);
+      invalidateQueries("codex");
     } catch (error) {
       log.error("Failed to update codex template:", error);
       throw toAppError(
@@ -133,6 +142,7 @@ export class TauriCodexTemplateRepository implements ICodexTemplateRepository {
 
     try {
       await deleteCodexTemplate(projectPath, id);
+      invalidateQueries("codex");
     } catch (error) {
       log.error("Failed to delete codex template:", error);
       throw toAppError(

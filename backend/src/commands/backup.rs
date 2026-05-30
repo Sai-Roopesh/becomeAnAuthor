@@ -23,8 +23,8 @@ use crate::models::{
     ChatMessage, ChatThread, CodexEntry, CodexEntryTag, CodexRelation, CodexRelationType, CodexTag,
     CodexTemplate, ProjectMeta, SceneCodexLink, SceneNote, Series, Snippet, StructureNode,
 };
-use crate::storage::open_app_db;
-use crate::utils::{get_app_dir, slugify, validate_no_null_bytes};
+use crate::storage::{open_app_db, with_transaction};
+use crate::utils::{atomic_write_bytes, get_app_dir, slugify, validate_no_null_bytes};
 
 const PACKAGE_EXTENSION: &str = "baa";
 const MANIFEST_VERSION: i32 = 1;
@@ -2471,32 +2471,40 @@ fn import_series_package_payload(prepared: &PreparedPackage) -> Result<BackupImp
         .as_ref()
         .ok_or("Series package extraction did not provide filesystem payload")?;
 
-    let mut imported_project_ids = Vec::new();
-    let mut project_id_map: HashMap<String, String> = HashMap::new();
-    let mut scene_id_map: HashMap<String, String> = HashMap::new();
+    // Wrap the full series import sequence in a transaction so that partial
+    // failures leave the app DB in a clean state. Note: calls that re-open the
+    // DB (save_structure, create_chat_thread, etc.) operate on separate
+    // connections and are not covered by this transaction.
+    let (imported_project_ids, created_series_id) = with_transaction(&app_conn, |app_conn| {
+        let mut imported_project_ids = Vec::new();
+        let mut project_id_map: HashMap<String, String> = HashMap::new();
+        let mut scene_id_map: HashMap<String, String> = HashMap::new();
 
-    for seed in projects {
-        let (cloned_project, remapped_scene_ids) =
-            import_project_payload(&payload_conn, &app_conn, fs_root, &seed, &created_series.id)?;
-        imported_project_ids.push(cloned_project.id.clone());
-        project_id_map.insert(seed.id, cloned_project.id);
-        for (old_scene_id, new_scene_id) in remapped_scene_ids {
-            scene_id_map.insert(old_scene_id, new_scene_id);
+        for seed in &projects {
+            let (cloned_project, remapped_scene_ids) =
+                import_project_payload(&payload_conn, app_conn, fs_root, seed, &created_series.id)?;
+            imported_project_ids.push(cloned_project.id.clone());
+            project_id_map.insert(seed.id.clone(), cloned_project.id);
+            for (old_scene_id, new_scene_id) in remapped_scene_ids {
+                scene_id_map.insert(old_scene_id, new_scene_id);
+            }
         }
-    }
 
-    import_codex_graph(
-        &payload_conn,
-        &app_conn,
-        &seed_series.id,
-        &created_series.id,
-        &project_id_map,
-        &scene_id_map,
-    )?;
+        import_codex_graph(
+            &payload_conn,
+            app_conn,
+            &seed_series.id,
+            &created_series.id,
+            &project_id_map,
+            &scene_id_map,
+        )?;
+
+        Ok((imported_project_ids, created_series.id.clone()))
+    })?;
 
     Ok(BackupImportResult {
         kind: BackupPackageKind::SeriesPackage,
-        imported_series_id: Some(created_series.id),
+        imported_series_id: Some(created_series_id),
         imported_project_ids,
         replaced_app_data: false,
         checkpoint_path: None,
@@ -2550,25 +2558,33 @@ fn import_novel_package_payload(
         .as_ref()
         .ok_or("Novel package extraction did not provide filesystem payload")?;
 
-    let (cloned_project, scene_map) =
-        import_project_payload(&payload_conn, &app_conn, fs_root, &seed, &target_series_id)?;
+    // Wrap the novel import sequence in a transaction so that partial failures
+    // leave the app DB in a clean state. Note: calls that re-open the DB
+    // (save_structure, create_chat_thread, etc.) operate on separate connections
+    // and are not covered by this transaction.
+    let (imported_project_id, target_series_id) = with_transaction(&app_conn, |app_conn| {
+        let (cloned_project, scene_map) =
+            import_project_payload(&payload_conn, app_conn, fs_root, &seed, &target_series_id)?;
 
-    let mut project_map = HashMap::new();
-    project_map.insert(seed.id.clone(), cloned_project.id.clone());
+        let mut project_map = HashMap::new();
+        project_map.insert(seed.id.clone(), cloned_project.id.clone());
 
-    import_codex_graph(
-        &payload_conn,
-        &app_conn,
-        &seed.series_id,
-        &target_series_id,
-        &project_map,
-        &scene_map,
-    )?;
+        import_codex_graph(
+            &payload_conn,
+            app_conn,
+            &seed.series_id,
+            &target_series_id,
+            &project_map,
+            &scene_map,
+        )?;
+
+        Ok((cloned_project.id, target_series_id.clone()))
+    })?;
 
     Ok(BackupImportResult {
         kind: BackupPackageKind::NovelPackage,
         imported_series_id: Some(target_series_id),
-        imported_project_ids: vec![cloned_project.id],
+        imported_project_ids: vec![imported_project_id],
         replaced_app_data: false,
         checkpoint_path: None,
         requires_relaunch: false,
@@ -2737,13 +2753,27 @@ pub fn import_backup_package(
     }
 }
 
+/// Upper bound on the size the renderer may slurp through `read_file_bytes`.
+/// Generous enough for full-snapshot `.baa` packages while bounding memory use
+/// and rejecting attempts to read arbitrarily large files.
+const MAX_READ_FILE_BYTES: u64 = 4 * 1024 * 1024 * 1024; // 4 GiB
+
+/// Read a file's bytes for the renderer (e.g. to upload a `.baa` backup).
+/// The path originates from a native open dialog. We reject null bytes, refuse
+/// anything that is not a regular file (directories, devices such as
+/// `/dev/zero`), and cap the size to avoid unbounded memory allocation.
 #[tauri::command]
 pub fn read_file_bytes(file_path: String) -> Result<Vec<u8>, String> {
-    let path = PathBuf::from(file_path);
-    if !path.exists() {
-        return Err("File not found".to_string());
+    validate_no_null_bytes(&file_path, "File path")?;
+    let path = PathBuf::from(&file_path);
+    let metadata = fs::metadata(&path).map_err(|_| "File not found".to_string())?;
+    if !metadata.is_file() {
+        return Err("Path is not a regular file".to_string());
     }
-    fs::read(path).map_err(|e| format!("Failed to read file bytes: {e}"))
+    if metadata.len() > MAX_READ_FILE_BYTES {
+        return Err("File exceeds maximum readable size".to_string());
+    }
+    fs::read(&path).map_err(|e| format!("Failed to read file bytes: {e}"))
 }
 
 #[tauri::command]
@@ -2787,17 +2817,16 @@ pub fn write_temp_backup_file(file_name: String, data: Vec<u8>) -> Result<String
     Ok(target.to_string_lossy().to_string())
 }
 
-/// Write export file data to the specified path
-/// Used by frontend to save generated export files to user-selected location
+/// Write export file data to a user-selected location (native save dialog).
+/// We reject null bytes in the path, refuse to clobber a directory, and write
+/// atomically (temp file + fsync + rename) so an interrupted write can never
+/// leave a partially-written export in place.
 #[tauri::command]
 pub fn write_export_file(file_path: String, data: Vec<u8>) -> Result<(), String> {
+    validate_no_null_bytes(&file_path, "File path")?;
     let path = PathBuf::from(&file_path);
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    if path.is_dir() {
+        return Err("Target path is a directory".to_string());
     }
-
-    fs::write(&path, data).map_err(|e| e.to_string())?;
-
-    Ok(())
+    atomic_write_bytes(&path, &data)
 }

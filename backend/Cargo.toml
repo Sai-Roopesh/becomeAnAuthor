@@ -46,7 +46,3 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 zip = "2.2"
 aes-gcm = "0.10"
 rand = "0.8"
-
-# Markdown parsing
-gray_matter = "0.2"
-serde_yaml = "0.9"

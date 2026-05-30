@@ -27,6 +27,8 @@ export interface ProjectStore extends ProjectStorePersistenceState {
   setViewMode: (mode: ViewMode) => void;
   activeProjectId: string | null;
   setActiveProjectId: (id: string | null) => void;
+  activeProjectPath: string | null;
+  setActiveProjectPath: (path: string | null) => void;
   activeCodexEntryId: string | null;
   setActiveCodexEntryId: (id: string | null) => void;
   // Panel visibility (collapsible)
@@ -52,6 +54,7 @@ export const useProjectStore = create<ProjectStore>()((set) => ({
   activeSceneId: null,
   viewMode: "plan",
   activeProjectId: null,
+  activeProjectPath: null,
   activeCodexEntryId: null,
   ...defaultProjectStorePersistenceState,
 
@@ -70,6 +73,8 @@ export const useProjectStore = create<ProjectStore>()((set) => ({
   },
 
   setActiveProjectId: (id) => set({ activeProjectId: id }),
+  setActiveProjectPath: (path) =>
+    set({ activeProjectPath: path?.trim() || null }),
   setActiveCodexEntryId: (id) => set({ activeCodexEntryId: id }),
 }));
 

@@ -10,28 +10,25 @@
 
 import type { ICollaborationRepository } from "@/domain/repositories/ICollaborationRepository";
 import type { YjsStateSnapshot } from "@/domain/entities/types";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/core/tauri/invoke";
 import { logger } from "@/shared/utils/logger";
-import { requireCurrentProjectPath } from "@/core/project-path";
+import { AppError } from "@/shared/errors/app-error";
 import { toAppError } from "@/shared/errors/app-error";
+import { useProjectStore } from "@/store/use-project-store";
 
 const log = logger.scope("TauriCollaborationRepository");
 
 export class TauriCollaborationRepository implements ICollaborationRepository {
-  private static instance: TauriCollaborationRepository | null = null;
-
-  private constructor() {}
-
-  static getInstance(): TauriCollaborationRepository {
-    if (!TauriCollaborationRepository.instance) {
-      TauriCollaborationRepository.instance =
-        new TauriCollaborationRepository();
-    }
-    return TauriCollaborationRepository.instance;
-  }
+  constructor() {}
 
   private requireProjectPath(): string {
-    return requireCurrentProjectPath();
+    const path = useProjectStore.getState().activeProjectPath;
+    if (!path) {
+      throw new AppError("E_PROJECT_NOT_OPEN", "No project is currently open", {
+        recoverable: true,
+      });
+    }
+    return path;
   }
 
   async saveYjsState(
@@ -134,7 +131,3 @@ export class TauriCollaborationRepository implements ICollaborationRepository {
     }
   }
 }
-
-// Export singleton instance
-export const collaborationRepository =
-  TauriCollaborationRepository.getInstance();

@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { modelDiscoveryService } from "@/infrastructure/services/ModelDiscoveryService";
+import { useAppServices } from "@/infrastructure/di/AppContext";
 import type {
   AIModel,
   ModelDiscoveryResult,
@@ -58,6 +58,7 @@ export function useModelDiscovery(
   const [models, setModels] = useState<AIModel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { modelDiscoveryService } = useAppServices();
 
   const resolveConnectionApiKey = useCallback(
     async (connection: AIConnection): Promise<string> => {
@@ -108,7 +109,7 @@ export function useModelDiscovery(
 
       return result;
     },
-    [],
+    [modelDiscoveryService],
   );
 
   /**
@@ -210,7 +211,7 @@ export function useModelDiscovery(
     log.info("Refreshing models (clearing cache)...");
     await modelDiscoveryService.clearCache();
     await fetchAllModels();
-  }, [fetchAllModels]);
+  }, [fetchAllModels, modelDiscoveryService]);
 
   // Auto-fetch on mount if enabled
   useEffect(() => {

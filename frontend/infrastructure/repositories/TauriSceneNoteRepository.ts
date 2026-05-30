@@ -6,15 +6,22 @@
 import type { ISceneNoteRepository } from "@/domain/repositories/ISceneNoteRepository";
 import type { SceneNote } from "@/domain/entities/types";
 import { getSceneNote, saveSceneNote, deleteSceneNote } from "@/core/tauri";
-import { requireCurrentProjectPath } from "@/core/project-path";
+import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
-import { toAppError } from "@/shared/errors/app-error";
+import { AppError, toAppError } from "@/shared/errors/app-error";
+import { useProjectStore } from "@/store/use-project-store";
 
 const log = logger.scope("TauriSceneNoteRepository");
 
 export class TauriSceneNoteRepository implements ISceneNoteRepository {
   private requireProjectPath(): string {
-    return requireCurrentProjectPath();
+    const path = useProjectStore.getState().activeProjectPath;
+    if (!path) {
+      throw new AppError("E_PROJECT_NOT_OPEN", "No project is currently open", {
+        recoverable: true,
+      });
+    }
+    return path;
   }
 
   async getBySceneId(sceneId: string): Promise<SceneNote | null> {
@@ -41,6 +48,7 @@ export class TauriSceneNoteRepository implements ISceneNoteRepository {
         updatedAt: Date.now(),
       };
       await saveSceneNote(projectPath, updatedNote);
+      invalidateQueries("scene-notes");
       return updatedNote;
     } catch (error) {
       log.error("Failed to save scene note:", error);
@@ -57,6 +65,7 @@ export class TauriSceneNoteRepository implements ISceneNoteRepository {
 
     try {
       await deleteSceneNote(projectPath, sceneId);
+      invalidateQueries("scene-notes");
     } catch (error) {
       log.error("Failed to delete scene note:", error);
       throw toAppError(
