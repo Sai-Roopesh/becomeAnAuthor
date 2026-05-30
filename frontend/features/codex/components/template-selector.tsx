@@ -81,7 +81,7 @@ export function TemplateSelector({
             Select a template to help structure your {category} entry.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2 max-h-scroll overflow-y-auto">
+        <div className="space-y-2 max-h-64 overflow-y-auto">
           {templates.map((template) => (
             <Button
               key={template.id}

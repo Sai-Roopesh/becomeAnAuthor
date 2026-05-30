@@ -136,16 +136,6 @@ export const tinkerInstructionSchema = z.object({
 export type TinkerInstructionFormData = z.infer<typeof tinkerInstructionSchema>;
 
 // ============================================
-// Quick Capture Schemas
-// ============================================
-
-export const quickCaptureSchema = z.object({
-  content: z.string().min(1, "Content is required"),
-});
-
-export type QuickCaptureFormData = z.infer<typeof quickCaptureSchema>;
-
-// ============================================
 // Search Schemas (for components with search)
 // ============================================
 

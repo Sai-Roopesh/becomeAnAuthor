@@ -45,7 +45,8 @@ export function ChatThread({
   renderSettingsButton,
 }: ChatThreadProps) {
   const chatRepo = useChatRepository();
-  const { setActiveThreadId } = useChatStore();
+  // L-7: Use selector to avoid re-renders from full store subscription
+  const setActiveThreadId = useChatStore((state) => state.setActiveThreadId);
   const { confirm: confirmDelete, ConfirmationDialog } = useConfirmation();
   const { projectRepository: projectRepo } = useAppServices();
 
@@ -75,9 +76,12 @@ export function ChatThread({
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
+  // H-7: Synchronous ref guard to block concurrent sends before isGenerating settles
+  const isSendingRef = useRef(false);
 
   // Data Queries
-  const { data: thread } = useLiveQuery(
+  // H-25: Capture loading flag to distinguish "loading" from "not found"
+  const { data: thread, loading: threadLoading } = useLiveQuery(
     () => chatRepo.get(threadId),
     [threadId],
   );
@@ -87,7 +91,8 @@ export function ChatThread({
   );
 
   // Fetch project to get seriesId for context assembly
-  const { data: project } = useLiveQuery(
+  // M-22: Capture loading flag to show placeholder during project load
+  const { data: project, loading: projectLoading } = useLiveQuery(
     () =>
       thread?.projectId
         ? projectRepo.get(thread.projectId)
@@ -155,206 +160,233 @@ export function ChatThread({
 
   // Handlers
   const handleSend = async (directMessage?: string) => {
-    if (thread?.deletedAt) return;
-    const messageToSend = directMessage || message;
-    if (!messageToSend.trim() || isGenerating) return;
+    // H-7: Synchronous ref check must come first — before any await —
+    // to prevent concurrent sends during the async gap before isGenerating sets.
+    if (isSendingRef.current || isGenerating) return;
+    isSendingRef.current = true;
 
-    if (!hasAIConnection) {
-      toast.error("Connect an AI provider in Settings before chatting.");
-      return;
-    }
-
-    const effectiveModel = selectedModel || settings.model;
-    if (!effectiveModel) {
-      setShowControls(true);
-      toast.error("Please select a model to start chatting.");
-      return;
-    }
-
-    // Build context from selections
-    const context: ChatContext = {};
-    selectedContexts.forEach((item) => {
-      if (item.type === "novel") context.novelText = "full";
-      if (item.type === "outline") context.novelText = "outline";
-      if (item.type === "act" && item.id) {
-        if (!context.acts) context.acts = [];
-        context.acts.push(item.id);
-      }
-      if (item.type === "chapter" && item.id) {
-        if (!context.chapters) context.chapters = [];
-        context.chapters.push(item.id);
-      }
-      if (item.type === "scene" && item.id) {
-        if (!context.scenes) context.scenes = [];
-        context.scenes.push(item.id);
-      }
-      if (item.type === "codex" && item.id) {
-        if (!context.codexEntries) context.codexEntries = [];
-        context.codexEntries.push(item.id);
-      }
-    });
-
-    // Check for existing last message to reuse (e.g. during regeneration)
-    const allMessages = await chatRepo.getMessagesByThread(threadId);
-    const lastMessage = allMessages[allMessages.length - 1];
-
-    let userMessageId = crypto.randomUUID();
-    let shouldCreateMessage = true;
-
-    if (
-      lastMessage &&
-      lastMessage.role === "user" &&
-      lastMessage.content === messageToSend.trim()
-    ) {
-      userMessageId = lastMessage.id;
-      shouldCreateMessage = false;
-      // Update existing message timestamp to now so it stays as "latest"
-      const messagePatch = {
-        timestamp: Date.now(),
-        ...(Object.keys(context).length > 0 ? { context } : {}),
-      };
-      await chatRepo.updateMessage(userMessageId, {
-        ...messagePatch,
-      });
-    }
-
-    const userMessage = {
-      id: userMessageId,
-      threadId,
-      role: "user" as const,
-      content: messageToSend.trim(),
-      ...(Object.keys(context).length > 0 && { context }),
-      timestamp: Date.now(),
-    };
-
-    setMessage("");
-    if (shouldCreateMessage) {
-      await chatRepo.createMessage(userMessage);
-    }
-
-    let aiMessageId: string | null = null;
     try {
-      const priorMessages = await chatRepo.getMessagesByThread(threadId);
-      const history = priorMessages.filter(
-        (m) =>
-          m.role !== "assistant" ||
-          (m.role === "assistant" && m.content.trim().length > 0),
-      );
-      const conversationHistory = history.filter(
-        (m) => m.timestamp < userMessage.timestamp,
-      );
+      if (thread?.deletedAt) return;
+      const messageToSend = directMessage || message;
+      if (!messageToSend.trim()) return;
 
-      const contextPack = await assembleContextPack(selectedContexts, {
-        query: messageToSend.trim(),
-        model: effectiveModel,
+      if (!hasAIConnection) {
+        toast.error("Connect an AI provider in Settings before chatting.");
+        return;
+      }
+
+      const effectiveModel = selectedModel || settings.model;
+      if (!effectiveModel) {
+        setShowControls(true);
+        toast.error("Please select a model to start chatting.");
+        return;
+      }
+
+      // Build context from selections
+      const context: ChatContext = {};
+      selectedContexts.forEach((item) => {
+        if (item.type === "novel") context.novelText = "full";
+        if (item.type === "outline") context.novelText = "outline";
+        if (item.type === "act" && item.id) {
+          if (!context.acts) context.acts = [];
+          context.acts.push(item.id);
+        }
+        if (item.type === "chapter" && item.id) {
+          if (!context.chapters) context.chapters = [];
+          context.chapters.push(item.id);
+        }
+        if (item.type === "scene" && item.id) {
+          if (!context.scenes) context.scenes = [];
+          context.scenes.push(item.id);
+        }
+        if (item.type === "codex" && item.id) {
+          if (!context.codexEntries) context.codexEntries = [];
+          context.codexEntries.push(item.id);
+        }
       });
-      const template = getPromptTemplate(selectedPromptId);
 
-      const modelMessages: AIModelMessage[] = [
-        {
-          role: "system",
-          content:
-            template?.systemPrompt || "You are a creative writing assistant.",
-        },
-      ];
+      // Check for existing last message to reuse (e.g. during regeneration)
+      const allMessages = await chatRepo.getMessagesByThread(threadId);
+      const lastMessage = allMessages[allMessages.length - 1];
 
-      if (contextPack.serialized) {
-        modelMessages.push({
-          role: "system",
-          content: [
-            "Use the evidence blocks below as authoritative project context.",
-            "Do not contradict facts from evidence blocks.",
-            "If evidence is insufficient, ask a clarifying question before inventing details.",
-            "",
-            contextPack.serialized,
-          ].join("\n"),
+      let userMessageId = crypto.randomUUID();
+      let shouldCreateMessage = true;
+
+      if (
+        lastMessage &&
+        lastMessage.role === "user" &&
+        lastMessage.content === messageToSend.trim()
+      ) {
+        userMessageId = lastMessage.id;
+        shouldCreateMessage = false;
+        // Update existing message timestamp to now so it stays as "latest"
+        const messagePatch = {
+          timestamp: Date.now(),
+          ...(Object.keys(context).length > 0 ? { context } : {}),
+        };
+        await chatRepo.updateMessage(userMessageId, {
+          ...messagePatch,
         });
       }
 
-      const rollingMemory = buildRollingMemory(conversationHistory);
-      if (rollingMemory.summaryMessage) {
-        modelMessages.push(rollingMemory.summaryMessage);
-      }
-      modelMessages.push(...rollingMemory.recentMessages);
-      modelMessages.push({ role: "user", content: messageToSend.trim() });
-
-      if (contextPack.warningMessage) {
-        toast.warning(contextPack.warningMessage);
-      }
-
-      // Create AI message placeholder for streaming
-      aiMessageId = crypto.randomUUID();
-      const aiMessage = {
-        id: aiMessageId,
+      const userMessage = {
+        id: userMessageId,
         threadId,
-        role: "assistant" as const,
-        content: "",
-        model: effectiveModel,
+        role: "user" as const,
+        content: messageToSend.trim(),
+        ...(Object.keys(context).length > 0 && { context }),
         timestamp: Date.now(),
       };
-      await chatRepo.createMessage(aiMessage);
-      setStreamingMessageId(aiMessageId);
-      setStreamingContent("");
-      const streamMessageId = aiMessageId;
 
-      // Stream the response
-      let fullText = "";
-      await generateStream(
-        {
+      setMessage("");
+      if (shouldCreateMessage) {
+        await chatRepo.createMessage(userMessage);
+      }
+
+      let aiMessageId: string | null = null;
+      // L-6: Track whether the AI placeholder was persisted before trying to update it
+      let aiMessageCreated = false;
+      try {
+        const priorMessages = await chatRepo.getMessagesByThread(threadId);
+        const history = priorMessages.filter(
+          (m) =>
+            m.role !== "assistant" ||
+            (m.role === "assistant" && m.content.trim().length > 0),
+        );
+        const conversationHistory = history.filter(
+          (m) => m.timestamp < userMessage.timestamp,
+        );
+
+        const contextPack = await assembleContextPack(selectedContexts, {
+          query: messageToSend.trim(),
           model: effectiveModel,
-          messages: modelMessages,
-          maxTokens: settings.maxTokens,
-          temperature: settings.temperature,
-          topP: settings.topP,
-          frequencyPenalty: settings.frequencyPenalty,
-          presencePenalty: settings.presencePenalty,
-        },
-        {
-          onChunk: (chunk) => {
-            if (isMountedRef.current) {
-              fullText += chunk;
-              setStreamingContent(fullText);
-            }
-          },
-          onComplete: async (completedText) => {
-            if (isMountedRef.current) {
-              await chatRepo.updateMessage(streamMessageId, {
-                content: completedText,
-              });
-              setStreamingMessageId(null);
-              setStreamingContent("");
-
-              await chatRepo.updateThread(threadId, {
-                updatedAt: Date.now(),
-                defaultModel: effectiveModel,
-              });
-            }
-          },
-          onError: async (error) => {
-            if (isMountedRef.current) {
-              await chatRepo.updateMessage(streamMessageId, {
-                content: `Error: ${error.message}`,
-              });
-              setStreamingMessageId(null);
-              setStreamingContent("");
-            }
-          },
-        },
-      );
-    } catch (error) {
-      log.error("Chat error:", error);
-      if (aiMessageId) {
-        await chatRepo.updateMessage(aiMessageId, {
-          content: `Error: ${error instanceof Error ? error.message : "Failed to generate response"}`,
         });
-      }
-      if (isMountedRef.current) {
-        setStreamingMessageId(null);
+        const template = getPromptTemplate(selectedPromptId);
+
+        const modelMessages: AIModelMessage[] = [
+          {
+            role: "system",
+            content:
+              template?.systemPrompt || "You are a creative writing assistant.",
+          },
+        ];
+
+        if (contextPack.serialized) {
+          modelMessages.push({
+            role: "system",
+            content: [
+              "Use the evidence blocks below as authoritative project context.",
+              "Do not contradict facts from evidence blocks.",
+              "If evidence is insufficient, ask a clarifying question before inventing details.",
+              "",
+              contextPack.serialized,
+            ].join("\n"),
+          });
+        }
+
+        const rollingMemory = buildRollingMemory(conversationHistory);
+        if (rollingMemory.summaryMessage) {
+          modelMessages.push(rollingMemory.summaryMessage);
+        }
+        modelMessages.push(...rollingMemory.recentMessages);
+        modelMessages.push({ role: "user", content: messageToSend.trim() });
+
+        if (contextPack.warningMessage) {
+          toast.warning(contextPack.warningMessage);
+        }
+
+        // Create AI message placeholder for streaming
+        aiMessageId = crypto.randomUUID();
+        const aiMessage = {
+          id: aiMessageId,
+          threadId,
+          role: "assistant" as const,
+          content: "",
+          model: effectiveModel,
+          timestamp: Date.now(),
+        };
+        await chatRepo.createMessage(aiMessage);
+        aiMessageCreated = true; // L-6: mark that the row exists in DB
+        setStreamingMessageId(aiMessageId);
         setStreamingContent("");
+        const streamMessageId = aiMessageId;
+
+        // Stream the response
+        let fullText = "";
+        await generateStream(
+          {
+            model: effectiveModel,
+            messages: modelMessages,
+            maxTokens: settings.maxTokens,
+            temperature: settings.temperature,
+            topP: settings.topP,
+            frequencyPenalty: settings.frequencyPenalty,
+            presencePenalty: settings.presencePenalty,
+          },
+          {
+            onChunk: (chunk) => {
+              if (isMountedRef.current) {
+                fullText += chunk;
+                setStreamingContent(fullText);
+              }
+            },
+            onComplete: async (completedText) => {
+              if (isMountedRef.current) {
+                await chatRepo.updateMessage(streamMessageId, {
+                  content: completedText,
+                });
+                setStreamingMessageId(null);
+                setStreamingContent("");
+
+                await chatRepo.updateThread(threadId, {
+                  updatedAt: Date.now(),
+                  defaultModel: effectiveModel,
+                });
+              }
+            },
+            onError: async (error) => {
+              if (isMountedRef.current) {
+                // M-4: error.partialText would arrive here if we passed it; use message content fallback
+                await chatRepo.updateMessage(streamMessageId, {
+                  content: `Error: ${error.message}`,
+                });
+                setStreamingMessageId(null);
+                setStreamingContent("");
+                // M-5: toast owned by this component, not use-ai
+                toast.error(error.message);
+              }
+            },
+            // H-5 + L-4: On cancel, delete the blank placeholder and clear streaming state
+            onCancel: async () => {
+              if (isMountedRef.current) {
+                await chatRepo.deleteMessage(streamMessageId);
+                setStreamingMessageId(null);
+                setStreamingContent("");
+              }
+            },
+          },
+        );
+      } catch (error) {
+        log.error("Chat error:", error);
+        // L-6: Only update the AI message row if it was actually created
+        if (aiMessageCreated && aiMessageId) {
+          await chatRepo.updateMessage(aiMessageId, {
+            content: `Error: ${error instanceof Error ? error.message : "Failed to generate response"}`,
+          });
+        }
+        if (isMountedRef.current) {
+          setStreamingMessageId(null);
+          setStreamingContent("");
+        }
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to generate response",
+        );
       }
-      toast.error(
-        error instanceof Error ? error.message : "Failed to generate response",
-      );
+    } finally {
+      // H-7: Always release the send lock
+      isSendingRef.current = false;
     }
   };
 
@@ -428,6 +460,18 @@ export function ChatThread({
     handleSend(suggestion);
   };
 
+  // H-25: Show skeleton while the DB query is in-flight to avoid false "not found" flash
+  if (threadLoading) {
+    return (
+      <div className="h-full flex items-center justify-center text-center text-muted-foreground p-6">
+        <div className="animate-pulse space-y-3 w-full max-w-sm">
+          <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
+          <div className="h-4 bg-muted rounded w-1/2 mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
   if (!thread) {
     return (
       <div className="h-full flex items-center justify-center text-center text-muted-foreground p-6">
@@ -470,8 +514,10 @@ export function ChatThread({
         </div>
       )}
 
-      {/* Controls Component */}
-      {project && (
+      {/* Controls Component — M-22: show pulse placeholder while project loads */}
+      {projectLoading ? (
+        <div className="h-10 animate-pulse bg-muted rounded mx-4 my-2" />
+      ) : project ? (
         <ChatControls
           projectId={thread.projectId}
           seriesId={project.seriesId}
@@ -488,7 +534,7 @@ export function ChatThread({
           showControls={showControls}
           onToggleControls={() => setShowControls(!showControls)}
         />
-      )}
+      ) : null}
 
       {/* Message List Component */}
       <ChatMessageList

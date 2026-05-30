@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
+  "description": "Default capabilities for the main window. SECURITY NOTE: shell:allow-open can open arbitrary URIs; Tauri shell plugin does not yet support URI-scheme scoping in capabilities JSON. Rust callers must validate URIs start with 'http:' or 'https:' before invoking shell::open.",
   "windows": [
     "main"
   ],
@@ -19,17 +19,28 @@
     "notification:allow-notify",
     "fs:default",
     "fs:allow-read-text-file",
-    "fs:allow-write-text-file",
-    "fs:allow-read-file",
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        { "path": "$DOCUMENT/BecomeAnAuthor/**" },
+        { "path": "$HOME/Documents/BecomeAnAuthor/**" },
+        { "path": "$APPDATA/BecomeAnAuthor/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "$DOCUMENT/**" },
+        { "path": "$HOME/Documents/**" },
+        { "path": "$APPDATA/BecomeAnAuthor/**" }
+      ]
+    },
     {
       "identifier": "fs:scope",
       "allow": [
-        {
-          "path": "$DOCUMENT/**"
-        },
-        {
-          "path": "$HOME/Documents/**"
-        }
+        { "path": "$DOCUMENT/**" },
+        { "path": "$HOME/Documents/**" },
+        { "path": "$APPDATA/BecomeAnAuthor/**" }
       ]
     },
     "shell:default",

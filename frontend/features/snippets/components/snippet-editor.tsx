@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useConfirmation } from "@/hooks/use-confirmation";
 import { useSnippetRepository } from "@/hooks/use-snippet-repository";
+import { SkeletonPanel } from "@/components/ui/skeleton-panel";
 
 export function SnippetEditor({
   snippetId,
@@ -120,7 +121,7 @@ export function SnippetEditor({
     }
   };
 
-  if (isLoading) return <div className="p-4">Loading...</div>;
+  if (isLoading) return <SkeletonPanel className="p-4" />;
 
   return (
     <div className="flex flex-col h-full bg-background border-l">

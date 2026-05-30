@@ -33,9 +33,10 @@ export const DEFAULT_MODEL_LIMITS = {
  */
 export const GOOGLE_CONFIG = {
   CLIENT_ID: process.env["NEXT_PUBLIC_GOOGLE_CLIENT_ID"] || "",
-  // Optional by default, but required if your OAuth client enforces a client secret.
-  // Used by desktop token/refresh exchange.
-  CLIENT_SECRET: process.env["NEXT_PUBLIC_GOOGLE_CLIENT_SECRET"] || "",
+  // CLIENT_SECRET must NOT be in the frontend bundle — it would be inlined by
+  // Next.js at build time and recoverable from the Tauri binary.
+  // TODO: Read the secret exclusively in the Rust backend via env!("GOOGLE_CLIENT_SECRET")
+  // and pass it through the Tauri IPC command handler, never to the frontend.
   REDIRECT_URI:
     typeof window !== "undefined"
       ? `${window.location.origin}/auth/callback`

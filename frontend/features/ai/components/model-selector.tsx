@@ -145,6 +145,12 @@ export function ModelSelector({
         </SelectTrigger>
         <SelectContent>
           <ScrollArea className="max-h-[60dvh]">
+            {/* M-6: Non-blocking warning when some providers loaded but others failed */}
+            {!isLoading && error && models.length > 0 && (
+              <div className="px-2 py-1 text-xs text-yellow-600 dark:text-yellow-400">
+                Some providers failed to load
+              </div>
+            )}
             {isLoading ? (
               <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />

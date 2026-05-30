@@ -27,3 +27,18 @@ export async function createNode(
     title,
   });
 }
+
+export async function renameNode(
+  projectPath: string,
+  nodeId: string,
+  newTitle: string,
+): Promise<void> {
+  return invoke<void>("rename_node", { projectPath, nodeId, newTitle });
+}
+
+export async function deleteNode(
+  projectPath: string,
+  nodeId: string,
+): Promise<void> {
+  return invoke<void>("delete_node", { projectPath, nodeId });
+}

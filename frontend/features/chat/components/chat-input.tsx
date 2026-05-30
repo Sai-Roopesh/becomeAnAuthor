@@ -60,8 +60,9 @@ export function ChatInput({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* L-18: Surface both shortcuts so Enter-for-newline is discoverable */}
               <span className="text-2xs text-muted-foreground hidden sm:inline-block">
-                {sendShortcut} to send
+                {sendShortcut} to send · Enter for new line
               </span>
               {isGenerating ? (
                 <Button

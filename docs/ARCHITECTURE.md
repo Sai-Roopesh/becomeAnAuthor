@@ -729,7 +729,7 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 
 1. Scene save failure → `EmergencyBackupService.saveBackup()`
 2. Missing scene metadata row → `load_scene()` falls back to `default_scene_meta()` (new-scene defaults); a corrupt metadata column surfaces as an error rather than silently discarding data
-3. Project deletion → soft delete to `.trash/` with restore (automatically restores/recreates original series if deleted)
+3. Project deletion → soft delete to app-level `Trash/` directory (tracked in SQLite `deleted_projects`; `trash.rs` was removed — all trash logic lives in `project.rs`); restore automatically recreates the original series if deleted
 4. Import failures → **Import Rollback** automatically reverts partial series imports
 5. Expired cleanup → `cleanup_emergency_backups` on startup
 6. Atomic writes → temp-file-then-rename pattern

@@ -4,6 +4,7 @@ use rusqlite::{params, OptionalExtension};
 
 use crate::models::Snippet;
 use crate::storage::open_app_db;
+use crate::utils::validate_no_null_bytes;
 
 fn project_id_for_path(conn: &rusqlite::Connection, project_path: &str) -> Result<String, String> {
     conn.query_row(
@@ -16,6 +17,7 @@ fn project_id_for_path(conn: &rusqlite::Connection, project_path: &str) -> Resul
 
 #[tauri::command]
 pub fn list_snippets(project_path: String) -> Result<Vec<Snippet>, String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
 
@@ -62,6 +64,7 @@ pub fn list_snippets(project_path: String) -> Result<Vec<Snippet>, String> {
 
 #[tauri::command]
 pub fn save_snippet(project_path: String, snippet: Snippet) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
 
@@ -105,6 +108,7 @@ pub fn save_snippet(project_path: String, snippet: Snippet) -> Result<(), String
 
 #[tauri::command]
 pub fn delete_snippet(project_path: String, snippet_id: String) -> Result<(), String> {
+    validate_no_null_bytes(&project_path, "Project path")?;
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
 

@@ -26,16 +26,21 @@ export async function saveScene(
   sceneFile: string,
   content: TiptapContent,
   title?: string,
+  wordCount: number = -1,
 ): Promise<SceneMeta> {
   if (!content || typeof content !== "object" || !("type" in content)) {
     throw new Error("Invalid Tiptap content structure");
   }
 
+  // C-3 fix: Rust save_scene expects content as a JSON String, not an object.
+  // C-4 fix: Rust save_scene requires word_count: i32; pass -1 to let Rust
+  //          resolve the word count from the serialised content itself.
   return invoke<SceneMeta>("save_scene", {
     projectPath,
     sceneFile,
-    content,
+    content: JSON.stringify(content),
     title,
+    wordCount,
   });
 }
 

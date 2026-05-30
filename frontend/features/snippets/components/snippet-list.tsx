@@ -97,7 +97,15 @@ export function SnippetList({
           <div
             key={snippet.id}
             className="group flex items-center justify-between p-2 hover:bg-accent rounded-md cursor-pointer"
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(snippet.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(snippet.id);
+              }
+            }}
           >
             <div className="flex items-center gap-2 overflow-hidden">
               <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />

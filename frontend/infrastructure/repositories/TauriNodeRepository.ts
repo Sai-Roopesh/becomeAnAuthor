@@ -20,6 +20,7 @@ import {
   deleteSceneCodexLink,
   type StructureNode,
 } from "@/core/tauri";
+import type { LoadedSceneDto } from "@/core/tauri/command-modules/types";
 import { invalidateQueries } from "@/hooks/use-live-query";
 import { AppError } from "@/shared/errors/app-error";
 import { useProjectStore } from "@/store/use-project-store";
@@ -85,22 +86,9 @@ function flattenStructure(
   return result;
 }
 
-type SceneMetaPayload = {
-  status?: string;
-  word_count?: number;
-  pov_character?: string | null;
-  subtitle?: string | null;
-  labels?: string[];
-  exclude_from_ai?: boolean;
-  summary?: string;
-  archived?: boolean;
-  created_at?: number | string;
-  updated_at?: number | string;
-};
-
-type LoadedScenePayload = SceneMetaPayload & {
-  content: unknown;
-};
+// M-17 fix: SceneMetaPayload and LoadedSceneDto were local duplicates of
+// the canonical LoadedSceneDto from @/core/tauri/command-modules/types.
+// Removed — use LoadedSceneDto directly.
 
 function toTimestamp(value: number | string | undefined): number {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -119,7 +107,7 @@ function toTimestamp(value: number | string | undefined): number {
   return Date.now();
 }
 
-function extractSceneMetadata(meta: SceneMetaPayload) {
+function extractSceneMetadata(meta: LoadedSceneDto) {
   return {
     wordCount: Number(meta.word_count ?? 0),
     status: (meta.status ?? "draft") as "draft" | "revised" | "final",
@@ -136,7 +124,7 @@ function extractSceneMetadata(meta: SceneMetaPayload) {
   };
 }
 
-function parseSceneContent(rawContent: unknown) {
+function parseSceneContent(rawContent: string | unknown) {
   try {
     if (typeof rawContent === "string") {
       return JSON.parse(rawContent);
@@ -261,7 +249,7 @@ export class TauriNodeRepository implements INodeRepository {
         const scene = (await loadScene(
           projectPath,
           tauriNode._tauriFile,
-        )) as unknown as LoadedScenePayload;
+        )) as LoadedSceneDto;
         const metadata = extractSceneMetadata(scene);
         const parsedContent = parseSceneContent(scene.content);
 
@@ -292,7 +280,7 @@ export class TauriNodeRepository implements INodeRepository {
                 projectPath,
                 sceneNode._tauriFile,
               );
-              const loaded = sceneData as unknown as LoadedScenePayload;
+              const loaded = sceneData as LoadedSceneDto;
               const metadata = extractSceneMetadata(loaded);
               const parsedContent = parseSceneContent(loaded.content);
 
@@ -388,8 +376,16 @@ export class TauriNodeRepository implements INodeRepository {
         | undefined;
 
       if (node?._tauriFile) {
-        // saveScene expects TiptapContent object, not string
-        await saveScene(projectPath, node._tauriFile, data.content, data.title);
+        // C-3/C-4 fix: pass wordCount: -1 so Rust resolves word count from
+        // the serialised content. saveScene now JSON.stringifies content
+        // internally before invoking the Tauri command.
+        await saveScene(
+          projectPath,
+          node._tauriFile,
+          data.content,
+          data.title,
+          -1,
+        );
         log.debug("Scene content saved");
       }
     }

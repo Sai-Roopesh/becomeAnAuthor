@@ -19,10 +19,14 @@ import { useSeriesRepository } from "@/hooks/use-series-repository";
 import { useConfirmation } from "@/hooks/use-confirmation";
 import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
 import { CreateProjectDialog } from "@/features/project";
+import { CreateSeriesDialog } from "@/features/series";
 import { ExportDialog } from "@/features/export";
 import { toast } from "@/shared/utils/toast-service";
+import { logger } from "@/shared/utils/logger";
 import { useProjectStore } from "@/store/use-project-store";
 import { useImportExport } from "@/hooks/use-import-export";
+
+const log = logger.scope("SeriesPage");
 
 function SeriesContent() {
   const router = useRouter();
@@ -34,6 +38,7 @@ function SeriesContent() {
   const { setActiveProjectPath } = useProjectStore();
   const { exportSeriesArchive } = useImportExport();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createSeriesDialogOpen, setCreateSeriesDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportProjectId, setExportProjectId] = useState<string | null>(null);
   const [isExportingSeries, setIsExportingSeries] = useState(false);
@@ -120,7 +125,7 @@ function SeriesContent() {
       await projectRepo.delete(projectId);
       toast.success("Project moved to Trash");
     } catch (error) {
-      console.error("Failed to delete project:", error);
+      log.error("Failed to delete project", { error: String(error) });
       toast.error("Failed to delete project. Please try again.");
     }
   };
@@ -143,7 +148,7 @@ function SeriesContent() {
       await projectRepo.update(projectId, { archived: false });
       toast.success("Novel restored");
     } catch (error) {
-      console.error("Failed to restore project:", error);
+      log.error("Failed to restore project", { error: String(error) });
       toast.error("Failed to restore project");
     }
   };
@@ -195,12 +200,10 @@ function SeriesContent() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <Link href="/">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Series
-              </Button>
-            </Link>
+            <Button onClick={() => setCreateSeriesDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Series
+            </Button>
             <Link href="/">
               <Button variant="outline" className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
@@ -389,6 +392,10 @@ function SeriesContent() {
         />
       )}
       <ConfirmationDialog />
+      <CreateSeriesDialog
+        open={createSeriesDialogOpen}
+        onOpenChange={setCreateSeriesDialogOpen}
+      />
     </div>
   );
 }

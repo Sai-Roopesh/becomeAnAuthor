@@ -11,6 +11,7 @@ import {
   type ProjectMeta,
 } from "@/core/tauri";
 import { useProjectStore } from "@/store/use-project-store";
+import { useChatStore } from "@/store/use-chat-store";
 import { logger } from "@/shared/utils/logger";
 import { toast } from "@/shared/utils/toast-service";
 
@@ -74,6 +75,12 @@ export function useOpenProject(): UseOpenProjectResult {
       // Open and validate the project
       const project = await openProject(selectedPath);
 
+      // Clear stale chat state for the previous project before switching.
+      const prevProjectId = useProjectStore.getState().activeProjectId;
+      if (prevProjectId && prevProjectId !== project.id) {
+        useChatStore.getState().clearProjectState(prevProjectId);
+      }
+
       // Use canonical backend path to keep repositories aligned even after folder moves.
       setActiveProjectPath(project.path);
 
@@ -102,6 +109,12 @@ export function useOpenProject(): UseOpenProjectResult {
       try {
         // Open and validate the project
         const project = await openProject(path);
+
+        // Clear stale chat state for the previous project before switching.
+        const prevProjectId = useProjectStore.getState().activeProjectId;
+        if (prevProjectId && prevProjectId !== project.id) {
+          useChatStore.getState().clearProjectState(prevProjectId);
+        }
 
         // Use canonical backend path to keep repositories aligned even after folder moves.
         setActiveProjectPath(project.path);

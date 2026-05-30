@@ -29,6 +29,14 @@ interface GoogleDriveErrorPayload {
   message?: string;
 }
 
+const DRIVE_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
+function validateDriveId(id: string, label: string): void {
+  if (!DRIVE_ID_PATTERN.test(id)) {
+    throw new Error(`Invalid Drive ${label}: "${id}"`);
+  }
+}
+
 class GoogleDriveService {
   private async withAccessToken<T>(
     operation: (accessToken: string) => Promise<T>,
@@ -246,9 +254,10 @@ class GoogleDriveService {
   async listBackups(): Promise<DriveFile[]> {
     return this.withAccessToken(async (accessToken) => {
       const folderId = await this.ensureAppFolder();
+      validateDriveId(folderId, "folder ID");
       const data = await this.requestJson<{ files?: GoogleDriveApiFile[] }>(
         accessToken,
-        `${DRIVE_API_BASE}/files?q='${folderId}' in parents and trashed=false&orderBy=modifiedTime desc&fields=files(id,name,mimeType,createdTime,modifiedTime,size)`,
+        `${DRIVE_API_BASE}/files?q='${encodeURIComponent(folderId)}' in parents and trashed=false&orderBy=modifiedTime desc&fields=files(id,name,mimeType,createdTime,modifiedTime,size)`,
         { method: "GET" },
         30000,
         "Failed to list backups",
@@ -265,9 +274,10 @@ class GoogleDriveService {
    */
   async downloadBackupPackage(fileId: string): Promise<Uint8Array> {
     return this.withAccessToken(async (accessToken) => {
+      validateDriveId(fileId, "file ID");
       return await this.requestBinary(
         accessToken,
-        `${DRIVE_API_BASE}/files/${fileId}?alt=media`,
+        `${DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?alt=media`,
         { method: "GET" },
         60000,
         "Failed to download backup",
@@ -280,9 +290,10 @@ class GoogleDriveService {
    */
   async deleteBackup(fileId: string): Promise<void> {
     return this.withAccessToken(async (accessToken) => {
+      validateDriveId(fileId, "file ID");
       await this.requestNoBody(
         accessToken,
-        `${DRIVE_API_BASE}/files/${fileId}`,
+        `${DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}`,
         { method: "DELETE" },
         30000,
         "Failed to delete backup",

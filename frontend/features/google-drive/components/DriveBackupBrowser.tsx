@@ -152,7 +152,7 @@ export function DriveBackupBrowser({ onRestore }: DriveBackupBrowserProps) {
         </Button>
       </div>
 
-      <div className="space-y-2 max-h-scroll overflow-y-auto">
+      <div className="space-y-2 max-h-64 overflow-y-auto">
         {backups.map((backup) => (
           <div
             key={backup.id}

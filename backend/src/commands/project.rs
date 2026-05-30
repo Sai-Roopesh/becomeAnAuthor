@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use crate::models::{ProjectMeta, StructureNode};
 use crate::storage::{open_app_db, with_transaction};
 use crate::utils::{
-    get_app_dir, get_projects_dir, slugify, timestamp, validate_project_creation,
-    validate_project_title,
+    atomic_write, get_app_dir, get_projects_dir, slugify, timestamp, validate_no_null_bytes,
+    validate_project_creation, validate_project_title,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -568,6 +568,16 @@ pub fn create_project(
     let base_dir = if custom_path.trim().is_empty() {
         get_projects_dir()?
     } else {
+        validate_no_null_bytes(&custom_path, "Custom path")?;
+        let projects_dir = get_projects_dir()?;
+        // Canonicalize the custom_path itself (falling back to the raw path if
+        // it does not yet exist on disk). The path must resolve to the projects
+        // directory or a sub-directory of it to prevent path-traversal.
+        let canonical = std::fs::canonicalize(std::path::Path::new(&custom_path))
+            .unwrap_or_else(|_| PathBuf::from(&custom_path));
+        if !canonical.starts_with(&projects_dir) {
+            return Err("[E_INVALID_PATH] Custom path must be within the projects directory".to_string());
+        }
         PathBuf::from(&custom_path)
     };
     fs::create_dir_all(&base_dir)
@@ -583,6 +593,9 @@ pub fn create_project(
     let mut project_dir = base_dir.join(&folder_name_base);
     let mut suffix = 2;
     while project_dir.exists() {
+        if suffix > 9999 {
+            return Err("[E_TOO_MANY_PROJECTS] Too many projects with the same name".to_string());
+        }
         project_dir = base_dir.join(format!("{}-{}", folder_name_base, suffix));
         suffix += 1;
     }
@@ -1046,7 +1059,7 @@ pub fn create_node(
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
         if !file_path.exists() {
-            fs::write(&file_path, "").map_err(|e| format!("Failed to create scene file: {e}"))?;
+            atomic_write(&file_path, "").map_err(|e| format!("Failed to create scene file: {e}"))?;
         }
     }
 

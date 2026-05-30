@@ -214,10 +214,29 @@ export function useModelDiscovery(
   }, [fetchAllModels, modelDiscoveryService]);
 
   // Auto-fetch on mount if enabled
+  // H-10: Guard against setState firing on an unmounted component
   useEffect(() => {
-    if (autoFetch && fetchAll) {
-      fetchAllModels();
-    }
+    if (!autoFetch || !fetchAll) return;
+
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        // fetchAllModels manages its own setIsLoading/setModels/setError,
+        // but we still need the cancelled guard to prevent post-unmount state
+        // updates when the component tears down mid-flight.
+        await fetchAllModels();
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to fetch models");
+          setIsLoading(false);
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [autoFetch, fetchAll, fetchAllModels]);
 
   return {
