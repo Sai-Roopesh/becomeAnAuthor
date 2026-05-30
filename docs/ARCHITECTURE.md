@@ -578,7 +578,7 @@ User action → assembleContext() → packContext() → generate()/stream()/obje
 
 ```
 Editor onChange → EditorStateManager.markDirty() → Debounced save
-    → SaveCoordinator.scheduleSave(sceneId) → per-scene serialize → saveSceneById() → invoke("save_scene_by_id")
+    → SaveCoordinator.scheduleSave(sceneId) → per-scene serialize → saveScene(projectId, sceneId, content, metadata, wordCount) → invoke("save_scene_by_id")
     → On failure: EmergencyBackupService.saveBackup() → release mutex
 ```
 
@@ -800,3 +800,6 @@ Yjs document state persisted via Tauri commands: `save_yjs_state`, `load_yjs_sta
 ---
 
 _This architecture document was generated from an exhaustive, file-by-file analysis of every source file in the project._
+
+## Change Log
+- **2026-05-30**: Resolves 57 bug-bash findings across the Rust backend and TypeScript frontend, focusing on React hooks fixes (`usePrompt`, `useLiveQuery`), editor autosave data loss fixes, UI/accessibility improvements, and security enhancements (path traversal prevention, OAuth secret removal, safe CSP).
