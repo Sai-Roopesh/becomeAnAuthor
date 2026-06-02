@@ -1,0 +1,3 @@
+interface:
+  display_name: "Release PR Flow (Real Tauri)"
+  short_description: "Branch->PR->merge with real release gates"

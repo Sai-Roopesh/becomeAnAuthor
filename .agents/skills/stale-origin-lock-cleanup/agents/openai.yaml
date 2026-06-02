@@ -1,0 +1,3 @@
+interface:
+  display_name: "Stale Origin Lock Cleanup"
+  short_description: "Help with Stale Origin Lock Cleanup tasks"
