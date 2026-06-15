@@ -206,7 +206,7 @@ export function ChatSidebar({
             <div
               key={thread.id}
               className={cn(
-                "group flex items-center gap-3 w-full p-3 rounded-xl border transition-all duration-200 cursor-pointer",
+                "group flex items-center gap-3 w-full p-3 rounded-xl border transition-all duration-200 cursor-pointer min-w-0",
                 activeThreadId === thread.id
                   ? "bg-primary/5 border-primary/20 shadow-sm"
                   : "bg-transparent border-transparent hover:bg-card hover:border-border/50 hover:shadow-sm",

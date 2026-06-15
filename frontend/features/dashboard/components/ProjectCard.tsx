@@ -71,7 +71,7 @@ export function ProjectCard({
           )}
         </div>
 
-        <CardContent className="p-5 relative flex-grow">
+        <CardContent className="p-5 relative flex-grow min-w-0">
           <div className="mb-1 flex items-center gap-2 text-2xs font-bold text-primary uppercase tracking-wider">
             {getSeriesLabel()}
           </div>
