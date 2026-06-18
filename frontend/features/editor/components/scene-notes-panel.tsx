@@ -168,7 +168,7 @@ export function SceneNotesPanel({
       </div>
 
       {/* Editor */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <EditorContent editor={editor} className="min-h-full" />
       </ScrollArea>
 
