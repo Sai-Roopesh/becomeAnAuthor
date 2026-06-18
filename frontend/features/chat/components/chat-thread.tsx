@@ -452,7 +452,7 @@ export function ChatThread({
     a.href = url;
     a.download = `${thread?.name || "chat"}.md`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
