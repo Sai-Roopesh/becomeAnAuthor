@@ -199,6 +199,10 @@ fn resolve_series_for_restored_project(
     conn: &Connection,
     original_series_id: &str,
 ) -> Result<String, String> {
+    if let Ok(Some(restored_id)) = crate::commands::series::restore_or_recreate_deleted_series(original_series_id) {
+        return Ok(restored_id);
+    }
+
     let exists: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM series WHERE id = ?1)",
@@ -291,10 +295,13 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+
+type FlattenedNode = (String, Option<String>, String, String, i32, Option<String>);
+
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
-    output: &mut Vec<(String, Option<String>, String, String, i32, Option<String>)>,
+    output: &mut Vec<FlattenedNode>,
 ) {
     for (index, node) in nodes.iter().enumerate() {
         let order_index = if node.order >= 0 {
