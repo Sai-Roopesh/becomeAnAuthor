@@ -48,7 +48,7 @@ export function ProjectCard({
 
   return (
     <Link href={`/project?id=${project.id}`} className="group block h-full">
-      <Card className="h-full flex flex-col overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-primary/30 group-hover:ring-1 group-hover:ring-primary/20">
+      <Card className="h-full flex flex-col min-w-0 overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-primary/30 group-hover:ring-1 group-hover:ring-primary/20">
         <div className="aspect-[1.8/1] bg-muted relative overflow-hidden">
           {project.coverImage ? (
             <img

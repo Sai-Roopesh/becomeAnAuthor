@@ -24,8 +24,8 @@ export function DashboardHeader() {
     <div className="relative mb-8 p-6 rounded-2xl bg-muted/30 border border-border/50 overflow-hidden">
       <DecorativeGrid dotSize="lg" opacity={30} />
 
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="p-2 bg-primary/10 rounded-xl">
             <BookOpen className="w-5 h-5 text-primary" />
           </div>
