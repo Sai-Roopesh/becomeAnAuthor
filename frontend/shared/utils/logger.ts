@@ -12,7 +12,6 @@
  * log.debug('Scene switched', { sceneId });
  */
 
-// LogLevel removed - unused
 
 // Note: LogContext uses 'any' intentionally - log metadata is inherently dynamic
 interface LogContext {
