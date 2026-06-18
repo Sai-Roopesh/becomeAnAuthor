@@ -78,7 +78,7 @@ export function ResearchTab({ entity, onChange }: ResearchTabProps) {
                   href={link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 text-sm text-primary hover:underline truncate"
+                  className="flex-1 text-sm text-primary hover:underline truncate min-w-0"
                 >
                   {link}
                 </a>

@@ -78,7 +78,7 @@ export function ChatHeader({
         />
       ) : (
         <h2
-          className="flex-1 font-heading font-semibold text-lg cursor-pointer hover:text-primary transition-colors truncate"
+          className="flex-1 font-heading font-semibold text-lg cursor-pointer hover:text-primary transition-colors truncate min-w-0"
           onClick={() => setIsEditing(true)}
           title="Click to rename"
         >
