@@ -209,6 +209,11 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
+
+    if let Some(restored) = crate::commands::series::restore_or_recreate_deleted_series(original_series_id)? {
+        return Ok(restored);
+    }
+
     ensure_recovery_series(conn)
 }
 
@@ -291,6 +296,7 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+#[allow(clippy::type_complexity)]
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,

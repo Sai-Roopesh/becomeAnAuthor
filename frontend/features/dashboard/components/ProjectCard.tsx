@@ -71,20 +71,20 @@ export function ProjectCard({
           )}
         </div>
 
-        <CardContent className="p-5 relative flex-grow">
-          <div className="mb-1 flex items-center gap-2 text-2xs font-bold text-primary uppercase tracking-wider">
+        <CardContent className="p-5 relative flex-grow min-w-0">
+          <div className="mb-1 flex items-center gap-2 text-2xs font-bold text-primary uppercase tracking-wider min-w-0 truncate">
             {getSeriesLabel()}
           </div>
-          <h2 className="font-heading font-bold text-xl leading-tight mb-2 group-hover:text-primary transition-colors line-clamp-2">
+          <h2 className="font-heading font-bold text-xl leading-tight mb-2 group-hover:text-primary transition-colors line-clamp-2 break-words">
             {project.title}
           </h2>
-          <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <User className="w-3 h-3" />
-            {project.author || "Unknown Author"}
+          <p className="text-sm text-muted-foreground flex items-center gap-2 min-w-0 truncate">
+            <User className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">{project.author || "Unknown Author"}</span>
           </p>
         </CardContent>
 
-        <CardFooter className="p-4 text-xs text-muted-foreground flex justify-between items-center border-t border-border/30 bg-muted/20">
+        <CardFooter className="p-4 text-xs text-muted-foreground flex justify-between items-center border-t border-border/30 bg-muted/20 min-w-0">
           <div className="flex gap-3">
             <span className="flex items-center gap-1" title="Language">
               <Globe className="w-3 h-3" />
