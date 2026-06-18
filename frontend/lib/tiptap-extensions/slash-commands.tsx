@@ -1,5 +1,9 @@
 import { Extension, Editor, type Range } from "@tiptap/core";
-import Suggestion, { type SuggestionOptions } from "@tiptap/suggestion";
+import Suggestion, {
+  type SuggestionOptions,
+  type SuggestionProps,
+  type SuggestionKeyDownProps,
+} from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 import { SlashCommandsList } from "./slash-commands-list";
@@ -173,16 +177,8 @@ export const SlashCommands = Extension.create({
           let component: ReactRenderer | null = null;
           let popup: TippyInstance[] | null = null;
 
-          interface SlashCommandProps {
-            items: SlashCommandItem[];
-            command: (item: SlashCommandItem) => void;
-            editor: Editor;
-            clientRect?: () => DOMRect;
-            event?: KeyboardEvent;
-          }
-
           return {
-            onStart: (props: SlashCommandProps) => {
+            onStart: (props: SuggestionProps<SlashCommandItem>) => {
               component = new ReactRenderer(SlashCommandsList, {
                 props: {
                   items: props.items,
@@ -194,7 +190,7 @@ export const SlashCommands = Extension.create({
               if (!props.clientRect) return;
 
               popup = tippy("body", {
-                getReferenceClientRect: props.clientRect,
+                getReferenceClientRect: props.clientRect as () => DOMRect,
                 appendTo: () => document.body,
                 content: component.element,
                 showOnCreate: true,
@@ -204,7 +200,7 @@ export const SlashCommands = Extension.create({
               });
             },
 
-            onUpdate(props: SlashCommandProps) {
+            onUpdate(props: SuggestionProps<SlashCommandItem>) {
               component?.updateProps({
                 items: props.items,
                 command: props.command,
@@ -212,12 +208,12 @@ export const SlashCommands = Extension.create({
 
               if (popup?.[0] && props.clientRect) {
                 popup[0].setProps({
-                  getReferenceClientRect: props.clientRect,
+                  getReferenceClientRect: props.clientRect as () => DOMRect,
                 });
               }
             },
 
-            onKeyDown(props: SlashCommandProps) {
+            onKeyDown(props: SuggestionKeyDownProps) {
               if (props.event?.key === "Escape") {
                 popup?.[0]?.hide();
                 return true;
