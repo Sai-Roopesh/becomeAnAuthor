@@ -127,7 +127,7 @@ export function SettingsDialog({
               </p>
             </div>
 
-            <ScrollArea className="flex-1 px-3 py-3">
+            <ScrollArea className="flex-1 min-h-0 px-3 py-3">
               <SettingsSidebarNav
                 activeTab={activeTab}
                 onTabChange={setActiveTab}

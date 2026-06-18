@@ -85,12 +85,12 @@ export function ProjectCard({
         </CardContent>
 
         <CardFooter className="p-4 text-xs text-muted-foreground flex justify-between items-center border-t border-border/30 bg-muted/20">
-          <div className="flex gap-3">
-            <span className="flex items-center gap-1" title="Language">
+          <div className="flex gap-3 min-w-0">
+            <span className="flex items-center gap-1 min-w-0 truncate" title="Language">
               <Globe className="w-3 h-3" />
               {project.language || "EN"}
             </span>
-            <span className="flex items-center gap-1" title="Last Updated">
+            <span className="flex items-center gap-1 min-w-0 truncate" title="Last Updated">
               <Clock className="w-3 h-3" />
               {new Date(project.updatedAt).toLocaleDateString()}
             </span>
