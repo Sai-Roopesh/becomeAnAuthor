@@ -16,7 +16,7 @@
     "release:gate": "bash ./scripts/release-gate.sh",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint frontend app --ext .ts,.tsx",
+    "lint": "eslint frontend app",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
