@@ -49,9 +49,7 @@ async function getTauriLog(): Promise<TauriLogPlugin | null> {
   tauriLogLoadAttempted = true;
   try {
     // Dynamic import — module may not be installed; caught below if absent.
-    const mod = await (import(
-      "@tauri-apps/plugin-log" as string
-    ) as Promise<{
+    const mod = await (import("@tauri-apps/plugin-log" as string) as Promise<{
       debug: TauriLogFn;
       info: TauriLogFn;
       warn: TauriLogFn;
