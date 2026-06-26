@@ -758,7 +758,7 @@ export function SceneLinkPanel({
                             disabled={pending}
                             onClick={() => toggleLink(entry)}
                             className={`
-                              w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors
+                              w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors min-w-0
                               ${
                                 linked
                                   ? "bg-primary/10 border border-primary/20"
