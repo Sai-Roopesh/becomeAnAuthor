@@ -413,7 +413,7 @@ export function ProjectNavigation({
                   {archivedScenes.map((scene) => (
                     <div
                       key={scene.id}
-                      className="px-3 py-2 flex items-center gap-2 text-sm"
+                      className="px-3 py-2 flex items-center gap-2 min-w-0 text-sm"
                     >
                       <span className="truncate flex-1">{scene.title}</span>
                       <Button

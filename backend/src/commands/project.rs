@@ -209,7 +209,11 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
-    ensure_recovery_series(conn)
+    if let Some(id) = crate::commands::series::restore_or_recreate_deleted_series(original_series_id)? {
+        Ok(id)
+    } else {
+        ensure_recovery_series(conn)
+    }
 }
 
 fn add_recent_entry(conn: &Connection, project_path: &str, title: &str) -> Result<(), String> {

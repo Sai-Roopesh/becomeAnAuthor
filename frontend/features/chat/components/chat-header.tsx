@@ -56,7 +56,7 @@ export function ChatHeader({
   };
 
   return (
-    <div className="sticky top-0 z-20 border-b border-border/50 p-4 flex items-center gap-3 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+    <div className="sticky top-0 z-20 border-b border-border/50 p-4 flex items-center gap-3 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 min-w-0">
       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
         <MessageSquare className="h-4 w-4" />
       </div>
