@@ -586,12 +586,14 @@ pub fn upsert_secure_secret(
     Ok(())
 }
 
+pub type RawAiConnectionPair = (Vec<u8>, Vec<u8>);
+
 pub fn get_secure_secret(
     conn: &Connection,
     namespace: &str,
     provider: &str,
     connection_id: &str,
-) -> Result<Option<(Vec<u8>, Vec<u8>)>, String> {
+) -> Result<Option<RawAiConnectionPair>, String> {
     conn.query_row(
         r#"
         SELECT nonce, ciphertext
