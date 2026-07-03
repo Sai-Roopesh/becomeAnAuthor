@@ -76,7 +76,7 @@ export interface LoadedSceneDto {
   content: string;
 }
 
-import type { SearchResult } from '@/domain/entities/ISearchRepository';
+import type { SearchResult } from "@/domain/entities/ISearchRepository";
 export type { SearchResult };
 
 export interface ProjectUpdates {
