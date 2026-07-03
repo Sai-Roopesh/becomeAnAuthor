@@ -1,19 +1,23 @@
 export interface PersistedAIConnectionDto {
   id: string;
+  name: string;
   provider: string;
-  api_key_last_four: string | null;
-  base_url: string | null;
-  is_enabled: boolean;
-  created_at: number;
-  updated_at: number;
+  customEndpoint?: string;
+  enabled: boolean;
+  models: string[];
+  createdAt: number;
+  updatedAt: number;
+  hasStoredApiKey: boolean;
 }
 
 export interface SaveAIConnectionInputDto {
-  id?: string;
+  id: string;
+  name: string;
   provider: string;
-  api_key: string | null;
-  base_url: string | null;
-  is_enabled?: boolean;
+  customEndpoint?: string;
+  enabled: boolean;
+  models?: string[];
+  apiKey?: string | null;
 }
 
 export interface IAIConnectionRepository {

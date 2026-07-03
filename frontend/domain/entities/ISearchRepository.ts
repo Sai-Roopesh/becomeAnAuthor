@@ -1,10 +1,11 @@
 export interface SearchResult {
   id: string;
-  kind: "scene" | "codex";
+  type: "scene" | "codex";
   title: string;
-  snippet: string;
-  path?: string;
-  metadata?: Record<string, unknown>;
+  snippet?: string;
+  score?: number;
+  category?: string;
+  path: string;
 }
 
 export interface ISearchRepository {
