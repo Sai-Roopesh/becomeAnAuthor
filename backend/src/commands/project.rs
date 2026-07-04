@@ -1,3 +1,4 @@
+use crate::commands::series::restore_or_recreate_deleted_series;
 // Project commands (SQLite-backed metadata + filesystem manuscript/project dirs)
 
 use rusqlite::{params, Connection, OptionalExtension};
@@ -209,7 +210,12 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
-    ensure_recovery_series(conn)
+
+    // Try to recreate deleted series first
+    match restore_or_recreate_deleted_series(original_series_id) {
+        Ok(Some(series_id)) => Ok(series_id),
+        _ => ensure_recovery_series(conn),
+    }
 }
 
 fn add_recent_entry(conn: &Connection, project_path: &str, title: &str) -> Result<(), String> {
@@ -273,7 +279,7 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
         parent_id: Option<String>,
     ) -> Vec<StructureNode> {
         let mut current = grouped.remove(&parent_id).unwrap_or_default();
-        current.sort_by(|a, b| a.order_index.cmp(&b.order_index));
+        current.sort_by_key(|a| a.order_index);
 
         current
             .into_iter()
@@ -291,10 +297,12 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+type FlattenedNode = (String, Option<String>, String, String, i32, Option<String>);
+
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
-    output: &mut Vec<(String, Option<String>, String, String, i32, Option<String>)>,
+    output: &mut Vec<FlattenedNode>,
 ) {
     for (index, node) in nodes.iter().enumerate() {
         let order_index = if node.order >= 0 {
