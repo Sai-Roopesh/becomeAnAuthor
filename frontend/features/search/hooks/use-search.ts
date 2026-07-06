@@ -1,10 +1,8 @@
 "use client";
+import type { SearchResult as BackendSearchResult } from "@/domain/entities/types";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  searchProject,
-  type SearchResult as BackendSearchResult,
-} from "@/core/tauri/commands";
+import { searchProject } from "@/core/tauri/commands";
 import { useAppServices } from "@/infrastructure/di/AppContext";
 import {
   type SearchResult,

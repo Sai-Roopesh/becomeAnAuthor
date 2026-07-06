@@ -54,10 +54,10 @@ async function getTauriLog(): Promise<TauriLogPlugin | null> {
       Record<string, unknown>
     >);
     tauriLog = {
-      debug: mod.debug as TauriLogFn,
-      info: mod.info as TauriLogFn,
-      warn: mod.warn as TauriLogFn,
-      error: mod.error as TauriLogFn,
+      debug: mod["debug"] as TauriLogFn,
+      info: mod["info"] as TauriLogFn,
+      warn: mod["warn"] as TauriLogFn,
+      error: mod["error"] as TauriLogFn,
     };
     return tauriLog;
   } catch {

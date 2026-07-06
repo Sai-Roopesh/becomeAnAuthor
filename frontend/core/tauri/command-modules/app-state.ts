@@ -1,6 +1,7 @@
 import { invoke } from "@/core/tauri/invoke";
 
 export interface PersistedAIConnectionDto {
+  isActive: boolean;
   id: string;
   name: string;
   provider: string;

@@ -196,13 +196,13 @@ fn ensure_recovery_series(conn: &Connection) -> Result<String, String> {
 }
 
 fn resolve_series_for_restored_project(
-    conn: &Connection,
+    conn: &rusqlite::Connection,
     original_series_id: &str,
 ) -> Result<String, String> {
     let exists: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM series WHERE id = ?1)",
-            params![original_series_id],
+            rusqlite::params![original_series_id],
             |row| row.get(0),
         )
         .map_err(|e| format!("Failed to check series existence: {e}"))?;
@@ -214,7 +214,7 @@ fn resolve_series_for_restored_project(
         return Ok(restored_id);
     }
 
-    ensure_recovery_series(conn)
+    crate::commands::project::ensure_recovery_series(conn)
 }
 
 fn add_recent_entry(conn: &Connection, project_path: &str, title: &str) -> Result<(), String> {
