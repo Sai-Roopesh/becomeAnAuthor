@@ -7,12 +7,15 @@
  */
 
 import type { IAIConnectionRepository } from "@/domain/entities/IAIConnectionRepository";
+import type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/types";
+import type { SaveAIConnectionInputDto as BackendSaveAIConnectionInputDto } from "@/core/tauri/command-modules/app-state";
 import {
   listAIConnectionsCommand,
   saveAIConnectionCommand,
   deleteAIConnectionCommand,
-  type PersistedAIConnectionDto,
-  type SaveAIConnectionInputDto,
 } from "@/core/tauri/command-modules/app-state";
 import { appPrefGet, appPrefSet } from "@/core/tauri/command-modules/app-state";
 import { invalidateQueries } from "@/hooks/use-live-query";
@@ -32,7 +35,12 @@ const LAST_USED_MODEL_KEY = "ai.last_used_model";
 export class TauriAIConnectionRepository implements IAIConnectionRepository {
   async list(): Promise<PersistedAIConnectionDto[]> {
     try {
-      return await listAIConnectionsCommand();
+      const backendResults = await listAIConnectionsCommand();
+      return backendResults.map((dto) => ({
+        ...dto,
+        isActive: dto.enabled,
+        ...(dto.customEndpoint ? { baseUrl: dto.customEndpoint } : {}),
+      }));
     } catch (error) {
       if (!(error instanceof TauriNotAvailableError)) {
         log.error("Failed to list AI connections:", error);
@@ -49,9 +57,22 @@ export class TauriAIConnectionRepository implements IAIConnectionRepository {
     connection: SaveAIConnectionInputDto,
   ): Promise<PersistedAIConnectionDto> {
     try {
-      const saved = await saveAIConnectionCommand(connection);
+      const backendInput = {
+        id: connection.provider, // Default to provider if missing
+        name: connection.provider,
+        provider: connection.provider,
+        enabled: connection.isActive,
+        customEndpoint: connection.baseUrl,
+        apiKey: connection.apiKey,
+      } as BackendSaveAIConnectionInputDto;
+
+      const saved = await saveAIConnectionCommand(backendInput);
       invalidateQueries(["ai-connections"]);
-      return saved;
+      return {
+        ...saved,
+        isActive: saved.enabled,
+        ...(saved.customEndpoint ? { baseUrl: saved.customEndpoint } : {}),
+      };
     } catch (error) {
       if (!(error instanceof TauriNotAvailableError)) {
         log.error("Failed to save AI connection:", error);

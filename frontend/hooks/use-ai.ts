@@ -191,6 +191,8 @@ export function useAI(options: UseAIOptions = {}) {
       }
     },
     // H-9: remove options and isGenerating from deps; read via optionsRef/inFlightRef
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [model],
   );
 
@@ -281,6 +283,8 @@ export function useAI(options: UseAIOptions = {}) {
       }
     },
     // H-9: remove options and isGenerating from deps
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [model],
   );
 
