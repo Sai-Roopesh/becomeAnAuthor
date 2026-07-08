@@ -172,12 +172,18 @@ pub(crate) fn restore_or_recreate_deleted_series(
     let restored_id = if let Some(existing_id) = existing_by_title {
         existing_id
     } else {
+        let title = record.title.clone();
+        let description = record.description.clone();
+        let author = record.author.clone();
+        let genre = record.genre.clone();
+        let status = record.status.clone();
+
         let created = create_series(
-            record.title,
-            record.description,
-            record.author,
-            record.genre,
-            record.status,
+            title,
+            description,
+            author,
+            genre,
+            status,
         )?;
         created.id
     };
