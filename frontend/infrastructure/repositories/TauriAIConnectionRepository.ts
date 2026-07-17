@@ -1,3 +1,7 @@
+import type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/IAIConnectionRepository";
 /**
  * Tauri AI Connection Repository
  * Implements IAIConnectionRepository by delegating to the Tauri AI connection
@@ -11,8 +15,6 @@ import {
   listAIConnectionsCommand,
   saveAIConnectionCommand,
   deleteAIConnectionCommand,
-  type PersistedAIConnectionDto,
-  type SaveAIConnectionInputDto,
 } from "@/core/tauri/command-modules/app-state";
 import { appPrefGet, appPrefSet } from "@/core/tauri/command-modules/app-state";
 import { invalidateQueries } from "@/hooks/use-live-query";

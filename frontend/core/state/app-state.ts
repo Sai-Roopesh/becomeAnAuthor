@@ -1,3 +1,7 @@
+import type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/IAIConnectionRepository";
 import type { AIConnection, AIProvider } from "@/lib/config/ai-vendors";
 import type { ModelDiscoveryResult } from "@/domain/services/IModelDiscoveryService";
 import {
@@ -11,8 +15,6 @@ import {
   listAIConnectionsCommand,
   saveAIConnectionCommand,
   setModelDiscoveryCacheCommand,
-  type PersistedAIConnectionDto,
-  type SaveAIConnectionInputDto,
 } from "@/core/tauri/command-modules";
 
 export const APP_PREFERENCE_UPDATED_EVENT = "app-preference-updated";
