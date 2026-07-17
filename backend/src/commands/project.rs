@@ -209,7 +209,11 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
-    ensure_recovery_series(conn)
+    if let Ok(Some(restored_id)) = crate::commands::series::restore_or_recreate_deleted_series(original_series_id) {
+        Ok(restored_id)
+    } else {
+        ensure_recovery_series(conn)
+    }
 }
 
 fn add_recent_entry(conn: &Connection, project_path: &str, title: &str) -> Result<(), String> {
@@ -291,6 +295,7 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+#[allow(clippy::type_complexity)]
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
