@@ -77,13 +77,15 @@ export function ChatHeader({
           autoFocus
         />
       ) : (
-        <h2
-          className="flex-1 font-heading font-semibold text-lg cursor-pointer hover:text-primary transition-colors truncate"
-          onClick={() => setIsEditing(true)}
-          title="Click to rename"
-        >
-          {threadName}
-        </h2>
+        <div className="flex-1 min-w-0">
+          <h2
+            className="font-heading font-semibold text-lg cursor-pointer hover:text-primary transition-colors truncate"
+            onClick={() => setIsEditing(true)}
+            title="Click to rename"
+          >
+            {threadName}
+          </h2>
+        </div>
       )}
 
       <div className="ml-auto shrink-0 flex items-center gap-1">

@@ -71,14 +71,14 @@ export function ResearchTab({ entity, onChange }: ResearchTabProps) {
             {entity.externalLinks.map((link, index) => (
               <div
                 key={index}
-                className="flex items-center gap-2 p-2 border rounded hover:bg-accent"
+                className="flex items-center gap-2 p-2 border rounded hover:bg-accent min-w-0"
               >
                 <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <a
                   href={link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 text-sm text-primary hover:underline truncate"
+                  className="flex-1 min-w-0 text-sm text-primary hover:underline truncate block"
                 >
                   {link}
                 </a>
