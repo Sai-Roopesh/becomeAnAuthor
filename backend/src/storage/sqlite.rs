@@ -586,6 +586,7 @@ pub fn upsert_secure_secret(
     Ok(())
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_secure_secret(
     conn: &Connection,
     namespace: &str,
@@ -910,6 +911,7 @@ pub fn list_ai_connection_models(
     Ok(models)
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_model_discovery_cache(
     conn: &Connection,
     provider: &str,
