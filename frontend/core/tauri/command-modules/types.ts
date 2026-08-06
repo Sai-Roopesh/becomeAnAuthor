@@ -76,15 +76,6 @@ export interface LoadedSceneDto {
   content: string;
 }
 
-export interface SearchResult {
-  id: string;
-  title: string;
-  type: "scene" | "codex";
-  snippet?: string;
-  score?: number;
-  category?: string;
-  path: string;
-}
 
 export interface ProjectUpdates {
   title?: string;
