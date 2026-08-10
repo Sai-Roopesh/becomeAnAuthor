@@ -11,3 +11,9 @@ export * from "./search";
 export * from "./export";
 export * from "./dialogs";
 export * from "./app-state";
+
+export type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/types";
+export type { SearchResult } from "@/domain/entities/types";
