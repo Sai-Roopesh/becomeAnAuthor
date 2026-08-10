@@ -1,26 +1,8 @@
 import { invoke } from "@/core/tauri/invoke";
-
-export interface PersistedAIConnectionDto {
-  id: string;
-  name: string;
-  provider: string;
-  customEndpoint?: string;
-  enabled: boolean;
-  models: string[];
-  createdAt: number;
-  updatedAt: number;
-  hasStoredApiKey: boolean;
-}
-
-export interface SaveAIConnectionInputDto {
-  id: string;
-  name: string;
-  provider: string;
-  customEndpoint?: string;
-  enabled: boolean;
-  models?: string[];
-  apiKey?: string | null;
-}
+import type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/types";
 
 export interface ModelDiscoveryCacheEntryDto {
   provider: string;
@@ -101,3 +83,7 @@ export async function clearModelDiscoveryCacheCommand(
     provider,
   });
 }
+export type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/types";
