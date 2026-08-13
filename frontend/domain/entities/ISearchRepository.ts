@@ -1,4 +1,13 @@
-import type { SearchResult } from "@/core/tauri/command-modules/types";
+export interface SearchResult {
+  title: string;
+  path: string;
+  snippet?: string;
+  matchType: "title" | "content" | "tag";
+  type: "scene" | "codex";
+  id: string;
+  score?: number;
+  category?: string;
+}
 
 export interface ISearchRepository {
   search(
