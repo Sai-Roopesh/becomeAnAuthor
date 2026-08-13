@@ -511,7 +511,7 @@ export function SceneLinkPanel({
       {children && <SheetTrigger asChild>{children}</SheetTrigger>}
       <SheetContent className="w-sheet sm:w-sheet-lg">
         <SheetHeader className="border-b">
-          <SheetTitle className="flex items-center gap-2">
+          <SheetTitle className="flex min-w-0 items-center gap-2">
             <Link2 className="h-5 w-5" />
             Link Codex Entries
           </SheetTitle>

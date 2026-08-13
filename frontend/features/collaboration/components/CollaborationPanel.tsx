@@ -171,7 +171,7 @@ export function CollaborationPanel({
             <span className="text-sm font-medium">
               {isJoinedRoom ? "Current Room ID" : "Your Room ID"}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <code className="flex-1 px-2 py-1.5 bg-muted rounded text-xs truncate font-mono">
                 {roomId}
               </code>
@@ -201,7 +201,7 @@ export function CollaborationPanel({
               className="space-y-2 pt-2 border-t"
             >
               <span className="text-sm font-medium">Join Another Room</span>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <Input
                   placeholder="Paste room ID..."
                   {...register("roomId")}
