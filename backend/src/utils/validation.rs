@@ -182,5 +182,4 @@ mod tests {
         assert!(validate_no_null_bytes("normal text", "Field").is_ok());
         assert!(validate_no_null_bytes("text\0with\0nulls", "Field").is_err());
     }
-
 }

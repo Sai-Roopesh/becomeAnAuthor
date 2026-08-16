@@ -7,3 +7,5 @@ export * from "./types";
 export * from "./ISearchRepository";
 export * from "./IAIConnectionRepository";
 export * from "./IContextAssemblyService";
+export * from "./AIConnectionDto";
+export * from "./SearchResultDto";

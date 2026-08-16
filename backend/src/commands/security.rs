@@ -75,8 +75,7 @@ fn write_master_key_file(path: &PathBuf, key: &[u8]) -> Result<(), String> {
         .map_err(|e| format!("Failed to sync master key temp file: {e}"))?;
     drop(file);
 
-    fs::rename(&temp_path, path)
-        .map_err(|e| format!("Failed to finalize master key file: {e}"))?;
+    fs::rename(&temp_path, path).map_err(|e| format!("Failed to finalize master key file: {e}"))?;
 
     // Belt-and-suspenders for platforms where the create-time mode is a no-op.
     apply_master_key_permissions(path)?;

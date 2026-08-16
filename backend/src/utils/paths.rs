@@ -11,7 +11,10 @@ fn data_channel_dir() -> String {
     if let Ok(channel) = std::env::var("BAA_DATA_CHANNEL") {
         let trimmed = channel.trim();
         if !trimmed.is_empty() {
-            if !trimmed.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '_' || c == '-') {
+            if !trimmed
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '.' || c == '_' || c == '-')
+            {
                 eprintln!("Warning: BAA_DATA_CHANNEL contains invalid characters, using default");
             } else {
                 return trimmed.to_string();
@@ -56,4 +59,3 @@ pub fn project_dir(project_path: &str) -> Result<PathBuf, String> {
     let projects_dir = get_projects_dir()?;
     Ok(projects_dir.join(project_path))
 }
-
