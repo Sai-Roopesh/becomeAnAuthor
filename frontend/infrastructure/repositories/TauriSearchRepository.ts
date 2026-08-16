@@ -5,7 +5,7 @@
  */
 
 import type { ISearchRepository } from "@/domain/entities/ISearchRepository";
-import type { SearchResult } from "@/core/tauri/command-modules/types";
+import type { SearchResult } from "@/domain/entities/SearchResultDto";
 import { searchProject } from "@/core/tauri";
 import { logger } from "@/shared/utils/logger";
 import { toAppError } from "@/shared/errors/app-error";

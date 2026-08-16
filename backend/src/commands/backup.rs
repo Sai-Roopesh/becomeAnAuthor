@@ -368,10 +368,7 @@ fn snapshot_live_db(dest: &Path) -> Result<(), String> {
     let dest_path_str = dest.to_string_lossy();
     // Path is always internally generated, never user-controlled
     validate_no_null_bytes(&dest_path_str, "Vacuum destination")?;
-    let sql = format!(
-        "VACUUM INTO '{}'",
-        escape_single_quotes(&dest_path_str)
-    );
+    let sql = format!("VACUUM INTO '{}'", escape_single_quotes(&dest_path_str));
     conn.execute_batch(&sql)
         .map_err(|e| format!("Failed to snapshot application database: {e}"))?;
     Ok(())
@@ -656,25 +653,25 @@ fn prune_novel_package_db(db_path: &Path, project_id: &str) -> Result<(), String
         &conn,
         "chat_threads",
         "project_path",
-        &[project.path.clone()],
+        std::slice::from_ref(&project.path),
     )?;
     delete_not_in_column(
         &conn,
         "chat_messages",
         "project_path",
-        &[project.path.clone()],
+        std::slice::from_ref(&project.path),
     )?;
     delete_not_in_column(
         &conn,
         "yjs_snapshots",
         "project_path",
-        &[project.path.clone()],
+        std::slice::from_ref(&project.path),
     )?;
     delete_not_in_column(
         &conn,
         "yjs_update_log",
         "project_path",
-        &[project.path.clone()],
+        std::slice::from_ref(&project.path),
     )?;
 
     conn.execute(
@@ -1551,6 +1548,7 @@ fn build_structure_tree_with_remapped_ids(
     (tree, id_map)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn upsert_scene_metadata_row(
     conn: &Connection,
     project_id: &str,
@@ -2684,10 +2682,7 @@ fn import_full_snapshot_payload(prepared: &PreparedPackage) -> Result<BackupImpo
             checkpoint_summary.path
         )
     })?;
-    if fs::metadata(&db_staging)
-        .map(|m| m.len())
-        .unwrap_or(0) == 0
-    {
+    if fs::metadata(&db_staging).map(|m| m.len()).unwrap_or(0) == 0 {
         return Err(format!(
             "Full snapshot restore aborted: staged DB '{}' is empty. Checkpoint package: {}",
             db_staging.display(),
@@ -2874,7 +2869,8 @@ pub fn write_temp_backup_file(file_name: String, data: Vec<u8>) -> Result<String
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    atomic_write_bytes(&target, &data).map_err(|e| format!("Failed writing temp backup file: {e}"))?;
+    atomic_write_bytes(&target, &data)
+        .map_err(|e| format!("Failed writing temp backup file: {e}"))?;
     Ok(target.to_string_lossy().to_string())
 }
 

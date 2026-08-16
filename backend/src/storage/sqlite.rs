@@ -399,7 +399,8 @@ pub fn with_transaction<T, F>(conn: &Connection, f: F) -> Result<T, String>
 where
     F: FnOnce(&Connection) -> Result<T, String>,
 {
-    conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
+    conn.execute_batch("BEGIN IMMEDIATE")
+        .map_err(|e| e.to_string())?;
     match f(conn) {
         Ok(val) => {
             conn.execute_batch("COMMIT").map_err(|e| e.to_string())?;
@@ -586,6 +587,7 @@ pub fn upsert_secure_secret(
     Ok(())
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_secure_secret(
     conn: &Connection,
     namespace: &str,

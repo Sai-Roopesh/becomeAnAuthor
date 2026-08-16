@@ -271,7 +271,9 @@ pub fn save_scene(
     validate_no_null_bytes(&project_path, "Project path")?;
     validate_scene_file_name(&scene_file)?;
     if content.len() as u64 > MAX_SCENE_SIZE {
-        return Err("[E_CONTENT_TOO_LARGE] Scene content exceeds maximum size of 10 MB".to_string());
+        return Err(
+            "[E_CONTENT_TOO_LARGE] Scene content exceeds maximum size of 10 MB".to_string(),
+        );
     }
     let conn = open_app_db()?;
     let project_id = project_id_for_path(&conn, &project_path)?;
