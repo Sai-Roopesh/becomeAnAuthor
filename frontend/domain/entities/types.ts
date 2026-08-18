@@ -449,12 +449,21 @@ export interface AIConnection {
 }
 
 export interface PersistedAIConnectionDto {
+  id: string;
+  name: string;
   provider: string;
-  connectionId: string;
+  customEndpoint?: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+  hasStoredApiKey: boolean;
 }
 
 export interface SaveAIConnectionInputDto {
+  id: string;
+  name: string;
   provider: string;
-  connectionId: string;
-  apiKey: string;
+  customEndpoint?: string;
+  enabled: boolean;
+  apiKey?: string;
 }
