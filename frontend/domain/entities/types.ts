@@ -430,3 +430,40 @@ export type CollaborationStatus =
   | "connecting" // Attempting to connect
   | "syncing" // Connected, syncing data
   | "synced"; // Fully synced with peers
+
+export interface SearchResult {
+  id: string;
+  title: string;
+  type: "scene" | "codex";
+  snippet?: string;
+  score?: number;
+  category?: string;
+  path: string;
+}
+
+export interface AIConnection {
+  provider: string;
+  connectionId: string;
+  apiKey: string;
+  isValid?: boolean;
+}
+
+export interface PersistedAIConnectionDto {
+  id: string;
+  name: string;
+  provider: string;
+  customEndpoint?: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+  hasStoredApiKey: boolean;
+}
+
+export interface SaveAIConnectionInputDto {
+  id: string;
+  name: string;
+  provider: string;
+  customEndpoint?: string;
+  enabled: boolean;
+  apiKey?: string;
+}
