@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
-import { SectionComponent } from "@/features/editor/components/section-component";
+import { SectionComponent } from "./section-component";
 import { SECTION_COLORS } from "@/lib/config/constants";
 import {
   DEFAULT_SCENE_SECTION_TITLE,

@@ -9,7 +9,7 @@ import { saveSceneById } from "@/core/tauri/commands";
 import { useProjectStore } from "@/store/use-project-store";
 import { toast } from "@/shared/utils/toast-service";
 import { logger } from "@/shared/utils/logger";
-import { emergencyBackupService } from "@/infrastructure/services/emergency-backup-service";
+import { emergencyBackupService } from "./emergency-backup-service";
 
 const log = logger.scope("SaveCoordinator");
 

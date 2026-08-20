@@ -25,7 +25,7 @@ export { StoryTimeline } from "./components/story-timeline";
 export { NodeActionsMenu } from "./components/NodeActionsMenu";
 
 // Editor Extensions
-export { SectionComponent } from "./components/section-component";
+export { SectionComponent } from "@/lib/tiptap-extensions/section-component";
 export { TypewriterExtension } from "./extensions/TypewriterExtension";
 
 // Hooks
