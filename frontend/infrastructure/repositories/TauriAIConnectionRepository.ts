@@ -11,9 +11,11 @@ import {
   listAIConnectionsCommand,
   saveAIConnectionCommand,
   deleteAIConnectionCommand,
-  type PersistedAIConnectionDto,
-  type SaveAIConnectionInputDto,
 } from "@/core/tauri/command-modules/app-state";
+import type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/IAIConnectionRepository";
 import { appPrefGet, appPrefSet } from "@/core/tauri/command-modules/app-state";
 import { invalidateQueries } from "@/hooks/use-live-query";
 import { logger } from "@/shared/utils/logger";
