@@ -46,7 +46,7 @@ import type { IAIConnectionRepository } from "@/domain/entities/IAIConnectionRep
 import { TauriAIConnectionRepository } from "@/infrastructure/repositories/TauriAIConnectionRepository";
 import type { IContextAssemblyService } from "@/domain/entities/IContextAssemblyService";
 import { TauriContextAssemblyService } from "@/infrastructure/services/TauriContextAssemblyService";
-import { EmergencyBackupService } from "@/infrastructure/services/emergency-backup-service";
+import { EmergencyBackupService } from "@/lib/core/emergency-backup-service";
 
 /**
  * Application-wide service container
