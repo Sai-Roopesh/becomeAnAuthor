@@ -38,6 +38,16 @@ export interface Mention {
   createdAt: number;
 }
 
+export interface SearchResult {
+  id: string;
+  title: string;
+  type: "scene" | "codex";
+  snippet?: string;
+  score?: number;
+  category?: string;
+  path: string;
+}
+
 export interface Scene extends BaseNode {
   type: "scene";
   pov?: string; // Point of view character
@@ -179,6 +189,28 @@ export interface Section {
   excludeFromAI: boolean;
   position: number; // Character position in scene
   createdAt: number;
+}
+
+export interface PersistedAIConnectionDto {
+  id: string;
+  name: string;
+  provider: string;
+  customEndpoint?: string;
+  enabled: boolean;
+  models: string[];
+  createdAt: number;
+  updatedAt: number;
+  hasStoredApiKey: boolean;
+}
+
+export interface SaveAIConnectionInputDto {
+  id: string;
+  name: string;
+  provider: string;
+  customEndpoint?: string;
+  enabled: boolean;
+  models?: string[];
+  apiKey?: string | null;
 }
 
 // Chat Interface Types
