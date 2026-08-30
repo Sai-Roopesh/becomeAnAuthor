@@ -554,7 +554,7 @@ export function SceneLinkPanel({
 
           {unlinkedMentionCandidates.length > 0 && (
             <div className="space-y-2 rounded-lg border border-amber-200/70 bg-amber-50/50 dark:bg-amber-500/5 p-3">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 min-w-0">
                 <div className="text-sm font-medium flex items-center gap-2">
                   <Lightbulb className="h-4 w-4 text-amber-500" />
                   Unlinked mentions in scene text (
@@ -780,7 +780,7 @@ export function SceneLinkPanel({
                                 <Icon className="h-3.5 w-3.5" />
                               )}
                             </div>
-                            <span className="flex-1 text-sm truncate">
+                            <span className="flex-1 min-w-0 text-sm truncate">
                               {entry.name}
                             </span>
                             {pending ? (

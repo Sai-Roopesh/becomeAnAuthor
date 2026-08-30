@@ -257,7 +257,7 @@ export function ProjectNavigation({
                 <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
               ))}
             <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="block w-0 flex-1 truncate">{node.title}</span>
+            <span className="block min-w-0 flex-1 truncate">{node.title}</span>
           </div>
 
           {/* Always show indicator, expand on hover */}
@@ -415,7 +415,7 @@ export function ProjectNavigation({
                       key={scene.id}
                       className="px-3 py-2 flex items-center gap-2 text-sm"
                     >
-                      <span className="truncate flex-1">{scene.title}</span>
+                      <span className="truncate flex-1 min-w-0">{scene.title}</span>
                       <Button
                         variant="ghost"
                         size="icon"
