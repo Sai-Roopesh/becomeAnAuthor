@@ -11,9 +11,11 @@ import {
   listAIConnectionsCommand,
   saveAIConnectionCommand,
   setModelDiscoveryCacheCommand,
-  type PersistedAIConnectionDto,
-  type SaveAIConnectionInputDto,
 } from "@/core/tauri/command-modules";
+import type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/types";
 
 export const APP_PREFERENCE_UPDATED_EVENT = "app-preference-updated";
 export const AI_CONNECTIONS_UPDATED_EVENT = "ai-connections-updated";
