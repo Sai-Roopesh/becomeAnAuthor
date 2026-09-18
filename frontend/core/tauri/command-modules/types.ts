@@ -76,15 +76,8 @@ export interface LoadedSceneDto {
   content: string;
 }
 
-export interface SearchResult {
-  id: string;
-  title: string;
-  type: "scene" | "codex";
-  snippet?: string;
-  score?: number;
-  category?: string;
-  path: string;
-}
+import type { SearchResult as DomainSearchResult } from "@/domain/entities/search";
+export type SearchResult = DomainSearchResult;
 
 export interface ProjectUpdates {
   title?: string;
