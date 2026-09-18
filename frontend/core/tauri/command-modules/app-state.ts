@@ -1,6 +1,9 @@
 import { invoke } from "@/core/tauri/invoke";
 
-import type { PersistedAIConnectionDto as DomainPersistedAIConnectionDto, SaveAIConnectionInputDto as DomainSaveAIConnectionInputDto } from "@/domain/entities/ai-connection";
+import type {
+  PersistedAIConnectionDto as DomainPersistedAIConnectionDto,
+  SaveAIConnectionInputDto as DomainSaveAIConnectionInputDto,
+} from "@/domain/entities/ai-connection";
 export type PersistedAIConnectionDto = DomainPersistedAIConnectionDto;
 
 export type SaveAIConnectionInputDto = DomainSaveAIConnectionInputDto;
