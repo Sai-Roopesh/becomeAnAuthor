@@ -1,26 +1,12 @@
 import { invoke } from "@/core/tauri/invoke";
 
-export interface PersistedAIConnectionDto {
-  id: string;
-  name: string;
-  provider: string;
-  customEndpoint?: string;
-  enabled: boolean;
-  models: string[];
-  createdAt: number;
-  updatedAt: number;
-  hasStoredApiKey: boolean;
-}
+import type {
+  PersistedAIConnectionDto as DomainPersistedAIConnectionDto,
+  SaveAIConnectionInputDto as DomainSaveAIConnectionInputDto,
+} from "@/domain/entities/ai-connection";
+export type PersistedAIConnectionDto = DomainPersistedAIConnectionDto;
 
-export interface SaveAIConnectionInputDto {
-  id: string;
-  name: string;
-  provider: string;
-  customEndpoint?: string;
-  enabled: boolean;
-  models?: string[];
-  apiKey?: string | null;
-}
+export type SaveAIConnectionInputDto = DomainSaveAIConnectionInputDto;
 
 export interface ModelDiscoveryCacheEntryDto {
   provider: string;
