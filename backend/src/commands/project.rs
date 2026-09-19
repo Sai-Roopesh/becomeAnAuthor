@@ -196,18 +196,21 @@ fn ensure_recovery_series(conn: &Connection) -> Result<String, String> {
 }
 
 fn resolve_series_for_restored_project(
-    conn: &Connection,
+    conn: &rusqlite::Connection,
     original_series_id: &str,
 ) -> Result<String, String> {
     let exists: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM series WHERE id = ?1)",
-            params![original_series_id],
+            rusqlite::params![original_series_id],
             |row| row.get(0),
         )
         .map_err(|e| format!("Failed to check series existence: {e}"))?;
     if exists {
         return Ok(original_series_id.to_string());
+    }
+    if let Ok(Some(series_id)) = crate::commands::series::restore_or_recreate_deleted_series(original_series_id) {
+        return Ok(series_id);
     }
     ensure_recovery_series(conn)
 }
@@ -291,6 +294,7 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+#[allow(clippy::type_complexity)]
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
