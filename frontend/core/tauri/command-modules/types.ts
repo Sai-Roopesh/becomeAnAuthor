@@ -76,15 +76,8 @@ export interface LoadedSceneDto {
   content: string;
 }
 
-export interface SearchResult {
-  id: string;
-  title: string;
-  type: "scene" | "codex";
-  snippet?: string;
-  score?: number;
-  category?: string;
-  path: string;
-}
+// Re-export SearchResult from domain to prevent circular dependency / pure domain violations
+export type { SearchResult } from "@/domain/entities/ISearchRepository";
 
 export interface ProjectUpdates {
   title?: string;
