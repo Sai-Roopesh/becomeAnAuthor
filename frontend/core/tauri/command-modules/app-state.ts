@@ -4,10 +4,7 @@ import type {
   PersistedAIConnectionDto,
   SaveAIConnectionInputDto,
 } from "@/domain/entities/ai-connection";
-export type {
-  PersistedAIConnectionDto,
-  SaveAIConnectionInputDto,
-};
+export type { PersistedAIConnectionDto, SaveAIConnectionInputDto };
 
 export interface ModelDiscoveryCacheEntryDto {
   provider: string;
