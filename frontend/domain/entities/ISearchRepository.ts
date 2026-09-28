@@ -1,4 +1,4 @@
-import type { SearchResult } from "@/core/tauri/command-modules/types";
+import type { SearchResult } from "./types";
 
 export interface ISearchRepository {
   search(
