@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { Toaster } from 'sonner';
+import { Toaster } from "sonner";
 
 export function ToastProvider() {
-    return (
-        <Toaster
-            richColors
-            position="bottom-right"
-            expand={true}
-            closeButton={true}
-        />
-    );
+  return (
+    <Toaster
+      richColors
+      position="bottom-right"
+      expand={true}
+      closeButton={true}
+    />
+  );
 }

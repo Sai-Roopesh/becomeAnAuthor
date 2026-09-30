@@ -8,18 +8,18 @@
  * Note: attrs uses `any` for compatibility with Tiptap's JSONContent type
  */
 export interface TiptapMark {
-    type: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    attrs?: Record<string, any>;
+  type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  attrs?: Record<string, any>;
 }
 
 /**
  * Represents a text node in Tiptap content
  */
 export interface TiptapTextNode {
-    type: 'text';
-    text: string;
-    marks?: TiptapMark[];
+  type: "text";
+  text: string;
+  marks?: TiptapMark[];
 }
 
 /**
@@ -27,12 +27,12 @@ export interface TiptapTextNode {
  * Note: attrs uses `any` for compatibility with Tiptap's JSONContent type
  */
 export interface TiptapElementNode {
-    type: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    attrs?: Record<string, any>;
-    content?: TiptapNode[];
-    marks?: TiptapMark[];
-    text?: string;
+  type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  attrs?: Record<string, any>;
+  content?: TiptapNode[];
+  marks?: TiptapMark[];
+  text?: string;
 }
 
 /**
@@ -44,8 +44,8 @@ export type TiptapNode = TiptapTextNode | TiptapElementNode;
  * Represents the root document structure
  */
 export interface TiptapContent {
-    type: 'doc';
-    content?: TiptapNode[];
+  type: "doc";
+  content?: TiptapNode[];
 }
 
 /**
@@ -57,24 +57,24 @@ export type TiptapJSON = TiptapContent;
  * Type guard to check if content is valid Tiptap JSON
  */
 export function isTiptapContent(content: unknown): content is TiptapContent {
-    return (
-        typeof content === 'object' &&
-        content !== null &&
-        'type' in content &&
-        content.type === 'doc'
-    );
+  return (
+    typeof content === "object" &&
+    content !== null &&
+    "type" in content &&
+    content.type === "doc"
+  );
 }
 
 /**
  * Type guard to check if a node is a text node
  */
 export function isTextNode(node: TiptapNode): node is TiptapTextNode {
-    return node.type === 'text';
+  return node.type === "text";
 }
 
 /**
  * Type guard to check if a node is an element node
  */
 export function isElementNode(node: TiptapNode): node is TiptapElementNode {
-    return node.type !== 'text';
+  return node.type !== "text";
 }
