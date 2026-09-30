@@ -209,6 +209,12 @@ fn resolve_series_for_restored_project(
     if exists {
         return Ok(original_series_id.to_string());
     }
+
+    // Attempt to restore or recreate the original deleted series
+    if let Ok(Some(restored_id)) = crate::commands::series::restore_or_recreate_deleted_series(original_series_id) {
+        return Ok(restored_id);
+    }
+
     ensure_recovery_series(conn)
 }
 
@@ -291,6 +297,7 @@ fn build_structure_tree(rows: Vec<StructureNodeRow>) -> Vec<StructureNode> {
     build_nodes(&mut grouped, None)
 }
 
+#[allow(clippy::type_complexity)]
 fn flatten_structure_nodes(
     nodes: &[StructureNode],
     parent_id: Option<&str>,
@@ -714,6 +721,7 @@ pub fn list_project_trash() -> Result<Vec<TrashedProject>, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::type_complexity)]
 pub fn restore_trashed_project(trash_path: String) -> Result<ProjectMeta, String> {
     let conn = open_app_db()?;
     let row = conn
