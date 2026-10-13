@@ -44,7 +44,7 @@ import { toast } from "@/shared/utils/toast-service";
 import {
   EmergencyBackupService,
   emergencyBackupService,
-} from "@/infrastructure/services/emergency-backup-service";
+} from "@/lib/services/emergency-backup-service";
 
 // ============================================
 // Specification Tests

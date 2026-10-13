@@ -54,7 +54,7 @@ vi.mock("@/lib/core/save-coordinator", () => ({
 }));
 
 const mockSaveBackup = vi.fn();
-vi.mock("@/infrastructure/services/emergency-backup-service", () => ({
+vi.mock("@/lib/services/emergency-backup-service", () => ({
   emergencyBackupService: {
     saveBackup: (...args: unknown[]) => mockSaveBackup(...args),
   },
