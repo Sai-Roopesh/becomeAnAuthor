@@ -1,5 +1,5 @@
 import { invoke } from "@/core/tauri/invoke";
-import type { SearchResult } from "./types";
+import type { SearchResult } from "@/domain/entities/types";
 
 export async function searchProject(
   projectPath: string,
