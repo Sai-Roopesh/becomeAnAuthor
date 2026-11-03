@@ -123,7 +123,7 @@ export function useLiveQuery<T>(
 
     // queryFn is intentionally excluded: callers must pass stable deps via the deps param.
     // Callers are responsible for listing all captured variables in their deps array.
-  }, [...deps, refreshKey]);
+  }, [...deps, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { data, loading, error };
 }
