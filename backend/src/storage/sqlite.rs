@@ -786,6 +786,7 @@ pub fn list_ai_connections(conn: &Connection) -> Result<Vec<AIConnectionRecord>,
     Ok(results)
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_ai_connection(
     conn: &Connection,
     connection_id: &str,
