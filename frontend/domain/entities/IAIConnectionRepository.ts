@@ -1,7 +1,4 @@
-import type {
-  PersistedAIConnectionDto,
-  SaveAIConnectionInputDto,
-} from "@/core/tauri/command-modules/app-state";
+import type { PersistedAIConnectionDto, SaveAIConnectionInputDto } from "@/domain/entities/types";
 
 export interface IAIConnectionRepository {
   list(): Promise<PersistedAIConnectionDto[]>;
