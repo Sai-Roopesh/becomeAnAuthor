@@ -1,7 +1,5 @@
 import { invoke } from "@/core/tauri/invoke";
 
-
-
 export interface ModelDiscoveryCacheEntryDto {
   provider: string;
   endpoint: string;
@@ -82,4 +80,7 @@ export async function clearModelDiscoveryCacheCommand(
   });
 }
 
-export type { PersistedAIConnectionDto, SaveAIConnectionInputDto } from "@/domain/entities/types";
+export type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/types";

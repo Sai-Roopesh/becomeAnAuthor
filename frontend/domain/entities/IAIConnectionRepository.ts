@@ -1,4 +1,7 @@
-import type { PersistedAIConnectionDto, SaveAIConnectionInputDto } from "@/domain/entities/types";
+import type {
+  PersistedAIConnectionDto,
+  SaveAIConnectionInputDto,
+} from "@/domain/entities/types";
 
 export interface IAIConnectionRepository {
   list(): Promise<PersistedAIConnectionDto[]>;

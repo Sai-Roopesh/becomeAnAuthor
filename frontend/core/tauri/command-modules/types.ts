@@ -76,7 +76,6 @@ export interface LoadedSceneDto {
   content: string;
 }
 
-
 export interface ProjectUpdates {
   title?: string;
   author?: string;
