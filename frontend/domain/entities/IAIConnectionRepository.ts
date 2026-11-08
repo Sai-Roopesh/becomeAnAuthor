@@ -1,7 +1,18 @@
-import type {
-  PersistedAIConnectionDto,
-  SaveAIConnectionInputDto,
-} from "@/core/tauri/command-modules/app-state";
+export interface PersistedAIConnectionDto {
+  id: string;
+  provider: string;
+  label: string;
+  has_secret: boolean;
+  url?: string;
+}
+
+export interface SaveAIConnectionInputDto {
+  id?: string;
+  provider: string;
+  label: string;
+  secret?: string;
+  url?: string;
+}
 
 export interface IAIConnectionRepository {
   list(): Promise<PersistedAIConnectionDto[]>;
